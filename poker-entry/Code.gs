@@ -48,8 +48,12 @@ const dayKey_ = d => Utilities.formatDate(new Date(d), Session.getScriptTimeZone
 function getSetup() {
   const book = ss_();
   const rows = inputRows_(book.getSheetByName(INPUT_TAB));
-  const counts = {};
-  rows.forEach(r => { const n = String(r[COL.player - 1]).trim(); counts[n] = (counts[n] || 0) + 1; });
+  const counts = {}, lastPlayed = {};
+  rows.forEach(r => {
+    const n = String(r[COL.player - 1]).trim(), d = dayKey_(r[COL.date - 1]);
+    counts[n] = (counts[n] || 0) + 1;
+    if (!lastPlayed[n] || d > lastPlayed[n]) lastPlayed[n] = d;
+  });
 
   const status = {};
   const members = book.getSheetByName(MEMBERS_TAB);
@@ -59,8 +63,8 @@ function getSetup() {
     });
   }
   const names = [...new Set([...Object.keys(status), ...Object.keys(counts)])];
-  const players = names.map(n => ({ name: n, status: status[n] || '', games: counts[n] || 0 }))
-    .sort((a, b) => b.games - a.games || a.name.localeCompare(b.name));
+  const players = names.map(n => ({ name: n, status: status[n] || '', games: counts[n] || 0, lastPlayed: lastPlayed[n] || '' }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   // Guess tonight's buy-in from the most recent night: the most common cash-in per buy-in
   let defaultBuyIn = 40, lastNight = null;

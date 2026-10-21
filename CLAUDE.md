@@ -87,7 +87,8 @@ then open it and confirm "Live from Google Sheets" and the row count.
 
 Apps Script web app, execute as owner, access "Only myself". Settings at top of Code.gs: `SPREADSHEET_ID`, `DISCORD_WEBHOOK_URL` (empty),
 `ENTRY_PIN` (empty), `DASHBOARD_URL` (https://renpokernight.vercel.app).
-- Pick date, buy-in amount, Cash/Tournament; tap player chips (sorted by games played, no count shown) or type a new name.
+- Pick date, buy-in amount, Cash/Tournament; tap player chips (A–Z, only players seen in the 3 months before the night's date;
+  tapped chips stay in place highlighted, tap again to remove) or type a new name.
   Typed names match existing players case-insensitively; typos become new players (no "did you mean" yet).
 - Per player: buy-ins − / + (cash in auto = buys × amount, overridable), cash out (blank = $0), note.
 - **Tournament top-up** field per player: added to Cash_In, not counted as a buy-in, note "top-up $X".
