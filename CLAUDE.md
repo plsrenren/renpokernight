@@ -85,8 +85,8 @@ then open it and confirm "Live from Google Sheets" and the row count.
 
 ## Entry page (poker-entry/)
 
-Apps Script web app, execute as owner. Settings at top of Code.gs: `SPREADSHEET_ID`, `DISCORD_WEBHOOK_URL` (empty),
-`ENTRY_PIN` (empty), `DASHBOARD_URL` (empty; should become https://renpokernight.vercel.app).
+Apps Script web app, execute as owner, access "Only myself". Settings at top of Code.gs: `SPREADSHEET_ID`, `DISCORD_WEBHOOK_URL` (empty),
+`ENTRY_PIN` (empty), `DASHBOARD_URL` (https://renpokernight.vercel.app).
 - Pick date, buy-in amount, Cash/Tournament; tap player chips (sorted by games played, no count shown) or type a new name.
   Typed names match existing players case-insensitively; typos become new players (no "did you mean" yet).
 - Per player: buy-ins − / + (cash in auto = buys × amount, overridable), cash out (blank = $0), note.
@@ -119,7 +119,7 @@ Check money logic by scripting the page (click chips, set selects, read `state` 
 
 ## Open ideas (not done)
 
-- Install the entry page in Apps Script; set `DASHBOARD_URL` and a Discord webhook.
+- Install the entry page in Apps Script (steps sent Oct 21, 2026); add a Discord webhook.
 - Player photos: add a "Photo" column to Members (Drive share links or direct image URLs), show on card/standings,
   fall back to initials. Photos would be public on the site.
 - Per-player variable buy-ins as a list of amounts (e.g. $40 + $40 + $27) instead of count × amount.

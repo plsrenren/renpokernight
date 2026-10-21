@@ -7,17 +7,21 @@ A phone-friendly page that adds one night's results to the **Input** tab of the 
 1. Open the Poker Stats Google Sheet.
 2. **Extensions → Apps Script.**
 3. In the editor, replace everything in `Code.gs` with the contents of `Code.gs` from this folder.
+   (Easiest on a computer: open the file on GitHub and use the **Copy raw file** button.)
 4. Click **+** next to Files → **HTML**, name it `Index` (exactly), and paste in `Index.html`.
 5. Optional settings at the top of `Code.gs`:
    - `DISCORD_WEBHOOK_URL`: paste your Discord webhook to get a "Post results to Discord" checkbox.
    - `ENTRY_PIN`: set a PIN if other people will use the link.
-   - `DASHBOARD_URL`: your dashboard link, added to the Discord post.
+   - `DASHBOARD_URL`: your dashboard link, added to the Discord post (already set to https://renpokernight.vercel.app).
 6. Click **Save** (disk icon).
 7. **Deploy → New deployment →** gear icon → **Web app**.
    - Execute as: **Me**
-   - Who has access: **Only myself** (or **Anyone with Google account** if others will enter results; set a PIN in that case)
+   - Who has access: **Only myself**. Only your Google account can open the page; anyone else gets a Google
+     "you need access" screen. (Pick **Anyone with Google account** only if others should enter results, and set a PIN then.)
 8. Click **Deploy**, approve the permissions Google asks for (it is your own script), and copy the **Web app URL**.
-9. Open that URL on your phone and add it to your home screen.
+9. Open that URL on your phone (signed in to the same Google account in the browser) and add it to your home screen.
+10. Check it: save a test night, confirm the rows appear at the bottom of the **Input** tab, then delete those rows.
+    The dashboard (https://renpokernight.vercel.app) picks up new rows within a minute or two.
 
 ## Using it
 

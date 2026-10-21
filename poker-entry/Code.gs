@@ -13,7 +13,7 @@ const DISCORD_WEBHOOK_URL = '';
 // Optional: a PIN people must type before saving (leave '' for none).
 const ENTRY_PIN = '';
 // Optional: link to your dashboard, added to the Discord post.
-const DASHBOARD_URL = '';
+const DASHBOARD_URL = 'https://renpokernight.vercel.app';
 
 // Input tab columns (1-based)
 const COL = { date: 1, type: 2, player: 3, cashIn: 4, buys: 5, cashOut: 6, notes: 7, pnl: 8, win: 9, quarter: 10 };
