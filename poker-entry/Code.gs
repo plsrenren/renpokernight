@@ -124,12 +124,15 @@ function saveNight(payload) {
     // Inputs (A:G)
     sheet.getRange(start, 1, n, 7).setValues(players.map(p => [date, type, p.name, p.cashIn, p.buys, p.cashOut, p.notes]));
 
-    // PnL / Win / Quarter (H:J): reuse the sheet's formulas if it has them, otherwise write values
+    // PnL / Win / Quarter (H:J): leave columns filled by an ARRAYFORMULA in row 2 alone (any value
+    // typed below it breaks the whole column with #REF!), reuse per-row formulas, otherwise write values
+    const headFormulas = sheet.getRange(2, COL.pnl, 1, 3).getFormulas()[0];
     const prevFormulas = last >= 2 ? sheet.getRange(last, COL.pnl, 1, 3).getFormulas()[0] : ['', '', ''];
     const targetFormulas = sheet.getRange(start, COL.pnl, n, 3).getFormulas();
     const computed = players.map((p, i) => [p.net, i === 0, quarter]); // Win = the night's top finisher
     for (let c = 0; c < 3; c++) {
       const col = COL.pnl + c;
+      if (/ARRAYFORMULA/i.test(headFormulas[c])) continue;
       if (prevFormulas[c]) {
         sheet.getRange(last, col).copyTo(sheet.getRange(start, col, n, 1), SpreadsheetApp.CopyPasteType.PASTE_FORMULA, false);
       } else {

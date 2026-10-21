@@ -46,8 +46,8 @@ poker-entry/
 - Event_Date `M/D/YYYY`; Game_Type `Cash` or `Tournament` (PKO nights are still `Tournament`)
 - Cash_In = total dollars in (buy-ins + rebuys + top-ups); Buy_In = count of buy-ins incl. rebuys; Cash_Out dollars
 - PnL = Cash_Out − Cash_In; Win = TRUE for the night's top net; Quarter like `Q4 2026`
-- Rows colored by game type (tournament blue, cash green). Not known whether H:J are formulas or typed values;
-  Code.gs handles both (copies formulas down if present, else writes values).
+- Rows colored by game type (tournament blue, cash green). H2, I2, J2 hold ARRAYFORMULAs that fill H:J for every row;
+  Code.gs must never write into H:J below them (that breaks the column with #REF!; happened Oct 21, 2026).
 **Members** tab: col A name, col B games played, col C status (Member / Sometimes / Guest), col D first join date.
 Other tabs (Dashboard, Comparison, Hall of Fame, Blinds Schedule, Calc_Data) are not used by our code.
 
