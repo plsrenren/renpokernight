@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one narrow column for a phone, with a totals bar pinned to the bottom. */
+:root {
+  --bg: #f3f5f1; --surface: #ffffff; --fg: #17221b; --muted: #5d6b62; --line: #dde3dc;
+  --felt: #1f6b45; --up: #1d7a49; --down: #b93a33; --warn: #9a6a00; --warn-bg: #fff4d6;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0f1612; --surface: #17211b; --fg: #e6ece7; --muted: #94a39a; --line: #29362e;
+    --felt: #5cc38c; --up: #6bd39a; --down: #ef7d75; --warn: #f0c35a; --warn-bg: #2e2716; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.45 var(--body); }
+.wrap { max-width: 560px; margin: 0 auto; padding: 20px max(16px, env(safe-area-inset-right)) 280px max(16px, env(safe-area-inset-left)); display: grid; gap: 16px; }
+h1 { font-family: var(--display); font-weight: 800; font-size: 28px; line-height: 1.1; margin: 0; color: var(--felt); }
+.sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 12px; }
+.card h2 { font-family: var(--display); font-weight: 700; font-size: 17px; margin: 0; }
+label, .lbl { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); display: block; margin-bottom: 4px; }
+input, button, select { font: inherit; color: var(--fg); }
+input[type=text], input[type=date], input[type=number], input[type=password], input[inputmode] {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); min-height: 44px; }
+input:focus-visible, button:focus-visible { outline: 2px solid var(--felt); outline-offset: 1px; }
+.row2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 3px; background: var(--bg); min-height: 44px; }
+.seg button { border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-weight: 500; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--felt); color: var(--surface); font-weight: 600; }
+.money { position: relative; }
+.money::before { content: "$"; position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.money input { padding-left: 22px; font-family: var(--mono); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 7px 12px; cursor: pointer; font-size: 14px; min-height: 36px; }
+.chip:hover { border-color: var(--felt); }
+.newp { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 10px 14px; cursor: pointer; min-height: 44px; font-weight: 500; }
+.btn.primary { background: var(--felt); border-color: var(--felt); color: var(--surface); font-weight: 600; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.players { display: grid; gap: 10px; }
+.p { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 10px; background: var(--surface); }
+.p-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.p-name { font-family: var(--display); font-weight: 700; font-size: 18px; }
+.p-net { font-family: var(--mono); font-size: 15px; }
+.pos { color: var(--up); } .neg { color: var(--down); }
+.x { border: 0; background: transparent; color: var(--muted); font-size: 22px; line-height: 1; cursor: pointer; padding: 4px 8px; min-height: 36px; }
+.step { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; min-height: 44px; }
+.step button { border: 0; background: var(--bg); font-size: 20px; cursor: pointer; }
+.step output { display: grid; place-items: center; font-family: var(--mono); font-size: 16px; }
+.note-in { font-size: 14px; }
+body:not(.tour) .topup-row, body:not(.tour) #payoutCard { display: none; }
+.places { display: grid; gap: 10px; }
+.place { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; align-items: end; }
+.place label { margin: 0; }
+.place .amt { font-family: var(--mono); font-size: 16px; }
+.place select { grid-column: 1 / -1; min-height: 44px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); width: 100%; }
+.pool { color: var(--muted); font-size: 13px; }
+input.locked { color: var(--muted); }
+/* PKO (progressive knockout) */
+body:not(.tour) .tour-only, body:not(.pko) .pko-only { display: none !important; }
+.pko-set { display: grid; gap: 10px; }
+.pctbox { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px; }
+.pctbox input { font-family: var(--mono); }
+.p-bounty { font-size: 13px; color: var(--muted); margin-top: -4px; }
+.p-bounty b { color: var(--fg); font-family: var(--mono); font-weight: 500; }
+.kos { list-style: none; counter-reset: ko; margin: 0; padding: 0; display: grid; gap: 6px; }
+.kos li { counter-increment: ko; display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 8px; align-items: center;
+  border: 1px solid var(--line); border-radius: 8px; padding: 6px 4px 6px 10px; font-size: 14px; }
+.kos li::before { content: counter(ko); font-family: var(--mono); color: var(--muted); font-size: 13px; }
+.kos small { color: var(--muted); font-size: 12px; }
+.kos .bad small { color: var(--down); }
+.mock { background: var(--warn-bg); color: var(--warn); border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+.tin { min-height: 44px; display: flex; align-items: center; font-family: var(--mono); font-size: 16px; }
+.empty { color: var(--muted); font-size: 14px; text-align: center; padding: 8px 0; }
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line);
+  padding: 12px max(16px, env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+.bar-in { max-width: 560px; margin: 0 auto; display: grid; gap: 10px; }
+.totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; text-align: center; }
+.totals .v { font-family: var(--mono); font-size: 16px; }
+.totals .k { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+.msg { border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+.msg.warn { background: var(--warn-bg); color: var(--warn); }
+.msg.err { background: var(--warn-bg); color: var(--down); }
+.msg.ok { color: var(--up); padding: 0; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; text-transform: none; letter-spacing: 0; color: var(--fg); margin: 0; }
+.check input { width: 18px; height: 18px; margin-top: 1px; flex: none; }
+.done { text-align: center; display: grid; gap: 12px; padding: 24px 14px; }
+.done .big { font-family: var(--display); font-weight: 800; font-size: 26px; color: var(--felt); }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap" id="form">
+  <header>
+    <div class="mock">Mockup with a made-up sample night. Nothing here saves to your sheet.</div>
+    <h1>Game Night Entry</h1>
+    <div class="sub" id="lastNight">Loading players…</div>
+  </header>
+
+  <section class="card" aria-label="Game details">
+    <div class="row2">
+      <div><label for="date">Date</label><input type="date" id="date"></div>
+      <div><label for="buyIn">Buy-in amount</label><div class="money"><input id="buyIn" inputmode="decimal" autocomplete="off"></div></div>
+    </div>
+    <div>
+      <span class="lbl" id="typeLbl">Game type</span>
+      <div class="seg" role="group" aria-labelledby="typeLbl" id="type">
+        <button type="button" data-v="Cash" aria-pressed="true">Cash</button>
+        <button type="button" data-v="Tournament" aria-pressed="false">Tournament</button>
+      </div>
+    </div>
+    <div class="tour-only pko-set">
+      <label class="check"><input type="checkbox" id="pkoOn"> <span><strong>PKO</strong>: progressive knockout bounties</span></label>
+      <div class="pko-only row2">
+        <div><label for="pkoPct">Bounty share of each buy-in</label><div class="pctbox"><input id="pkoPct" inputmode="decimal" autocomplete="off"><span>%</span></div></div>
+        <div><span class="lbl">Starting bounty</span><div class="tin" id="pkoStart"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-label="Add players">
+    <h2>Who played?</h2>
+    <div class="chips" id="chips"></div>
+    <div class="newp">
+      <input type="text" id="newName" placeholder="New player's name" autocomplete="off">
+      <button type="button" class="btn" id="addNew">Add</button>
+    </div>
+  </section>
+
+  <section class="players" id="players" aria-label="Players"></section>
+  <p class="empty" id="noPlayers">Tap names above to add tonight's players.</p>
+
+  <section class="card pko-only" id="koCard" aria-label="Knockouts">
+    <h2>Knockouts</h2>
+    <div class="pool" id="koProgress"></div>
+    <div class="row2">
+      <div><label for="koVictim">Who busted</label><select id="koVictim"></select></div>
+      <div><label for="koBy">Knocked out by</label><select id="koBy"></select></div>
+    </div>
+    <button type="button" class="btn" id="koAdd">Log knockout</button>
+    <ol class="kos" id="koList"></ol>
+    <div class="msg err" id="koErr" hidden></div>
+  </section>
+
+  <section class="card" id="payoutCard" aria-label="Tournament payouts">
+    <h2>Payouts</h2>
+    <div>
+      <label for="split">Split (%)</label>
+      <input id="split" type="text" autocomplete="off" placeholder="70/30">
+    </div>
+    <div class="chips" id="splitPresets">
+      <button type="button" class="chip" data-split="100">Winner takes all</button>
+      <button type="button" class="chip" data-split="60/40">60/40</button>
+      <button type="button" class="chip" data-split="70/30">70/30</button>
+      <button type="button" class="chip" data-split="50/30/20">50/30/20</button>
+    </div>
+    <label class="check"><input type="checkbox" id="backOn"> <span id="backLbl">Buy-in back for 3rd</span></label>
+    <div id="backAmtWrap" hidden><label for="backAmt">Amount back</label><div class="money"><input id="backAmt" inputmode="decimal" autocomplete="off"></div></div>
+    <button type="button" class="btn pko-only" id="koPlaces">Fill places from knockout order</button>
+    <div class="places" id="places"></div>
+    <div class="pool" id="poolLine"></div>
+    <div class="msg err" id="payoutErr" hidden></div>
+    <label class="check"><input type="checkbox" id="autoOut" checked> <span>Fill cash outs from these payouts (everyone else gets $0)</span></label>
+  </section>
+
+  <section class="card" id="pinCard" hidden>
+    <div><label for="pin">PIN</label><input type="password" id="pin" inputmode="numeric" autocomplete="off"></div>
+  </section>
+</div>
+
+<div class="wrap" id="doneView" hidden>
+  <div class="card done">
+    <div class="big">Saved</div>
+    <div id="doneText"></div>
+    <button type="button" class="btn primary" id="again">Enter another night</button>
+  </div>
+</div>
+
+<div class="bar" id="bar">
+  <div class="bar-in">
+    <div class="totals">
+      <div><div class="k">Total in</div><div class="v" id="tIn">$0.00</div></div>
+      <div><div class="k">Total out</div><div class="v" id="tOut">$0.00</div></div>
+      <div><div class="k">Difference</div><div class="v" id="tDiff">$0.00</div></div>
+    </div>
+    <div class="msg" id="status" hidden></div>
+    <label class="check" id="forceWrap" hidden><input type="checkbox" id="force"> <span id="forceText">Totals don't match. Save anyway.</span></label>
+    <label class="check" id="dupWrap" hidden><input type="checkbox" id="dup"> <span id="dupText"></span></label>
+    <label class="check" id="discordWrap" hidden><input type="checkbox" id="discord" checked> <span>Post results to Discord</span></label>
+    <button type="button" class="btn primary" id="save" disabled>Save night</button>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = n => (n < 0 ? '-$' : '$') + Math.abs(n).toFixed(2);
+const fmtNet = n => (n > 0 ? '+' : '') + fmt(n);
+const num = v => { const n = parseFloat(String(v).replace(/[$,\s]/g, '')); return isNaN(n) ? 0 : n; };
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+let SETUP = { players: [], defaultBuyIn: 40, needsPin: false, discord: false };
+let state = { date: today(), type: 'Cash', buyIn: 40, rows: [], payout: null, pko: { on: false, pct: 50, kos: [] } };
+let nextId = 1, saving = false, lastPk = null;
+
+// Keep an unsent draft on this device in case the page closes mid-entry
+const DRAFT = 'pkoMockupDraft';
+const saveDraft = () => { try { localStorage.setItem(DRAFT, JSON.stringify(state)); } catch (e) {} };
+const loadDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT) || 'null'); } catch (e) { return null; } };
+const clearDraft = () => { try { localStorage.removeItem(DRAFT); } catch (e) {} };
+
+function renderChips() {
+  const taken = new Set(state.rows.map(r => r.name.toLowerCase()));
+  const list = SETUP.players.filter(p => !taken.has(p.name.toLowerCase()));
+  $('chips').innerHTML = list.map(p => `<button type="button" class="chip" data-add="${esc(p.name)}">${esc(p.name)}</button>`).join('')
+    || '<span class="empty">Everyone on the list is added.</span>';
+}
+
+function rowHtml(r) {
+  return `<article class="p" data-id="${r.id}">
+    <div class="p-top"><span class="p-name">${esc(r.name)}</span>
+      <span><span class="p-net" data-f="net"></span><button type="button" class="x" data-del aria-label="Remove ${esc(r.name)}">×</button></span></div>
+    <div class="p-bounty pko-only" data-f="bounty"></div>
+    <div class="row2">
+      <div><span class="lbl">Buy-ins</span><div class="step"><button type="button" data-step="-1" aria-label="One fewer buy-in">−</button><output data-f="buys">${r.buys}</output><button type="button" data-step="1" aria-label="One more buy-in">+</button></div></div>
+      <div><label for="in${r.id}">Cash in</label><div class="money"><input id="in${r.id}" data-f="cashIn" inputmode="decimal" autocomplete="off" value="${r.cashIn}"></div></div>
+    </div>
+    <div class="row2 topup-row">
+      <div><label for="top${r.id}">Top-up</label><div class="money"><input id="top${r.id}" data-f="topUp" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${esc(r.topUp ?? '')}"></div></div>
+      <div><span class="lbl">Total in</span><div class="tin" data-f="totalIn"></div></div>
+    </div>
+    <div class="row2">
+      <div><label for="out${r.id}">Cash out</label><div class="money"><input id="out${r.id}" data-f="cashOut" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${esc(r.cashOut)}"></div></div>
+      <div><label for="note${r.id}">Note</label><input id="note${r.id}" class="note-in" type="text" data-f="notes" placeholder="Optional" autocomplete="off" value="${esc(r.notes)}"></div>
+    </div>
+  </article>`;
+}
+
+function renderRows() {
+  $('players').innerHTML = state.rows.map(rowHtml).join('');
+  $('noPlayers').hidden = state.rows.length > 0;
+  renderPayout(); renderChips(); updateTotals();
+}
+
+function updateRow(r) {
+  const el = document.querySelector(`.p[data-id="${r.id}"]`); if (!el) return;
+  el.querySelector('[data-f="buys"]').textContent = r.buys;
+  const inp = el.querySelector('[data-f="cashIn"]'); if (document.activeElement !== inp) inp.value = r.cashIn;
+  el.querySelector('[data-f="totalIn"]').textContent = fmt(totalIn(r));
+  // Cash out is filled from the payouts on tournament nights unless that's switched off
+  const out = el.querySelector('[data-f="cashOut"]'), locked = state.type === 'Tournament' && state.payout.auto;
+  out.readOnly = locked; out.classList.toggle('locked', locked);
+  if (locked || document.activeElement !== out) out.value = r.cashOut;
+  if (lastPk) {
+    const out = lastPk.busts[r.name] >= lastPk.entries[r.name];
+    el.querySelector('[data-f="bounty"]').innerHTML = `Bounties won <b>${fmt(lastPk.cash[r.name] || 0)}</b> · `
+      + (lastPk.winner === r.name ? 'Winner, keeps own bounty' : out ? 'Out' : `Bounty on head <b>${fmt(lastPk.head[r.name])}</b>`);
+  }
+  const net = num(r.cashOut) - totalIn(r);
+  const n = el.querySelector('[data-f="net"]');
+  n.textContent = fmtNet(net); n.className = 'p-net ' + (net > 0 ? 'pos' : net < 0 ? 'neg' : '');
+}
+
+function addPlayer(name) {
+  name = name.trim(); if (!name) return;
+  if (state.rows.some(r => r.name.toLowerCase() === name.toLowerCase())) return showStatus('err', `${name} is already on the list.`);
+  const known = SETUP.players.find(p => p.name.toLowerCase() === name.toLowerCase());
+  state.rows.push({ id: nextId++, name: known ? known.name : name, buys: 1, cashIn: state.buyIn, manualIn: false, topUp: '', cashOut: '', notes: '' });
+  renderRows(); saveDraft();
+}
+
+function updateTotals() {
+  lastPk = pkoOn() ? pkoCalc() : null;
+  renderKo();
+  const payoutMsg = applyPayouts();
+  state.rows.forEach(updateRow);
+  const tin = state.rows.reduce((s, r) => s + totalIn(r), 0), tout = state.rows.reduce((s, r) => s + num(r.cashOut), 0);
+  const diff = Math.round((tout - tin) * 100) / 100;
+  $('tIn').textContent = fmt(tin); $('tOut').textContent = fmt(tout);
+  $('tDiff').textContent = diff === 0 ? '✓ $0.00' : fmtNet(diff);
+  $('tDiff').className = 'v ' + (diff === 0 ? 'pos' : 'neg');
+  const unbalanced = state.rows.length >= 2 && diff !== 0;
+  $('forceWrap').hidden = !unbalanced;
+  if (unbalanced) $('forceText').textContent = `Totals are off by ${fmt(Math.abs(diff))} (${diff > 0 ? 'more paid out than bought in' : 'more bought in than paid out'}). Save anyway.`;
+  else $('force').checked = false;
+  hideStatus();
+  $('save').disabled = saving || state.rows.length < 2 || !state.date || (unbalanced && !$('force').checked)
+    || (state.type === 'Tournament' && state.payout.auto && !!payoutMsg)
+    || ($('dupWrap').hidden === false && !$('dup').checked);
+}
+
+function showStatus(kind, text) { const s = $('status'); s.className = 'msg ' + kind; s.textContent = text; s.hidden = false; }
+function hideStatus() { if ($('status').className.includes('err')) return; $('status').hidden = true; }
+
+// Top-ups only apply to tournaments; on a cash night they're ignored (and hidden)
+const topUp = r => state.type === 'Tournament' ? num(r.topUp) : 0;
+const totalIn = r => num(r.cashIn) + topUp(r);
+
+function setType(t) {
+  state.type = t;
+  document.querySelectorAll('#type button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === t)));
+  document.body.classList.toggle('tour', t === 'Tournament');
+  renderPayout(); updateTotals();
+}
+
+// ---- Tournament payouts ----
+// The prize pool is everything bought in (top-ups included). An optional buy-in back for the next
+// finisher comes off the top; the rest is split by the percentages. Cents left over go to 1st.
+const ORD = n => ['1st', '2nd', '3rd'][n - 1] || `${n}th`;
+const PAYOUT_PREFS = 'pkoMockupPayout';
+const defaultPayout = () => {
+  let p = {}; try { p = JSON.parse(localStorage.getItem(PAYOUT_PREFS) || '{}'); } catch (e) {}
+  return { split: p.split || '70/30', backOn: !!p.backOn, backAmt: '', auto: true, places: [] };
+};
+const savePayoutPrefs = () => { try { localStorage.setItem(PAYOUT_PREFS, JSON.stringify({ split: state.payout.split, backOn: state.payout.backOn })); } catch (e) {} };
+
+function parseSplit(s) {
+  const parts = String(s || '').split(/[\/,;\s]+/).filter(Boolean).map(Number);
+  if (!parts.length || parts.some(p => !(p > 0))) return { error: 'Enter the split as percentages, like 70/30.' };
+  const sum = parts.reduce((a, b) => a + b, 0);
+  if (Math.abs(sum - 100) > 0.01) return { error: `The split adds up to ${round2(sum)}%. It needs to total 100%.` };
+  return { pcts: parts };
+}
+
+function payoutPlan() {
+  const p = state.payout, sp = parseSplit(p.split);
+  if (sp.error) return sp;
+  // In a PKO the bounty share of every buy-in is paid out through knockouts, not the places
+  const pool = round2(state.rows.reduce((s, r) => s + totalIn(r), 0) - (lastPk ? lastPk.bountyPool : 0));
+  const back = p.backOn ? round2(num(p.backAmt === '' ? state.buyIn : p.backAmt)) : 0;
+  if (back > pool) return { error: 'The buy-in back is more than the prize pool.' };
+  const rest = round2(pool - back);
+  const amts = sp.pcts.map(x => Math.floor(round2(rest * x)) / 100);
+  amts[0] = round2(amts[0] + rest - amts.reduce((a, b) => a + b, 0));
+  if (p.backOn) amts.push(back);
+  return { pool, back, rest, amts };
+}
+
+function renderPayout() {
+  const p = state.payout, sp = parseSplit(p.split);
+  const paid = sp.pcts ? sp.pcts.length : 0, n = paid + (p.backOn && paid ? 1 : 0);
+  // Keep picks beyond the current number of places, so a half-typed split doesn't wipe them
+  const keep = p.places || [];
+  p.places = Array.from({ length: Math.max(n, keep.length) }, (_, i) => state.rows.some(r => r.name === keep[i]) ? keep[i] : '');
+  $('backLbl').textContent = `Buy-in back for ${ORD((paid || 2) + 1)}`;
+  $('backAmtWrap').hidden = !p.backOn;
+  $('backAmt').placeholder = String(state.buyIn);
+  $('places').innerHTML = p.places.slice(0, n).map((v, i) => `<div class="place">
+      <label for="place${i}">${ORD(i + 1)}${p.backOn && i === n - 1 ? ' · buy-in back' : ''}</label><span class="amt" data-amt="${i}"></span>
+      <select id="place${i}" data-place="${i}"><option value="">Pick player</option>${state.rows.map(r => `<option${r.name === v ? ' selected' : ''}>${esc(r.name)}</option>`).join('')}</select>
+    </div>`).join('');
+}
+
+// Returns a message when payouts can't be applied, '' otherwise
+function applyPayouts() {
+  if (state.type !== 'Tournament') { $('payoutErr').hidden = true; return ''; }
+  const plan = payoutPlan(), names = state.payout.places.slice(0, plan.amts ? plan.amts.length : 0);
+  let msg = plan.error || '';
+  const chosen = names.filter(Boolean);
+  if (!msg && new Set(chosen).size !== chosen.length) msg = 'The same player is picked for more than one place.';
+  $('payoutErr').hidden = !msg; $('payoutErr').textContent = msg;
+  document.querySelectorAll('[data-amt]').forEach(el => { const a = plan.amts && plan.amts[+el.dataset.amt]; el.textContent = a != null ? fmt(a) : '–'; });
+  $('poolLine').textContent = plan.error ? '' : (lastPk ? `Bounties ${fmt(lastPk.bountyPool)} (paid through knockouts) · ` : '')
+    + `Prize pool ${fmt(plan.pool)}`
+    + (plan.back ? ` · ${fmt(plan.back)} back to ${ORD(plan.amts.length)} · ${fmt(plan.rest)} split ${state.payout.split}` : '');
+  if (msg || !state.payout.auto) return msg || (lastPk && lastPk.error) || '';
+  // Cash out = place payout + bounty cash collected (the winner's includes their own bounty)
+  state.rows.forEach(r => {
+    const i = names.indexOf(r.name);
+    r.cashOut = String(round2((i >= 0 ? plan.amts[i] : 0) + (lastPk ? lastPk.cash[r.name] || 0 : 0)));
+  });
+  if (lastPk && !lastPk.error && !lastPk.winner) return 'Log every knockout before saving.';
+  return (lastPk && lastPk.error) || '';
+}
+
+// ---- PKO (progressive knockout) ----
+// Each buy-in (first entry and every rebuy) puts the bounty share on that player's head.
+// A knockout pays the knocker half the victim's bounty in cash and adds the other half to the knocker's bounty.
+// A victim with rebuys left starts again with a fresh bounty. The last player standing keeps their own bounty.
+const pkoOn = () => state.type === 'Tournament' && state.pko.on;
+
+function pkoCalc() {
+  const start = round2(state.buyIn * state.pko.pct / 100);
+  const entries = {}, head = {}, busts = {}, cash = {};
+  state.rows.forEach(r => { entries[r.name] = r.buys; head[r.name] = start; busts[r.name] = 0; cash[r.name] = 0; });
+  const totalEntries = state.rows.reduce((s, r) => s + r.buys, 0);
+  const log = [], finals = []; let error = '';
+  state.pko.kos.forEach((k, i) => {
+    if (error) return;
+    const V = k.victim, K = k.by, n = i + 1;
+    if (!(V in entries) || !(K in entries)) { error = `Knockout ${n} names someone who isn't on tonight's list.`; return; }
+    if (V === K) { error = `Knockout ${n}: a player can't knock themselves out.`; return; }
+    if (busts[V] >= entries[V]) { error = `Knockout ${n}: ${V} has no buy-ins left to lose. Add a rebuy for ${V} or remove this knockout.`; return; }
+    if (busts[K] >= entries[K]) { error = `Knockout ${n}: ${K} was already out by then.`; return; }
+    const b = head[V], toCash = Math.floor(b * 100 / 2) / 100, toHead = round2(b - toCash);
+    cash[K] = round2(cash[K] + toCash); head[K] = round2(head[K] + toHead);
+    busts[V]++;
+    const out = busts[V] >= entries[V];
+    head[V] = out ? 0 : start;
+    if (out) finals.push(V);
+    log.push({ victim: V, by: K, bounty: b, toCash, kHead: head[K], rebuy: !out });
+  });
+  const alive = state.rows.map(r => r.name).filter(n => busts[n] < entries[n]);
+  const needed = Math.max(totalEntries - 1, 0);
+  const winner = !error && alive.length === 1 && state.rows.length > 1 ? alive[0] : '';
+  if (winner) cash[winner] = round2(cash[winner] + head[winner]);
+  return { start, bountyPool: round2(start * totalEntries), entries, busts, head, cash, log, finals, winner, needed, alive, error };
+}
+
+function renderKo() {
+  document.body.classList.toggle('pko', pkoOn());
+  if (!lastPk) return;
+  const pk = lastPk;
+  $('pkoStart').textContent = fmt(pk.start);
+  const keepV = $('koVictim').value, keepB = $('koBy').value;
+  const opts = list => '<option value="">Pick player</option>' + list.map(n => `<option>${esc(n)}</option>`).join('');
+  $('koVictim').innerHTML = opts(pk.alive); $('koBy').innerHTML = opts(pk.alive);
+  if (pk.alive.includes(keepV)) $('koVictim').value = keepV;
+  if (pk.alive.includes(keepB)) $('koBy').value = keepB;
+  $('koList').innerHTML = state.pko.kos.map((k, i) => {
+    const d = pk.log[i];
+    return `<li class="${d ? '' : 'bad'}"><span><strong>${esc(k.by)}</strong> knocked out <strong>${esc(k.victim)}</strong>${d && d.rebuy ? ' (rebought)' : ''}<br>
+      <small>${d ? `${fmt(d.bounty)} bounty: ${fmt(d.toCash)} cash to ${esc(k.by)}, their bounty now ${fmt(d.kHead)}` : 'Not counted. Fix the problem below.'}</small></span>
+      <button type="button" class="x" data-ko="${i}" aria-label="Remove knockout ${i + 1}">×</button></li>`;
+  }).join('');
+  $('koErr').hidden = !pk.error; $('koErr').textContent = pk.error;
+  $('koProgress').textContent = pk.winner
+    ? `All ${pk.needed} knockouts logged. ${pk.winner} wins and keeps their own ${fmt(pk.head[pk.winner])} bounty.`
+    : `${pk.log.length} of ${pk.needed} knockouts logged · ${pk.alive.length} still in. Log them in the order they happened.`;
+  $('koAdd').disabled = pk.alive.length < 2;
+}
+
+function syncPayoutInputs() {
+  $('split').value = state.payout.split; $('backOn').checked = state.payout.backOn;
+  $('backAmt').value = state.payout.backAmt; $('autoOut').checked = state.payout.auto;
+}
+
+// ---- Events ----
+$('chips').addEventListener('click', e => { const b = e.target.closest('[data-add]'); if (b) { $('status').hidden = true; addPlayer(b.dataset.add); } });
+$('addNew').addEventListener('click', () => { $('status').hidden = true; addPlayer($('newName').value); $('newName').value = ''; });
+$('newName').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('addNew').click(); } });
+$('type').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b) { setType(b.dataset.v); saveDraft(); } });
+$('date').addEventListener('change', e => { state.date = e.target.value; $('dupWrap').hidden = true; $('dup').checked = false; updateTotals(); saveDraft(); });
+$('buyIn').addEventListener('input', e => {
+  state.buyIn = num(e.target.value);
+  state.rows.forEach(r => { if (!r.manualIn) { r.cashIn = round2(r.buys * state.buyIn); updateRow(r); } });
+  updateTotals(); saveDraft();
+});
+$('players').addEventListener('click', e => {
+  const card = e.target.closest('.p'); if (!card) return;
+  const r = state.rows.find(x => x.id === +card.dataset.id);
+  if (e.target.closest('[data-del]')) { state.rows = state.rows.filter(x => x !== r); renderRows(); saveDraft(); return; }
+  const step = e.target.closest('[data-step]');
+  if (step) {
+    r.buys = Math.max(1, r.buys + +step.dataset.step);
+    if (!r.manualIn) r.cashIn = round2(r.buys * state.buyIn);
+    updateRow(r); updateTotals(); saveDraft();
+  }
+});
+$('players').addEventListener('input', e => {
+  const card = e.target.closest('.p'); if (!card) return;
+  const r = state.rows.find(x => x.id === +card.dataset.id), f = e.target.dataset.f;
+  if (f === 'cashIn') { r.cashIn = e.target.value; r.manualIn = true; }
+  else if (f === 'cashOut') r.cashOut = e.target.value;
+  else if (f === 'topUp') r.topUp = e.target.value;
+  else if (f === 'notes') r.notes = e.target.value;
+  updateRow(r); updateTotals(); saveDraft();
+});
+const setSplit = v => { state.payout.split = v; $('split').value = v; renderPayout(); updateTotals(); saveDraft(); savePayoutPrefs(); };
+$('split').addEventListener('input', e => setSplit(e.target.value));
+$('splitPresets').addEventListener('click', e => { const b = e.target.closest('[data-split]'); if (b) setSplit(b.dataset.split); });
+$('backOn').addEventListener('change', e => { state.payout.backOn = e.target.checked; renderPayout(); updateTotals(); saveDraft(); savePayoutPrefs(); });
+$('backAmt').addEventListener('input', e => { state.payout.backAmt = e.target.value; updateTotals(); saveDraft(); });
+$('places').addEventListener('change', e => { const s = e.target.closest('[data-place]'); if (s) { state.payout.places[+s.dataset.place] = s.value; updateTotals(); saveDraft(); } });
+$('autoOut').addEventListener('change', e => { state.payout.auto = e.target.checked; updateTotals(); saveDraft(); });
+$('pkoOn').addEventListener('change', e => { state.pko.on = e.target.checked; updateTotals(); saveDraft(); });
+$('pkoPct').addEventListener('input', e => { state.pko.pct = Math.min(100, Math.max(0, num(e.target.value))); updateTotals(); saveDraft(); });
+$('koAdd').addEventListener('click', () => {
+  const victim = $('koVictim').value, by = $('koBy').value;
+  if (!victim || !by) return showStatus('err', 'Pick who busted and who knocked them out.');
+  if (victim === by) return showStatus('err', "A player can't knock themselves out.");
+  $('status').hidden = true;
+  state.pko.kos.push({ victim, by }); $('koVictim').value = '';
+  updateTotals(); saveDraft();
+});
+$('koList').addEventListener('click', e => { const b = e.target.closest('[data-ko]'); if (b) { state.pko.kos.splice(+b.dataset.ko, 1); updateTotals(); saveDraft(); } });
+// Finishing order: the last player standing is 1st, the last person knocked out for good is 2nd, and so on
+$('koPlaces').addEventListener('click', () => {
+  if (!lastPk) return;
+  const order = [lastPk.winner, ...lastPk.finals.slice().reverse()];
+  state.payout.places = state.payout.places.map((_, i) => order[i] || '');
+  renderPayout(); updateTotals(); saveDraft();
+});
+$('force').addEventListener('change', updateTotals);
+$('dup').addEventListener('change', updateTotals);
+const round2 = n => Math.round(n * 100) / 100;
+
+$('save').addEventListener('click', () => {
+  saving = true; updateTotals(); showStatus('ok', 'Saving…');
+  const payload = {
+    pin: $('pin').value, date: state.date, type: state.type,
+    // Cash_In includes any top-up; the top-up is also noted so it can be told apart later
+    players: state.rows.map(r => ({ name: r.name, buys: r.buys, cashIn: round2(totalIn(r)), cashOut: num(r.cashOut),
+      notes: [r.notes, topUp(r) > 0 ? `top-up $${topUp(r).toFixed(2)}` : '',
+        lastPk && lastPk.cash[r.name] > 0 ? `PKO bounties $${lastPk.cash[r.name].toFixed(2)}` : ''].filter(Boolean).join('; ') })),
+    postDiscord: SETUP.discord && $('discord').checked, allowDuplicate: $('dup').checked,
+  };
+  google.script.run
+    .withSuccessHandler(res => {
+      saving = false; clearDraft();
+      $('form').hidden = true; $('bar').hidden = true; $('doneView').hidden = false;
+      $('doneText').textContent = `${res.saved} players added to ${res.quarter}. `
+        + (res.winner ? `${res.winner} took the night at ${fmtNet(res.winnerNet)}. ` : '')
+        + (res.discordPosted ? 'Results posted to Discord.' : '');
+    })
+    .withFailureHandler(err => {
+      saving = false;
+      const msg = String(err && err.message || err);
+      if (msg.includes('DUPLICATE:')) {
+        $('dupWrap').hidden = false; $('dup').checked = false;
+        $('dupText').textContent = msg.split('DUPLICATE:')[1].trim() + ' Add these rows as well.';
+        $('status').hidden = true;
+      } else showStatus('err', msg.replace(/^Error:\s*/, '') || 'Saving failed. Check your connection and try again.');
+      updateTotals();
+    })
+    .saveNight(payload);
+});
+
+$('again').addEventListener('click', () => {
+  state = { date: today(), type: state.type, buyIn: state.buyIn, rows: [], payout: defaultPayout(), pko: { on: state.pko.on, pct: state.pko.pct, kos: [] } };
+  syncPayoutInputs();
+  $('dupWrap').hidden = true; $('dup').checked = false; $('force').checked = false;
+  $('form').hidden = false; $('bar').hidden = false; $('doneView').hidden = true;
+  $('date').value = state.date; renderRows();
+});
+
+// ---- Start ----
+function start(setup) {
+  SETUP = setup;
+  const draft = loadDraft();
+  if (draft && draft.rows && draft.rows.length) { state = draft; nextId = Math.max(0, ...draft.rows.map(r => r.id)) + 1; }
+  else state.buyIn = setup.defaultBuyIn;
+  state.payout = Object.assign(defaultPayout(), state.payout || {});
+  syncPayoutInputs();
+  $('date').value = state.date; $('buyIn').value = state.buyIn; setType(state.type);
+  $('pinCard').hidden = !setup.needsPin;
+  $('discordWrap').hidden = !setup.discord;
+  const ln = setup.lastNight;
+  $('lastNight').textContent = (draft && draft.rows && draft.rows.length ? 'Picked up your unsaved entry. ' : '')
+    + (ln ? `Last saved night: ${ln.type}, ${ln.date}, ${ln.players} players.` : '');
+  renderRows();
+}
+// ---- Mockup only: a stand-in for the Apps Script server and a made-up PKO night ----
+window.google = { script: { get run() {
+  let ok = () => {};
+  const api = {
+    withSuccessHandler(f) { ok = f; return api; }, withFailureHandler() { return api; },
+    saveNight(p) { setTimeout(() => {
+      const best = p.players.map(x => ({ n: x.name, v: x.cashOut - x.cashIn })).sort((a, b) => b.v - a.v)[0];
+      ok({ saved: p.players.length, winner: best.n, winnerNet: best.v, quarter: 'Q4 2026', discordPosted: false });
+    }, 300); },
+  };
+  return api;
+} } };
+
+function seedDemo() {
+  SETUP = { players: ['Renato', 'Kurt', 'Dong', 'Carlos', 'Mike', 'Shawn', 'Iverson', 'JP', 'Christian', 'Kyler', 'Tommy', 'Ryan', 'Jaron', 'Jerry'].map(name => ({ name })),
+    defaultBuyIn: 40, needsPin: false, discord: false };
+  const mk = (name, buys) => ({ id: nextId++, name, buys, cashIn: 40 * buys, manualIn: false, topUp: '', cashOut: '', notes: '' });
+  state = {
+    date: today(), type: 'Tournament', buyIn: 40,
+    rows: [mk('Renato', 1), mk('Kurt', 2), mk('Dong', 2), mk('Carlos', 1), mk('Shawn', 1), mk('Mike', 1)],
+    payout: { split: '70/30', backOn: false, backAmt: '', auto: true, places: [] },
+    pko: { on: true, pct: 50, kos: [
+      { victim: 'Mike', by: 'Kurt' }, { victim: 'Dong', by: 'Carlos' }, { victim: 'Kurt', by: 'Renato' }, { victim: 'Shawn', by: 'Dong' },
+      { victim: 'Kurt', by: 'Carlos' }, { victim: 'Dong', by: 'Renato' }, { victim: 'Carlos', by: 'Renato' } ] },
+  };
+  syncPayoutInputs(); $('pkoOn').checked = true; $('pkoPct').value = state.pko.pct;
+  $('date').value = state.date; $('buyIn').value = state.buyIn; setType('Tournament');
+  $('lastNight').textContent = 'Example: a 6-player PKO with 2 rebuys. Try removing a knockout, changing the bounty share, or logging your own.';
+  renderRows();
+  $('koPlaces').click();
+}
+seedDemo();
+</script>
+</body>
+</html>

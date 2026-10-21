@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "poker-dashboard",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [".claude/serve.js"],
+      "port": 8765
+    },
+    {
+      "name": "poker-site",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [".claude/serve-site.js"],
+      "port": 8767
+    },
+    {
+      "name": "pko-mockup",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [".claude/serve-mock.js"],
+      "port": 8768
+    },
+    {
+      "name": "poker-entry",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [".claude/serve-entry.js"],
+      "port": 8766
+    }
+  ]
+}

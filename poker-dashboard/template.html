@@ -1,0 +1,698 @@
+<title>Poker Performance Dashboard</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one column of summary tiles, then charts in a two-up grid that stacks on phones. */
+:root {
+  --bg: #f3f5f1;
+  --surface: #ffffff;
+  --fg: #17221b;
+  --muted: #5d6b62;
+  --line: #dde3dc;
+  --felt: #1f6b45;
+  --chip-red: #c8423b;
+  --chip-green: #3f9a68;
+  --up: #1d7a49;
+  --down: #b93a33;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1612; --surface: #17211b; --fg: #e6ece7; --muted: #94a39a; --line: #29362e;
+    --felt: #5cc38c; --chip-red: #e2675f; --chip-green: #5cc38c; --up: #6bd39a; --down: #ef7d75;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1612; --surface: #17211b; --fg: #e6ece7; --muted: #94a39a; --line: #29362e;
+  --felt: #5cc38c; --chip-red: #e2675f; --chip-green: #5cc38c; --up: #6bd39a; --down: #ef7d75;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.45; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 20px; }
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 20px; }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(26px, 4.4vw, 40px); line-height: 1.05; margin: 0; color: var(--felt); text-wrap: balance; letter-spacing: -0.01em; }
+.sub { color: var(--muted); margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
+.dot.live { background: var(--up); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.controls .lbl + select { margin-right: 6px; }
+select:disabled { opacity: .5; }
+label.lbl { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+select, button { font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+button { cursor: pointer; }
+select:focus-visible, button:focus-visible { outline: 2px solid var(--felt); outline-offset: 2px; }
+
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+.tile .k { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.tile .v { font-family: var(--display); font-weight: 800; font-size: clamp(22px, 3vw, 30px); line-height: 1.15; margin-top: 4px; overflow-wrap: anywhere; }
+.tile .n { font-family: var(--mono); font-size: 13px; color: var(--muted); margin-top: 2px; }
+.tile .n.up { color: var(--up); }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; min-width: 0; }
+.panel h2 { font-family: var(--display); font-weight: 600; font-size: 18px; margin: 0 0 2px; }
+.panel .hint { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.chart-box { position: relative; height: 340px; }
+.pie-row { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 16px; align-items: center; }
+.pie-box { position: relative; height: 180px; }
+.pie-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.pie-legend li { display: grid; grid-template-columns: 10px minmax(0,1fr) auto auto; gap: 8px; align-items: center; }
+.pie-legend .sw { width: 10px; height: 10px; border-radius: 2px; }
+.pie-legend .amt, .pie-legend .pct { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.pie-legend .pct { color: var(--muted); min-width: 3.5em; text-align: right; }
+.empty { color: var(--muted); font-size: 13px; }
+
+.table-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 500; }
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+td.rank { color: var(--muted); font-family: var(--mono); width: 2em; }
+.pos { color: var(--up); } .neg { color: var(--down); }
+footer { color: var(--muted); font-size: 12px; }
+footer a { color: var(--felt); }
+
+.view { display: grid; gap: 20px; }
+[hidden] { display: none !important; }
+.link { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left;
+  text-decoration: underline; text-decoration-color: var(--line); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.link:hover { color: var(--felt); text-decoration-color: var(--felt); }
+.link:focus-visible { outline: 2px solid var(--felt); outline-offset: 2px; border-radius: 3px; }
+.back { justify-self: start; }
+.p-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 16px; }
+.p-empty { margin: 0; padding: 12px 16px; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); background: var(--surface); }
+#playerView.is-empty .p-detail { display: none; }
+#playerView.is-empty .p-top { grid-template-columns: minmax(0, 340px); }
+.p-head { display: grid; gap: 4px; }
+.p-name { font-family: var(--display); font-weight: 800; font-size: clamp(30px, 5vw, 46px); line-height: 1.05; margin: 0; letter-spacing: -0.01em; }
+.chip { display: inline-block; font-size: 12px; line-height: 1.4; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--up); color: var(--up); }
+.kv { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; margin: 0; font-size: 14px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+.v.pos { color: var(--up); } .v.neg { color: var(--down); }
+
+/* Title and toggle share the top row; the hint always sits underneath, so text length never moves the toggle */
+.panel-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "title seg" "hint hint";
+  align-items: center; gap: 6px 12px; margin-bottom: 12px; }
+.panel-head h2 { grid-area: title; margin: 0; }
+.panel-head .hint { grid-area: hint; margin: 0; }
+.panel-head .seg { grid-area: seg; }
+@media (max-width: 480px) {
+  .panel-head { grid-template-columns: minmax(0, 1fr); grid-template-areas: "title" "seg" "hint"; }
+  .panel-head .seg { justify-self: start; }
+}
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; padding: 2px; gap: 2px; background: var(--bg); }
+.seg button { border: 0; background: transparent; padding: 6px 12px; border-radius: 6px; font-size: 13px; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--felt); color: var(--surface); font-weight: 600; }
+.seg button:disabled { opacity: .4; cursor: not-allowed; }
+.seg button:not(:disabled):not([aria-pressed="true"]):hover { color: var(--fg); }
+
+/* Player card: a playing card with the player's numbers on its face */
+.p-top { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; align-items: start; }
+.p-top .chart-box { height: 420px; }
+.pcard { --suit: var(--fg); position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
+  padding: 30px 24px 48px; display: grid; gap: 16px; overflow: hidden; min-width: 0;
+  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, .45); }
+.pcard[data-red="1"] { --suit: var(--chip-red); }
+.pcard::before { content: ""; position: absolute; inset: 8px; border: 1.5px solid var(--felt); border-radius: 12px; opacity: .4; pointer-events: none; }
+.pc-corner { position: absolute; display: grid; justify-items: center; line-height: 1; gap: 2px; color: var(--suit);
+  font-family: var(--display); font-weight: 800; font-size: 22px; }
+.pc-corner .suit { font-size: 18px; }
+.pc-corner.tl { top: 18px; left: 20px; }
+.pc-corner.br { bottom: 18px; right: 20px; transform: rotate(180deg); }
+.pc-mono { width: 88px; height: 88px; border-radius: 50%; display: grid; place-items: center; justify-self: center;
+  background: var(--felt); color: var(--surface); font-family: var(--display); font-weight: 800; font-size: 34px; letter-spacing: .02em; }
+.pc-id { display: grid; gap: 6px; justify-items: center; text-align: center; }
+.pc-name { font-family: var(--display); font-weight: 800; font-size: 34px; line-height: 1.05; margin: 0; overflow-wrap: anywhere; }
+.pc-meta { color: var(--muted); font-size: 13px; }
+.pc-badges { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.pc-badges .chip { border-color: var(--felt); color: var(--felt); }
+.pc-net { display: grid; justify-items: center; gap: 2px; padding-block: 12px; border-block: 1px solid var(--line); }
+.pc-k, .pc-stats dt { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.pc-big { font-family: var(--display); font-weight: 800; font-size: 42px; line-height: 1.05; }
+.pc-big.pos { color: var(--up); } .pc-big.neg { color: var(--down); }
+.pc-small { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.pc-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; margin: 0; }
+.pc-stats div { min-width: 0; display: grid; gap: 2px; }
+.pc-stats dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 18px; }
+.pc-stats dd.pos { color: var(--up); } .pc-stats dd.neg { color: var(--down); }
+.pc-stats small { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+@media (max-width: 860px) { .p-top { grid-template-columns: minmax(0, 1fr); } .pcard { justify-self: center; width: 100%; max-width: 380px; } .p-top .chart-box { height: 320px; } }
+@media (max-width: 860px) { .grid2 { grid-template-columns: minmax(0, 1fr); } .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 420px) { .pie-row { grid-template-columns: minmax(0, 1fr); } .pie-box { height: 200px; } .chart-box { height: 300px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Poker Performance Dashboard</h1>
+      <div class="sub"><span class="dot" id="srcDot"></span><span id="srcText">Loading results…</span></div>
+    </div>
+    <div class="controls" id="controls">
+      <label class="lbl" for="oYear">Year</label>
+      <select id="oYear"></select>
+      <label class="lbl" for="oQuarter">Quarter</label>
+      <select id="oQuarter"></select>
+    </div>
+  </header>
+
+  <div id="overview" class="view">
+  <section class="tiles" aria-label="Quarter summary">
+    <div class="tile"><div class="k">Total buy-ins</div><div class="v" id="tBuy">–</div><div class="n" id="tBuyN"></div></div>
+    <div class="tile"><div class="k">Top winner</div><div class="v" id="tTop">–</div><div class="n up" id="tTopN"></div></div>
+    <div class="tile"><div class="k">Recent winner</div><div class="v" id="tRecent">–</div><div class="n up" id="tRecentN"></div></div>
+    <div class="tile"><div class="k">Cash / Tournament</div><div class="v" id="tMix">–</div><div class="n" id="tMixN">games played</div></div>
+  </section>
+
+  <section class="panel">
+    <h2>Buy-ins and cash-outs</h2>
+    <p class="hint" id="barHint">Per player for the selected period.</p>
+    <div class="chart-box"><canvas id="bar" aria-label="Buy-ins and cash-outs by player"></canvas></div>
+  </section>
+
+  <section class="grid2">
+    <div class="panel">
+      <h2>Last game cash in</h2>
+      <p class="hint" id="lastHint1"></p>
+      <div class="pie-row"><div class="pie-box"><canvas id="pieIn"></canvas></div><ul class="pie-legend" id="legIn"></ul></div>
+    </div>
+    <div class="panel">
+      <h2>Last game cash out</h2>
+      <p class="hint" id="lastHint2"></p>
+      <div class="pie-row"><div class="pie-box"><canvas id="pieOut"></canvas></div><ul class="pie-legend" id="legOut"></ul></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Standings</h2>
+    <p class="hint">Net profit for the selected period. Wins count nights finished first. Click a name for that player's stats.</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>#</th><th>Player</th><th>Games</th><th>Wins</th><th>Buy-ins</th><th>Cash-outs</th><th>Net</th></tr></thead>
+        <tbody id="standings"></tbody>
+      </table>
+    </div>
+  </section>
+  </div>
+
+  <div id="playerView" class="view" hidden>
+    <div class="p-bar">
+      <button class="back" id="backBtn" type="button">← All players</button>
+      <div class="controls">
+        <label class="lbl" for="pYear">Year</label>
+        <select id="pYear"></select>
+        <label class="lbl" for="pQuarterSel">Quarter</label>
+        <select id="pQuarterSel"></select>
+      </div>
+    </div>
+    <p class="p-empty" id="pEmpty" hidden></p>
+    <div class="p-top">
+      <article class="pcard" id="pCard" aria-label="Player card">
+        <div class="pc-corner tl" aria-hidden="true"></div>
+        <div class="pc-corner br" aria-hidden="true"></div>
+        <div class="pc-mono" id="cMono" aria-hidden="true"></div>
+        <div class="pc-id">
+          <h2 class="pc-name" id="pName"></h2>
+          <div class="pc-meta" id="pSub"></div>
+          <div class="pc-badges" id="cBadges"></div>
+        </div>
+        <div class="pc-net"><span class="pc-k" id="pNetK">All-time net</span><span class="pc-big" id="pNet"></span><span class="pc-small" id="pNetN"></span></div>
+        <dl class="pc-stats" id="cStats"></dl>
+      </article>
+
+      <section class="panel p-detail">
+        <div class="panel-head">
+          <h2>Profit over time</h2>
+          <p class="hint" id="pLineHint">Running total of net profit, one point per night played.</p>
+          <div class="seg" role="group" aria-label="Game type" id="lineSeg">
+            <button type="button" data-f="all" aria-pressed="true">All</button>
+            <button type="button" data-f="Cash" aria-pressed="false">Cash</button>
+            <button type="button" data-f="Tournament" aria-pressed="false">Tournament</button>
+          </div>
+        </div>
+        <div class="chart-box"><canvas id="pLine" aria-label="Cumulative profit over time"></canvas></div>
+      </section>
+    </div>
+
+    <section class="grid2 p-detail">
+      <div class="panel">
+        <h2 id="pBarsTitle">Net by quarter</h2>
+        <p class="hint" id="pBarsHint">Profit or loss each quarter played.</p>
+        <div class="chart-box" style="height:260px"><canvas id="pQuarter" aria-label="Net profit by quarter"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Cash vs tournament</h2>
+        <p class="hint">How each format has gone.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Format</th><th></th><th>Nights</th><th>Wins</th><th>Cashed</th><th>Net</th></tr></thead>
+            <tbody id="pFormats"></tbody>
+          </table>
+        </div>
+        <h2 style="margin-top:18px">Streaks</h2>
+        <dl class="kv" id="pStreaks"></dl>
+      </div>
+    </section>
+
+    <section class="panel p-detail">
+      <h2>Game log</h2>
+      <p class="hint">Every night played, newest first. Finish ranks the night's players by net.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Date</th><th>Game</th><th>Buy-ins</th><th>Cash in</th><th>Cash out</th><th>Net</th><th>Finish</th></tr></thead>
+          <tbody id="pLog"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <footer>Data from the <strong>Input</strong> tab of the Poker Stats Google Sheet.</footer>
+</div>
+
+<script type="text/csv" id="snapshot">/*__SNAPSHOT__*/</script>
+<script type="text/csv" id="membersSnapshot">/*__MEMBERS__*/</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const SHEET_ID = '1YxoWSWgeTRrEiPlm1Ys85s4UsHKxSzpPHEssynXEytM';
+const LIVE_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Input`;
+const SNAPSHOT_DATE = '/*__SNAPSHOT_DATE__*/';
+
+function parseCSV(text) {
+  const rows = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; }
+    else if (c === '"') q = true;
+    else if (c === ',') { row.push(cell); cell = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+    else cell += c;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows;
+}
+const money = s => { const n = parseFloat(String(s).replace(/[$,\s]/g, '')); return isNaN(n) ? 0 : n; };
+function toRecords(text) {
+  if (!text || !text.trim()) return [];
+  const [head, ...body] = parseCSV(text.trim());
+  const ix = name => head.findIndex(h => h.trim() === name);
+  const c = { date: ix('Event_Date'), type: ix('Game_Type'), player: ix('Player_Name'), cin: ix('Cash_In'), buys: ix('Buy_In'), cout: ix('Cash_Out'), win: ix('Win'), q: ix('Quarter') };
+  return body.filter(r => r[c.date] && r[c.player]).map(r => {
+    const [m, d, y] = r[c.date].split('/').map(Number);
+    const cin = money(r[c.cin]), cout = money(r[c.cout]);
+    return { date: new Date(y, m - 1, d), key: `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
+      type: r[c.type].trim(), player: r[c.player].trim(), cin, cout, net: cout - cin, buys: parseInt(r[c.buys], 10) || 1,
+      win: String(r[c.win]).toUpperCase() === 'TRUE', quarter: r[c.q] || `Q${Math.floor((m - 1) / 3) + 1} ${y}` };
+  });
+}
+
+const fmt = n => (n < 0 ? '-$' : '$') + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtSigned = n => (n > 0 ? '+' : '') + fmt(n);
+const fmtDate = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const nameBtn = n => `<button type="button" class="link" data-player="${esc(n)}">${esc(n)}</button>`;
+const signCls = n => n > 0 ? 'pos' : n < 0 ? 'neg' : '';
+const PIE_COLORS = ['#e05d44', '#f2b134', '#3f9a68', '#4a90d9', '#9b6bd3', '#e8833a', '#2bb3a8', '#d6589b', '#8c9a3b', '#6c7a89', '#c4a36a', '#5b6ee1'];
+
+let DATA = [], MEMBERS = {}, charts = {};
+// Members tab: column A is the player's name, column C their status (Member / Sometimes / Guest)
+function toMembers(text) {
+  const out = {};
+  parseCSV((text || '').trim()).slice(1).forEach(r => { const n = (r[0] || '').trim(), s = (r[2] || '').trim(); if (n && s) out[n] = s; });
+  return out;
+}
+
+function quarterSort(a, b) { const [qa, ya] = a.split(' '), [qb, yb] = b.split(' '); return (yb - ya) || (qb.slice(1) - qa.slice(1)); }
+
+// ---------- Period pickers (Year + Quarter) ----------
+// A period is "all", a year "Y2026", or a quarter "Q4 2026" (matching the sheet's Quarter column).
+let overviewPeriod = null;
+const currentQuarter = () => [...new Set(DATA.map(r => r.quarter))].sort(quarterSort)[0];
+const inPeriod = (r, p) => p === 'all' || (p[0] === 'Y' ? r.date.getFullYear() === +p.slice(1) : r.quarter === p);
+const periodName = p => p === 'all' ? 'All time' : p[0] === 'Y' ? p.slice(1) : p;
+const periodPhrase = p => p === 'all' ? 'all-time' : 'in ' + periodName(p);
+const validPeriod = p => !!p && (p === 'all' || DATA.some(r => inPeriod(r, p)));
+const periodParts = p => p === 'all' ? { y: 'all', q: 'all' } : p[0] === 'Y' ? { y: p.slice(1), q: 'all' } : { y: p.split(' ')[1], q: p.split(' ')[0].slice(1) };
+const partsToPeriod = (y, q) => y === 'all' ? 'all' : q === 'all' ? 'Y' + y : `Q${q} ${y}`;
+
+// playerGames (optional) marks years/quarters that player sat out
+function fillPicker(ySel, qSel, period, playerGames) {
+  const { y, q } = periodParts(period);
+  const years = [...new Set(DATA.map(r => r.date.getFullYear()))].sort((a, b) => b - a);
+  const pYears = playerGames && new Set(playerGames.map(r => r.date.getFullYear()));
+  const pQs = playerGames && new Set(playerGames.map(r => r.quarter));
+  const dataQs = new Set(DATA.map(r => r.quarter));
+  const sat = has => playerGames && !has ? ' (didn\'t play)' : '';
+  ySel.innerHTML = years.map(v => `<option value="${v}">${v}${sat(pYears?.has(v))}</option>`).join('') + '<option value="all">All time</option>';
+  ySel.value = y;
+  qSel.innerHTML = `<option value="all">${y === 'all' ? 'All quarters' : 'Full year'}</option>` + (y === 'all' ? [] : [1, 2, 3, 4]).map(n => {
+    const key = `Q${n} ${y}`, exists = dataQs.has(key);
+    return `<option value="${n}"${exists ? '' : ' disabled'}>Q${n}${exists ? sat(pQs?.has(key)) : ' (no games)'}</option>`;
+  }).join('');
+  qSel.value = q;
+  qSel.disabled = y === 'all';
+}
+function bindPicker(ySel, qSel, onChange) {
+  ySel.addEventListener('change', () => {
+    const y = ySel.value; let q = qSel.value;
+    // keep the same quarter when switching years if that year has it, otherwise show the full year
+    if (y === 'all' || (q !== 'all' && !DATA.some(r => r.quarter === `Q${q} ${y}`))) q = 'all';
+    onChange(partsToPeriod(y, q));
+  });
+  qSel.addEventListener('change', () => onChange(partsToPeriod(ySel.value, qSel.value)));
+}
+bindPicker(document.getElementById('oYear'), document.getElementById('oQuarter'), p => { overviewPeriod = p; render(); });
+
+function setup() {
+  if (!validPeriod(overviewPeriod)) overviewPeriod = currentQuarter(); // homepage opens on the current quarter
+  if (location.hash) fromHash();
+  show();
+}
+
+function render() {
+  fillPicker(document.getElementById('oYear'), document.getElementById('oQuarter'), overviewPeriod);
+  const rows = DATA.filter(r => inPeriod(r, overviewPeriod));
+  const label = overviewPeriod === 'all' ? 'all time' : periodName(overviewPeriod);
+
+  // Tiles
+  const games = {}; rows.forEach(r => games[r.key] = r.type);
+  const nights = Object.keys(games).sort();
+  const cashN = nights.filter(k => games[k] === 'Cash').length, tourN = nights.length - cashN;
+  const buyTotal = rows.reduce((s, r) => s + r.cin, 0);
+  document.getElementById('tBuy').textContent = fmt(buyTotal);
+  document.getElementById('tBuyN').textContent = `${nights.length} night${nights.length === 1 ? '' : 's'} in ${label}`;
+
+  const per = {};
+  rows.forEach(r => { const p = per[r.player] ||= { player: r.player, games: 0, wins: 0, cin: 0, cout: 0, net: 0 };
+    p.games++; p.wins += r.win ? 1 : 0; p.cin += r.cin; p.cout += r.cout; p.net += r.net; });
+  const standings = Object.values(per).sort((a, b) => b.net - a.net);
+  const top = standings[0];
+  document.getElementById('tTop').innerHTML = top ? nameBtn(top.player) : '–';
+  document.getElementById('tTopN').textContent = top ? fmtSigned(top.net) : '';
+
+  const lastKey = nights[nights.length - 1];
+  const last = rows.filter(r => r.key === lastKey);
+  const lw = last.find(r => r.win) || [...last].sort((a, b) => b.net - a.net)[0];
+  document.getElementById('tRecent').innerHTML = lw ? nameBtn(lw.player) : '–';
+  document.getElementById('tRecentN').textContent = lw ? `${fmtSigned(lw.net)} · ${fmtDate(lw.date)}` : '';
+  document.getElementById('tMix').textContent = `${cashN} / ${tourN}`;
+
+  // Bar chart: players ordered by net, like a leaderboard
+  const ink = css('--fg'), muted = css('--muted'), grid = css('--line');
+  Chart.defaults.font.family = css('--body');
+  Chart.defaults.color = muted;
+  const names = standings.map(p => p.player);
+  charts.bar?.destroy();
+  charts.bar = new Chart(document.getElementById('bar'), {
+    type: 'bar',
+    data: { labels: names, datasets: [
+      { label: 'Buy-ins', data: standings.map(p => p.cin), backgroundColor: css('--chip-red'), borderRadius: 3, maxBarThickness: 26 },
+      { label: 'Cash-outs', data: standings.map(p => p.cout), backgroundColor: css('--chip-green'), borderRadius: 3, maxBarThickness: 26 } ] },
+    options: { maintainAspectRatio: false, animation: { duration: 250 },
+      onClick: (e, els) => { if (els.length) openPlayer(names[els[0].index]); },
+      onHover: (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, color: ink } },
+        tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt(c.raw)}`, afterBody: items => `Net: ${fmtSigned(standings[items[0].dataIndex].net)}` } } },
+      scales: { x: { grid: { display: false }, ticks: { color: ink, autoSkip: false, maxRotation: 50 } },
+        y: { grid: { color: grid }, border: { display: false }, ticks: { callback: v => '$' + v } } } } });
+  document.getElementById('barHint').textContent = `Per player for ${label}, ordered by net profit. Click a bar to see that player.`;
+
+  // Last game pies
+  const hint = lastKey ? `${last[0].type} night · ${fmtDate(last[0].date)} · ${last.length} players` : 'No games in this period.';
+  document.getElementById('lastHint1').textContent = hint;
+  document.getElementById('lastHint2').textContent = hint;
+  pie('pieIn', 'legIn', [...last].sort((a, b) => b.cin - a.cin).map(r => [r.player, r.cin]));
+  pie('pieOut', 'legOut', [...last].sort((a, b) => b.cout - a.cout).map(r => [r.player, r.cout]).filter(x => x[1] > 0));
+
+  // Standings table
+  document.getElementById('standings').innerHTML = standings.map((p, i) => `<tr>
+    <td class="rank">${i + 1}</td><td>${nameBtn(p.player)}</td><td class="num">${p.games}</td><td class="num">${p.wins}</td>
+    <td class="num">${fmt(p.cin)}</td><td class="num">${fmt(p.cout)}</td>
+    <td class="num ${p.net > 0 ? 'pos' : p.net < 0 ? 'neg' : ''}">${fmtSigned(p.net)}</td></tr>`).join('');
+}
+
+function pie(canvasId, legendId, pairs) {
+  charts[canvasId]?.destroy();
+  const leg = document.getElementById(legendId);
+  const total = pairs.reduce((s, p) => s + p[1], 0);
+  if (!total) { leg.innerHTML = '<li class="empty">Nothing to show.</li>'; return; }
+  const colors = pairs.map((_, i) => PIE_COLORS[i % PIE_COLORS.length]);
+  charts[canvasId] = new Chart(document.getElementById(canvasId), {
+    type: 'doughnut',
+    data: { labels: pairs.map(p => p[0]), datasets: [{ data: pairs.map(p => p[1]), backgroundColor: colors, borderColor: css('--surface'), borderWidth: 2 }] },
+    options: { maintainAspectRatio: false, cutout: '55%', animation: { duration: 250 },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.label}: ${fmt(c.raw)}` } } } } });
+  leg.innerHTML = pairs.map((p, i) => `<li><span class="sw" style="background:${colors[i]}"></span><span>${nameBtn(p[0])}</span>
+    <span class="amt">${fmt(p[1])}</span><span class="pct">${(p[1] / total * 100).toFixed(1)}%</span></li>`).join('');
+}
+
+// ---------- Player page ----------
+let currentPlayer = null, lineFilter = 'all', playerGames = [], redrawLine = () => {};
+document.getElementById('lineSeg').addEventListener('click', e => {
+  const b = e.target.closest('button[data-f]'); if (!b || b.disabled) return;
+  lineFilter = b.dataset.f; redrawLine();
+});
+const SUITS = [{ s: '♠', red: false }, { s: '♥', red: true }, { s: '♦', red: true }, { s: '♣', red: false }];
+const cardRank = r => ({ 1: 'A', 11: 'J', 12: 'Q', 13: 'K' })[r] || String(r);
+
+let playerPeriod = null;
+bindPicker(document.getElementById('pYear'), document.getElementById('pQuarterSel'), p => { playerPeriod = p; renderPlayer(currentPlayer); });
+
+// Up to three labels earned against the rest of the group within the period (regulars only)
+function badgesFor(name, games, run, scope, allGames) {
+  const per = {};
+  scope.forEach(r => { const p = per[r.player] ||= { n: 0, net: 0, wins: 0, buys: 0 }; p.n++; p.net += r.net; p.wins += r.win ? 1 : 0; p.buys += r.buys; });
+  const nights = new Set(scope.map(r => r.key)).size;
+  const regs = Object.entries(per).filter(([, p]) => p.n >= Math.max(2, Math.ceil(nights * 0.4)));
+  const leader = (fn) => regs.reduce((a, b) => fn(b[1]) > fn(a[1]) ? b : a, regs[0])?.[0];
+  const out = [];
+  if (allGames.length === 1) out.push('Rookie');
+  if (leader(p => p.net) === name) out.push('Chip leader');
+  if (leader(p => p.wins) === name) out.push('Most wins');
+  if (leader(p => p.n) === name) out.push('Iron man');
+  if (leader(p => p.buys / p.n) === name) out.push('Rebuy king');
+  if (run >= 3) out.push('On a heater'); else if (run <= -3) out.push('Running cold');
+  const tn = games.filter(r => r.type === 'Tournament').reduce((s, r) => s + r.net, 0);
+  const cn = games.filter(r => r.type === 'Cash').reduce((s, r) => s + r.net, 0);
+  if (tn > 0 && tn > cn) out.push('Tournament threat'); else if (cn > 0 && cn > tn) out.push('Cash game grinder');
+  return out.slice(0, 3);
+}
+const slug = n => 'player-' + n.replace(/[^A-Za-z0-9]/g, '_');
+
+function openPlayer(name) {
+  currentPlayer = name;
+  playerPeriod = null; // every player page opens on the current quarter
+  try { if (location.hash !== '#' + slug(name)) location.hash = slug(name); } catch (e) {}
+  show();
+  window.scrollTo(0, 0);
+}
+function closePlayer() {
+  currentPlayer = null;
+  try { if (location.hash) history.pushState(null, '', location.pathname + location.search); } catch (e) {}
+  show();
+}
+function fromHash() {
+  const h = decodeURIComponent((location.hash || '').slice(1));
+  const names = [...new Set(DATA.map(r => r.player))];
+  const next = h.startsWith('player-') ? (names.find(n => slug(n) === h) || null) : null;
+  if (next !== currentPlayer) playerPeriod = null;
+  currentPlayer = next;
+}
+function show() {
+  const onPlayer = !!currentPlayer;
+  document.getElementById('overview').hidden = onPlayer;
+  document.getElementById('playerView').hidden = !onPlayer;
+  document.getElementById('controls').hidden = onPlayer;
+  if (onPlayer) renderPlayer(currentPlayer); else render();
+}
+
+function renderPlayer(name) {
+  const allGames = DATA.filter(r => r.player === name).sort((a, b) => a.date - b.date);
+  if (!allGames.length) { currentPlayer = null; return show(); }
+  if (!validPeriod(playerPeriod)) playerPeriod = currentQuarter();
+  fillPicker(document.getElementById('pYear'), document.getElementById('pQuarterSel'), playerPeriod, allGames);
+
+  const scope = DATA.filter(r => inPeriod(r, playerPeriod));
+  const games = allGames.filter(r => inPeriod(r, playerPeriod));
+  const label = periodName(playerPeriod);
+  const status = MEMBERS[name] || 'Player';
+  const since = allGames[0].date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  const card = document.getElementById('pCard');
+  const suit = SUITS[[...name].reduce((s, ch) => s + ch.charCodeAt(0), 0) % SUITS.length];
+  card.dataset.red = suit.red ? '1' : '0';
+  document.getElementById('cMono').textContent = name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || name.slice(0, 2).toUpperCase();
+  document.getElementById('pName').textContent = name;
+  document.getElementById('pNetK').textContent = playerPeriod === 'all' ? 'All-time net' : `${label} net`;
+
+  // No games in this period: show the card shell and point to the picker
+  const empty = !games.length;
+  document.getElementById('playerView').classList.toggle('is-empty', empty);
+  const emptyEl = document.getElementById('pEmpty');
+  emptyEl.hidden = !empty;
+  if (empty) {
+    emptyEl.textContent = `${name} hasn't played in ${label}. Pick another quarter or year above to see their stats.`;
+    card.querySelectorAll('.pc-corner').forEach(el => el.innerHTML = `<span>–</span><span class="suit">${suit.s}</span>`);
+    document.getElementById('pSub').textContent = `${status} since ${since}`;
+    document.getElementById('cBadges').innerHTML = '';
+    const netEl = document.getElementById('pNet'); netEl.textContent = '–'; netEl.className = 'pc-big';
+    document.getElementById('pNetN').textContent = 'no games';
+    document.getElementById('cStats').innerHTML = '';
+    return;
+  }
+
+  const byNight = {}; scope.forEach(r => (byNight[r.key] ||= []).push(r));
+  const periodNights = Object.keys(byNight).sort();
+  const n = games.length, net = games.reduce((s, r) => s + r.net, 0), cin = games.reduce((s, r) => s + r.cin, 0);
+  const wins = games.filter(r => r.win).length, cashed = games.filter(r => r.cout > 0).length;
+  const best = games.reduce((a, r) => r.net > a.net ? r : a), worst = games.reduce((a, r) => r.net < a.net ? r : a);
+  const sinceFirst = periodNights.filter(k => k >= allGames[0].key).length;
+
+  // Rank among everyone who played in the period
+  const totals = {}; scope.forEach(r => totals[r.player] = (totals[r.player] || 0) + r.net);
+  const ranked = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+  const rank = ranked.findIndex(([p]) => p === name) + 1;
+
+  // Streaks of profitable / losing nights
+  let longestUp = 0, longestDown = 0, run = 0;
+  games.forEach(r => { run = r.net > 0 ? Math.max(run, 0) + 1 : r.net < 0 ? Math.min(run, 0) - 1 : 0;
+    longestUp = Math.max(longestUp, run); longestDown = Math.max(longestDown, -run); });
+
+  // Card face: corner shows the rank for the period
+  card.querySelectorAll('.pc-corner').forEach(el => el.innerHTML = `<span>${cardRank(rank)}</span><span class="suit">${suit.s}</span>`);
+  document.getElementById('pSub').textContent = `${status} since ${since} · #${rank} of ${ranked.length} ${periodPhrase(playerPeriod)}`;
+  document.getElementById('cBadges').innerHTML = badgesFor(name, games, run, scope, allGames).map(b => `<span class="chip">${esc(b)}</span>`).join('');
+
+  const netEl = document.getElementById('pNet');
+  netEl.textContent = fmtSigned(net); netEl.className = 'pc-big ' + signCls(net);
+  document.getElementById('pNetN').textContent = `${fmt(cin)} in · ${fmt(games.reduce((s, r) => s + r.cout, 0))} out`;
+
+  const roi = cin ? net / cin * 100 : 0;
+  const stat = (label, value, note, cls = '') => `<div><dt>${label}</dt><dd class="${cls}">${value}</dd><small>${note}</small></div>`;
+  document.getElementById('cStats').innerHTML = [
+    stat('Nights', n, `${Math.round(n / sinceFirst * 100)}% attendance`),
+    stat('Wins', wins, `${(wins / n * 100).toFixed(0)}% win rate`),
+    stat('Avg / night', fmtSigned(net / n), `cashed ${cashed} of ${n}`, signCls(net)),
+    stat('ROI', (roi > 0 ? '+' : '') + roi.toFixed(1) + '%', 'net ÷ buy-ins', signCls(roi)),
+    stat('Best night', best.net > 0 ? fmtSigned(best.net) : '–', best.net > 0 ? fmtDate(best.date) : 'none yet', best.net > 0 ? 'pos' : ''),
+    stat('Worst night', worst.net < 0 ? fmtSigned(worst.net) : '–', worst.net < 0 ? fmtDate(worst.date) : 'never lost', worst.net < 0 ? 'neg' : ''),
+  ].join('');
+
+  // Formats
+  document.getElementById('pFormats').innerHTML = ['Cash', 'Tournament'].map(t => {
+    const g = games.filter(r => r.type === t); if (!g.length) return '';
+    const tn = g.reduce((s, r) => s + r.net, 0);
+    return `<tr><td>${t}</td><td></td><td class="num">${g.length}</td><td class="num">${g.filter(r => r.win).length}</td>
+      <td class="num">${g.filter(r => r.cout > 0).length}</td><td class="num ${signCls(tn)}">${fmtSigned(tn)}</td></tr>`;
+  }).join('');
+
+  const cur = run > 0 ? `${run} up` : run < 0 ? `${-run} down` : 'even';
+  const recent = games.slice(-5), recentNet = recent.reduce((s, r) => s + r.net, 0);
+  document.getElementById('pStreaks').innerHTML = `
+    <dt>Current streak</dt><dd>${cur}</dd>
+    <dt>Longest profitable run</dt><dd>${longestUp} night${longestUp === 1 ? '' : 's'}</dd>
+    <dt>Longest losing run</dt><dd>${longestDown} night${longestDown === 1 ? '' : 's'}</dd>
+    <dt>Last ${recent.length} nights</dt><dd class="${signCls(recentNet)}">${fmtSigned(recentNet)}</dd>`;
+
+  // Cumulative line
+  const ink = css('--fg'), muted = css('--muted'), grid = css('--line'), up = css('--up'), down = css('--down');
+  Chart.defaults.font.family = css('--body'); Chart.defaults.color = muted;
+  playerGames = games;
+  const drawLine = () => {
+  const counts = { all: playerGames.length, Cash: 0, Tournament: 0 };
+  playerGames.forEach(r => counts[r.type] = (counts[r.type] || 0) + 1);
+  if (!counts[lineFilter]) lineFilter = 'all';
+  document.querySelectorAll('#lineSeg button').forEach(b => { b.setAttribute('aria-pressed', String(b.dataset.f === lineFilter)); b.disabled = !counts[b.dataset.f]; });
+  const games = lineFilter === 'all' ? playerGames : playerGames.filter(r => r.type === lineFilter);
+  const what = { all: 'all games', Cash: 'cash games', Tournament: 'tournaments' }[lineFilter];
+  document.getElementById('pLineHint').textContent = `Running total across ${what}: ${games.length} night${games.length === 1 ? '' : 's'}, ${fmtSigned(games.reduce((s, r) => s + r.net, 0))}.`;
+  charts.pLine?.destroy();
+  let acc = 0; const cum = games.map(r => (acc += r.net));
+  charts.pLine = new Chart(document.getElementById('pLine'), {
+    type: 'line',
+    data: { labels: games.map(r => r.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })),
+      datasets: [{ data: cum, borderColor: css('--felt'), borderWidth: 2, tension: 0.25, fill: { target: { value: 0 }, above: up + '22', below: down + '22' },
+        pointRadius: games.map((r, i) => i === games.length - 1 ? 5 : 2.5), pointBackgroundColor: games.map(r => r.net >= 0 ? up : down), pointBorderWidth: 0 }] },
+    options: { maintainAspectRatio: false, animation: { duration: 250 },
+      plugins: { legend: { display: false }, tooltip: { callbacks: {
+        title: items => `${games[items[0].dataIndex].type} · ${fmtDate(games[items[0].dataIndex].date)}`,
+        label: c => [`Night: ${fmtSigned(games[c.dataIndex].net)}`, `Running total: ${fmtSigned(c.raw)}`] } } },
+      scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 8, maxRotation: 0 } },
+        y: { beginAtZero: true, grid: { color: c => c.tick.value === 0 ? muted : grid }, border: { display: false }, ticks: { callback: v => (v < 0 ? '-$' : '$') + Math.abs(v) } } } } });
+  };
+  redrawLine = drawLine;
+  drawLine();
+
+  // Net by night (one quarter) or by quarter (a year or all time)
+  const byNightView = playerPeriod !== 'all' && playerPeriod[0] !== 'Y';
+  const qs = {};
+  if (byNightView) games.forEach(r => { const k = r.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); qs[k] = (qs[k] || 0) + r.net; });
+  else games.forEach(r => qs[r.quarter] = (qs[r.quarter] || 0) + r.net);
+  const qKeys = byNightView ? Object.keys(qs) : Object.keys(qs).sort((a, b) => -quarterSort(a, b));
+  document.getElementById('pBarsTitle').textContent = byNightView ? 'Net by night' : 'Net by quarter';
+  document.getElementById('pBarsHint').textContent = byNightView ? `Profit or loss each night played in ${label}.`
+    : playerPeriod === 'all' ? 'Profit or loss each quarter played.' : `Profit or loss each quarter of ${label}.`;
+  charts.pQuarter?.destroy();
+  charts.pQuarter = new Chart(document.getElementById('pQuarter'), {
+    type: 'bar',
+    data: { labels: qKeys, datasets: [{ data: qKeys.map(k => qs[k]), backgroundColor: qKeys.map(k => qs[k] >= 0 ? up : down), borderRadius: 3, maxBarThickness: 32 }] },
+    options: { maintainAspectRatio: false, animation: { duration: 250 },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmtSigned(c.raw) } } },
+      scales: { x: { grid: { display: false }, ticks: { color: ink, maxRotation: 50 } },
+        y: { grid: { color: c => c.tick.value === 0 ? muted : grid }, border: { display: false }, ticks: { callback: v => (v < 0 ? '-$' : '$') + Math.abs(v) } } } } });
+
+  // Game log
+  document.getElementById('pLog').innerHTML = [...games].reverse().map(r => {
+    const field = byNight[r.key], place = field.filter(o => o.net > r.net).length + 1;
+    return `<tr><td>${fmtDate(r.date)}</td><td>${r.type}</td><td class="num">${r.buys}</td><td class="num">${fmt(r.cin)}</td>
+      <td class="num">${fmt(r.cout)}</td><td class="num ${signCls(r.net)}">${fmtSigned(r.net)}</td>
+      <td class="num">${r.win ? '<span class="chip">Won</span> ' : ''}${place} of ${field.length}</td></tr>`;
+  }).join('');
+}
+
+document.addEventListener('click', e => { const b = e.target.closest('[data-player]'); if (b) openPlayer(b.dataset.player); });
+document.getElementById('backBtn').addEventListener('click', closePlayer);
+window.addEventListener('hashchange', () => { fromHash(); show(); });
+window.addEventListener('popstate', () => { fromHash(); show(); });
+
+function setSource(live) {
+  document.getElementById('srcDot').classList.toggle('live', live);
+  const latest = DATA.length ? fmtDate(DATA.reduce((a, r) => r.date > a ? r.date : a, DATA[0].date)) : '';
+  document.getElementById('srcText').textContent = live
+    ? `Live from Google Sheets · latest game ${latest}`
+    : `Snapshot taken ${SNAPSHOT_DATE} · latest game ${latest}`;
+}
+
+async function boot() {
+  DATA = toRecords(document.getElementById('snapshot').textContent);
+  MEMBERS = toMembers(document.getElementById('membersSnapshot').textContent);
+  if (DATA.length) { setSource(false); setup(); }
+  else document.getElementById('srcText').textContent = 'Loading results from Google Sheets…';
+  const get = async url => {
+    const ctrl = new AbortController(); setTimeout(() => ctrl.abort(), 8000);
+    const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' });
+    if (!res.ok) throw new Error(res.status);
+    return res.text();
+  };
+  try {
+    const [inputCsv, membersCsv] = await Promise.all([get(LIVE_URL), get(LIVE_URL.replace('sheet=Input', 'sheet=Members')).catch(() => '')]);
+    const live = toRecords(inputCsv);
+    if (live.length) { DATA = live; const m = toMembers(membersCsv); if (Object.keys(m).length) MEMBERS = m; setSource(true); setup(); }
+  } catch (e) {
+    // With a built-in snapshot, keep showing it; without one, say what to check
+    if (!DATA.length) document.getElementById('srcText').textContent =
+      "Couldn't reach the Poker Stats sheet. Check that it's shared as \"Anyone with the link can view\", then refresh.";
+  }
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => DATA.length && show());
+new MutationObserver(() => DATA.length && show()).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+boot();
+</script>
