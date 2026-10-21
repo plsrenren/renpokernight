@@ -41,6 +41,7 @@ input:focus-visible, button:focus-visible { outline: 2px solid var(--felt); outl
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 7px 12px; cursor: pointer; font-size: 14px; min-height: 36px; }
 .chip:hover { border-color: var(--felt); }
+.chip.on { background: var(--felt); border-color: var(--felt); color: var(--surface); font-weight: 600; }
 .newp { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
 .btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 10px 14px; cursor: pointer; min-height: 44px; font-weight: 500; }
 .btn.primary { background: var(--felt); border-color: var(--felt); color: var(--surface); font-weight: 600; }
@@ -214,11 +215,30 @@ const saveDraft = () => { try { localStorage.setItem(DRAFT, JSON.stringify(state
 const loadDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT) || 'null'); } catch (e) { return null; } };
 const clearDraft = () => { try { localStorage.removeItem(DRAFT); } catch (e) {} };
 
+// Chips: everyone who played in the 3 months before the night (A–Z), plus anyone already added.
+// Added players stay in place, highlighted; tap again to remove.
+const RECENT_MONTHS = 3;
+function recentCutoff() {
+  const d = state.date ? new Date(state.date + 'T12:00:00') : new Date();
+  d.setMonth(d.getMonth() - RECENT_MONTHS);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
 function renderChips() {
   const taken = new Set(state.rows.map(r => r.name.toLowerCase()));
-  const list = SETUP.players.filter(p => !taken.has(p.name.toLowerCase()));
-  $('chips').innerHTML = list.map(p => `<button type="button" class="chip" data-add="${esc(p.name)}">${esc(p.name)}</button>`).join('')
-    || '<span class="empty">Everyone on the list is added.</span>';
+  const cutoff = recentCutoff();
+  const names = SETUP.players.filter(p => p.lastPlayed && p.lastPlayed >= cutoff || taken.has(p.name.toLowerCase())).map(p => p.name);
+  state.rows.forEach(r => { if (!names.some(n => n.toLowerCase() === r.name.toLowerCase())) names.push(r.name); });
+  names.sort((a, b) => a.localeCompare(b));
+  $('chips').innerHTML = names.map(n => {
+    const on = taken.has(n.toLowerCase());
+    return `<button type="button" class="chip${on ? ' on' : ''}" aria-pressed="${on}" data-add="${esc(n)}">${esc(n)}</button>`;
+  }).join('') || `<span class="empty">Nobody has played in the last ${RECENT_MONTHS} months. Type a name below.</span>`;
+}
+function togglePlayer(name) {
+  const r = state.rows.find(x => x.name.toLowerCase() === name.toLowerCase());
+  if (!r) return addPlayer(name);
+  if ((r.cashOut !== '' || r.notes || r.topUp || r.buys > 1) && !confirm(`Remove ${r.name}? What you typed for them will be cleared.`)) return;
+  state.rows = state.rows.filter(x => x !== r); renderRows(); saveDraft();
 }
 
 function rowHtml(r) {
@@ -446,11 +466,11 @@ function syncPayoutInputs() {
 }
 
 // ---- Events ----
-$('chips').addEventListener('click', e => { const b = e.target.closest('[data-add]'); if (b) { $('status').hidden = true; addPlayer(b.dataset.add); } });
+$('chips').addEventListener('click', e => { const b = e.target.closest('[data-add]'); if (b) { $('status').hidden = true; togglePlayer(b.dataset.add); } });
 $('addNew').addEventListener('click', () => { $('status').hidden = true; addPlayer($('newName').value); $('newName').value = ''; });
 $('newName').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('addNew').click(); } });
 $('type').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b) { setType(b.dataset.v); saveDraft(); } });
-$('date').addEventListener('change', e => { state.date = e.target.value; $('dupWrap').hidden = true; $('dup').checked = false; updateTotals(); saveDraft(); });
+$('date').addEventListener('change', e => { state.date = e.target.value; $('dupWrap').hidden = true; $('dup').checked = false; renderChips(); updateTotals(); saveDraft(); });
 $('buyIn').addEventListener('input', e => {
   state.buyIn = num(e.target.value);
   state.rows.forEach(r => { if (!r.manualIn) { r.cashIn = round2(r.buys * state.buyIn); updateRow(r); } });

@@ -13,7 +13,7 @@ const DISCORD_WEBHOOK_URL = '';
 // Optional: a PIN people must type before saving (leave '' for none).
 const ENTRY_PIN = '';
 // Optional: link to your dashboard, added to the Discord post.
-const DASHBOARD_URL = '';
+const DASHBOARD_URL = 'https://renpokernight.vercel.app';
 
 // Input tab columns (1-based)
 const COL = { date: 1, type: 2, player: 3, cashIn: 4, buys: 5, cashOut: 6, notes: 7, pnl: 8, win: 9, quarter: 10 };
@@ -48,8 +48,12 @@ const dayKey_ = d => Utilities.formatDate(new Date(d), Session.getScriptTimeZone
 function getSetup() {
   const book = ss_();
   const rows = inputRows_(book.getSheetByName(INPUT_TAB));
-  const counts = {};
-  rows.forEach(r => { const n = String(r[COL.player - 1]).trim(); counts[n] = (counts[n] || 0) + 1; });
+  const counts = {}, lastPlayed = {};
+  rows.forEach(r => {
+    const n = String(r[COL.player - 1]).trim(), d = dayKey_(r[COL.date - 1]);
+    counts[n] = (counts[n] || 0) + 1;
+    if (!lastPlayed[n] || d > lastPlayed[n]) lastPlayed[n] = d;
+  });
 
   const status = {};
   const members = book.getSheetByName(MEMBERS_TAB);
@@ -59,8 +63,8 @@ function getSetup() {
     });
   }
   const names = [...new Set([...Object.keys(status), ...Object.keys(counts)])];
-  const players = names.map(n => ({ name: n, status: status[n] || '', games: counts[n] || 0 }))
-    .sort((a, b) => b.games - a.games || a.name.localeCompare(b.name));
+  const players = names.map(n => ({ name: n, status: status[n] || '', games: counts[n] || 0, lastPlayed: lastPlayed[n] || '' }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   // Guess tonight's buy-in from the most recent night: the most common cash-in per buy-in
   let defaultBuyIn = 40, lastNight = null;
@@ -124,12 +128,15 @@ function saveNight(payload) {
     // Inputs (A:G)
     sheet.getRange(start, 1, n, 7).setValues(players.map(p => [date, type, p.name, p.cashIn, p.buys, p.cashOut, p.notes]));
 
-    // PnL / Win / Quarter (H:J): reuse the sheet's formulas if it has them, otherwise write values
+    // PnL / Win / Quarter (H:J): leave columns filled by an ARRAYFORMULA in row 2 alone (any value
+    // typed below it breaks the whole column with #REF!), reuse per-row formulas, otherwise write values
+    const headFormulas = sheet.getRange(2, COL.pnl, 1, 3).getFormulas()[0];
     const prevFormulas = last >= 2 ? sheet.getRange(last, COL.pnl, 1, 3).getFormulas()[0] : ['', '', ''];
     const targetFormulas = sheet.getRange(start, COL.pnl, n, 3).getFormulas();
     const computed = players.map((p, i) => [p.net, i === 0, quarter]); // Win = the night's top finisher
     for (let c = 0; c < 3; c++) {
       const col = COL.pnl + c;
+      if (/ARRAYFORMULA/i.test(headFormulas[c])) continue;
       if (prevFormulas[c]) {
         sheet.getRange(last, col).copyTo(sheet.getRange(start, col, n, 1), SpreadsheetApp.CopyPasteType.PASTE_FORMULA, false);
       } else {

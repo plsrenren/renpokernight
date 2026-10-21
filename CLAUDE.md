@@ -17,7 +17,7 @@ Google Sheet ("Poker Stats")  <──writes──  Entry page (Apps Script web a
 | Data | Google Sheet ID `1YxoWSWgeTRrEiPlm1Ys85s4UsHKxSzpPHEssynXEytM`, shared "Anyone with the link can view" (required for the dashboard) |
 | Live dashboard | Vercel project **renpokernight** (personal account `renjrsaturnino-5667`), production URL https://renpokernight.vercel.app. Static `index.html` only, no build step, framework none |
 | Dashboard snapshot copy | claude.ai artifact https://claude.ai/artifact/LoHQxkyWcDKsdTMdW78zpC (snapshot of the data built in; claude.ai blocks fetches to Google, so it never updates by itself) |
-| Entry page | Apps Script bound to the sheet (Extensions → Apps Script). **Not installed yet as of Oct 20, 2026.** Install steps in `poker-entry/SETUP.md` |
+| Entry page | Apps Script bound to the sheet (Extensions → Apps Script). Deployed Oct 21, 2026 (access: Only myself): https://script.google.com/macros/s/AKfycbw0mcMTo7sT94TVOOKg5FHtPml5aVAIBUcRCGNGig-CPvJPpm5DiDLSxDmCdNVOUxWedg/exec . Install steps in `poker-entry/SETUP.md` |
 | PKO mockup (review only) | claude.ai artifact https://claude.ai/artifact/PTZadaxo3kkgmx5wEmbr6a |
 
 ## Files
@@ -29,6 +29,7 @@ poker-dashboard/
   build.ps1            Builds index.html (artifact copy, data snapshot inlined) and vercel/index.html (live-only site)
   index.html           Built: for the claude.ai artifact
   vercel/index.html    Built: deployed to Vercel (full HTML document, empty snapshot, reads the sheet live)
+  vercel/entry/        Short link renpokernight.vercel.app/entry → redirects to the Apps Script entry page URL
 poker-entry/
   Code.gs              Apps Script server: doGet, getSetup(), saveNight(payload), optional Discord post
   Index.html           Apps Script page (phone UI). Talks to Code.gs via google.script.run
@@ -46,8 +47,8 @@ poker-entry/
 - Event_Date `M/D/YYYY`; Game_Type `Cash` or `Tournament` (PKO nights are still `Tournament`)
 - Cash_In = total dollars in (buy-ins + rebuys + top-ups); Buy_In = count of buy-ins incl. rebuys; Cash_Out dollars
 - PnL = Cash_Out − Cash_In; Win = TRUE for the night's top net; Quarter like `Q4 2026`
-- Rows colored by game type (tournament blue, cash green). Not known whether H:J are formulas or typed values;
-  Code.gs handles both (copies formulas down if present, else writes values).
+- Rows colored by game type (tournament blue, cash green). H2, I2, J2 hold ARRAYFORMULAs that fill H:J for every row;
+  Code.gs must never write into H:J below them (that breaks the column with #REF!; happened Oct 21, 2026).
 **Members** tab: col A name, col B games played, col C status (Member / Sometimes / Guest), col D first join date.
 Other tabs (Dashboard, Comparison, Hall of Fame, Blinds Schedule, Calc_Data) are not used by our code.
 
@@ -85,9 +86,10 @@ then open it and confirm "Live from Google Sheets" and the row count.
 
 ## Entry page (poker-entry/)
 
-Apps Script web app, execute as owner. Settings at top of Code.gs: `SPREADSHEET_ID`, `DISCORD_WEBHOOK_URL` (empty),
-`ENTRY_PIN` (empty), `DASHBOARD_URL` (empty; should become https://renpokernight.vercel.app).
-- Pick date, buy-in amount, Cash/Tournament; tap player chips (sorted by games played, no count shown) or type a new name.
+Apps Script web app, execute as owner, access "Only myself". Settings at top of Code.gs: `SPREADSHEET_ID`, `DISCORD_WEBHOOK_URL` (empty),
+`ENTRY_PIN` (empty), `DASHBOARD_URL` (https://renpokernight.vercel.app).
+- Pick date, buy-in amount, Cash/Tournament; tap player chips (A–Z, only players seen in the 3 months before the night's date;
+  tapped chips stay in place highlighted, tap again to remove) or type a new name.
   Typed names match existing players case-insensitively; typos become new players (no "did you mean" yet).
 - Per player: buy-ins − / + (cash in auto = buys × amount, overridable), cash out (blank = $0), note.
 - **Tournament top-up** field per player: added to Cash_In, not counted as a buy-in, note "top-up $X".
@@ -119,7 +121,7 @@ Check money logic by scripting the page (click chips, set selects, read `state` 
 
 ## Open ideas (not done)
 
-- Install the entry page in Apps Script; set `DASHBOARD_URL` and a Discord webhook.
+- Add a Discord webhook to the entry page.
 - Player photos: add a "Photo" column to Members (Drive share links or direct image URLs), show on card/standings,
   fall back to initials. Photos would be public on the site.
 - Per-player variable buy-ins as a list of amounts (e.g. $40 + $40 + $27) instead of count × amount.

@@ -4,7 +4,7 @@ const file = path.join(__dirname, '..', 'poker-entry', 'Index.html');
 const stub = `<script>
 window.__saved = [];
 const players = ['Renato','Kurt','Dong','Carlos','Mike','Shawn','Iverson','JP','Christian','Kyler','Tommy','Ryan','Jerry']
-  .map((n, i) => ({ name: n, status: 'Member', games: 40 - i * 3 }));
+  .map((n, i) => ({ name: n, status: 'Member', games: 40 - i * 3, lastPlayed: i < 10 ? '2026-10-1' + (i % 10) : '2026-05-02' }));
 window.google = { script: { get run() {
   let ok = () => {}, fail = () => {};
   const api = {
