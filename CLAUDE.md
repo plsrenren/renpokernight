@@ -29,6 +29,7 @@ poker-dashboard/
   build.ps1            Builds index.html (artifact copy, data snapshot inlined) and vercel/index.html (live-only site)
   index.html           Built: for the claude.ai artifact
   vercel/index.html    Built: deployed to Vercel (full HTML document, empty snapshot, reads the sheet live)
+  vercel/entry/        Short link renpokernight.vercel.app/entry → redirects to the Apps Script entry page URL
 poker-entry/
   Code.gs              Apps Script server: doGet, getSetup(), saveNight(payload), optional Discord post
   Index.html           Apps Script page (phone UI). Talks to Code.gs via google.script.run
