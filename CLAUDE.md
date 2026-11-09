@@ -15,7 +15,7 @@ Google Sheet ("Poker Stats")  <──writes──  Entry page (Apps Script web a
 | Piece | Location |
 |---|---|
 | Data | Google Sheet ID `1YxoWSWgeTRrEiPlm1Ys85s4UsHKxSzpPHEssynXEytM`, shared "Anyone with the link can view" (required for the dashboard) |
-| Live dashboard | Vercel project **renpokernight** (personal account `renjrsaturnino-5667`), production URL https://renpokernight.vercel.app. Root dir `poker-dashboard/vercel`, static pages + `api/` functions, no build step, framework none. Deployed by Renato with the Vercel CLI (`vercel --prod`); not connected to GitHub as of Nov 9, 2026 |
+| Live dashboard | Vercel project **renpokernight** (personal account `renjrsaturnino-5667`), production URL https://renpokernight.vercel.app. Root dir `poker-dashboard/vercel`, static pages + `api/` functions, no build step, framework none. Connected to GitHub repo plsrenren/renpokernight since Oct 20, 2026: merging to main deploys production, PRs get preview deploys. `vercel --prod` from the CLI also works |
 | Dashboard snapshot copy | claude.ai artifact https://claude.ai/artifact/LoHQxkyWcDKsdTMdW78zpC (snapshot of the data built in; claude.ai blocks fetches to Google, so it never updates by itself) |
 | Entry page | Apps Script bound to the sheet (Extensions → Apps Script). Deployed Oct 21, 2026 (access: Only myself): https://script.google.com/macros/s/AKfycbw0mcMTo7sT94TVOOKg5FHtPml5aVAIBUcRCGNGig-CPvJPpm5DiDLSxDmCdNVOUxWedg/exec . Install steps in `poker-entry/SETUP.md` |
 | PKO mockup (review only) | claude.ai artifact https://claude.ai/artifact/PTZadaxo3kkgmx5wEmbr6a |
