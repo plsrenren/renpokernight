@@ -9,6 +9,7 @@ const INPUT_TAB = 'Input';
 const MEMBERS_TAB = 'Members';
 
 // Optional: paste a Discord webhook URL to offer "Post to Discord" after saving.
+// Keep it private: anyone with this URL can post in your channel.
 const DISCORD_WEBHOOK_URL = '';
 // Optional: a PIN people must type before saving (leave '' for none).
 const ENTRY_PIN = '';
@@ -160,7 +161,7 @@ function saveNight(payload) {
 
   let discordPosted = false;
   if (payload.postDiscord && DISCORD_WEBHOOK_URL) {
-    postDiscord_(key_(date), type, players);
+    postDiscord_(date, type, players);
     discordPosted = true;
   }
   const totalIn = players.reduce((s, p) => s + p.cashIn, 0);
@@ -171,15 +172,72 @@ function key_(d) { return Utilities.formatDate(d, Session.getScriptTimeZone(), '
 function round2_(n) { return Math.round(n * 100) / 100; }
 function money_(n) { return (n < 0 ? '-$' : n > 0 ? '+$' : '$') + Math.abs(n).toFixed(2); }
 
-function postDiscord_(when, type, players) {
+/**
+ * Posts the night to Discord. Tries the recap card image first (drawn by the dashboard site from the sheet as it
+ * is right now), and falls back to a text summary if the image can't be made.
+ */
+function postDiscord_(date, type, players) {
+  const when = key_(date), night = dayKey_(date), dayName = Utilities.formatDate(date, Session.getScriptTimeZone(), 'EEEE');
+  const site = DASHBOARD_URL ? DASHBOARD_URL.replace(/\/$/, '') : '';
+  const recapPage = site ? site + '/recap#' + night : '';
+  let png = null;
+  if (site) {
+    try {
+      const res = UrlFetchApp.fetch(site + '/api/recap?night=' + night + '&type=' + encodeURIComponent(type), {
+        method: 'post', contentType: 'application/json', payload: JSON.stringify({ input: inputCsv_(), members: membersCsv_() }), muteHttpExceptions: true });
+      if (res.getResponseCode() === 200) png = res.getBlob().setName('recap.png');
+      else console.warn('Recap image failed: ' + res.getResponseCode() + ' ' + res.getContentText().slice(0, 200));
+    } catch (e) { console.warn('Recap image failed: ' + e); }
+  }
+  if (png) {
+    const embed = { title: `${dayName} Night @ The Study`, description: `${when} · ${type}`, color: 0x6e52c8, image: { url: 'attachment://recap.png' } };
+    if (recapPage) embed.url = recapPage;
+    UrlFetchApp.fetch(DISCORD_WEBHOOK_URL, { method: 'post', payload: { payload_json: JSON.stringify({ embeds: [embed] }), 'files[0]': png } });
+    return;
+  }
+  // Fallback: text summary
   const pot = players.reduce((s, p) => s + p.cashIn, 0);
   const medals = ['🥇', '🥈', '🥉'];
   const embed = {
-    title: `🃏 ${type} night: ${when}`,
-    description: `${players.length} players · $${pot.toFixed(2)} in play`,
-    color: 0x1f6b45,
+    title: `🃏 ${dayName} Night @ The Study`,
+    description: `${when} · ${type} · ${players.length} players · $${pot.toFixed(2)} in play`,
+    color: 0x6e52c8,
     fields: [{ name: 'Results', value: players.map((p, i) => `${medals[i] || '•'} **${p.name}** ${money_(p.net)}`).join('\n').slice(0, 1024) }],
   };
-  if (DASHBOARD_URL) embed.url = DASHBOARD_URL;
+  if (recapPage || site) embed.url = recapPage || site;
   UrlFetchApp.fetch(DISCORD_WEBHOOK_URL, { method: 'post', contentType: 'application/json', payload: JSON.stringify({ embeds: [embed] }) });
+}
+
+/** The Input tab as CSV text (dates and money as shown in the sheet), for the recap image. */
+function inputCsv_() {
+  const sheet = ss_().getSheetByName(INPUT_TAB);
+  const last = lastDataRow_(sheet);
+  const values = sheet.getRange(1, 1, last, WIDTH).getDisplayValues();
+  return values.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
+}
+
+/** The Members tab as CSV text (names, status, Discord IDs), so the recap image can show pfps. */
+function membersCsv_() {
+  const sheet = ss_().getSheetByName(MEMBERS_TAB);
+  if (!sheet || sheet.getLastRow() < 1) return '';
+  const values = sheet.getRange(1, 1, sheet.getLastRow(), sheet.getLastColumn()).getDisplayValues();
+  return values.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
+}
+
+/**
+ * Test or re-post: pick this in the Apps Script editor's function menu and press Run to post the most recent
+ * night's recap to Discord. Nothing is saved or changed in the sheet.
+ */
+function postLatestRecap() {
+  if (!DISCORD_WEBHOOK_URL) throw new Error('Paste your Discord webhook URL into DISCORD_WEBHOOK_URL first.');
+  const rows = inputRows_(ss_().getSheetByName(INPUT_TAB));
+  if (!rows.length) throw new Error('No games in the sheet yet.');
+  const lastKey = rows.map(r => dayKey_(r[0])).sort().pop();
+  const night = rows.filter(r => dayKey_(r[0]) === lastKey);
+  const type = String(night[night.length - 1][COL.type - 1]);
+  const players = night.filter(r => String(r[COL.type - 1]) === type).map(r => {
+    const cashIn = Number(r[COL.cashIn - 1]) || 0, cashOut = Number(r[COL.cashOut - 1]) || 0;
+    return { name: String(r[COL.player - 1]).trim(), cashIn, cashOut, net: round2_(cashOut - cashIn) };
+  }).sort((a, b) => b.net - a.net);
+  postDiscord_(new Date(night[0][0]), type, players);
 }

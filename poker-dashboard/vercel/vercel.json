@@ -1,0 +1,40 @@
+{
+  "cleanUrls": true,
+  "functions": {
+    "api/recap.js": {
+      "includeFiles": "{api/_assets/**,recap-core.js}",
+      "maxDuration": 20
+    },
+    "api/card.js": {
+      "includeFiles": "{api/_assets/**,recap-core.js}",
+      "maxDuration": 15
+    },
+    "api/discord.js": {
+      "includeFiles": "recap-core.js",
+      "maxDuration": 30
+    },
+    "api/avatar.js": {
+      "maxDuration": 10
+    },
+    "api/hall.js": {
+      "includeFiles": "{api/_assets/**,recap-core.js}",
+      "maxDuration": 15
+    },
+    "api/h2h.js": {
+      "includeFiles": "{api/_assets/**,recap-core.js}",
+      "maxDuration": 15
+    },
+    "api/wrap.js": {
+      "includeFiles": "{api/_assets/**,recap-core.js}",
+      "maxDuration": 15
+    },
+    "api/invite.js": {
+      "includeFiles": "recap-core.js",
+      "maxDuration": 15
+    },
+    "api/roles.js": {
+      "includeFiles": "recap-core.js",
+      "maxDuration": 30
+    }
+  }
+}
