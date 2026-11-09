@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hall of Fame · Poker Club @ The Study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@600;700;800;900&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>
+/* Hall of Fame page: worked out live from the Input tab (same data as the dashboard and recap). */
+/* Layout: trophy case. Title band, then the record holders, the title count shelf, quarter-by-quarter champions
+   (newest first), and the three Top 5 boards. Single deliberate look: the club's "Cozy night" room. */
+:root {
+  --page: #100e20; --panel: #221e3d; --panel2: #2a2549; --line: #332e57;
+  --fg: #ece9fb; --bright: #f3f1ff; --soft: #cfcaf0; --muted: #9a94c4;
+  --violet: #6e52c8; --maroon: #a23b58; --peri: #a9b4f6; --gold: #f1c75b; --silver: #d9d6ee; --bronze: #e0a070;
+  --cash: #8f78f0; --tour: #bd8210; --up: #8ee0b0; --down: #f59bb0;
+  --title: "Bebas Neue", "Arial Narrow", Impact, sans-serif;
+  --body: "Nunito", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--page); color: var(--fg); font-family: var(--body); font-weight: 600; font-size: 14px; line-height: 1.45; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-block: 24px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 22px; }
+.amt { font-family: var(--mono); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.up { color: var(--up); } .down { color: var(--down); }
+.k { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+h2 { margin: 0; font-family: var(--title); font-weight: 400; font-size: 26px; letter-spacing: .03em; color: #fff; }
+.sechead { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.sechead p { margin: 0; color: var(--muted); font-size: 13px; }
+.av { --h: 260; width: 34px; height: 34px; flex: none; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 14px; background: hsl(var(--h) 80% 86%); color: hsl(var(--h) 45% 28%); }
+
+/* top bar */
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.bar a { color: var(--muted); font-size: 14px; text-decoration: none; font-weight: 700; }
+.bar a:hover { color: var(--peri); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--peri); outline-offset: 2px; }
+.pl { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; min-width: 0; }
+.pl:hover b { color: var(--peri); }
+.av { position: relative; overflow: hidden; }
+.av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.status { color: var(--muted); }
+.status.err { color: var(--down); }
+
+/* title band */
+.band { border-radius: 24px; padding: 26px 24px; background: radial-gradient(70% 120% at 0% 0%, rgba(241,199,91,.22), transparent 60%), linear-gradient(120deg, #2e2358, #3a1f3e); display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; }
+.band svg { width: 64px; height: 64px; }
+.band h1 { margin: 0; font-family: var(--title); font-weight: 400; font-size: 54px; line-height: .9; color: #fff; letter-spacing: .02em; text-wrap: balance; }
+.band p { margin: 6px 0 0; color: #e4d9ff; max-width: 60ch; }
+
+/* record holders */
+.recs { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+.rec { background: var(--panel); border-radius: 18px; padding: 16px; display: grid; gap: 10px; position: relative; overflow: hidden; }
+.rec::before { content: ""; position: absolute; inset: 0 0 auto; height: 4px; background: var(--c); }
+.rec .who { display: flex; align-items: center; gap: 10px; }
+.rec .who .av { width: 44px; height: 44px; font-size: 18px; box-shadow: 0 0 0 3px var(--panel), 0 0 0 5px var(--gold); }
+.rec .who b { font-weight: 900; font-size: 20px; color: #fff; }
+.rec .big { font-family: var(--mono); font-weight: 600; font-size: 26px; color: var(--up); line-height: 1; }
+
+/* title shelf */
+.shelf { background: var(--panel); border-radius: 18px; padding: 16px; display: grid; gap: 10px; }
+.shelfrow { display: grid; grid-template-columns: 22px 150px minmax(0,1fr) 40px; gap: 12px; align-items: center; }
+.shelfrow .rk { font-family: var(--mono); color: var(--muted); }
+.shelfrow .nm { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 900; color: var(--bright); }
+.shelfrow .nm span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cups { display: flex; flex-wrap: wrap; gap: 4px; }
+.cup { width: 22px; height: 24px; display: grid; place-items: center; }
+.cup svg { width: 22px; height: 22px; }
+.shelfrow .tot { font-family: var(--title); font-size: 26px; color: var(--gold); text-align: right; line-height: 1; }
+.shelfgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 14px 10px; }
+@media (max-width: 520px) { .shelfgrid { grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); } }
+.trophy { display: grid; justify-items: center; gap: 8px; padding: 12px 6px 10px; border-radius: 14px; background: rgba(255,255,255,.035); text-decoration: none; color: inherit; }
+.trophy:hover { background: rgba(255,255,255,.07); }
+.trophy .face { position: relative; }
+.trophy .av { width: 60px; height: 60px; font-size: 24px; box-shadow: 0 0 0 3px var(--panel), 0 0 0 5px rgba(201,195,240,.35); }
+.trophy.first .av { box-shadow: 0 0 0 3px var(--panel), 0 0 0 5px var(--gold); }
+.trophy .tot { position: absolute; right: -8px; bottom: -6px; min-width: 26px; height: 26px; padding: 0 6px; box-sizing: border-box; border-radius: 13px; background: var(--gold); color: #2a1f00;
+  font-family: var(--title); font-size: 18px; line-height: 26px; text-align: center; box-shadow: 0 0 0 3px var(--panel); }
+.trophy .mix { display: flex; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--soft); }
+.trophy .mix span { display: inline-flex; align-items: center; gap: 2px; }
+.trophy .mix svg { width: 14px; height: 14px; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--soft); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend svg { width: 16px; height: 16px; }
+
+/* quarters */
+.qgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.q { background: var(--panel); border-radius: 18px; padding: 14px 14px 12px; display: grid; gap: 10px; }
+.q.live { box-shadow: inset 0 0 0 2px rgba(241,199,91,.5); }
+.q .qh { display: flex; justify-content: space-between; align-items: baseline; }
+.q .qh b { font-family: var(--title); font-weight: 400; font-size: 24px; color: #fff; letter-spacing: .03em; }
+.q .qh span { font-size: 11px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
+.champ { display: grid; grid-template-columns: 30px minmax(0,1fr) auto; gap: 10px; align-items: center; }
+.champ .av { width: 30px; height: 30px; font-size: 12px; }
+.champ .t { display: grid; line-height: 1.2; min-width: 0; }
+.champ .t small { font-size: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.champ .t b { font-weight: 900; color: var(--bright); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.champ .t b em { font-style: normal; font-family: var(--mono); font-size: 11px; color: var(--gold); margin-left: 4px; }
+.champ.main .av { width: 30px; height: 30px; box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--gold); }
+.champ.main .t b { font-size: 16px; }
+.champ.main .amt { font-size: 14px; }
+.q hr { border: 0; border-top: 1px dashed var(--line); margin: 0; }
+
+/* top 5 boards */
+.boards { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+.board { background: var(--panel); border-radius: 18px; padding: 16px; display: grid; gap: 8px; align-content: start; }
+.board h3 { margin: 0 0 4px; font-weight: 900; font-size: 15px; color: var(--bright); display: flex; justify-content: space-between; gap: 8px; }
+.board h3 span { font-size: 12px; font-weight: 800; color: var(--muted); }
+.brow { display: grid; grid-template-columns: 24px 30px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 10px; }
+.brow:first-of-type { background: rgba(241,199,91,.12); }
+.brow .md { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-family: var(--mono); font-size: 11px; font-weight: 600; color: #1a1630; background: rgba(255,255,255,.12); }
+.brow .md.g { background: var(--gold); } .brow .md.s { background: var(--silver); } .brow .md.b { background: var(--bronze); }
+.brow .md.n { color: var(--muted); background: transparent; }
+.brow .av { width: 30px; height: 30px; font-size: 12px; }
+.brow b { font-weight: 900; color: var(--bright); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note { color: var(--muted); font-size: 12.5px; max-width: 80ch; margin: 0; }
+
+@media (max-width: 860px) { .recs, .boards { grid-template-columns: minmax(0,1fr); } }
+@media (max-width: 520px) { .band { grid-template-columns: minmax(0,1fr); } .band h1 { font-size: 42px; } .shelfrow { grid-template-columns: 18px minmax(0, 110px) minmax(0,1fr) 30px; gap: 8px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar"><a href="/">← Dashboard</a><a href="/recap">Latest recap →</a></div>
+
+  <section class="band">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 8h28v14c0 9-6 16-14 16s-14-7-14-16z" fill="#f1c75b"/><path d="M18 12H9c0 9 4 14 10 15M46 12h9c0 9-4 14-10 15" fill="none" stroke="#f1c75b" stroke-width="4" stroke-linecap="round"/><rect x="28" y="37" width="8" height="10" fill="#d9a72e"/><rect x="20" y="47" width="24" height="8" rx="2" fill="#f1c75b"/><path d="M32 14l2.2 4.6 5 .6-3.7 3.4 1 5-4.5-2.5-4.5 2.5 1-5-3.7-3.4 5-.6z" fill="#fff6d6"/></svg>
+    <div><h1>Hall of Fame</h1><p>Every quarter's champions since the first night @ The Study, the record holders, and who has the most hardware.</p></div>
+  </section>
+
+  <p class="status" id="status">Reading the sheet…</p>
+  <div id="hof" hidden style="display:grid;gap:22px">
+    <section class="sechead"><h2>Record holders</h2><p>Best all-time totals</p></section>
+    <div class="recs" id="recs"></div>
+
+    <section class="sechead"><h2>Trophy shelf</h2><p>Quarter titles won, all three categories · hover a face for the name</p></section>
+    <div class="shelf">
+      <div id="shelf" style="display:grid;gap:10px"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <section class="sechead"><h2>Quarterly champions</h2><p>Newest first · (2) means their 2nd title in that category</p></section>
+    <div class="qgrid" id="quarters"></div>
+
+    <section class="sechead"><h2>Top 5</h2><p id="topnote">All-time totals</p></section>
+    <div class="boards" id="boards"></div>
+  </div>
+</div>
+
+<script type="module">
+import { SHEET_URL, MEMBERS_URL, toNights, hallOfFame, memberIds, avatarUrl, hueFor, initials } from '/recap-core.js';
+let IDS = {};
+const C = { overall: '#f1c75b', cash: '#8f78f0', tour: '#bd8210' };
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const usd = v => (v < 0 ? '−' : '+') + '$' + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const slug = n => 'player-' + n.replace(/[^A-Za-z0-9]/g, '_');
+// a player's circle: initial, with their Discord pfp on top when we have one
+const av = n => `<span class="av" style="--h:${hueFor(n)}">${esc(initials(n))}${IDS[n] ? `<img src="${avatarUrl(IDS[n])}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
+// names open that player's card on the dashboard
+const link = (n, inner) => `<a class="pl" href="/#${slug(n)}" style="text-decoration:none;color:inherit;display:contents">${inner}</a>`;
+const cup = c => `<svg viewBox="0 0 24 24"><path d="M7 3h10v5c0 3.3-2.2 6-5 6s-5-2.7-5-6z" fill="${c}"/><path d="M7 5H4c0 3 1.5 5 3.5 5.5M17 5h3c0 3-1.5 5-3.5 5.5" fill="none" stroke="${c}" stroke-width="1.6" stroke-linecap="round"/><rect x="10.5" y="13.5" width="3" height="4" fill="${c}"/><rect x="7.5" y="17.5" width="9" height="3" rx="1" fill="${c}"/></svg>`;
+
+function render(H) {
+  $('recs').innerHTML = [['Overall', 'overall', 'Best all-time P&L'], ['Cash games', 'cash', 'Best all-time cash total'], ['Tournaments', 'tour', 'Best all-time tournament total']]
+    .filter(([, k]) => H.records[k]).map(([t, k, sub]) => { const r = H.records[k];
+      return `<div class="rec" style="--c:${C[k]}"><span class="k">${t}</span>${link(r.name, `<div class="who">${av(r.name)}<b>${esc(r.name)}</b></div>`)}<div class="big">${usd(r.net)}</div><span class="k" style="letter-spacing:.04em;text-transform:none;font-weight:700">${sub}</span></div>`; }).join('');
+
+  // trophy shelf as a wall of faces: total titles on the badge, the split by category underneath (name on hover)
+  $('shelf').innerHTML = `<div class="shelfgrid">${H.shelf.map((t, i) => { const tip = `${t.name}: ${t.total} title${t.total === 1 ? '' : 's'} (${t.overall} overall, ${t.cash} cash, ${t.tour} tournament)`;
+    return `<a class="trophy${i === 0 ? ' first' : ''}" href="/#${slug(t.name)}" title="${esc(tip)}" aria-label="${esc(tip)}"><span class="face">${av(t.name)}<span class="tot">${t.total}</span></span>
+    <span class="mix" aria-hidden="true">${[['overall', t.overall], ['cash', t.cash], ['tour', t.tour]].filter(([, n]) => n).map(([k, n]) => `<span>${cup(C[k])}${n}</span>`).join('')}</span></a>`; }).join('')}</div>`;
+  $('legend').innerHTML = [['Overall', C.overall], ['Cash game', C.cash], ['Tournament', C.tour]].map(([t, c]) => `<span>${cup(c)}${t}</span>`).join('');
+
+  const row = (lab, col, c, main) => c ? `<div class="champ${main ? ' main' : ''}">${av(c.name)}<span class="t"><small style="color:${col}">${lab}</small>${link(c.name, `<b>${esc(c.name)}<em>(${c.nth})</em></b>`)}</span><span class="amt up">${usd(c.net)}</span></div>`
+    : `<div class="champ${main ? ' main' : ''}"><span></span><span class="t"><small style="color:${col}">${lab}</small><b style="color:var(--muted)">Nobody finished up</b></span><span></span></div>`;
+  $('quarters').innerHTML = H.quarters.map(q => `<article class="q${q.live ? ' live' : ''}"><div class="qh"><b>${q.q}</b>${q.live ? '<span>In progress</span>' : ''}</div>
+    ${row('Overall', C.overall, q.overall, true)}<hr>${row('Cash game', '#b6a6ff', q.cash)}${row('Tournament', '#e2a93b', q.tour)}</article>`).join('');
+
+  $('boards').innerHTML = H.boards.map(b => `<div class="board"><h3>${b.title}<span>${b.when}</span></h3>
+    ${b.rows.map((r, i) => `<div class="brow"><span class="md ${['g', 's', 'b', 'n', 'n'][i]}">${i + 1}</span>${av(r.name)}${link(r.name, `<b>${esc(r.name)}</b>`)}<span class="amt ${r.net < 0 ? 'down' : 'up'}">${usd(r.net)}</span></div>`).join('')}</div>`).join('');
+}
+
+async function load() {
+  try {
+    const [res, mem] = await Promise.all([fetch(SHEET_URL, { cache: 'no-store' }), fetch(MEMBERS_URL, { cache: 'no-store' }).catch(() => null)]);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const nights = toNights(await res.text());
+    if (!nights.length) throw new Error('no games found');
+    try { if (mem && mem.ok) IDS = memberIds(await mem.text()); } catch (e) {}
+    render(hallOfFame(nights));
+    $('status').hidden = true; $('hof').hidden = false;
+  } catch (e) {
+    $('status').textContent = 'Couldn’t read the Google Sheet (' + e.message + '). Check your connection and reload.';
+    $('status').className = 'status err';
+  }
+}
+load();
+</script>
+
+<!-- phone-only tab bar at the bottom (the header buttons hide on phones) -->
+<style>
+.tabbar { display: none; }
+@media (max-width: 640px) {
+  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: grid; grid-template-columns: repeat(4, 1fr);
+    background: rgba(22,19,42,.94); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border-top: 1px solid rgba(255,255,255,.1);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
+  .tabbar a { display: flex; flex-direction: column; align-items: center; gap: 3px; color: #a9a3cf; text-decoration: none; font: 800 11px/1.1 Nunito, system-ui, sans-serif; padding: 4px 0; }
+  .tabbar a span { font-size: 20px; line-height: 1; }
+  .tabbar a.on { color: #f1c75b; }
+  body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
+  .recap-link, .tab-hide { display: none !important; }
+}
+</style>
+<nav class="tabbar" aria-label="Pages"><a href="/"><span aria-hidden="true">📊</span>Dashboard</a><a href="/recap"><span aria-hidden="true">📰</span>Recap</a><a href="/hall" class="on" aria-current="page"><span aria-hidden="true">🏆</span>Hall</a><a href="/h2h"><span aria-hidden="true">⚔️</span>H2H</a></nav>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Head to head · Poker Club @ The Study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@600;700;800;900&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>
+/* Head to head page: pick two players and a period; shows the race card from /api/h2h. The address bar always holds
+   a shareable link (/h2h?a=Renato&b=Dong&period=all). Same "Cozy night" room as the rest of the site. */
+:root {
+  --page: #100e20; --panel: #221e3d; --panel2: #2a2549; --line: #332e57;
+  --fg: #ece9fb; --bright: #f3f1ff; --soft: #cfcaf0; --muted: #9a94c4;
+  --gold: #f1c75b; --peri: #a9b4f6; --up: #8ee0b0; --down: #f59bb0; --a: #a08cf0; --b: #f0b45a;
+  --title: "Bebas Neue", "Arial Narrow", Impact, sans-serif;
+  --body: "Nunito", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--page); color: var(--fg); font-family: var(--body); font-weight: 600; font-size: 14px; line-height: 1.45; }
+.wrap { max-width: 760px; margin: 0 auto; padding-block: 24px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 18px; }
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.bar a { color: var(--muted); font-size: 14px; text-decoration: none; font-weight: 700; }
+.bar a:hover { color: var(--peri); }
+h1 { margin: 0; font-family: var(--title); font-weight: 400; font-size: 46px; line-height: .95; color: #fff; letter-spacing: .02em; }
+.lede { margin: 4px 0 0; color: var(--muted); }
+.picker { background: var(--panel); border-radius: 18px; padding: 14px; display: grid; gap: 12px; }
+.who { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); gap: 10px; align-items: center; }
+.pick { display: flex; align-items: center; gap: 10px; min-width: 0; background: var(--panel2); border-radius: 12px; padding: 6px 10px; border: 2px solid var(--ring); }
+.pick.a { --ring: var(--a); } .pick.b { --ring: var(--b); }
+.av { --h: 260; position: relative; flex: none; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; font-weight: 900; font-size: 14px; background: hsl(var(--h) 80% 86%); color: hsl(var(--h) 45% 28%); }
+.av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+select { appearance: none; -webkit-appearance: none; min-width: 0; flex: 1; background: transparent; color: var(--bright); border: 0; font: 900 16px var(--body); padding: 6px 18px 6px 0; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: right 6px center, right 1px center; background-size: 5px 5px; background-repeat: no-repeat; }
+select:focus-visible, button:focus-visible { outline: 2px solid var(--peri); outline-offset: 2px; border-radius: 6px; }
+select option { background: var(--panel); color: var(--fg); }
+.swap { width: 38px; height: 38px; border-radius: 50%; border: 0; background: var(--panel2); color: var(--soft); font-size: 17px; cursor: pointer; }
+.swap:hover { color: #fff; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.seg { display: inline-flex; background: var(--panel2); border-radius: 10px; padding: 3px; }
+.seg button { border: 0; background: transparent; color: var(--muted); font: 800 13px var(--body); padding: 7px 14px; border-radius: 8px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--peri); color: #1a1630; }
+.acts { display: flex; gap: 8px; }
+.btn { border: 0; background: var(--panel2); color: var(--soft); font: 800 13px var(--body); padding: 8px 12px; border-radius: 10px; cursor: pointer; text-decoration: none; }
+.btn:hover { color: #fff; }
+.stage { position: relative; border-radius: 22px; overflow: hidden; background: var(--panel); min-height: 200px; display: grid; place-items: center; }
+.stage img { display: block; width: 100%; height: auto; transition: opacity .2s; }
+.stage img.loading { opacity: .35; }
+.msg { color: var(--muted); padding: 40px 16px; text-align: center; }
+.note { color: var(--muted); font-size: 12.5px; margin: 0; }
+@media (max-width: 520px) { h1 { font-size: 38px; } .who { grid-template-columns: minmax(0,1fr); } .swap { justify-self: center; transform: rotate(90deg); } .seg { width: 100%; } .seg button { flex: 1; padding-inline: 6px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar"><a href="/">← Dashboard</a><a href="/hall">Hall of Fame →</a></div>
+  <div><h1>Head to head</h1><p class="lede">Pick two players. Only games they both played count.</p></div>
+
+  <section class="picker" aria-label="Choose the matchup">
+    <div class="who">
+      <label class="pick a"><span class="av" id="avA"></span><select id="selA" aria-label="First player"></select></label>
+      <button class="swap" id="swap" type="button" title="Swap sides" aria-label="Swap sides">⇄</button>
+      <label class="pick b"><span class="av" id="avB"></span><select id="selB" aria-label="Second player"></select></label>
+    </div>
+    <div class="row">
+      <div class="seg" role="group" aria-label="Period">
+        <button type="button" data-p="quarter" aria-pressed="false" id="pQ">Quarter</button>
+        <button type="button" data-p="year" aria-pressed="true" id="pY">Year</button>
+        <button type="button" data-p="all" aria-pressed="false">All time</button>
+      </div>
+      <div class="acts"><button class="btn" id="copy" type="button">Copy link</button><a class="btn" id="open" target="_blank" rel="noopener">Open image</a></div>
+    </div>
+  </section>
+
+  <div class="stage" id="stage"><p class="msg" id="msg">Reading the sheet…</p><img id="card" alt="" hidden></div>
+  <p class="note">The card shows each player's running total in the games they shared, with their Discord banners up top. Same card as <b>/h2h</b> in Discord.</p>
+</div>
+
+<script type="module">
+import { SHEET_URL, MEMBERS_URL, gameRecords, latestQuarter, pairStats, memberIds, avatarUrl, hueFor, initials } from '/recap-core.js';
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let RECS = [], IDS = {}, Q = '', YEAR = '', state = { a: '', b: '', p: 'year' };
+
+const periodOf = p => p === 'quarter' ? Q : p === 'all' ? 'all' : YEAR;
+const fromParam = v => !v ? null : v === 'all' ? 'all' : /^Q[1-4] \d{4}$/.test(v) ? 'quarter' : 'year';
+function face(el, name) {
+  el.style.setProperty('--h', hueFor(name));
+  el.innerHTML = esc(initials(name)) + (IDS[name] ? `<img src="${avatarUrl(IDS[name])}" alt="" onerror="this.remove()">` : '');
+}
+function cardUrl() { return `/api/h2h?a=${encodeURIComponent(state.a)}&b=${encodeURIComponent(state.b)}&period=${encodeURIComponent(periodOf(state.p))}`; }
+function pageUrl() { const u = new URL(location.href); u.search = ''; u.searchParams.set('a', state.a); u.searchParams.set('b', state.b); const latest = latestQuarter(RECS); if (state.p !== 'year' || YEAR !== 'Y' + latest.split(' ')[1]) u.searchParams.set('period', periodOf(state.p)); return u.toString(); }
+
+function show() {
+  $('selA').value = state.a; $('selB').value = state.b;
+  face($('avA'), state.a); face($('avB'), state.b);
+  document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.p === state.p)));
+  try { history.replaceState(null, '', pageUrl()); } catch (e) {}
+  const img = $('card'), msg = $('msg');
+  if (state.a === state.b) { img.hidden = true; msg.hidden = false; msg.textContent = 'Pick two different players.'; return; }
+  const st = pairStats(RECS, state.a, state.b, periodOf(state.p));
+  if (!st.n) { img.hidden = true; msg.hidden = false; msg.textContent = `${state.a} and ${state.b} haven't played the same game in ${st.label}. Try All time.`; $('open').removeAttribute('href'); return; }
+  const url = cardUrl();
+  $('open').href = url;
+  img.alt = `${state.a} vs ${state.b}, ${st.label}: ${state.a} finished ahead ${st.aw} times, ${state.b} ${st.bw} times in ${st.n} games together.`;
+  img.classList.add('loading');
+  img.onload = () => { img.classList.remove('loading'); img.hidden = false; msg.hidden = true; };
+  img.onerror = () => { img.hidden = true; msg.hidden = false; msg.textContent = 'Couldn’t draw the card just now. Try again in a moment.'; };
+  if (img.hidden) { msg.hidden = false; msg.textContent = 'Drawing the card…'; }
+  img.src = url;
+}
+
+async function main() {
+  const get = u => fetch(u, { cache: 'no-store' }).then(r => r.ok ? r.text() : '').catch(() => '');
+  const [csv, members] = await Promise.all([get(SHEET_URL), get(MEMBERS_URL)]);
+  RECS = gameRecords(csv); IDS = memberIds(members);
+  if (!RECS.length) { $('msg').textContent = 'Couldn’t read the sheet. Refresh to try again.'; return; }
+  Q = latestQuarter(RECS); YEAR = 'Y' + Q.split(' ')[1];
+  // a link can ask for an older quarter or season (e.g. from a player card on Q3 2026)
+  const want = new URLSearchParams(location.search).get('period') || '';
+  if (/^Q[1-4] \d{4}$/.test(want) && RECS.some(r => r.quarter === want)) { Q = want; YEAR = 'Y' + want.split(' ')[1]; }
+  else if (/^Y\d{4}$/.test(want) && RECS.some(r => r.y === +want.slice(1))) YEAR = want;
+  $('pQ').textContent = Q.split(' ')[0]; $('pY').textContent = YEAR.slice(1);
+  // players who played most recently first, then everyone else A to Z
+  const last = {}; RECS.forEach(r => last[r.player] = r.key);
+  const names = Object.keys(last).sort((x, y) => (last[y] > last[x]) - (last[y] < last[x]) || x.localeCompare(y));
+  const opts = names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  $('selA').innerHTML = opts; $('selB').innerHTML = opts;
+  const qs = new URLSearchParams(location.search), find = v => v && names.find(n => n.toLowerCase() === v.toLowerCase());
+  // default: this quarter's top two by net
+  const tot = {}; RECS.filter(r => r.quarter === Q).forEach(r => tot[r.player] = (tot[r.player] || 0) + r.net);
+  const top = Object.entries(tot).sort((x, y) => y[1] - x[1]).map(e => e[0]);
+  state = { a: find(qs.get('a')) || top[0] || names[0], b: find(qs.get('b')) || top[1] || names[1], p: fromParam(qs.get('period')) || 'year' };
+  if (state.a === state.b) state.b = names.find(n => n !== state.a);
+  $('selA').onchange = e => { state.a = e.target.value; show(); };
+  $('selB').onchange = e => { state.b = e.target.value; show(); };
+  $('swap').onclick = () => { [state.a, state.b] = [state.b, state.a]; show(); };
+  document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { state.p = b.dataset.p; show(); });
+  $('copy').onclick = async () => { try { await navigator.clipboard.writeText(pageUrl()); $('copy').textContent = 'Copied!'; } catch (e) { $('copy').textContent = 'Copy failed'; } setTimeout(() => $('copy').textContent = 'Copy link', 1500); };
+  show();
+}
+main();
+</script>
+
+<!-- phone-only tab bar at the bottom (the header buttons hide on phones) -->
+<style>
+.tabbar { display: none; }
+@media (max-width: 640px) {
+  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: grid; grid-template-columns: repeat(4, 1fr);
+    background: rgba(22,19,42,.94); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border-top: 1px solid rgba(255,255,255,.1);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
+  .tabbar a { display: flex; flex-direction: column; align-items: center; gap: 3px; color: #a9a3cf; text-decoration: none; font: 800 11px/1.1 Nunito, system-ui, sans-serif; padding: 4px 0; }
+  .tabbar a span { font-size: 20px; line-height: 1; }
+  .tabbar a.on { color: #f1c75b; }
+  body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
+  .recap-link, .tab-hide { display: none !important; }
+}
+</style>
+<nav class="tabbar" aria-label="Pages"><a href="/"><span aria-hidden="true">📊</span>Dashboard</a><a href="/recap"><span aria-hidden="true">📰</span>Recap</a><a href="/hall"><span aria-hidden="true">🏆</span>Hall</a><a href="/h2h" class="on" aria-current="page"><span aria-hidden="true">⚔️</span>H2H</a></nav>
+</body>
+</html>

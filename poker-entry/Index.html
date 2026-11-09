@@ -41,8 +41,14 @@ input:focus-visible, button:focus-visible { outline: 2px solid var(--felt); outl
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 7px 12px; cursor: pointer; font-size: 14px; min-height: 36px; }
 .chip:hover { border-color: var(--felt); }
-.chip.on { background: var(--felt); border-color: var(--felt); color: var(--surface); font-weight: 600; }
 .newp { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.invite { display: grid; gap: 8px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.invite .row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; }
+.invite details { font-size: 13px; color: var(--muted); }
+.invite details .newp { margin-top: 6px; }
+.invite .found { font-size: 13px; }
+.invite .found .chips { margin-top: 6px; }
+.chip.maybe { border-style: dashed; }
 .btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 10px 14px; cursor: pointer; min-height: 44px; font-weight: 500; }
 .btn.primary { background: var(--felt); border-color: var(--felt); color: var(--surface); font-weight: 600; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
@@ -126,6 +132,13 @@ body:not(.tour) .tour-only, body:not(.pko) .pko-only { display: none !important;
 
   <section class="card" aria-label="Add players">
     <h2>Who played?</h2>
+    <div class="invite">
+      <div class="row"><button type="button" class="btn" id="invLoad">📥 Load from invite</button><span class="found" id="invInfo">Adds everyone who reacted ✅ on the latest /tourney or /cash invite.</span></div>
+      <details id="invMore"><summary>Use a different invite</summary>
+        <div class="newp"><input type="text" id="invLink" placeholder="Paste the invite's message link" autocomplete="off"><button type="button" class="btn" id="invLinkGo">Load</button></div>
+      </details>
+      <div class="found" id="invExtra" hidden></div>
+    </div>
     <div class="chips" id="chips"></div>
     <div class="newp">
       <input type="text" id="newName" placeholder="New player's name" autocomplete="off">
@@ -215,30 +228,11 @@ const saveDraft = () => { try { localStorage.setItem(DRAFT, JSON.stringify(state
 const loadDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT) || 'null'); } catch (e) { return null; } };
 const clearDraft = () => { try { localStorage.removeItem(DRAFT); } catch (e) {} };
 
-// Chips: everyone who played in the 3 months before the night (A–Z), plus anyone already added.
-// Added players stay in place, highlighted; tap again to remove.
-const RECENT_MONTHS = 3;
-function recentCutoff() {
-  const d = state.date ? new Date(state.date + 'T12:00:00') : new Date();
-  d.setMonth(d.getMonth() - RECENT_MONTHS);
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-}
 function renderChips() {
   const taken = new Set(state.rows.map(r => r.name.toLowerCase()));
-  const cutoff = recentCutoff();
-  const names = SETUP.players.filter(p => p.lastPlayed && p.lastPlayed >= cutoff || taken.has(p.name.toLowerCase())).map(p => p.name);
-  state.rows.forEach(r => { if (!names.some(n => n.toLowerCase() === r.name.toLowerCase())) names.push(r.name); });
-  names.sort((a, b) => a.localeCompare(b));
-  $('chips').innerHTML = names.map(n => {
-    const on = taken.has(n.toLowerCase());
-    return `<button type="button" class="chip${on ? ' on' : ''}" aria-pressed="${on}" data-add="${esc(n)}">${esc(n)}</button>`;
-  }).join('') || `<span class="empty">Nobody has played in the last ${RECENT_MONTHS} months. Type a name below.</span>`;
-}
-function togglePlayer(name) {
-  const r = state.rows.find(x => x.name.toLowerCase() === name.toLowerCase());
-  if (!r) return addPlayer(name);
-  if ((r.cashOut !== '' || r.notes || r.topUp || r.buys > 1) && !confirm(`Remove ${r.name}? What you typed for them will be cleared.`)) return;
-  state.rows = state.rows.filter(x => x !== r); renderRows(); saveDraft();
+  const list = SETUP.players.filter(p => !taken.has(p.name.toLowerCase()));
+  $('chips').innerHTML = list.map(p => `<button type="button" class="chip" data-add="${esc(p.name)}">${esc(p.name)}</button>`).join('')
+    || '<span class="empty">Everyone on the list is added.</span>';
 }
 
 function rowHtml(r) {
@@ -466,11 +460,39 @@ function syncPayoutInputs() {
 }
 
 // ---- Events ----
-$('chips').addEventListener('click', e => { const b = e.target.closest('[data-add]'); if (b) { $('status').hidden = true; togglePlayer(b.dataset.add); } });
+$('chips').addEventListener('click', e => { const b = e.target.closest('[data-add]'); if (b) { $('status').hidden = true; addPlayer(b.dataset.add); } });
+// ---- Load players from a Discord invite (✅ reactions). Only adds names: you can still remove or add anyone before saving. ----
+function loadInvite(link) {
+  $('invLoad').disabled = true; $('invInfo').textContent = 'Reading the invite…'; $('invExtra').hidden = true;
+  google.script.run
+    .withSuccessHandler(inv => {
+      $('invLoad').disabled = false;
+      const added = [], already = [];
+      inv.in.filter(p => p.known).forEach(p => {
+        if (state.rows.some(r => r.name.toLowerCase() === p.name.toLowerCase())) already.push(p.name);
+        else { addPlayer(p.name); added.push(p.name); }
+      });
+      if (inv.kind && inv.kind !== state.type) { setType(inv.kind); saveDraft(); }
+      $('status').hidden = true;
+      $('invInfo').textContent = `${inv.kind === 'Cash' ? 'Cash game' : 'Tournament'}${inv.date ? ' · ' + inv.date : ''}: ${inv.in.length} in. `
+        + (added.length ? `Added ${added.join(', ')}.` : already.length ? 'Everyone in is already on the list.' : 'Nobody to add yet.');
+      const unknown = inv.in.filter(p => !p.known), maybe = inv.maybe.filter(p => !state.rows.some(r => r.name.toLowerCase() === p.name.toLowerCase()));
+      const chip = (p, cls) => `<button type="button" class="chip ${cls}" data-add="${esc(p.name)}">${esc(p.name)}</button>`;
+      let html = '';
+      if (unknown.length) html += `<div>✅ but not in the Members tab yet (tap to add as a new player, or add their Discord ID to Members):<div class="chips">${unknown.map(p => chip(p, '')).join('')}</div></div>`;
+      if (maybe.length) html += `<div style="margin-top:8px">🤔 Maybe (tap to add if they showed up):<div class="chips">${maybe.map(p => chip(p, 'maybe')).join('')}</div></div>`;
+      $('invExtra').innerHTML = html; $('invExtra').hidden = !html;
+    })
+    .withFailureHandler(err => { $('invLoad').disabled = false; $('invInfo').textContent = String(err && err.message || err).replace(/^Error:\s*/, ''); })
+    .loadInvite(link || '');
+}
+$('invLoad').addEventListener('click', () => loadInvite(''));
+$('invLinkGo').addEventListener('click', () => loadInvite($('invLink').value.trim()));
+$('invExtra').addEventListener('click', e => { const b = e.target.closest('[data-add]'); if (b) { addPlayer(b.dataset.add); b.remove(); } });
 $('addNew').addEventListener('click', () => { $('status').hidden = true; addPlayer($('newName').value); $('newName').value = ''; });
 $('newName').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('addNew').click(); } });
 $('type').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b) { setType(b.dataset.v); saveDraft(); } });
-$('date').addEventListener('change', e => { state.date = e.target.value; $('dupWrap').hidden = true; $('dup').checked = false; renderChips(); updateTotals(); saveDraft(); });
+$('date').addEventListener('change', e => { state.date = e.target.value; $('dupWrap').hidden = true; $('dup').checked = false; updateTotals(); saveDraft(); });
 $('buyIn').addEventListener('input', e => {
   state.buyIn = num(e.target.value);
   state.rows.forEach(r => { if (!r.manualIn) { r.cashIn = round2(r.buys * state.buyIn); updateRow(r); } });
@@ -542,6 +564,16 @@ $('save').addEventListener('click', () => {
       $('doneText').textContent = `${res.saved} players added to ${res.quarter}. `
         + (res.winner ? `${res.winner} took the night at ${fmtNet(res.winnerNet)}. ` : '')
         + (res.discordPosted ? 'Results posted to Discord.' : '');
+      // first night of a new quarter: also post last quarter's wrap card (only once per quarter)
+      if (res.discordPosted) google.script.run
+        .withSuccessHandler(w => { if (w && w.posted) $('doneText').textContent += ` ${w.quarter} wrap posted too.`; })
+        .withFailureHandler(err => console.warn('Quarter wrap: ' + (err && err.message || err)))
+        .postQuarterWrapIfNew(payload.date);
+      // move the results roles in Discord (Quarter Leader, Heater, ...)
+      google.script.run
+        .withSuccessHandler(r => { if (r && r.changes && r.changes.length) $('doneText').textContent += ' Discord roles updated.'; if (r && r.errors && r.errors.length) console.warn('Roles: ' + r.errors.join(' ')); })
+        .withFailureHandler(err => console.warn('Roles: ' + (err && err.message || err)))
+        .syncRoles();
     })
     .withFailureHandler(err => {
       saving = false;

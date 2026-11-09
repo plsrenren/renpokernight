@@ -15,7 +15,7 @@ Google Sheet ("Poker Stats")  <──writes──  Entry page (Apps Script web a
 | Piece | Location |
 |---|---|
 | Data | Google Sheet ID `1YxoWSWgeTRrEiPlm1Ys85s4UsHKxSzpPHEssynXEytM`, shared "Anyone with the link can view" (required for the dashboard) |
-| Live dashboard | Vercel project **renpokernight** (personal account `renjrsaturnino-5667`), production URL https://renpokernight.vercel.app. Static `index.html` only, no build step, framework none |
+| Live dashboard | Vercel project **renpokernight** (personal account `renjrsaturnino-5667`), production URL https://renpokernight.vercel.app. Root dir `poker-dashboard/vercel`, static pages + `api/` functions, no build step, framework none. Connected to GitHub repo plsrenren/renpokernight since Oct 20, 2026: merging to main deploys production, PRs get preview deploys. `vercel --prod` from the CLI also works |
 | Dashboard snapshot copy | claude.ai artifact https://claude.ai/artifact/LoHQxkyWcDKsdTMdW78zpC (snapshot of the data built in; claude.ai blocks fetches to Google, so it never updates by itself) |
 | Entry page | Apps Script bound to the sheet (Extensions → Apps Script). Deployed Oct 21, 2026 (access: Only myself): https://script.google.com/macros/s/AKfycbw0mcMTo7sT94TVOOKg5FHtPml5aVAIBUcRCGNGig-CPvJPpm5DiDLSxDmCdNVOUxWedg/exec . Install steps in `poker-entry/SETUP.md` |
 | PKO mockup (review only) | claude.ai artifact https://claude.ai/artifact/PTZadaxo3kkgmx5wEmbr6a |
@@ -27,11 +27,21 @@ CLAUDE.md
 poker-dashboard/
   template.html        SOURCE of the dashboard. Edit this, never the built files.
   build.ps1            Builds index.html (artifact copy, data snapshot inlined) and vercel/index.html (live-only site)
-  index.html           Built: for the claude.ai artifact
-  vercel/index.html    Built: deployed to Vercel (full HTML document, empty snapshot, reads the sheet live)
-  vercel/entry/        Short link renpokernight.vercel.app/entry → redirects to the Apps Script entry page URL
+  index.html           Built: for the claude.ai artifact (old snapshot)
+  src/                 Sources for the other pages: recap-src.html, hall-src.html, h2h-src.html (built into vercel/*.html
+                       by inlining the logo where __LOGO__ appears) and the parts of recap-core.js:
+                       cat core.part.js stories.part.js members.part.js hof.part.js card.part.js > ../vercel/recap-core.js
+  vercel/              What Vercel deploys (project root dir). cleanUrls on, so /recap serves recap.html.
+    index.html recap.html hall.html h2h.html entry.html (entry = redirect to the Apps Script page)
+    recap-core.js      Shared logic (browser + API): parsing, recap stories, Hall of Fame, player cards, h2h, quarter wrap
+    api/               Serverless functions: recap/card/hall/h2h/wrap (PNG cards via satori + resvg), avatar (Discord pfps/banners),
+                       discord (slash commands endpoint; ?setup=1 registers commands), invite (who reacted to /tourney or /cash),
+                       roles (results roles), _tourney.js/_roles.js/_discord.js helpers, _assets/ fonts + logo
+    vercel.json        Function durations + included files. Env vars on Vercel: DISCORD_BOT_TOKEN, DISCORD_PUBLIC_KEY
 poker-entry/
-  Code.gs              Apps Script server: doGet, getSetup(), saveNight(payload), optional Discord post
+  Code.gs              Apps Script server: doGet, getSetup(), saveNight(payload), Discord recap post. The live copy has the
+                       private webhook URL filled in: never commit it, and never ask Renato to replace his Code.gs wholesale.
+  Invite.gs            Load-from-invite, quarter wrap auto-post, roles refresh (calls the site's /api/invite, /api/wrap, /api/roles)
   Index.html           Apps Script page (phone UI). Talks to Code.gs via google.script.run
   SETUP.md             Install + usage guide for the entry page
   mockups/             pko-mockup.html (+ -artifact copy), Index.before-pko.html (rollback copy)
