@@ -1,6 +1,6 @@
 // /api/invite            who answered the latest /tourney or /cash invite (the entry page's "Load from invite" button)
 // /api/invite?link=...   the same for a specific invite (Discord: right-click the invite > Copy Message Link)
-// Returns JSON { kind, date, time, buyin, url, postedAt, in: [{ name, known }], maybe: [...], cant: [...] }.
+// Returns JSON { kind, date, time, buyin, url, postedAt, in: [{ name, known }], maybe: [], cant: [] } (any reaction counts as in).
 // "known" means the Discord account is in the Members tab, so the name is the sheet name.
 // Uses DISCORD_BOT_TOKEN; the bot needs View Channel + Read Message History where the invite was posted.
 import { readReacts } from './_tourney.js';
@@ -58,7 +58,7 @@ export default async function handler(req, res) {
     res.status(200).json({
       kind: /cash/i.test(e.title || '') ? 'Cash' : 'Tournament', date: grab(/📅 \*\*(.+?)\*\*/), time: grab(/📅 \*\*.+?\*\* · (.+)/), buyin: grab(/💵 \*\*(.+?)\*\*/),
       url: msg.guild_id ? `https://discord.com/channels/${msg.guild_id}/${msg.channel_id}/${msg.id}` : '', postedAt: msg.timestamp,
-      in: pick(got.lists[0]), maybe: pick(got.lists[1]), cant: pick(got.lists[2]) });
+      in: pick(got.lists[0]), maybe: [], cant: [] }); // any reaction counts as in, so maybe/cant stay empty
   } catch (err) {
     res.status(500).json({ error: 'Could not read the invite: ' + err.message });
   }

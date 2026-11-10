@@ -1,9 +1,9 @@
-// /tourney and /cash: a game invite people answer with reactions (✅ in, 🤔 maybe, ❌ can't).
+// /tourney and /cash: a game invite people answer with reactions. Any reaction counts as "in" (the bot seeds ✅ to tap).
 // The bot can't watch reactions live (it only wakes up on commands and button presses), so the card has a
 // "🔄 Update headcount" button that reads the reactions and rewrites the names and count on the card.
 // Needs the bot to be in the server (Add Reactions, Read Message History, View Channel, Mention Everyone).
 const API = 'https://discord.com/api/v10';
-export const REACTS = [['✅', 'In'], ['🤔', 'Maybe'], ['❌', "Can't"]];
+export const REACTS = [['✅', 'In']]; // what the bot seeds; any emoji people add counts too
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const inviteOptions = buyinHint => [
@@ -23,10 +23,10 @@ function inviteEmbed({ date, time, buyin, host, note, min, kind = 't' }, lists, 
   const lines = [`📅 **${date}**${time ? ` · ${time}` : ''}`, `${buyin ? `💵 **${buyin}**${/buy|\//i.test(buyin) ? '' : ' buy-in'} · ` : ''}hosted by ${host}`];
   if (note) lines.push('', note);
   lines.push('');
-  if (!lists) lines.push('React ✅ in · 🤔 maybe · ❌ can\'t, then press **Update headcount** to see the list.');
+  if (!lists) lines.push('React with anything to say you\'re in, then press **Update headcount** to see the list.');
   else if (min) lines.push(`${'🟩'.repeat(Math.min(n, min))}${'⬛'.repeat(Math.max(0, min - n))} **${n} in** of ${min} needed${n >= min ? ' · **We have enough!**' : ''}`);
   else lines.push(`**${n} in**`);
-  const fields = lists ? REACTS.map(([e, t], k) => ({ name: `${e} ${t} (${lists[k].length})`, value: lists[k].join('\n').slice(0, 1000) || '–', inline: true })) : [];
+  const fields = lists ? [{ name: `✅ In (${n})`, value: lists[0].join('\n').slice(0, 1000) || '–', inline: true }] : [];
   return { color: kind === 'c' ? 0x8ee0b0 : 0xf1c75b, title: KIND[kind].title, description: lines.join('\n'), fields,
     ...(image ? { image: { url: image } } : {}),
     footer: { text: `${lists ? 'Updated' : 'Posted'} · react to answer, change it anytime · Poker Club @ The Study` } };
@@ -68,7 +68,7 @@ async function finishTourney(i, info, att) {
   const r = await fetch(hook, { method: 'PATCH', headers, body });
   if (!r.ok) { console.error('tourney post failed', r.status, await r.text()); return; }
   const msg = await r.json();
-  // seed the three reactions so people can just tap them (needs the bot in the server)
+  // seed ✅ so people can just tap it (needs the bot in the server)
   const token = process.env.DISCORD_BOT_TOKEN;
   for (const [e] of REACTS) {
     for (let t = 0; t < 3; t++) {
@@ -81,17 +81,20 @@ async function finishTourney(i, info, att) {
   }
 }
 
-/** Who reacted ✅ / 🤔 / ❌ on an invite: { lists: [[{ id, name, known }], …] } or { error, status }. names maps Discord ID → sheet name. */
+/** Who reacted on an invite (any emoji counts as in): { lists: [[{ id, name, known }]] } or { error, status }. names maps Discord ID → sheet name. */
 export async function readReacts(channelId, messageId, names = {}) {
-  const token = process.env.DISCORD_BOT_TOKEN, lists = [], seen = new Set();
-  for (const [e] of REACTS) {
-    const r = await fetch(`${API}/channels/${channelId}/messages/${messageId}/reactions/${encodeURIComponent(e)}?limit=100`, { headers: { Authorization: `Bot ${token}` } });
+  const token = process.env.DISCORD_BOT_TOKEN, auth = { headers: { Authorization: `Bot ${token}` } }, seen = new Set(), list = [];
+  const m = await fetch(`${API}/channels/${channelId}/messages/${messageId}`, auth);
+  if (!m.ok) return { error: true, status: m.status };
+  const emojis = ((await m.json()).reactions || []).map(r => r.emoji).slice(0, 20);
+  for (const e of emojis) {
+    const code = encodeURIComponent(e.id ? `${e.name}:${e.id}` : e.name);
+    const r = await fetch(`${API}/channels/${channelId}/messages/${messageId}/reactions/${code}?limit=100`, auth);
     if (!r.ok) return { error: true, status: r.status };
-    const users = (await r.json()).filter(u => !u.bot);
-    // first answer wins if someone reacted to more than one: ✅ beats 🤔 beats ❌
-    lists.push(users.filter(u => !seen.has(u.id) && seen.add(u.id)).map(u => ({ id: u.id, name: names[u.id] || u.global_name || u.username, known: !!names[u.id] })));
+    // one entry per person, however many emojis they used
+    for (const u of await r.json()) if (!u.bot && !seen.has(u.id)) { seen.add(u.id); list.push({ id: u.id, name: names[u.id] || u.global_name || u.username, known: !!names[u.id] }); }
   }
-  return { lists };
+  return { lists: [list] };
 }
 
 /** The Update headcount button: reads the reactions and rewrites the card (no new message, no ping). */
