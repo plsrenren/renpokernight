@@ -4,6 +4,7 @@
 //   a=0                hand being played (empty when the hand is over)
 //   r=win.lose         result per hand when over (win, bj, push, lose, bust)
 //   b=20.20            bet per hand, n=player name
+//   m=duel&c=QS.9H&n=Dong|JP&w=1   the /duel high card picture instead: two cards, names, winner (0 or 1) ringed
 // Card codes: rank A 2-9 T J Q K + suit S H D C.
 import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
@@ -59,7 +60,20 @@ export function table({ dealer, hands, activeIdx, results, bets, name }) {
       row(cs, handTot(cs, k), activeIdx !== null && hands.length > 1 && activeIdx !== k))));
 }
 
+export function duel(cards, names, w) {
+  const side = k => h('div', { flexDirection: 'column', alignItems: 'center', gap: 8 * S, opacity: k === w ? 1 : 0.55 },
+    h('div', { padding: 4 * S, borderRadius: 11 * S, backgroundColor: k === w ? '#8ee0b0' : 'transparent' }, card(cards[k] || 'XX')),
+    h('div', { fontFamily: 'Nunito', fontWeight: 900, fontSize: 16 * S, color: '#f2f3f5' }, (names[k] || '').slice(0, 20)),
+    k === w ? tag('win') : null);
+  return h('div', { width: W * S, justifyContent: 'center', alignItems: 'center', gap: 40 * S, padding: `${16 * S}px ${16 * S}px`, backgroundColor: '#2b2d31', boxSizing: 'border-box' },
+    side(0), h('div', { fontFamily: 'Nunito', fontWeight: 900, fontSize: 22 * S, color: '#949ba4' }, 'VS'), side(1));
+}
+
 export async function render(q) {
+  if (q.get('m') === 'duel') {
+    const svg = await satori(duel(String(q.get('c') || '').split('.'), String(q.get('n') || '').split('|'), +q.get('w')), { width: W * S, fonts: fonts() });
+    return new Resvg(svg, { fitTo: { mode: 'width', value: W * S } }).render().asPng();
+  }
   const split = (v, sep) => String(v || '').split(sep).filter(Boolean);
   const dealer = split(q.get('d'), '.').slice(0, 12);
   const hands = split(q.get('p'), '-').slice(0, 2).map(x => split(x, '.').slice(0, 12));

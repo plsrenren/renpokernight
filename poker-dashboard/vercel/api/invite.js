@@ -3,34 +3,8 @@
 // Returns JSON { kind, date, time, buyin, url, postedAt, in: [{ name, known }], maybe: [], cant: [] } (any reaction counts as in).
 // "known" means the Discord account is in the Members tab, so the name is the sheet name.
 // Uses DISCORD_BOT_TOKEN; the bot needs View Channel + Read Message History where the invite was posted.
-import { readReacts } from './_tourney.js';
+import { readReacts, dc, isInvite, latestInvite } from './_tourney.js';
 import { MEMBERS_URL, memberIds } from '../recap-core.js';
-
-const API = 'https://discord.com/api/v10';
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-async function dc(path) {
-  for (let t = 0; t < 3; t++) {
-    const r = await fetch(API + path, { headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` } });
-    if (r.status === 429) { await sleep(1000 * ((await r.json().catch(() => ({}))).retry_after || 1)); continue; }
-    return r.ok ? r.json() : null;
-  }
-  return null;
-}
-const isInvite = (m, botId) => m && m.author && m.author.id === botId
-  && (m.components || []).some(row => (row.components || []).some(c => String(c.custom_id || '').startsWith('tally:')));
-
-// Looks through the text channels of every server the bot is in for its newest invite
-async function latestInvite(botId) {
-  const guilds = (await dc('/users/@me/guilds')) || [];
-  let best = null;
-  for (const g of guilds.slice(0, 5)) {
-    const chans = ((await dc(`/guilds/${g.id}/channels`)) || []).filter(c => c.type === 0 || c.type === 5);
-    const found = await Promise.all(chans.slice(0, 40).map(c => dc(`/channels/${c.id}/messages?limit=50`).then(ms => (ms || []).find(m => isInvite(m, botId)))));
-    for (const m of found) if (m && (!best || m.timestamp > best.timestamp)) best = { ...m, guild_id: g.id };
-  }
-  return best;
-}
 
 export default async function handler(req, res) {
   try {

@@ -12,6 +12,8 @@
 //   /tourney date:...       tournament invite people answer with reactions (see _tourney.js)
 //   /cash date:...          same for a cash game
 //   /daily /blackjack /chips  blackjack with play chips (see _blackjack.js; needs Upstash storage)
+//   /duel                   player vs player for chips: rock paper scissors or high card (see _duel.js)
+//   /seats                  random seat order for everyone in on the latest invite (see _seats.js)
 // One-time setup: open /api/discord?setup=1 in a browser. It registers the command and shows the "add to server" link.
 // Needs Vercel env vars DISCORD_BOT_TOKEN (already there) and DISCORD_PUBLIC_KEY (from the Developer Portal).
 import { createPublicKey, verify } from 'node:crypto';
@@ -19,6 +21,8 @@ import { waitUntil } from '@vercel/functions';
 import { TOURNEY_COMMAND, CASH_COMMAND, startTourney, tally } from './_tourney.js';
 import { syncRoles } from './_roles.js';
 import { BLACKJACK_COMMANDS, blackjackCommand, blackjackButton } from './_blackjack.js';
+import { DUEL_COMMAND, duelCommand, duelButton } from './_duel.js';
+import { SEATS_COMMAND, startSeats, reshuffle } from './_seats.js';
 import { SHEET_URL, MEMBERS_URL, gameRecords, findPlayer, latestQuarter, memberIds, toNights, hallOfFame, usd, wrapDefault, quartersWithGames } from '../recap-core.js';
 
 const SITE = 'https://renpokernight.vercel.app';
@@ -43,6 +47,8 @@ const COMMANDS = [
   { name: 'fish', description: 'Call out the fish at the table', type: 1, options: [{ type: 6, name: 'who', description: 'Who is the fish (leave empty for the usual suspect)', required: false }] },
   { name: 'donkey', description: 'Call someone a donkey', type: 1, options: [{ type: 6, name: 'who', description: 'Who played like a donkey (leave empty for the usual suspect)', required: false }] },
   ...BLACKJACK_COMMANDS,
+  DUEL_COMMAND,
+  SEATS_COMMAND,
 ];
 // /fish and /donkey ping this person when nobody is picked (their Discord user ID, in quotes). Empty = they ask who.
 const FISH_DEFAULT = '170443455590301696';
@@ -87,6 +93,10 @@ export async function POST(req) {
   if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('bj:')) { // blackjack buttons
     try { return await blackjackButton(i, null); } catch (e) { console.error('blackjack button', e); return say("Couldn't reach the chip storage just now. Try again in a moment."); }
   }
+  if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('du:')) { // duel buttons
+    try { return await duelButton(i, cache.recs ? cache : null, waitUntil); } catch (e) { console.error('duel button', e); return say("Couldn't reach the chip storage just now. Try again in a moment."); }
+  }
+  if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('seats:')) return json(reshuffle(i)); // /seats Reshuffle
   if (i.type !== 2 || !i.data) return say('Unknown command.');
   if (i.data.name === 'fish' || i.data.name === 'donkey') { // fun pings, no sheet needed
     const id = (opts.who && opts.who.value) || FISH_DEFAULT;
@@ -97,6 +107,8 @@ export async function POST(req) {
   const s = await sheet();
   const bj = await blackjackCommand(i, opts, s);
   if (bj) return bj;
+  if (i.data.name === 'duel') return duelCommand(i, opts, s);
+  if (i.data.name === 'seats') return json(startSeats(i, opts, s, waitUntil));
   if (i.data.name === 'tourney' || i.data.name === 'cash') return json(startTourney(i, opts, s || { ids: {} }, waitUntil));
   if (!s) return say("Couldn't reach the poker sheet just now. Try again in a minute.");
   if (i.data.name === 'roles') { // can take a few seconds, so answer "thinking…" and finish in the background
