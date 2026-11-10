@@ -9,7 +9,8 @@
 import { randomInt, randomBytes } from 'node:crypto';
 
 const SITE = 'https://renpokernight.vercel.app';
-const MAX_BET = 500, DEFAULT_BET = 20, FIRST_CLAIM = 100, DAILY = 50, DAY = 24 * 3600e3;
+export const MAX_BET = 500;
+const DEFAULT_BET = 20, FIRST_CLAIM = 100, DAILY = 50, DAY = 24 * 3600e3;
 
 export const BLACKJACK_COMMANDS = [
   { name: 'daily', description: 'Claim free blackjack chips: $100 the first time, then $50 a day (play money)', type: 1 },
@@ -19,8 +20,8 @@ export const BLACKJACK_COMMANDS = [
 ];
 
 // ---------- storage (Upstash REST: one HTTP call per batch of commands) ----------
-const kvUrl = () => process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const kvToken = () => process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+export const kvUrl = () => process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+export const kvToken = () => process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 export async function kv(...cmds) {
   const r = await fetch(kvUrl().replace(/\/$/, '') + '/pipeline', { method: 'POST', headers: { Authorization: `Bearer ${kvToken()}`, 'Content-Type': 'application/json' }, body: JSON.stringify(cmds) });
   if (!r.ok) throw new Error('storage said ' + r.status);
@@ -30,7 +31,7 @@ export async function kv(...cmds) {
 
 // ---------- cards ----------
 const RANKS = 'A23456789TJQK', SUITS = 'SHDC';
-const freshDeck = () => { const d = []; for (const r of RANKS) for (const s of SUITS) d.push(r + s);
+export const freshDeck = () => { const d = []; for (const r of RANKS) for (const s of SUITS) d.push(r + s);
   for (let k = d.length - 1; k > 0; k--) { const j = randomInt(k + 1); [d[k], d[j]] = [d[j], d[k]]; } return d; };
 const cardVal = c => c[0] === 'A' ? 1 : 'TJQK'.includes(c[0]) ? 10 : +c[0];
 export function total(cards) {
@@ -40,15 +41,15 @@ export function total(cards) {
 const natural = h => h.cards.length === 2 && !h.split && total(h.cards).t === 21;
 
 export const money = n => (n < 0 ? '−' : '') + '$' + (Math.abs(n) % 1 ? Math.abs(n).toFixed(2) : Math.abs(n));
-const json = body => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
-const quiet = content => json({ type: 4, data: { content, flags: 64, allowed_mentions: { parse: [] } } });
+export const json = body => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+export const quiet = content => json({ type: 4, data: { content, flags: 64, allowed_mentions: { parse: [] } } });
 
-function whoIs(i, s) {
+export function whoIs(i, s) {
   const u = (i.member && i.member.user) || i.user || {};
   const sheetName = s && s.ids ? Object.keys(s.ids).find(n => s.ids[n] === u.id) : null;
   return { id: u.id, name: sheetName || (i.member && i.member.nick) || u.global_name || u.username || 'Someone' };
 }
-const noStorage = () => quiet("Blackjack isn't set up yet: the site needs its chip storage (Upstash) connected in Vercel.");
+export const noStorage = () => quiet("Blackjack isn't set up yet: the site needs its chip storage (Upstash) connected in Vercel.");
 
 // ---------- /daily ----------
 async function daily(i, s) {

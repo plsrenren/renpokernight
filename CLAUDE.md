@@ -39,6 +39,8 @@ poker-dashboard/
                        roles (results roles), _tourney.js/_roles.js/_discord.js helpers, _assets/ fonts + logo
                        blackjack: _blackjack.js (/daily /blackjack /chips, play chips in Upstash Redis via KV_REST_API_URL/TOKEN),
                        bjcards (table picture under each hand)
+                       duel: _duel.js (/duel rock paper scissors or high card for the same chips; high card picture = bjcards?m=duel)
+                       seats: _seats.js (/seats random seat order from the latest invite's reactions) + seats.js (table picture)
     vercel.json        Function durations + included files. Env vars on Vercel: DISCORD_BOT_TOKEN, DISCORD_PUBLIC_KEY
 poker-entry/
   Code.gs              Apps Script server: doGet, getSetup(), saveNight(payload), Discord recap post. The live copy has the

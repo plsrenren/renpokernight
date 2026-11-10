@@ -67,6 +67,37 @@ async function finishTourney(i, info, att) {
   if (!r.ok) { console.error('tourney post failed', r.status, await r.text()); return; }
 }
 
+// ---------- finding the newest invite (used by /api/invite and /seats) ----------
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+/** GET from Discord's API with the bot token (waits out rate limits). null on failure. */
+export async function dc(path) {
+  for (let t = 0; t < 3; t++) {
+    const r = await fetch(API + path, { headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` } });
+    if (r.status === 429) { await sleep(1000 * ((await r.json().catch(() => ({}))).retry_after || 1)); continue; }
+    return r.ok ? r.json() : null;
+  }
+  return null;
+}
+export const isInvite = (m, botId) => m && m.author && m.author.id === botId
+  && (m.components || []).some(row => (row.components || []).some(c => String(c.custom_id || '').startsWith('tally:')));
+
+/** The bot's newest /tourney or /cash invite. Looks in channelId first (when given), then the text channels of the
+ *  server guildId (or of every server the bot is in). Returns the message with guild_id added, or null. */
+export async function latestInvite(botId, { channelId, guildId } = {}) {
+  if (channelId) {
+    const m = ((await dc(`/channels/${channelId}/messages?limit=50`)) || []).find(x => isInvite(x, botId));
+    if (m) return { ...m, guild_id: guildId || '' };
+  }
+  const guilds = guildId ? [{ id: guildId }] : ((await dc('/users/@me/guilds')) || []).slice(0, 5);
+  let best = null;
+  for (const g of guilds) {
+    const chans = ((await dc(`/guilds/${g.id}/channels`)) || []).filter(c => (c.type === 0 || c.type === 5) && c.id !== channelId);
+    const found = await Promise.all(chans.slice(0, 40).map(c => dc(`/channels/${c.id}/messages?limit=50`).then(ms => (ms || []).find(m => isInvite(m, botId)))));
+    for (const m of found) if (m && (!best || m.timestamp > best.timestamp)) best = { ...m, guild_id: g.id };
+  }
+  return best;
+}
+
 /** Who reacted on an invite (any emoji counts as in): { lists: [[{ id, name, known }]] } or { error, status }. names maps Discord ID → sheet name. */
 export async function readReacts(channelId, messageId, names = {}) {
   const token = process.env.DISCORD_BOT_TOKEN, auth = { headers: { Authorization: `Bot ${token}` } }, seen = new Set(), list = [];

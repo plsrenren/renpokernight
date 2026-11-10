@@ -39,6 +39,10 @@
     "api/bjcards.js": {
       "includeFiles": "api/_assets/**",
       "maxDuration": 10
+    },
+    "api/seats.js": {
+      "includeFiles": "api/_assets/**",
+      "maxDuration": 10
     }
   }
 }
