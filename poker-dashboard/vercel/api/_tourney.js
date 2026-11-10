@@ -1,10 +1,8 @@
-// /tourney and /cash: a game invite people answer with reactions. Any reaction counts as "in" (the bot seeds ✅ to tap).
+// /tourney and /cash: a game invite people answer with reactions. Any reaction counts as "in".
 // The bot can't watch reactions live (it only wakes up on commands and button presses), so the card has a
 // "🔄 Update headcount" button that reads the reactions and rewrites the names and count on the card.
 // Needs the bot to be in the server (Add Reactions, Read Message History, View Channel, Mention Everyone).
 const API = 'https://discord.com/api/v10';
-export const REACTS = [['✅', 'In']]; // what the bot seeds; any emoji people add counts too
-const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const inviteOptions = buyinHint => [
   { type: 3, name: 'date', description: 'e.g. Fri Nov 21', required: true, max_length: 40 },
@@ -26,7 +24,7 @@ function inviteEmbed({ date, time, buyin, host, note, min, kind = 't' }, lists, 
   if (!lists) lines.push('React with anything to say you\'re in, then press **Update headcount** to see the list.');
   else if (min) lines.push(`${'🟩'.repeat(Math.min(n, min))}${'⬛'.repeat(Math.max(0, min - n))} **${n} in** of ${min} needed${n >= min ? ' · **We have enough!**' : ''}`);
   else lines.push(`**${n} in**`);
-  const fields = lists ? [{ name: `✅ In (${n})`, value: lists[0].join('\n').slice(0, 1000) || '–', inline: true }] : [];
+  const fields = lists ? [{ name: `In (${n})`, value: lists[0].join('\n').slice(0, 1000) || '–', inline: true }] : [];
   return { color: kind === 'c' ? 0x8ee0b0 : 0xf1c75b, title: KIND[kind].title, description: lines.join('\n'), fields,
     ...(image ? { image: { url: image } } : {}),
     footer: { text: `${lists ? 'Updated' : 'Posted'} · react to answer, change it anytime · Poker Club @ The Study` } };
@@ -67,18 +65,6 @@ async function finishTourney(i, info, att) {
   }
   const r = await fetch(hook, { method: 'PATCH', headers, body });
   if (!r.ok) { console.error('tourney post failed', r.status, await r.text()); return; }
-  const msg = await r.json();
-  // seed ✅ so people can just tap it (needs the bot in the server)
-  const token = process.env.DISCORD_BOT_TOKEN;
-  for (const [e] of REACTS) {
-    for (let t = 0; t < 3; t++) {
-      const x = await fetch(`${API}/channels/${msg.channel_id}/messages/${msg.id}/reactions/${encodeURIComponent(e)}/@me`, { method: 'PUT', headers: { Authorization: `Bot ${token}` } });
-      if (x.status === 429) { await sleep(1000 * ((await x.json().catch(() => ({}))).retry_after || 1)); continue; }
-      if (!x.ok) console.error('reaction failed', e, x.status, await x.text());
-      break;
-    }
-    await sleep(300);
-  }
 }
 
 /** Who reacted on an invite (any emoji counts as in): { lists: [[{ id, name, known }]] } or { error, status }. names maps Discord ID → sheet name. */
