@@ -41,6 +41,8 @@ poker-dashboard/
                        bjcards (table picture under each hand)
                        duel: _duel.js (/duel rock paper scissors or high card for the same chips; high card picture = bjcards?m=duel)
                        uth: _uth.js (/uth Ultimate Texas Hold'em vs the dealer for the same chips; table picture = bjcards?m=uth)
+                       roulette: _roulette.js (/roulette shared 30s table; the opening call stays awake to spin, so discord.js maxDuration is 60) + roulette.js (wheel picture)
+                       baccarat: _baccarat.js (/baccarat Player/Banker/Tie; picture = bjcards?m=bac)
                        seats: _seats.js (/seats random seat order from the latest invite's reactions) + seats.js (table picture)
     vercel.json        Function durations + included files. Env vars on Vercel: DISCORD_BOT_TOKEN, DISCORD_PUBLIC_KEY
 poker-entry/

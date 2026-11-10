@@ -14,6 +14,8 @@
 //   /daily /blackjack /chips  blackjack with play chips (see _blackjack.js; needs Upstash storage)
 //   /duel                   player vs player for chips: rock paper scissors or high card (see _duel.js)
 //   /uth                    Ultimate Texas Hold'em against the dealer for chips (see _uth.js)
+//   /roulette               shared roulette table, 30 seconds to bet, then it spins (see _roulette.js)
+//   /baccarat               bet Player, Banker or Tie (see _baccarat.js)
 //   /seats                  random seat order for everyone in on the latest invite (see _seats.js)
 // One-time setup: open /api/discord?setup=1 in a browser. It registers the command and shows the "add to server" link.
 // Needs Vercel env vars DISCORD_BOT_TOKEN (already there) and DISCORD_PUBLIC_KEY (from the Developer Portal).
@@ -25,6 +27,8 @@ import { BLACKJACK_COMMANDS, blackjackCommand, blackjackButton } from './_blackj
 import { DUEL_COMMAND, duelCommand, duelButton } from './_duel.js';
 import { SEATS_COMMAND, startSeats, reshuffle } from './_seats.js';
 import { UTH_COMMAND, uthCommand, uthButton } from './_uth.js';
+import { ROULETTE_COMMAND, rouletteCommand, rouletteInteraction } from './_roulette.js';
+import { BACCARAT_COMMAND, baccaratCommand, baccaratButton } from './_baccarat.js';
 import { SHEET_URL, MEMBERS_URL, gameRecords, findPlayer, latestQuarter, memberIds, toNights, hallOfFame, usd, wrapDefault, quartersWithGames } from '../recap-core.js';
 
 const SITE = 'https://renpokernight.vercel.app';
@@ -51,6 +55,8 @@ const COMMANDS = [
   ...BLACKJACK_COMMANDS,
   DUEL_COMMAND,
   UTH_COMMAND,
+  ROULETTE_COMMAND,
+  BACCARAT_COMMAND,
   SEATS_COMMAND,
 ];
 // /fish and /donkey ping this person when nobody is picked (their Discord user ID, in quotes). Empty = they ask who.
@@ -102,8 +108,15 @@ export async function POST(req) {
   if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('uth:')) { // /uth buttons
     try { return await uthButton(i, cache.recs ? cache : null); } catch (e) { console.error('uth button', e); return say("Couldn't reach the chip storage just now. Try again in a moment."); }
   }
+  if ((i.type === 3 || i.type === 5) && i.data && String(i.data.custom_id).startsWith('ro:')) { // roulette bets, chip size, Number box
+    try { return await rouletteInteraction(i, cache.recs ? cache : null, waitUntil); } catch (e) { console.error('roulette', e); return say("Couldn't reach the chip storage just now. Try again in a moment."); }
+  }
+  if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('ba:')) { // baccarat play-again buttons
+    try { return await baccaratButton(i, cache.recs ? cache : null); } catch (e) { console.error('baccarat', e); return say("Couldn't reach the chip storage just now. Try again in a moment."); }
+  }
   if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('seats:')) return json(reshuffle(i)); // /seats Reshuffle
   if (i.type !== 2 || !i.data) return say('Unknown command.');
+  if (i.data.name === 'roulette') return rouletteCommand(i, waitUntil); // no sheet needed; stays awake 30s to spin
   if (i.data.name === 'fish' || i.data.name === 'donkey') { // fun pings, no sheet needed
     const id = (opts.who && opts.who.value) || FISH_DEFAULT;
     if (!id) return say('Pick who with the "who" option.');
@@ -115,6 +128,7 @@ export async function POST(req) {
   if (bj) return bj;
   if (i.data.name === 'duel') return duelCommand(i, opts, s);
   if (i.data.name === 'uth') return uthCommand(i, opts, s);
+  if (i.data.name === 'baccarat') return baccaratCommand(i, opts, s);
   if (i.data.name === 'seats') return json(startSeats(i, opts, s, waitUntil));
   if (i.data.name === 'tourney' || i.data.name === 'cash') return json(startTourney(i, opts, s || { ids: {} }, waitUntil));
   if (!s) return say("Couldn't reach the poker sheet just now. Try again in a minute.");
