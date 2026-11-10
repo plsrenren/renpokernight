@@ -30,13 +30,13 @@ poker-dashboard/
   index.html           Built: for the claude.ai artifact (old snapshot)
   src/                 Sources for the other pages: recap-src.html, hall-src.html, h2h-src.html (built into vercel/*.html
                        by inlining the logo where __LOGO__ appears) and the parts of recap-core.js:
-                       cat core.part.js stories.part.js members.part.js hof.part.js card.part.js settle.part.js > ../vercel/recap-core.js
+                       cat core.part.js stories.part.js members.part.js hof.part.js card.part.js > ../vercel/recap-core.js
   vercel/              What Vercel deploys (project root dir). cleanUrls on, so /recap serves recap.html.
     index.html recap.html hall.html h2h.html entry.html (entry = redirect to the Apps Script page)
     recap-core.js      Shared logic (browser + API): parsing, recap stories, Hall of Fame, player cards, h2h, quarter wrap
     api/               Serverless functions: recap/card/hall/h2h/wrap (PNG cards via satori + resvg), avatar (Discord pfps/banners),
                        discord (slash commands endpoint; ?setup=1 registers commands), invite (who reacted to /tourney or /cash),
-                       roles (results roles), settle (settle-up message: losers pay the banker Dong, else Renato; Venmo column in Members), _tourney.js/_roles.js/_discord.js helpers, _assets/ fonts + logo
+                       roles (results roles), _tourney.js/_roles.js/_discord.js helpers, _assets/ fonts + logo
     vercel.json        Function durations + included files. Env vars on Vercel: DISCORD_BOT_TOKEN, DISCORD_PUBLIC_KEY
 poker-entry/
   Code.gs              Apps Script server: doGet, getSetup(), saveNight(payload), Discord recap post. The live copy has the
