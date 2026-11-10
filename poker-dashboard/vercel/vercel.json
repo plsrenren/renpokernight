@@ -35,10 +35,6 @@
     "api/roles.js": {
       "includeFiles": "recap-core.js",
       "maxDuration": 30
-    },
-    "api/settle.js": {
-      "includeFiles": "recap-core.js",
-      "maxDuration": 15
     }
   }
 }

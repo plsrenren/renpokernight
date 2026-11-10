@@ -564,11 +564,6 @@ $('save').addEventListener('click', () => {
       $('doneText').textContent = `${res.saved} players added to ${res.quarter}. `
         + (res.winner ? `${res.winner} took the night at ${fmtNet(res.winnerNet)}. ` : '')
         + (res.discordPosted ? 'Results posted to Discord.' : '');
-      // who sends the banker what, with Venmo links, right under the recap
-      if (res.discordPosted) google.script.run
-        .withSuccessHandler(r => { if (r && r.posted) $('doneText').textContent += ' Settle-up posted.'; })
-        .withFailureHandler(err => console.warn('Settle-up: ' + (err && err.message || err)))
-        .postSettleUp(payload.date, payload.type);
       // first night of a new quarter: also post last quarter's wrap card (only once per quarter)
       if (res.discordPosted) google.script.run
         .withSuccessHandler(w => { if (w && w.posted) $('doneText').textContent += ` ${w.quarter} wrap posted too.`; })
