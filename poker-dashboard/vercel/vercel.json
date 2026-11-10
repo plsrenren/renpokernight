@@ -11,7 +11,7 @@
     },
     "api/discord.js": {
       "includeFiles": "recap-core.js",
-      "maxDuration": 30
+      "maxDuration": 60
     },
     "api/avatar.js": {
       "maxDuration": 10
@@ -41,6 +41,10 @@
       "maxDuration": 10
     },
     "api/seats.js": {
+      "includeFiles": "api/_assets/**",
+      "maxDuration": 10
+    },
+    "api/roulette.js": {
       "includeFiles": "api/_assets/**",
       "maxDuration": 10
     }
