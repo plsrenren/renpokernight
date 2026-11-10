@@ -2,7 +2,7 @@
 <link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@500;600;700;800;900&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@500;700&family=Nunito:wght@500;600;700;800;900&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
 /* Layout: one column of summary tiles, then charts in a two-up grid that stacks on phones.
    Theme: "Cozy night" from the Discord recap card (dark purple room, lavender light, raspberry chip, Nunito + Bebas). */
@@ -416,12 +416,12 @@ const barFaces = { id: 'barFaces', afterDraw(ch) {
   const ctx = ch.ctx, x = ch.scales.x, d = faceSize(ch), y = x.top + 6 + d / 2;
   ch.data.labels.forEach((n, i) => {
     const cx = x.getPixelForTick(i), im = faceImg(n), hue = nameHue(n);
-    ctx.save(); ctx.beginPath(); ctx.arc(cx, y, d / 2, 0, Math.PI * 2); ctx.closePath();
+    ctx.save(); ctx.beginPath(); ctx.rect(cx - d / 2, y - d / 2, d, d);
     ctx.fillStyle = `hsl(${hue} 80% 86%)`; ctx.fill(); ctx.clip();
     if (im) ctx.drawImage(im, cx - d / 2, y - d / 2, d, d);
     else { ctx.fillStyle = `hsl(${hue} 45% 28%)`; ctx.font = `900 ${Math.round(d * 0.45)}px ${css('--body')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(n[0].toUpperCase(), cx, y + 1); }
     ctx.restore();
-    if (i === 0) { ctx.save(); ctx.beginPath(); ctx.arc(cx, y, d / 2 + 1.5, 0, Math.PI * 2); ctx.strokeStyle = css('--gold'); ctx.lineWidth = 2; ctx.stroke(); ctx.restore(); }
+    if (i === 0) { ctx.save(); ctx.beginPath(); ctx.rect(cx - d / 2 - 1.5, y - d / 2 - 1.5, d + 3, d + 3); ctx.strokeStyle = css('--gold'); ctx.lineWidth = 2; ctx.stroke(); ctx.restore(); }
   });
 } };
 const signCls = n => n > 0 ? 'pos' : n < 0 ? 'neg' : '';
@@ -931,3 +931,4 @@ boot();
 }
 </style>
 <nav class="tabbar" aria-label="Pages"><a href="/" class="on" aria-current="page"><span aria-hidden="true">📊</span>Dashboard</a><a href="/recap"><span aria-hidden="true">📰</span>Recap</a><a href="/hall"><span aria-hidden="true">🏆</span>Hall</a><a href="/h2h"><span aria-hidden="true">⚔️</span>H2H</a></nav>
+<link rel="stylesheet" href="/lateshow.css">

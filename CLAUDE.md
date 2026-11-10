@@ -33,8 +33,10 @@ poker-dashboard/
                        cat core.part.js stories.part.js members.part.js hof.part.js card.part.js > ../vercel/recap-core.js
   vercel/              What Vercel deploys (project root dir). cleanUrls on, so /recap serves recap.html.
     index.html recap.html hall.html h2h.html entry.html (entry = redirect to the Apps Script page)
+    lateshow.css       "Late Show" look (Nov 2026), linked last on every page; every selector is prefixed with html so it beats
+                       the page's own <style> (which sits in <body>)
     recap-core.js      Shared logic (browser + API): parsing, recap stories, Hall of Fame, player cards, h2h, quarter wrap
-    api/               Serverless functions: recap/card/hall/h2h/wrap (PNG cards via satori + resvg), avatar (Discord pfps/banners),
+    api/               Serverless functions: recap/card/hall/h2h/wrap (PNG cards via satori + resvg, all drawn by _late.js = Late Show design), avatar (Discord pfps/banners),
                        discord (slash commands endpoint; ?setup=1 registers commands), invite (who reacted to /tourney or /cash),
                        roles (results roles), _tourney.js/_roles.js/_discord.js helpers, _assets/ fonts + logo
                        blackjack: _blackjack.js (/daily /blackjack /chips, play chips in Upstash Redis via KV_REST_API_URL/TOKEN),
