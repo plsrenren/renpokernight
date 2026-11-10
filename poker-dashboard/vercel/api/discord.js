@@ -7,6 +7,7 @@
 //   /recap                  the latest night's recap card (night: picks an older one)
 //   /h2h player1 player2    head to head in games they both played (this year by default)
 //   /hall                   Hall of Fame: record holders, champions, trophy counts
+//   /settle                 who owes the banker what for the latest night (night: picks an older one)
 //   /wrap                   the last finished quarter's "wrapped" card (quarter: picks another)
 //   /roles                  refreshes the results roles (Quarter Leader, Heater, ...; see _roles.js)
 //   /tourney date:...       tournament invite people answer with reactions (see _tourney.js)
@@ -17,7 +18,7 @@ import { createPublicKey, verify } from 'node:crypto';
 import { waitUntil } from '@vercel/functions';
 import { TOURNEY_COMMAND, CASH_COMMAND, startTourney, tally } from './_tourney.js';
 import { syncRoles } from './_roles.js';
-import { SHEET_URL, MEMBERS_URL, gameRecords, findPlayer, latestQuarter, memberIds, toNights, hallOfFame, usd, wrapDefault, quartersWithGames } from '../recap-core.js';
+import { SHEET_URL, MEMBERS_URL, gameRecords, findPlayer, latestQuarter, memberIds, toNights, hallOfFame, usd, wrapDefault, quartersWithGames, memberVenmo, settleMessage } from '../recap-core.js';
 
 const SITE = 'https://renpokernight.vercel.app';
 const SEASON = { type: 3, name: 'season', description: 'This quarter or the whole year', required: false,
@@ -32,6 +33,8 @@ const COMMANDS = [
     options: [{ type: 3, name: 'night', description: 'Pick an older night', autocomplete: true, required: false }] },
   { name: 'h2h', description: 'Head to head between two players', type: 1,
     options: [PLAYER('player1', 'First player', true), PLAYER('player2', 'Second player', true), { ...SEASON, description: 'This year (default), this quarter, or all time', choices: [...SEASON.choices, { name: 'All time', value: 'all' }] }] },
+  { name: 'settle', description: 'Who owes the banker what (latest night)', type: 1,
+    options: [{ type: 3, name: 'night', description: 'Pick an older night', autocomplete: true, required: false }] },
   { name: 'hall', description: 'Hall of Fame: record holders, champions and trophies', type: 1 },
   { name: 'roles', description: 'Refresh the results roles (Quarter Leader, Heater, Cash King, ...)', type: 1 },
   { name: 'wrap', description: "A quarter's wrap-up card: champion, best night, awards", type: 1,
@@ -59,13 +62,13 @@ function signed(req, body) {
 }
 
 // sheet reads are cached for a minute so name suggestions stay quick while someone types
-let cache = { at: 0, recs: null, ids: null, csv: '' };
+let cache = { at: 0, recs: null, ids: null, venmo: {}, csv: '' };
 async function sheet() {
   if (cache.recs && Date.now() - cache.at < 60e3) return cache;
   const get = (u, ms) => { const c = new AbortController(), t = setTimeout(() => c.abort(), ms); return fetch(u, { cache: 'no-store', signal: c.signal }).then(r => r.ok ? r.text() : '').catch(() => '').finally(() => clearTimeout(t)); };
   const [csv, members] = await Promise.all([get(SHEET_URL, 2200), get(MEMBERS_URL, 2200)]);
   if (!csv) return cache.recs ? cache : null;
-  cache = { at: Date.now(), recs: gameRecords(csv), ids: memberIds(members), csv };
+  cache = { at: Date.now(), recs: gameRecords(csv), ids: memberIds(members), venmo: memberVenmo(members), csv };
   return cache;
 }
 
@@ -101,7 +104,7 @@ export async function POST(req) {
     })());
     return json({ type: 5, data: { flags: 64 } });
   }
-  const run = { player, standings, recap, h2h, hall, wrap }[i.data.name];
+  const run = { player, standings, recap, settle, h2h, hall, wrap }[i.data.name];
   return run ? run(i, opts, s) : say('Unknown command.');
 }
 
@@ -176,6 +179,21 @@ function recap(i, opts, s) {
   if (!n) return say('No nights recorded yet.');
   const img = `${SITE}/api/recap?night=${n.key}&type=${encodeURIComponent(n.type)}&v=${stampNow()}`;
   return embed({ url: `${SITE}/recap`, title: `${MON[n.m - 1]} ${n.d}, ${n.y} · ${n.type === 'Tournament' ? 'Tournament' : 'Cash game'}`, image: { url: img } });
+}
+
+function pickedNight(opts, s) {
+  const nights = toNights(s.csv);
+  if (!(opts.night && opts.night.value)) return nights[0];
+  const [key, type] = String(opts.night.value).split('|');
+  return nights.find(x => x.key === key && (!type || x.type === type)) || nights.find(x => x.key === key);
+}
+
+function settle(i, opts, s) {
+  const n = pickedNight(opts, s);
+  if (!n) return say(opts.night ? "Couldn't find that night. Pick one from the list as you type." : 'No nights recorded yet.');
+  // no pings from the slash command: it's for looking the list up again
+  const m = settleMessage(n, s.venmo, s.ids, { site: SITE, ping: false });
+  return json({ type: 4, data: { content: '', allowed_mentions: { parse: [] }, embeds: m.embeds } });
 }
 
 function h2h(i, opts, s) {
