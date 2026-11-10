@@ -1,0 +1,90 @@
+/* "Late Show" look (Nov 2026): Cozy night colours styled like a sports broadcast. Loaded last on every page; the html prefix wins over the page's own styles. */
+html:root { --title: "Bebas Neue", Impact, sans-serif; --display: "Space Grotesk", system-ui, sans-serif; --body: "Space Grotesk", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace; --pink: #e0507f; --vio: #8f78f0; }
+html body { font-family: var(--body); background-color: #15132a; background-image: linear-gradient(115deg, rgba(143,120,240,.16) 0 26%, rgba(0,0,0,0) 26%), radial-gradient(60% 40% at 100% 0%, rgba(224,80,127,.22), rgba(0,0,0,0) 70%); background-attachment: fixed; }
+html select, html button { border-radius: 0; }
+html .pfp, html .rc-mu .ava, html .pc-mono, html .av, html .av img { border-radius: 0 !important; }
+html .tabbar a { font-family: var(--title) !important; font-weight: 400 !important; font-size: 14px !important; letter-spacing: .1em; }
+html .tabbar a.on { color: #15132a !important; background: var(--gold); }
+html .brand { gap: 0; align-items: stretch; }
+html .brand .lg { width: 92px; height: 78px; background: var(--logo) center / 58px no-repeat, var(--pink); clip-path: polygon(0 0, 100% 0, 84% 100%, 0 100%); margin-right: 14px; }
+html .brand h1 { font-size: clamp(38px, 5.4vw, 56px); line-height: .9; letter-spacing: .02em; }
+html .brand h1::before { content: "● Live from the felt"; display: block; font-size: 15px; letter-spacing: .14em; color: var(--gold); margin-bottom: 4px; }
+html .recap-link { border-radius: 0; font-family: var(--title); font-weight: 400; font-size: 17px; letter-spacing: .08em; padding: 6px 16px 4px 12px; clip-path: polygon(0 0, 100% 0, calc(100% - 9px) 100%, 0 100%); background: var(--vio); }
+html .hof-link { background: var(--gold); color: #15132a; }
+html .h2h-link { background: var(--pink); }
+html label.lbl { font-family: var(--title); font-size: 16px; letter-spacing: .12em; color: var(--gold); }
+html .tile { border-radius: 0; border-left: 4px solid var(--vio); padding: 12px 16px; }
+html .tile:nth-child(2) { border-left-color: var(--gold); }
+html .tile:nth-child(3) { border-left-color: var(--up); }
+html .tile:nth-child(4) { border-left-color: var(--pink); }
+html .tile:first-child { border-left-color: var(--gold); background: linear-gradient(100deg, #3a2a6e, #a23b58); }
+html .tile .k { font-family: var(--title); font-weight: 400; font-size: 17px; letter-spacing: .12em; }
+html .tile .v { font-family: var(--title); font-weight: 400; font-size: clamp(34px, 4.2vw, 46px); line-height: .95; letter-spacing: .01em; margin-top: 2px; }
+html .tile .pfp { width: 40px; height: 40px; font-size: 18px; box-shadow: none; outline: 3px solid var(--gold); outline-offset: 0; }
+html .pfp.ring { box-shadow: none; outline: 3px solid var(--ring); outline-offset: 0; }
+html .panel { border-radius: 0; padding: 0 18px 16px; background: #1d1a37; }
+html .panel h2, html .panel-head h2 { display: inline-block; justify-self: start; font-family: var(--title); font-weight: 400; font-size: 26px; letter-spacing: .06em; color: #fff; background: var(--vio); margin: 0 0 8px -18px; padding: 7px 26px 3px 18px; clip-path: polygon(0 0, 100% 0, calc(100% - 13px) 100%, 0 100%); line-height: 1; }
+html .panel-head { margin-bottom: 10px; }
+html .panel-head h2 { margin-bottom: 0; }
+html .grid2 .panel h2 { background: var(--pink); }
+html .panel:has(table) > h2, html .panel:has(table) .panel-head h2 { background: var(--gold); color: #15132a; }
+html .panel .hint { font-size: 12.5px; }
+html .panel .seg { border-radius: 0; margin-top: 10px; }
+html .panel .seg button { border-radius: 0; font-family: var(--title); font-size: 16px; letter-spacing: .08em; padding: 5px 12px 3px; }
+html th { font-family: var(--title); font-weight: 400; font-size: 16px; letter-spacing: .12em; }
+html td.rank { font-family: var(--title); font-size: 20px; color: var(--muted); text-align: center; background: #2a2550; padding: 6px 0 4px; width: 34px; }
+html #standings tr:first-child td.rank { background: var(--gold); color: #15132a; }
+html td { border-bottom-color: #2a2550; }
+html #standings tr td.num:last-child { font-size: 15px; }
+html .pcard { border-radius: 0; box-shadow: none; border-top: 5px solid var(--gold); background: #1d1a37; }
+html .rc-banner { border-radius: 0; top: 0; left: 0; right: 0; }
+html .rc-banner::after { border-radius: 0; }
+html .pcard .pc-mono { box-shadow: none; outline: 4px solid var(--gold); }
+html .rc-ovr { background: #15132a; outline: 2px solid var(--gold); padding: 8px 10px 6px; }
+html .rc-ovr b { font-family: var(--title); }
+html .rc-attr .tr, html .rc-attr .tr i { border-radius: 0; height: 8px; }
+html .rc-attr .ab { font-family: var(--title); font-size: 16px; font-weight: 400; letter-spacing: .1em; }
+html .rc-lab { font-family: var(--title); font-size: 15px; font-weight: 400; letter-spacing: .12em; }
+html .rc-mu { border-radius: 0; background: #262145; }
+html .p-name { font-family: var(--title); font-weight: 400; font-size: clamp(44px, 6vw, 64px); letter-spacing: .02em; line-height: .9; }
+html .pc-name { font-family: var(--title); font-weight: 400; font-size: 44px; letter-spacing: .03em; line-height: .95; }
+html .chip, html .p-empty { border-radius: 0; }
+html .f2 { border-radius: 0; border-top: 5px solid var(--gold); background: #1d1a37; }
+html .f2 * { border-radius: 0 !important; }
+html .f2 h1 { font-size: 38px; letter-spacing: .02em; }
+html .f2-win { border-left: 5px solid var(--gold); }
+html .f2-win .k, html .tl-h, html .sec { font-family: var(--title); font-weight: 400; font-size: 16px; letter-spacing: .12em; color: var(--gold); }
+html .f2-win .nm { font-family: var(--title); font-weight: 400; font-size: 34px; letter-spacing: .02em; }
+html .tiles li { border-left: 3px solid var(--vio); }
+html .chart .ch b { font-family: var(--title); font-weight: 400; font-size: 24px; letter-spacing: .06em; color: #fff; }
+html .qt .rk { font-family: var(--title); font-size: 16px; }
+html .aw .t small { font-family: var(--title); font-weight: 400; font-size: 14px; letter-spacing: .1em; }
+html button.primary { font-family: var(--title); font-weight: 400; font-size: 18px; letter-spacing: .08em; background: var(--pink); }
+html button { font-family: var(--title); font-weight: 400; font-size: 17px; letter-spacing: .08em; }
+html .bar a, html label { font-family: var(--title); font-weight: 400; font-size: 17px; letter-spacing: .1em; }
+html .band { border-radius: 0; border-left: 6px solid var(--gold); background: linear-gradient(100deg, #3a2a6e, #a23b58); }
+html .band h1 { font-size: 60px; }
+html .sechead h2 { display: inline-block; font-family: var(--title); font-weight: 400; font-size: 26px; letter-spacing: .06em; color: #fff; background: var(--vio); padding: 7px 26px 3px 14px; clip-path: polygon(0 0, 100% 0, calc(100% - 13px) 100%, 0 100%); line-height: 1; }
+html .rec, html .shelf, html .trophy, html .q, html .board, html .brow, html .brow .md, html .trophy .tot { border-radius: 0; }
+html .rec, html .shelf, html .q, html .board { background: #1d1a37; }
+html .rec .big { font-family: var(--title); font-weight: 400; font-size: 46px; letter-spacing: .01em; line-height: .95; }
+html .rec .who b, html .board h3 { font-family: var(--title); font-weight: 400; font-size: 24px; letter-spacing: .04em; }
+html .board h3 span { font-family: var(--title); font-weight: 400; font-size: 15px; letter-spacing: .1em; }
+html .q { border-left: 4px solid var(--vio); }
+html .q.live { border-left-color: var(--gold); }
+html .champ .t small { font-family: var(--title); font-weight: 400; font-size: 14px; letter-spacing: .1em; }
+html .trophy .tot { font-family: var(--title); font-weight: 400; font-size: 17px; }
+html .trophy .av { box-shadow: none; outline: 3px solid rgba(201,195,240,.35); }
+html .trophy.first .av { outline-color: var(--gold); }
+html .brow .md { font-family: var(--title); font-size: 15px; }
+html .picker, html .pick, html .swap, html .seg, html .seg button, html .btn, html .stage { border-radius: 0; }
+html .picker, html .stage { background: #1d1a37; }
+html .seg button, html .btn { font-family: var(--title); font-weight: 400; font-size: 17px; letter-spacing: .08em; }
+html .seg button[aria-pressed="true"] { background: var(--gold); }
+@media (max-width: 640px) {
+  html .brand .lg { width: 74px; height: 64px; background-size: 46px, auto; }
+  html .brand h1::before { font-size: 12px; }
+  html .tile .v { font-size: 30px; overflow-wrap: normal; word-break: normal; }
+  html .tile .k { font-size: 15px; }
+  html .band h1 { font-size: 44px; }
+  }
