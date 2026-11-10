@@ -21,6 +21,12 @@ const W = 560, PAD = 22, IN = W - PAD * 2;
 const svgUri = svg => 'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64');
 export const h = (style, ...kids) => ({ type: 'div', props: { style: { display: 'flex', boxSizing: 'border-box', ...style }, children: kids.flat(9).filter(k => k !== null && k !== undefined && k !== false && k !== '') } });
 const img = (src, w, ht, style = {}) => ({ type: 'img', props: { src, width: w, height: ht, style } });
+// size of a PNG data URI (falls back to Discord's 600x240 banner shape)
+const pngSize = uri => { try { const b = Buffer.from(uri.slice(uri.indexOf(',') + 1, uri.indexOf(',') + 45), 'base64');
+  if (b.toString('ascii', 1, 4) === 'PNG') return [b.readUInt32BE(16), b.readUInt32BE(20)]; } catch (e) {} return [600, 240]; };
+// fill a w x ht box with the picture, cropping the overflow (satori's objectFit cover is unreliable when the box shape differs a lot)
+const cover = (src, w, ht) => { const [iw, ih] = pngSize(src), k = Math.max(w / iw, ht / ih), dw = Math.ceil(iw * k), dh = Math.ceil(ih * k);
+  return h({ position: 'absolute', left: 0, top: 0, width: w, height: ht, overflow: 'hidden' }, img(src, dw, dh, { position: 'absolute', left: Math.round((w - dw) / 2), top: Math.round((ht - dh) / 2) })); };
 const col = v => v > 0 ? L.up : v < 0 ? L.down : L.muted;
 const T = (txt, style) => h({ fontFamily: 'Grotesk', fontWeight: 500, ...style }, String(txt));
 const B = (txt, size, color = '#fff', style = {}) => h({ fontFamily: 'Bebas', fontSize: size, lineHeight: 1, color, letterSpacing: size * 0.02, paddingTop: size * 0.08, ...style }, String(txt));
@@ -141,7 +147,7 @@ export const playerCardTree = withAssets((c, art = {}) => {
   const pics = art.pics || {}, ov = c.ovr, hh = c.h2h || {};
   const heroBg = art.banner ? {} : { backgroundImage: art.color ? `linear-gradient(135deg, ${art.color}, ${L.panel})` : 'linear-gradient(120deg, #3a2a6e, #a23b58)' };
   const hero = h({ position: 'relative', height: 220, ...heroBg },
-    art.banner ? img(art.banner, W, 220, { position: 'absolute', left: 0, top: 0, objectFit: 'cover' }) : null,
+    art.banner ? cover(art.banner, W, 220) : null,
     art.banner ? h({ position: 'absolute', left: 0, top: 0, width: W, height: 220, backgroundImage: 'linear-gradient(90deg, rgba(21,19,42,0.6), rgba(21,19,42,0.15) 45%, rgba(21,19,42,0.35))' }) : null,
     art.banner ? h({ position: 'absolute', left: 0, top: 0, width: W, height: 220, backgroundImage: 'linear-gradient(180deg, rgba(21,19,42,0) 55%, rgba(21,19,42,0.9))' }) : null,
     ov ? h({ position: 'absolute', right: -10, top: -38, fontFamily: 'Bebas', fontSize: 250, lineHeight: 1, color: 'rgba(255,255,255,0.08)' }, String(ov.value)) : null,
@@ -237,22 +243,24 @@ export const wrapCardTree = withAssets((w, pics = {}) => {
 // ---------- head to head (/api/h2h) ----------
 export const h2hCardTree = withAssets((p, pics = {}, art = {}) => {
   const banners = art.banners || {}, colors = art.colors || {}, lead = p.aw === p.bw ? 'All square' : `${p.bw > p.aw ? p.b : p.a} leads`;
+  // each player's banner fills their half, wall to wall, split straight down the middle
   const half = (name, tint, fallback, side) => {
     const bg = banners[name] ? {} : { backgroundImage: colors[name] ? `linear-gradient(${side ? 200 : 160}deg, ${colors[name]}, #201c3b)` : fallback };
-    return h({ position: 'absolute', top: 0, height: 245, width: W / 2 + 30, left: side ? W / 2 - 30 : 0, clipPath: side ? 'polygon(12% 0, 100% 0, 100% 100%, 0 100%)' : 'polygon(0 0, 100% 0, 88% 100%, 0 100%)', overflow: 'hidden', ...bg },
-      banners[name] ? img(banners[name], W / 2 + 30, 245, { position: 'absolute', left: 0, top: 0, objectFit: 'cover' }) : null,
-      banners[name] ? h({ position: 'absolute', left: 0, top: 0, width: W / 2 + 30, height: 245, backgroundImage: tint }) : null);
+    return h({ position: 'absolute', top: 0, height: 245, width: W / 2, left: side ? W / 2 : 0, overflow: 'hidden', ...bg },
+      banners[name] ? cover(banners[name], W / 2, 245) : null,
+      banners[name] ? h({ position: 'absolute', left: 0, top: 0, width: W / 2, height: 245, backgroundImage: tint }) : null);
   };
   const who = (name, x, color) => h({ position: 'absolute', left: x, top: 26, width: 200, flexDirection: 'column', alignItems: 'center' }, sq(pics, name, 104), B(name.toUpperCase(), 40, color, { marginTop: 22 }));
   const top = h({ position: 'relative', height: 245 },
     half(p.a, 'linear-gradient(160deg, rgba(74,58,154,0.55), rgba(21,19,42,0.75))', 'linear-gradient(160deg, #4a3a9a, #2a2150)', 0),
     half(p.b, 'linear-gradient(200deg, rgba(184,69,106,0.5), rgba(21,19,42,0.75))', 'linear-gradient(200deg, #b8456a, #4a1f3a)', 1),
+    h({ position: 'absolute', left: W / 2 - 1.5, top: 0, width: 3, height: 245, backgroundColor: L.gold }),
     who(p.a, 30, '#fff'), who(p.b, W - 230, L.gold),
     h({ position: 'absolute', left: 0, width: W, top: 50, flexDirection: 'column', alignItems: 'center' },
       h({ alignItems: 'center', backgroundColor: L.night, border: `2px solid ${L.gold}`, padding: '0 14px' }, B(String(p.aw), 64), B('VS', 22, L.muted, { marginLeft: 8, marginRight: 8 }), B(String(p.bw), 64, L.gold)),
-      h({ backgroundColor: L.gold, padding: '0 10px' }, B(`${p.label} · ${lead} · ${p.n} game${p.n === 1 ? '' : 's'}`.toUpperCase(), 16, L.night, { letterSpacing: 1.5 }))));
+      h({ backgroundColor: L.gold, padding: '0 10px' }, B(`${p.label} · ${lead} · ${p.n} game${p.n === 1 ? '' : 's'}${p.ties ? ` · ${p.ties} tie${p.ties === 1 ? '' : 's'}` : ''}`.toUpperCase(), 16, L.night, { letterSpacing: 1.5 }))));
   // the race: both running totals over every shared game
-  const G = p.games, CW = IN, CH = 200, Lp = 50, Rp = 30, Tp = 14, Bp = 26, A = L.vio, Bc = L.pink;
+  const G = p.games, CW = IN, CH = 190, Lp = 50, Rp = 30, Tp = 16, Bp = 16, A = L.vio, Bc = L.pink;
   const vals = [0, ...G.map(g => g.ca), ...G.map(g => g.cb)], hi = Math.max(...vals), lo = Math.min(...vals), rng = hi - lo || 1;
   const x = i => Lp + (G.length <= 1 ? (CW - Lp - Rp) / 2 : i * (CW - Lp - Rp) / (G.length - 1)), y = v => Tp + (hi - v) / rng * (CH - Tp - Bp);
   const pts = key => G.map((g, i) => `${x(i).toFixed(1)},${y(g[key]).toFixed(1)}`).join(' ');
@@ -267,8 +275,6 @@ export const h2hCardTree = withAssets((p, pics = {}, art = {}) => {
   const end = (name, yy, c) => h({ position: 'absolute', left: x(G.length - 1) - 15, top: yy - 15 }, sq(pics, name, 30, c));
   const chart = h({ position: 'relative', width: CW, height: CH }, img(svgUri(svg), CW, CH, { position: 'absolute', left: 0, top: 0 }),
     ...ticks.map(v => h({ position: 'absolute', left: 0, width: Lp - 6, top: y(v) - 7, justifyContent: 'flex-end' }, M(usd(Math.round(v), { cents: false }), 10, L.muted))),
-    h({ position: 'absolute', left: Lp, top: CH - 18 }, T(G[0].date, { fontSize: 11, color: L.muted })),
-    h({ position: 'absolute', left: CW - Rp - 80, width: 80, top: CH - 18, justifyContent: 'flex-end' }, T(last.date, { fontSize: 11, color: L.muted })),
     end(p.b, ya < yb ? yb + nud : yb - nud, Bc), end(p.a, ya < yb ? ya - nud : ya + nud, A));
   const tapeRow = (a, l, b) => h({ height: 36, alignItems: 'center', borderBottom: `1px solid ${L.panel2}` }, h({ flex: 1 }, a), B(l, 16, L.muted, { letterSpacing: 2 }), h({ flex: 1, justifyContent: 'flex-end' }, b));
   const meet = g => h({ height: 38, marginBottom: 4, alignItems: 'center', backgroundColor: L.panel },
@@ -277,12 +283,14 @@ export const h2hCardTree = withAssets((p, pics = {}, art = {}) => {
     h({ flex: 1, justifyContent: 'flex-end', paddingRight: 10 }, money(g.y, 14)), h({ width: 5, height: 38, backgroundColor: g.y > g.x ? Bc : 'rgba(0,0,0,0)' }));
   return frame(top,
     chy('The race', `running total in ${p.n} shared game${p.n === 1 ? '' : 's'}`, 'gold'),
-    pad(h({ backgroundColor: L.panel, paddingTop: 10, paddingBottom: 4 }, chart),
+    pad(h({ backgroundColor: L.panel, paddingTop: 10, paddingBottom: 8, flexDirection: 'column' }, chart,
+        h({ justifyContent: 'space-between', paddingLeft: Lp, paddingRight: Rp }, T(G[0].date, { fontSize: 11, color: L.muted }), G.length > 1 ? T(last.date, { fontSize: 11, color: L.muted }) : null)),
       h({ justifyContent: 'space-between', marginTop: 8 }, ...[[p.a, 'ca', A], [p.b, 'cb', Bc]].map(([n, key, c]) => h({ alignItems: 'center', gap: 8, borderLeft: `4px solid ${c}`, paddingLeft: 8 }, T(n, { fontWeight: 700, color: '#fff', fontSize: 15 }), money(last[key], 14)))),
       h({ justifyContent: 'center', marginTop: 6 }, T('square = finished ahead of the other that night', { fontSize: 11.5, color: L.muted }))),
     chy('Tale of the tape', 'only games they both played', 'pink'),
-    pad(h({ height: 16 }, h({ width: `${p.n ? p.aw / p.n * 100 : 50}%`, backgroundColor: A }), h({ flex: 1, backgroundColor: Bc })),
-      h({ justifyContent: 'space-between', marginTop: 5, marginBottom: 4 }, T(`${p.a} ahead ${p.aw}`, { fontSize: 12, color: L.muted }), T(`${p.b} ahead ${p.bw}`, { fontSize: 12, color: L.muted })),
+    pad(h({ height: 16, backgroundColor: L.panel2 }, ...[[p.aw, A], [p.ties, '#6d6895'], [p.bw, Bc]].filter(([v]) => v > 0).map(([v, c]) => h({ flexGrow: v, flexBasis: 0, backgroundColor: c }))),
+      h({ justifyContent: 'space-between', marginTop: 5, marginBottom: 4 }, T(`${p.a} ahead ${p.aw}`, { fontSize: 12, color: L.muted }),
+        p.ties ? T(`${p.ties} tie${p.ties === 1 ? '' : 's'}`, { fontSize: 12, color: L.muted }) : null, T(`${p.b} ahead ${p.bw}`, { fontSize: 12, color: L.muted })),
       tapeRow(money(p.an, 16), 'NET IN THESE GAMES', money(p.bn, 16)),
       tapeRow(M(`${p.aUp} of ${p.n}`, 16, L.text), 'NIGHTS FINISHED UP', M(`${p.bUp} of ${p.n}`, 16, L.text)),
       p.best ? h({ justifyContent: 'center', marginTop: 10, gap: 5, flexWrap: 'wrap' }, T('Biggest gap:', { fontSize: 13, color: L.soft }), T(p.best.who, { fontSize: 13, fontWeight: 700, color: '#fff' }),
