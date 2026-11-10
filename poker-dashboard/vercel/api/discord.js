@@ -11,12 +11,14 @@
 //   /roles                  refreshes the results roles (Quarter Leader, Heater, ...; see _roles.js)
 //   /tourney date:...       tournament invite people answer with reactions (see _tourney.js)
 //   /cash date:...          same for a cash game
+//   /daily /blackjack /chips  blackjack with play chips (see _blackjack.js; needs Upstash storage)
 // One-time setup: open /api/discord?setup=1 in a browser. It registers the command and shows the "add to server" link.
 // Needs Vercel env vars DISCORD_BOT_TOKEN (already there) and DISCORD_PUBLIC_KEY (from the Developer Portal).
 import { createPublicKey, verify } from 'node:crypto';
 import { waitUntil } from '@vercel/functions';
 import { TOURNEY_COMMAND, CASH_COMMAND, startTourney, tally } from './_tourney.js';
 import { syncRoles } from './_roles.js';
+import { BLACKJACK_COMMANDS, blackjackCommand, blackjackButton } from './_blackjack.js';
 import { SHEET_URL, MEMBERS_URL, gameRecords, findPlayer, latestQuarter, memberIds, toNights, hallOfFame, usd, wrapDefault, quartersWithGames } from '../recap-core.js';
 
 const SITE = 'https://renpokernight.vercel.app';
@@ -40,6 +42,7 @@ const COMMANDS = [
   CASH_COMMAND,
   { name: 'fish', description: 'Call out the fish at the table', type: 1, options: [{ type: 6, name: 'who', description: 'Who is the fish (leave empty for the usual suspect)', required: false }] },
   { name: 'donkey', description: 'Call someone a donkey', type: 1, options: [{ type: 6, name: 'who', description: 'Who played like a donkey (leave empty for the usual suspect)', required: false }] },
+  ...BLACKJACK_COMMANDS,
 ];
 // /fish and /donkey ping this person when nobody is picked (their Discord user ID, in quotes). Empty = they ask who.
 const FISH_DEFAULT = '170443455590301696';
@@ -81,6 +84,9 @@ export async function POST(req) {
     const s = await sheet();
     return json(await tally(i, s || { ids: {} }));
   }
+  if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('bj:')) { // blackjack buttons
+    try { return await blackjackButton(i, null); } catch (e) { console.error('blackjack button', e); return say("Couldn't reach the chip storage just now. Try again in a moment."); }
+  }
   if (i.type !== 2 || !i.data) return say('Unknown command.');
   if (i.data.name === 'fish' || i.data.name === 'donkey') { // fun pings, no sheet needed
     const id = (opts.who && opts.who.value) || FISH_DEFAULT;
@@ -89,6 +95,8 @@ export async function POST(req) {
     return json({ type: 4, data: { content: lines[Math.floor(Math.random() * lines.length)].replace('ID', id), allowed_mentions: { users: [id] } } });
   }
   const s = await sheet();
+  const bj = await blackjackCommand(i, opts, s);
+  if (bj) return bj;
   if (i.data.name === 'tourney' || i.data.name === 'cash') return json(startTourney(i, opts, s || { ids: {} }, waitUntil));
   if (!s) return say("Couldn't reach the poker sheet just now. Try again in a minute.");
   if (i.data.name === 'roles') { // can take a few seconds, so answer "thinking…" and finish in the background
