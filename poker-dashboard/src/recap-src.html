@@ -123,6 +123,17 @@ select:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid
 .aw .t span { font-family: var(--mono); font-size: 11px; color: var(--soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 540px) { .aw { grid-template-columns: minmax(0,1fr); } }
 .empty { padding: 40px 0; text-align: center; color: var(--muted); }
+/* settle up (below the card, not part of the image) */
+.settle { max-width: 560px; margin: 22px auto 0; background: var(--night); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.settle h2 { font-family: var(--title); font-weight: 400; letter-spacing: .04em; font-size: 30px; margin: 0; color: var(--gold); }
+.settle .lead { color: var(--soft); font-size: 14px; margin: 2px 0 12px; }
+.settle .sec { margin: 14px 0 6px; }
+.settle .row { display: flex; align-items: center; gap: 10px; background: var(--panel); border-radius: 12px; padding: 8px 10px; margin-bottom: 6px; min-width: 0; }
+.settle .row b { font-weight: 900; color: var(--bright); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settle .row .amt { font-family: var(--mono); font-weight: 600; color: var(--gold); margin-left: auto; white-space: nowrap; }
+.settle .vm { background: #008cff; color: #fff; font-weight: 800; font-size: 13px; padding: 6px 10px; border-radius: 9px; text-decoration: none; white-space: nowrap; }
+.settle .vm.ghost { background: transparent; border: 1px solid #3c6fa8; color: #9cc8ff; }
+.settle .foot { color: var(--muted); font-size: 12.5px; margin-top: 10px; }
 @media (max-width: 540px) { .tiles { grid-template-columns: minmax(0,1fr); } .f2-win .note { display: none; } }
 </style>
 </head>
@@ -139,11 +150,12 @@ select:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid
     <button id="share" disabled hidden>Share</button>
   </div>
   <div class="status" id="status"></div>
+  <section class="settle" id="settle" hidden aria-live="polite"></section>
 </div>
 
 <script type="module">
-import { SHEET_URL, MEMBERS_URL, COLORS, toNights, pickNight, model, usd, initials, hueFor, sparkSvg, CROWN_SVG, stories, iconSvg, memberIds, avatarUrl } from '/recap-core.js';
-let IDS = {};
+import { SHEET_URL, MEMBERS_URL, COLORS, toNights, pickNight, model, usd, initials, hueFor, sparkSvg, CROWN_SVG, stories, iconSvg, memberIds, avatarUrl, memberVenmo, settleUp, venmoPayUrl } from '/recap-core.js';
+let IDS = {}, VENMO = {};
 // a player's circle: initials, with their Discord pfp laid on top when we have one (a missing pfp just leaves the initials)
 const av = (name, extra = '', size = '') => `<span class="av${size ? ' ' + size : ''}" style="--h:${hueFor(name)};${extra}">${esc(initials(name))}${IDS[name] ? `<img src="${avatarUrl(IDS[name])}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
 const MEDAL = [['#ffe08a', '#d9a72e'], ['#e6e3f7', '#a9a4c8'], ['#f0b48a', '#b46a3c'], ['#a08cf0', '#6e52c8'], ['#a08cf0', '#6e52c8']];
@@ -193,6 +205,24 @@ function render(m) {
   document.title = `${m.title} · ${m.sub.split(' · ')[0]}`;
 }
 
+// who sends the banker what (Dong, or Renato when Dong isn't there); Venmo usernames come from the Members tab
+function renderSettle(n) {
+  const s = settleUp(n), b = s.banker, bv = VENMO[b], note = `Poker ${MONTHS[n.m - 1]} ${n.d} @ The Study`;
+  const amt = v => '$' + Math.abs(v).toFixed(2);
+  const row = (p, to, label) => `<div class="row">${av(p.name)}<b>${esc(p.name)}</b><span class="amt">${amt(p.amt)}</span>${VENMO[to] ? `<a class="vm${label ? ' ghost' : ''}" href="${esc(venmoPayUrl(VENMO[to], p.amt, note))}" target="_blank" rel="noopener">${label || 'Pay ' + esc(b)}</a>` : ''}</div>`;
+  const foot = [];
+  if (s.bankerPlayed) foot.push(`${esc(b)}'s own night: ${s.bankerNet >= 0 ? '+' : '−'}${amt(s.bankerNet)}`);
+  if (s.off) foot.push(`The night is off by ${amt(s.off)}; ${esc(b)} covers it.`);
+  if (!bv) foot.push(`Add ${esc(b)}'s Venmo username to the Members tab to get Pay buttons.`);
+  $('settle').innerHTML = `<h2>Settle up</h2>
+    <p class="lead">Everyone who's down Venmos <b>${esc(b)}</b>${bv ? ` <span style="white-space:nowrap">(@${esc(bv)})</span>` : ''}. ${esc(b)} pays the winners.</p>
+    ${s.pay.length ? `<div class="sec">Send ${esc(b)} · ${amt(s.inTotal)}</div>${s.pay.map(p => row(p, b)).join('')}` : ''}
+    ${s.get.length ? `<div class="sec">${esc(b)} pays out · ${amt(s.outTotal)}</div>${s.get.map(p => row(p, p.name, 'Venmo')).join('')}` : ''}
+    ${!s.pay.length && !s.get.length ? '<p class="lead">Nothing to settle.</p>' : ''}
+    ${foot.length ? `<div class="foot">${foot.join(' · ')}</div>` : ''}`;
+  $('settle').hidden = false;
+}
+
 let NIGHTS = [];
 const current = () => NIGHTS.find(x => x.id === $('night').value) || NIGHTS[0];
 function show(id) {
@@ -200,6 +230,7 @@ function show(id) {
   if (!n) return;
   $('night').value = n.id;
   render({ ...model(NIGHTS, n), st: stories(NIGHTS, n) });
+  try { renderSettle(n); } catch (e) { $('settle').hidden = true; }
   try { history.replaceState(null, '', n === NIGHTS[0] ? location.pathname : '#' + n.key + (NIGHTS.filter(x => x.key === n.key).length > 1 ? '-' + n.type.toLowerCase() : '')); } catch (e) {}
 }
 function idFromHash() {
@@ -214,7 +245,7 @@ async function load() {
     const [res, mem] = await Promise.all([fetch(SHEET_URL, { cache: 'no-store' }), fetch(MEMBERS_URL, { cache: 'no-store' }).catch(() => null)]);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     NIGHTS = toNights(await res.text());
-    try { if (mem && mem.ok) IDS = memberIds(await mem.text()); } catch (e) {}
+    try { if (mem && mem.ok) { const t = await mem.text(); IDS = memberIds(t); VENMO = memberVenmo(t); } } catch (e) {}
     if (!NIGHTS.length) throw new Error('no nights found');
     $('night').innerHTML = NIGHTS.map(n => `<option value="${n.id}">${MONTHS[n.m - 1]} ${n.d}, ${n.y} · ${n.type}</option>`).join('');
     show(idFromHash());

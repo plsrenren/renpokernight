@@ -3,6 +3,7 @@
  *  - loadInvite: who reacted ✅ / 🤔 on the latest /tourney or /cash invite in Discord (read by the dashboard site).
  *  - postQuarterWrapIfNew: after saving the first night of a new quarter, posts last quarter's wrap card to Discord, once.
  *  - syncRoles: after saving, moves the results roles in Discord (Quarter Leader, Heater, Cash King, ...).
+ *  - postSettleUp: after posting a night to Discord, posts who sends the banker (Dong, or Renato) what, with Venmo links.
  */
 
 /** { kind, date, in: [{ name, known }], maybe: [...], cant: [...] } from the site's /api/invite. link is optional. */
@@ -48,4 +49,20 @@ function syncRoles() {
   const res = UrlFetchApp.fetch(site + '/api/roles', {
     method: 'post', contentType: 'application/json', payload: JSON.stringify({ input: inputCsv_(), members: membersCsv_() }), muteHttpExceptions: true });
   try { return JSON.parse(res.getContentText()); } catch (e) { return { changes: [], errors: ['Roles: the site said ' + res.getResponseCode()] }; }
+}
+
+/**
+ * After a night is posted: posts the settle-up (who sends the banker what, who the banker pays) under the recap.
+ * The site works out the message (/api/settle); Venmo usernames come from a "Venmo" column in the Members tab.
+ * dateStr = 'yyyy-mm-dd', type = 'Cash' or 'Tournament'. Returns { posted }.
+ */
+function postSettleUp(dateStr, type) {
+  if (!DISCORD_WEBHOOK_URL || !DASHBOARD_URL) return { posted: false };
+  const site = DASHBOARD_URL.replace(/\/$/, '');
+  const res = UrlFetchApp.fetch(site + '/api/settle?night=' + encodeURIComponent(dateStr) + '&type=' + encodeURIComponent(type || ''), {
+    method: 'post', contentType: 'application/json', payload: JSON.stringify({ input: inputCsv_(), members: membersCsv_() }), muteHttpExceptions: true });
+  if (res.getResponseCode() !== 200) throw new Error('Settle-up failed: ' + res.getResponseCode() + ' ' + res.getContentText().slice(0, 200));
+  const msg = JSON.parse(res.getContentText());
+  UrlFetchApp.fetch(DISCORD_WEBHOOK_URL, { method: 'post', contentType: 'application/json', payload: JSON.stringify(msg) });
+  return { posted: true };
 }
