@@ -4,6 +4,7 @@
 //   a=0                hand being played (empty when the hand is over)
 //   r=win.lose         result per hand when over (win, bj, push, lose, bust)
 //   b=20.20            bet per hand, n=player name
+//   m=uth&d=XX.XX&b=7H.6C.KH.__.__&p=9H.8H&n=Renato&ph=Flush&dh=Pair of kings&r=win   the /uth table instead (__ = card not out yet)
 //   m=duel&c=QS.9H&n=Dong|JP&w=1   the /duel high card picture instead: two cards, names, winner (0 or 1) ringed
 // Card codes: rank A 2-9 T J Q K + suit S H D C.
 import satori from 'satori';
@@ -60,6 +61,18 @@ export function table({ dealer, hands, activeIdx, results, bets, name }) {
       row(cs, handTot(cs, k), activeIdx !== null && hands.length > 1 && activeIdx !== k))));
 }
 
+const slot = () => h('div', { width: CW * S, height: CH * S, borderRadius: 7 * S, border: `${2 * S}px dashed #4e5058`, boxSizing: 'border-box', flexShrink: 0 });
+const UTH_RES = { ...RES, fold: ['FOLD', '#9a94c4', '#16132b'] };
+export function uth({ dealer, board, me, name, ph, dh, r }) {
+  const cards = cs => h('div', { gap: 8 * S }, cs.map(c => (c === '__' ? slot() : card(c))));
+  const hn = t => t ? h('div', { color: '#f1c75b', textTransform: 'none', letterSpacing: 0, fontSize: 14 * S }, t) : null;
+  const rt = UTH_RES[r] ? h('div', { backgroundColor: UTH_RES[r][1], color: UTH_RES[r][2], fontFamily: 'Nunito', fontWeight: 900, fontSize: 11 * S, letterSpacing: 1 * S, padding: `${2 * S}px ${7 * S}px`, borderRadius: 5 * S }, UTH_RES[r][0]) : null;
+  return h('div', { width: W * S, flexDirection: 'column', gap: 10 * S, padding: `${14 * S}px ${16 * S}px`, backgroundColor: '#2b2d31', boxSizing: 'border-box' },
+    h('div', { flexDirection: 'column', gap: 6 * S }, label('Dealer', hn(dh)), cards(dealer)),
+    h('div', { flexDirection: 'column', gap: 6 * S }, label('Board'), cards(board)),
+    h('div', { flexDirection: 'column', gap: 6 * S }, label(name, [hn(ph), rt]), cards(me)));
+}
+
 export function duel(cards, names, w) {
   const side = k => h('div', { flexDirection: 'column', alignItems: 'center', gap: 8 * S, opacity: k === w ? 1 : 0.55 },
     h('div', { padding: 4 * S, borderRadius: 11 * S, backgroundColor: k === w ? '#8ee0b0' : 'transparent' }, card(cards[k] || 'XX')),
@@ -70,6 +83,11 @@ export function duel(cards, names, w) {
 }
 
 export async function render(q) {
+  if (q.get('m') === 'uth') {
+    const cs = (k, n) => String(q.get(k) || '').split('.').filter(Boolean).slice(0, n);
+    const svg = await satori(uth({ dealer: cs('d', 2), board: cs('b', 5), me: cs('p', 2), name: (q.get('n') || 'You').slice(0, 24), ph: (q.get('ph') || '').slice(0, 60), dh: (q.get('dh') || '').slice(0, 70), r: q.get('r') || '' }), { width: W * S, fonts: fonts() });
+    return new Resvg(svg, { fitTo: { mode: 'width', value: W * S } }).render().asPng();
+  }
   if (q.get('m') === 'duel') {
     const svg = await satori(duel(String(q.get('c') || '').split('.'), String(q.get('n') || '').split('|'), +q.get('w')), { width: W * S, fonts: fonts() });
     return new Resvg(svg, { fitTo: { mode: 'width', value: W * S } }).render().asPng();
