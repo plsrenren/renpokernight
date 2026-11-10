@@ -37,6 +37,8 @@ poker-dashboard/
     api/               Serverless functions: recap/card/hall/h2h/wrap (PNG cards via satori + resvg), avatar (Discord pfps/banners),
                        discord (slash commands endpoint; ?setup=1 registers commands), invite (who reacted to /tourney or /cash),
                        roles (results roles), _tourney.js/_roles.js/_discord.js helpers, _assets/ fonts + logo
+                       blackjack: _blackjack.js (/daily /blackjack /chips, play chips in Upstash Redis via KV_REST_API_URL/TOKEN),
+                       bjcards (table picture under each hand)
     vercel.json        Function durations + included files. Env vars on Vercel: DISCORD_BOT_TOKEN, DISCORD_PUBLIC_KEY
 poker-entry/
   Code.gs              Apps Script server: doGet, getSetup(), saveNight(payload), Discord recap post. The live copy has the

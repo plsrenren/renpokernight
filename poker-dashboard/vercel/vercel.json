@@ -35,6 +35,10 @@
     "api/roles.js": {
       "includeFiles": "recap-core.js",
       "maxDuration": 30
+    },
+    "api/bjcards.js": {
+      "includeFiles": "api/_assets/**",
+      "maxDuration": 10
     }
   }
 }
