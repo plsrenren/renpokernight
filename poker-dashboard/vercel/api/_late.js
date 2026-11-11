@@ -66,11 +66,10 @@ const chy = (title, note = '', kind = 'vio') => {
     note ? T(note, { marginLeft: 'auto', paddingRight: PAD, fontSize: 12, color: L.muted }) : null);
 };
 const pad = (...kids) => h({ flexDirection: 'column', paddingLeft: PAD, paddingRight: PAD }, kids);
-const mast = (title, sub, kick) => h({ height: 84, alignItems: 'stretch' },
+const mast = (title, sub) => h({ height: 84, alignItems: 'stretch' },
   h({ width: 96, backgroundColor: L.pink, alignItems: 'center', justifyContent: 'center', clipPath: 'polygon(0 0, 100% 0, 82% 100%, 0 100%)' }, img(LOGO, 58, 58)),
   h({ flexDirection: 'column', justifyContent: 'center', paddingLeft: 6, flex: 1 },
-    kicker(kick), B(title.toUpperCase(), 36), T(sub, { fontSize: 12.5, color: L.muted, marginTop: 3 })));
-const kicker = (t, color = L.gold) => h({ alignItems: 'center', gap: 6 }, h({ width: 8, height: 8, borderRadius: 9, backgroundColor: L.pink }), B(t.toUpperCase(), 15, color, { letterSpacing: 2 }));
+    B(title.toUpperCase(), 36), T(sub, { fontSize: 12.5, color: L.muted, marginTop: 3 })));
 const foot = (l, r = 'renpokernight.vercel.app') => h({ marginTop: 20, height: 34, alignItems: 'center', justifyContent: 'space-between', backgroundColor: L.foot, paddingLeft: PAD, paddingRight: PAD },
   B(l.toUpperCase(), 16, L.gold, { letterSpacing: 1.5 }), T(r, { fontSize: 11.5, color: L.muted }));
 const frame = (...kids) => h({ width: W, flexDirection: 'column', backgroundColor: L.night, color: L.text, overflow: 'hidden',
@@ -104,7 +103,6 @@ export const recapCard = withAssets(m => {
   const pics = m.pics || {}, st = m.stories, half = Math.ceil(m.standings.rows.length / 2);
   const lead = m.standings.rows.slice(0, 5), hi = Math.max(0, ...lead.map(r => r.net)), lo = Math.min(0, ...lead.map(r => r.net));
   const BH = 130, k = BH / Math.max(1, hi - lo), zero = 20 + hi * k, MED = [L.gold, L.silver, L.bronze, L.vio, L.vio];
-  const date = m.fileKey.slice(5).replace('-', '/');
   const tile = (r, i) => h({ width: (IN - 6) / 2, height: 48, alignItems: 'center', backgroundColor: L.panel, borderLeft: `4px solid ${r.net > 0 ? L.up : r.net < 0 ? L.down : L.muted}` },
     B(String(i + 1), 22, L.muted, { width: 30, justifyContent: 'center' }), sq(pics, r.player, 34),
     h({ flexDirection: 'column', flex: 1, paddingLeft: 9, overflow: 'hidden' }, T(r.player, { fontWeight: 700, fontSize: 14.5, color: '#fff', whiteSpace: 'nowrap' }), money(r.net, 12.5)),
@@ -127,10 +125,10 @@ export const recapCard = withAssets(m => {
     h({ flexDirection: 'column', padding: '8px 10px', flex: 1, overflow: 'hidden' }, B(a.title.toUpperCase(), 15, L.gold, { letterSpacing: 1.8 }),
       T(a.who, { fontWeight: 700, color: '#fff', fontSize: 14, whiteSpace: 'nowrap' }), M(a.what, 11.5, L.muted)));
   return frame(
-    mast(m.title, m.sub + (m.off ? ' · ' + m.off : ''), `Final · ${date}`),
+    mast(m.title, m.sub + (m.off ? ' · ' + m.off : '')),
     h({ marginTop: 16, marginLeft: PAD, marginRight: PAD, height: 96, backgroundImage: 'linear-gradient(100deg, #3a2a6e, #a23b58)' },
       h({ width: 96, backgroundColor: L.gold, alignItems: 'center', justifyContent: 'center' }, sq(pics, m.winner.name, 70, L.night)),
-      h({ flex: 1, flexDirection: 'column', justifyContent: 'center', paddingLeft: 16 }, B('WINNER WINNER', 17, '#ffd7e1', { letterSpacing: 3 }), B(m.winner.name.toUpperCase(), 54)),
+      h({ flex: 1, flexDirection: 'column', justifyContent: 'center', paddingLeft: 16 }, B(m.winner.name.toUpperCase(), 54)),
       h({ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end', paddingRight: 16 }, M(usd(m.winner.net), 28, L.gold), T(m.winner.note.replace('<br>', ' '), { fontSize: 12, color: '#ffd7e1' }))),
     chy('Tonight', 'line = last 6 nights'),
     h({ paddingLeft: PAD, paddingRight: PAD, flexWrap: 'wrap', gap: 6 }, m.rows.map(tile)),
@@ -157,8 +155,8 @@ export const playerCardTree = withAssets((c, art = {}) => {
     // darker fade behind the text side so it reads on busy banners
     art.banner ? h({ position: 'absolute', left: 0, top: 0, width: W, height: 220, backgroundImage: 'linear-gradient(90deg, rgba(21,19,42,0) 25%, rgba(21,19,42,0.78) 55%, rgba(21,19,42,0.78))' }) : null,
     h({ flex: 1, flexDirection: 'column', justifyContent: 'center', paddingRight: 12, position: 'relative' },
-      kicker(`${c.label} · played ${c.played} of ${c.nights}`),
-      B(c.name.toUpperCase(), c.name.length > 9 ? 50 : 66, '#fff', { marginTop: 4 }),
+      B(c.name.toUpperCase(), c.name.length > 9 ? 50 : 66, '#fff'),
+      T(`${c.label} · played ${c.played} of ${c.nights}`, { fontSize: 13, color: 'rgba(236,233,251,0.75)', marginTop: 2 }),
       h({ gap: 6, marginTop: 8, flexWrap: 'wrap' }, (c.badges || []).map(b => h({ backgroundColor: 'rgba(0,0,0,0.35)', padding: '4px 10px' }, T(b, { fontSize: 12, fontWeight: 700, color: '#fff' }))))));
   if (c.empty) return frame(hero, pad(T(`No games in ${c.label}.`, { fontSize: 15, color: L.muted, marginTop: 24 })), foot('Poker Club @ The Study'));
   const stat = (v, l) => h({ flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }, B(v, 30, L.night), T(l, { fontSize: 10.5, fontWeight: 700, letterSpacing: 1.5, color: L.night }));
@@ -206,7 +204,7 @@ export const hallCardTree = withAssets((H, pics = {}) => {
     ...[['overall', 'OVERALL', L.gold], ['cash', 'CASH', L.vio], ['tour', 'TOURNEY', L.bronze]].map(([k, l, c]) => Q[k] ? h({ height: 42, alignItems: 'center', gap: 8, borderBottom: `1px solid ${L.panel2}`, backgroundColor: L.panel, paddingLeft: 8, paddingRight: 8 },
       sq(pics, Q[k].name, 28), h({ flex: 1, flexDirection: 'column' }, B(l, 13, c, { letterSpacing: 1.5 }), T(Q[k].name, { fontWeight: 700, fontSize: 14, color: '#fff' })), money(Q[k].net, 13)) : null)) : h({ flex: 1 });
   return frame(
-    mast('Hall of Fame', 'Poker Club @ The Study · every quarter since night one', 'All-time honours'),
+    mast('Hall of Fame', 'Poker Club @ The Study · every quarter since night one'),
     chy('Record holders', 'best all-time totals', 'gold'),
     h({ paddingLeft: PAD, paddingRight: PAD, gap: 6 }, rec('overall', 'Overall', L.gold), rec('cash', 'Cash games', L.vio), rec('tour', 'Tournaments', L.bronze)),
     chy('Trophy shelf', 'quarter titles won'),
@@ -231,12 +229,12 @@ export const wrapCardTree = withAssets((w, pics = {}) => {
     w.tour ? aw('Tournament king', w.tour.name, w.tour.net, `${w.tourNights} tourney night${w.tourNights === 1 ? '' : 's'}`, L.bronze) : null,
     w.worst ? aw('Toughest night', w.worst.name, w.worst.net, w.worst.date, L.down) : null].filter(Boolean);
   return frame(
-    mast(`${w.q} Wrapped`, `${w.nights} night${w.nights === 1 ? '' : 's'} · ${w.players} players · ${usd(w.pot, { sign: false, cents: !Number.isInteger(w.pot) })} in buy-ins`, 'Season recap'),
+    mast(`${w.q} Wrapped`, `${w.nights} night${w.nights === 1 ? '' : 's'} · ${w.players} players · ${usd(w.pot, { sign: false, cents: !Number.isInteger(w.pot) })} in buy-ins`),
     h({ marginTop: 18, marginLeft: PAD, marginRight: PAD, height: 250, position: 'relative', overflow: 'hidden', backgroundImage: 'linear-gradient(120deg, #3a2a6e, #a23b58)' },
       h({ position: 'absolute', right: -6, bottom: -50, fontFamily: 'Bebas', fontSize: 240, lineHeight: 1, color: 'rgba(255,255,255,0.07)' }, '#1'),
       h({ width: 200, alignItems: 'center', justifyContent: 'center', position: 'relative' }, sq(pics, k.name, 150),
         h({ position: 'absolute', top: 28, left: 80 }, icon('crown', L.gold, 40))),
-      h({ flex: 1, flexDirection: 'column', justifyContent: 'center' }, kicker('Quarter champion'), B(k.name.toUpperCase(), k.name.length > 7 ? 60 : 80, '#fff', { marginTop: 6 }), M(usd(k.net), 30, L.gold))),
+      h({ flex: 1, flexDirection: 'column', justifyContent: 'center' }, B(k.name.toUpperCase(), k.name.length > 7 ? 60 : 80, '#fff'), M(usd(k.net), 30, L.gold))),
     h({ marginLeft: PAD, marginRight: PAD }, ...[[s2, '2ND', L.silver], [s3, '3RD', L.bronze]].filter(x => x[0]).map(([p, l, c]) => h({ flex: 1, alignItems: 'center', gap: 10, height: 46, backgroundColor: L.foot, paddingLeft: 12, paddingRight: 12, borderBottom: `3px solid ${c}` },
       B(l, 22, c), T(p.name, { flex: 1, fontWeight: 700, color: '#fff', fontSize: 15 }), money(p.net, 14)))),
     chy('The awards', '', 'gold'),

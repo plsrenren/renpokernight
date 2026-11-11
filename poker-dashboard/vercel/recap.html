@@ -50,7 +50,6 @@ select:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid
 .f2 .sub .off { color: var(--down); }
 .f2-win { display: flex; align-items: center; gap: 14px; background: linear-gradient(120deg, #3a2a6e, var(--maroon)); border-radius: 18px; padding: 14px 16px; }
 .f2-win .crown { width: 46px; height: 46px; border-radius: 50%; background: var(--gold); display: grid; place-items: center; flex: none; }
-.f2-win .k { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #ffd7e1; }
 .f2-win .nm { font-weight: 900; font-size: 24px; color: #fff; line-height: 1.1; overflow-wrap: anywhere; }
 .f2-win .nm em { font-style: normal; font-family: var(--mono); font-weight: 600; font-size: 20px; color: #ffe9a3; white-space: nowrap; }
 .f2-win .note { margin-left: auto; text-align: right; font-size: 12px; font-weight: 800; color: #ffd7e1; line-height: 1.25; flex: none; }
@@ -179,7 +178,7 @@ function render(m) {
   $('card').innerHTML = `
     <div class="f2-top"><div class="lg" role="img" aria-label="Poker Club @ The Study logo"></div>
       <div><h1>${esc(m.title)}</h1><div class="sub">${esc(m.sub)}${m.off ? ` · <span class="off">${esc(m.off)}</span>` : ''}</div></div></div>
-    <div class="f2-win">${IDS[m.winner.name] ? `<div class="crown pic">${av(m.winner.name)}</div>` : `<div class="crown">${CROWN_SVG}</div>`}<div><div class="k">Winner winner</div><div class="nm">${esc(m.winner.name)} <em>${usd(m.winner.net)}</em></div></div><div class="note">${m.winner.note}</div></div>
+    <div class="f2-win">${IDS[m.winner.name] ? `<div class="crown pic">${av(m.winner.name)}</div>` : `<div class="crown">${CROWN_SVG}</div>`}<div><div class="nm">${esc(m.winner.name)} <em>${usd(m.winner.net)}</em></div></div><div class="note">${m.winner.note}</div></div>
     <div class="tl-h">Tonight · line shows each player's last 6 nights</div>
     <ul class="tiles">${tiles}</ul>
     <div class="chart"><div class="ch"><b>Tonight's storylines</b></div><ul class="sl">${st.night.map(p => storyHtml(p, '#f1c75b')).join('')}</ul></div>
