@@ -8,7 +8,6 @@ html .tabbar a.on { color: #15132a !important; background: var(--gold); }
 html .brand { gap: 0; align-items: stretch; }
 html .brand .lg { width: 92px; height: 78px; background: var(--logo) center / 58px no-repeat, var(--pink); clip-path: polygon(0 0, 100% 0, 84% 100%, 0 100%); margin-right: 14px; }
 html .brand h1 { font-size: clamp(38px, 5.4vw, 56px); line-height: .9; letter-spacing: .02em; }
-html .brand h1::before { content: "● Live from the felt"; display: block; font-size: 15px; letter-spacing: .14em; color: var(--gold); margin-bottom: 4px; }
 html .recap-link { border-radius: 0; font-family: var(--title); font-weight: 400; font-size: 17px; letter-spacing: .08em; padding: 6px 16px 4px 12px; clip-path: polygon(0 0, 100% 0, calc(100% - 9px) 100%, 0 100%); background: var(--vio); }
 html .hof-link { background: var(--gold); color: #15132a; }
 html .h2h-link { background: var(--pink); }
