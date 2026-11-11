@@ -144,14 +144,6 @@ export const recapCard = withAssets(m => {
 });
 export const toWords = words;
 
-// how names sit on top of banners (mockup options): plain | shadow | scrim | plate
-let TEXT = 'plate';
-export const setTextStyle = t => { TEXT = t; };
-const SHADOW = { textShadow: '0 2px 6px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.9)' };
-const plate = (kid, slantSide = 'right') => h({ position: 'relative', alignSelf: 'flex-start', paddingLeft: 10, paddingRight: 18 },
-  h({ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }, img(svgUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 30" preserveAspectRatio="none" width="100" height="30"><path d="${slantSide === 'right' ? 'M0 0H100L92 30H0Z' : 'M8 0H100V30H0Z'}" fill="${L.night}" fill-opacity="0.88"/></svg>`), '100%', '100%', { width: '100%', height: '100%' })),
-  h({ position: 'relative' }, kid));
-
 // ---------- player (/api/card) ----------
 export const playerCardTree = withAssets((c, art = {}) => {
   const pics = art.pics || {}, ov = c.ovr, hh = c.h2h || {};
@@ -162,17 +154,18 @@ export const playerCardTree = withAssets((c, art = {}) => {
     art.banner ? h({ position: 'absolute', left: 0, top: 0, width: W, height: 220, backgroundImage: 'linear-gradient(180deg, rgba(21,19,42,0) 55%, rgba(21,19,42,0.9))' }) : null,
     ov ? h({ position: 'absolute', right: -10, top: -38, fontFamily: 'Bebas', fontSize: 250, lineHeight: 1, color: 'rgba(255,255,255,0.08)' }, String(ov.value)) : null,
     h({ width: 190, alignItems: 'center', justifyContent: 'center', position: 'relative' }, sq(pics, c.name, 140)),
-    art.banner && TEXT === 'scrim' ? h({ position: 'absolute', left: 0, top: 0, width: W, height: 220, backgroundImage: 'linear-gradient(90deg, rgba(21,19,42,0) 25%, rgba(21,19,42,0.78) 55%, rgba(21,19,42,0.78))' }) : null,
-    h({ flex: 1, flexDirection: 'column', justifyContent: 'center', paddingRight: 12, position: 'relative', ...(art.banner && TEXT === 'shadow' ? SHADOW : {}) },
-      TEXT === 'plate' && art.banner ? plate(kicker(`${c.label} · played ${c.played} of ${c.nights}`)) : kicker(`${c.label} · played ${c.played} of ${c.nights}`),
-      TEXT === 'plate' && art.banner ? h({ marginTop: 4 }, plate(B(c.name.toUpperCase(), c.name.length > 9 ? 50 : 66, '#fff'))) : B(c.name.toUpperCase(), c.name.length > 9 ? 50 : 66, '#fff', { marginTop: 4 }),
+    // darker fade behind the text side so it reads on busy banners
+    art.banner ? h({ position: 'absolute', left: 0, top: 0, width: W, height: 220, backgroundImage: 'linear-gradient(90deg, rgba(21,19,42,0) 25%, rgba(21,19,42,0.78) 55%, rgba(21,19,42,0.78))' }) : null,
+    h({ flex: 1, flexDirection: 'column', justifyContent: 'center', paddingRight: 12, position: 'relative' },
+      kicker(`${c.label} · played ${c.played} of ${c.nights}`),
+      B(c.name.toUpperCase(), c.name.length > 9 ? 50 : 66, '#fff', { marginTop: 4 }),
       h({ gap: 6, marginTop: 8, flexWrap: 'wrap' }, (c.badges || []).map(b => h({ backgroundColor: 'rgba(0,0,0,0.35)', padding: '4px 10px' }, T(b, { fontSize: 12, fontWeight: 700, color: '#fff' }))))));
   if (c.empty) return frame(hero, pad(T(`No games in ${c.label}.`, { fontSize: 15, color: L.muted, marginTop: 24 })), foot('Poker Club @ The Study'));
   const stat = (v, l) => h({ flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }, B(v, 30, L.night), T(l, { fontSize: 10.5, fontWeight: 700, letterSpacing: 1.5, color: L.night }));
   const strip = h({ marginTop: -26, marginLeft: PAD, marginRight: PAD, height: 66, backgroundColor: L.gold, position: 'relative' },
     h({ alignItems: 'center', gap: 10, paddingLeft: 18, paddingRight: 18, backgroundColor: L.night, border: `2px solid ${L.gold}` },
       B(ov ? String(ov.value) : '–', 52, L.gold),
-      h({ flexDirection: 'column' }, B('OVR', 18, L.gold, { letterSpacing: 2 }), T(ov ? `${ov.rank} of ${ov.of} regulars` : `needs ${c.needs} nights`, { fontSize: 11, color: L.muted }))),
+      h({ flexDirection: 'column' }, B('OVERALL', 18, L.gold, { letterSpacing: 2 }), T(ov ? `${ov.rank} of ${ov.of} regulars` : `needs ${c.needs} nights`, { fontSize: 11, color: L.muted }))),
     stat(usd(Math.round(c.net), { cents: false }), 'NET'), stat(String(c.wins), 'WINS'), stat('#' + c.rank, 'OF ' + c.of));
   const attr = a => h({ width: (IN - 12) / 3, height: 58, backgroundColor: L.panel, alignItems: 'center', paddingLeft: 12, gap: 10, position: 'relative' },
     h({ position: 'absolute', left: 0, bottom: 0, height: 4, width: `${a.v}%`, backgroundColor: a.v >= 80 ? L.up : a.v >= 60 ? L.gold : L.down }),
@@ -275,12 +268,11 @@ export const h2hCardTree = withAssets((p, pics = {}, art = {}) => {
     + `<line x1="${seam[0]}" y1="-2" x2="${seam[1]}" y2="${TH + 2}" stroke="url(#f)" stroke-width="7"/></svg>`;
   // rasterised here with resvg: pictures nested inside an SVG image don't survive satori
   const backdrop = img('data:image/png;base64,' + Buffer.from(new Resvg(topSvg, { fitTo: { mode: 'width', value: W * 2 } }).render().asPng()).toString('base64'), W, TH, { position: 'absolute', left: 0, top: 0 });
-  const nm = (name, color) => TEXT === 'plate' && banners[name] ? h({ marginTop: 16, backgroundColor: 'rgba(21,19,42,0.88)', paddingLeft: 12, paddingRight: 12 }, B(name.toUpperCase(), 40, color))
-    : B(name.toUpperCase(), 40, color, { marginTop: 22, ...(TEXT === 'shadow' && banners[name] ? SHADOW : {}) });
-  const who = (name, x, color) => h({ position: 'absolute', left: x, top: 26, width: 200, flexDirection: 'column', alignItems: 'center' }, sq(pics, name, 104), nm(name, color));
+  const who = (name, x, color) => h({ position: 'absolute', left: x, top: 26, width: 200, flexDirection: 'column', alignItems: 'center' }, sq(pics, name, 104), B(name.toUpperCase(), 40, color, { marginTop: 22 }));
   const top = h({ position: 'relative', height: 245 },
     backdrop,
-    TEXT === 'scrim' && (banners[p.a] || banners[p.b]) ? h({ position: 'absolute', left: 0, top: 0, width: W, height: TH, backgroundImage: 'linear-gradient(180deg, rgba(21,19,42,0) 45%, rgba(21,19,42,0.85) 85%)' }) : null,
+    // darker fade behind the names so they read on busy banners
+    banners[p.a] || banners[p.b] ? h({ position: 'absolute', left: 0, top: 0, width: W, height: TH, backgroundImage: 'linear-gradient(180deg, rgba(21,19,42,0) 45%, rgba(21,19,42,0.85) 85%)' }) : null,
     who(p.a, 30, '#fff'), who(p.b, W - 230, L.gold),
     h({ position: 'absolute', left: 0, width: W, top: 50, flexDirection: 'column', alignItems: 'center' },
       h({ alignItems: 'center', backgroundColor: L.night, border: `2px solid ${L.gold}`, padding: '0 14px' }, B(String(p.aw), 64), B('VS', 22, L.muted, { marginLeft: 8, marginRight: 8 }), B(String(p.bw), 64, L.gold)),
