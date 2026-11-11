@@ -1,4 +1,4 @@
-// /roulette: a shared table with the blackjack play chips (bj:bal). One table per channel.
+// /roulette: a shared table with the blackjack chips (bj:bal). One table per channel.
 //   /roulette opens it for 30 seconds. Anyone taps bets (Red, Black, Odd, Even, 1-18, 19-36, dozens, Number...);
 //   each tap places one chip of their chosen size ($5 to $100, set with the dropdown). Chips come off when placed.
 //   When time is up the bot spins (European wheel, single 0), pays everyone and edits the table into the result.
@@ -30,7 +30,7 @@ const wins = (b, n) => (b.type === 'num' ? b.num === n : BETS[b.type].wins(n));
 const pays = b => (b.type === 'num' ? 35 : BETS[b.type].pays);
 export const colorOf = n => (n === 0 ? 'green' : REDS.has(n) ? 'red' : 'black');
 
-export const ROULETTE_COMMAND = { name: 'roulette', description: 'Open a roulette table: everyone has 30 seconds to bet play chips, then it spins', type: 1 };
+export const ROULETTE_COMMAND = { name: 'roulette', description: 'Open a roulette table: everyone has 30 seconds to bet chips, then it spins', type: 1 };
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const save = t => ['SET', 'ro:t:' + t.id, JSON.stringify(t), 'EX', 3600];
@@ -59,7 +59,7 @@ export function tableView(t) {
     const list = players.map(([, p]) => `**${p.name}** · ${groupBets(p.bets)}`).join('\n') || '_No bets yet. Be the first._';
     return { allowed_mentions: { parse: [] }, embeds: [{ color: 0x2f7d5b, title: '🎡 Roulette · place your bets',
       description: `Spins <t:${Math.ceil(t.ends / 1000)}:R>\nTap a bet to place one chip, tap again to stack. Pick your chip size below.\nNumber pays 35:1 · dozens 2:1 · everything else 1:1\n\n${list}`,
-      footer: { text: `${players.length} player${players.length === 1 ? '' : 's'} · ${money(total)} on the table · play money only` } }],
+      footer: { text: `${players.length} player${players.length === 1 ? '' : 's'} · ${money(total)} on the table` } }],
     components: [
       { type: 1, components: [btn('Red', '🔴', 'red', 4), btn('Black', '⚫', 'black', 2), btn('Odd', null, 'odd', 2), btn('Even', null, 'even', 2), btn('Number…', '🎯', 'num', 1)] },
       { type: 1, components: [btn('1–18', null, 'low', 2), btn('19–36', null, 'high', 2), btn('1st 12', null, 'd1', 2), btn('2nd 12', null, 'd2', 2), btn('3rd 12', null, 'd3', 2)] },
@@ -78,7 +78,7 @@ export function tableView(t) {
     title: `🎡 ${n} ${col.toUpperCase()} · ${tags}`,
     description: rows.join('\n') || 'Nobody bet this spin.',
     image: { url: `${SITE}/api/roulette?n=${n}&v=${t.id}` },
-    footer: { text: `Last spins: ${(t.hist || [n]).map(x => `${x} ${dot(x)}`).join(' · ')} · play money only` } }],
+    footer: { text: `Last spins: ${(t.hist || [n]).map(x => `${x} ${dot(x)}`).join(' · ')}` } }],
   components: [{ type: 1, components: [btn('New round (30s)', '🔁', 'new', 1)] }] };
 }
 

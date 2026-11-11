@@ -1,4 +1,4 @@
-// /uth: Ultimate Texas Hold'em style hand against the dealer, with the blackjack play chips (bj:bal).
+// /uth: Ultimate Texas Hold'em style hand against the dealer, with the blackjack chips (bj:bal).
 //   /uth ante:10 trips:5   ante + an equal blind go up (plus the optional Trips side bet)
 //   Pre-flop: bet 4x or 3x the ante, or check.  Flop: bet 2x, or check.  River: bet 1x, or fold (lose ante + blind).
 //   One bet per hand; after it the rest of the cards come out and it's showdown.
@@ -13,7 +13,7 @@ import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, freshDeck } f
 const SITE = 'https://renpokernight.vercel.app';
 const MAX_ANTE = 100, MAX_TRIPS = 100, DEFAULT_ANTE = 10;
 
-export const UTH_COMMAND = { name: 'uth', description: "Ultimate Texas Hold'em against the dealer with play chips (not real money)", type: 1,
+export const UTH_COMMAND = { name: 'uth', description: "Ultimate Texas Hold'em against the dealer", type: 1,
   options: [
     { type: 4, name: 'ante', description: `Ante, matched by an equal blind ($1 to $${MAX_ANTE}, default $${DEFAULT_ANTE})`, min_value: 1, max_value: MAX_ANTE, required: false },
     { type: 4, name: 'trips', description: `Optional Trips side bet, pays on three of a kind or better ($0 to $${MAX_TRIPS})`, min_value: 0, max_value: MAX_TRIPS, required: false }] };
@@ -129,14 +129,14 @@ function view(g, bal) {
       row = [btn(`Bet 2x (${money(g.ante * 2)})`, '💰', 'b2', 3, !can(2)), btn('Check', '✋', 'chk', 2)]; }
     else { footer = 'River: bet 1x your ante, or fold and lose the ante and blind';
       row = [btn(`Bet 1x (${money(g.ante)})`, '💰', 'b1', 3, !can(1)), btn('Fold', null, 'fold', 4)]; }
-    footer += ` · balance ${money(bal)} (+${money(onTable(g))} on the table) · only ${g.name} can press these · play money`;
+    footer += ` · balance ${money(bal)} (+${money(onTable(g))} on the table) · only ${g.name} can press these`;
   } else {
     title = g.res === 'fold' ? `♠️ ${g.name} folds${g.net ? `, ${g.net > 0 ? 'up' : 'down'} ${money(Math.abs(g.net))}` : ''}`
       : g.net > 0 ? `♠️ ${g.name} wins ${money(g.net)}!` : g.net < 0 ? `♠️ ${g.name} loses ${money(-g.net)}` : `♠️ ${g.name} breaks even`;
     color = g.net > 0 ? 0x8ee0b0 : g.net < 0 ? 0xf59bb0 : 0x9a94c4;
     const fmt = a => (a > 0 ? `+${money(a)}` : a < 0 ? `−${money(-a)}` : '$0');
     description = `${bets}\n\n${g.lines.map(([b, why, a]) => `**${b}** · ${why} · \`${fmt(a)}\``).join('\n')}\n\nBalance **${money(bal)}**`;
-    footer = 'Dealer needs a pair to qualify · Blind pays on a straight or better · play money only';
+    footer = 'Dealer needs a pair to qualify · Blind pays on a straight or better';
     row = [btn(`Play again (${money(g.ante)}${g.trips ? ` + ${money(g.trips)} trips` : ''})`, '🔁', 'again', 1, bal < g.ante * 2 + g.trips), btn('Payouts', '📜', 'pay', 2)];
   }
   return { allowed_mentions: { parse: [] }, embeds: [{ color, title, description, image: { url: `${SITE}/api/bjcards?${q}` }, footer: { text: footer } }],

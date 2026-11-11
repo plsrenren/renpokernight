@@ -11,7 +11,7 @@
 //   /roles                  refreshes the results roles (Quarter Leader, Heater, ...; see _roles.js)
 //   /tourney date:...       tournament invite people answer with reactions (see _tourney.js)
 //   /cash date:...          same for a cash game
-//   /daily /blackjack /chips  blackjack with play chips (see _blackjack.js; needs Upstash storage)
+//   /daily /blackjack /chips  blackjack with chips (see _blackjack.js; needs Upstash storage)
 //   /duel                   player vs player for chips: rock paper scissors or high card (see _duel.js)
 //   /uth                    Ultimate Texas Hold'em against the dealer for chips (see _uth.js)
 //   /roulette               shared roulette table, 30 seconds to bet, then it spins (see _roulette.js)

@@ -1,4 +1,4 @@
-// /baccarat: bet Player, Banker or Tie with the blackjack play chips (bj:bal); the cards play themselves.
+// /baccarat: bet Player, Banker or Tie with the blackjack chips (bj:bal); the cards play themselves.
 //   Fresh 6-deck shoe each hand, standard third-card rules. Player pays 1:1, Banker 0.95:1 (5% commission),
 //   Tie 8:1. Player and Banker bets push on a tie.
 // The buttons under a result deal a new hand for whoever presses them (same bet), so anyone can join in.
@@ -8,7 +8,7 @@ import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, MAX_BET } fro
 const SITE = 'https://renpokernight.vercel.app', DEFAULT_BET = 20;
 const SIDES = { player: 'Player', banker: 'Banker', tie: 'Tie' };
 
-export const BACCARAT_COMMAND = { name: 'baccarat', description: 'Bet Player, Banker or Tie in baccarat with play chips (not real money)', type: 1,
+export const BACCARAT_COMMAND = { name: 'baccarat', description: 'Bet Player, Banker or Tie in baccarat', type: 1,
   options: [
     { type: 3, name: 'on', description: 'What you bet on', required: true,
       choices: [{ name: 'Player (pays 1:1)', value: 'player' }, { name: 'Banker (pays 0.95:1)', value: 'banker' }, { name: 'Tie (pays 8:1)', value: 'tie' }] },
@@ -57,7 +57,7 @@ async function play(me, side, bet) {
   return json({ type: 4, data: { allowed_mentions: { parse: [] }, embeds: [{ color: net > 0 ? 0x8ee0b0 : net < 0 ? 0xf59bb0 : 0x9a94c4, title,
     description: `${won} (${how}). ${me.name} bet **${money(bet)}** on **${SIDES[side]}**.\n\nBalance **${money(+bal)}**`,
     image: { url: `${SITE}/api/bjcards?${q}` },
-    footer: { text: 'Player 1:1 · Banker 0.95:1 · Tie 8:1 (Player/Banker push on a tie) · anyone can tap below to play · play money only' } }],
+    footer: { text: 'Player 1:1 · Banker 0.95:1 · Tie 8:1 (Player/Banker push on a tie) · anyone can tap below to play' } }],
   components: [{ type: 1, components: ['player', 'banker', 'tie'].map(btn) }] } });
 }
 

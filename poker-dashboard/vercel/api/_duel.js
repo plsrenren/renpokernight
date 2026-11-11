@@ -1,4 +1,4 @@
-// /duel: player vs player for blackjack chips (play money). Uses the same balances as /blackjack (bj:bal).
+// /duel: player vs player for blackjack chips. Uses the same balances as /blackjack (bj:bal).
 //   /duel bet:50                        open challenge, the first person to tap Accept plays
 //   /duel opponent:@Kurt bet:50         only Kurt can accept (he can also Decline)
 //   game:Rock paper scissors (default)  both pick in secret, picks show once both are in, ties replay
@@ -16,7 +16,7 @@ const BEATS = { r: 's', p: 'r', s: 'p' };
 const VERB = { r: 'Rock smashes scissors.', p: 'Paper covers rock.', s: 'Scissors cut paper.' };
 const RANK = '23456789TJQKA';
 
-export const DUEL_COMMAND = { name: 'duel', description: 'Challenge someone for blackjack chips: rock paper scissors or high card (play money)', type: 1,
+export const DUEL_COMMAND = { name: 'duel', description: 'Challenge someone for blackjack chips: rock paper scissors or high card', type: 1,
   options: [
     { type: 4, name: 'bet', description: `Chips each player puts up ($1 to $${MAX_BET}, default $${DEFAULT_BET})`, min_value: 1, max_value: MAX_BET, required: false },
     { type: 6, name: 'opponent', description: 'Who you are challenging (leave empty and anyone can accept)', required: false },
@@ -43,7 +43,7 @@ function view(d, extra = {}) {
   if (d.state === 'open') {
     return msg({ color: 0xf1c75b, title: `⚔️ ${A} challenges ${B} to ${GAME[d.game]}`,
       description: `Stakes **${money(d.bet)}** each · winner takes the **${money(pot)}** pot`,
-      footer: { text: `${d.b ? `Only ${B} can accept` : 'First person to tap Accept plays'} · expires in 10 min · play money only` } },
+      footer: { text: `${d.b ? `Only ${B} can accept` : 'First person to tap Accept plays'} · expires in 10 min` } },
     row(btn('Accept', '✅', 'acc', d.id, 3), btn(d.b ? 'Decline' : 'Cancel', null, 'dec', d.id, 4)),
     d.b ? { content: `<@${d.b.id}>`, allowed_mentions: { users: [d.b.id] } } : {});
   }
@@ -51,7 +51,7 @@ function view(d, extra = {}) {
     const line = p => d.picks[p.id] ? `✅ **${p.name}** locked in` : `⏳ **${p.name}** is thinking…`;
     const tie = d.lastTie ? `🤝 Tie! You both picked ${PICK[d.lastTie][0]} ${PICK[d.lastTie][1]}. Pick again.\n\n` : '';
     return msg({ color: 0x5865f2, title: `⚔️ ${A} vs ${B} · ${money(pot)} pot`, description: `${tie}${line(d.a)}\n${line(d.b)}`,
-      footer: { text: 'Your pick stays hidden until both are in · play money only' } },
+      footer: { text: 'Your pick stays hidden until both are in' } },
     row(...Object.entries(PICK).map(([k, [e, l]]) => btn(l, e, k, d.id, 2))));
   }
   if (d.state === 'done') {
@@ -63,7 +63,7 @@ function view(d, extra = {}) {
       description = `One card each, high card wins (aces high).${d.redraws ? ` Same rank ${d.redraws === 1 ? 'once' : d.redraws === 2 ? 'twice' : d.redraws + ' times'}, so it dealt again.` : ''}`;
     }
     description += `\n\n**${w.name}** +${money(d.bet)} (now ${money(d.bal[w.id])}) · **${l.name}** −${money(d.bet)} (now ${money(d.bal[l.id])})`;
-    const rec = d.rec || {}, foot = `${A} ${rec[d.a.id] || 0}–${rec[d.b.id] || 0} ${B} in duels · play money only`;
+    const rec = d.rec || {}, foot = `${A} ${rec[d.a.id] || 0}–${rec[d.b.id] || 0} ${B} in duels`;
     const image = d.game === 'high' ? { image: { url: `${SITE}/api/bjcards?${new URLSearchParams({ m: 'duel', c: `${d.cards[d.a.id]}.${d.cards[d.b.id]}`, n: `${A}|${B}`, w: d.winner === d.a.id ? '0' : '1' })}` } } : {};
     const again = [btn(`Rematch (${money(d.bet)})`, '🔁', 're', d.id, 1)];
     if (d.bet * 2 <= MAX_BET) again.push(btn(`Double or nothing (${money(d.bet * 2)})`, null, 'dn', d.id, 2));
