@@ -140,55 +140,6 @@ footer a { color: var(--felt); }
 .p-top { align-items: stretch; }
 .p-top .p-detail { display: flex; flex-direction: column; }
 .p-top .chart-box { flex: 1 1 auto; height: auto; min-height: 320px; }
-.pcard { --suit: var(--fg); position: relative; background: var(--surface) radial-gradient(120% 70% at 50% 0%, #4a3a8e 0%, transparent 62%) no-repeat; border: 0; border-radius: 22px;
-  padding: 24px 22px 20px; display: grid; gap: 12px; overflow: hidden; min-width: 0; box-sizing: border-box;
-  box-shadow: inset 0 0 0 2px rgba(241,199,91,.55), inset 0 0 0 5px var(--surface), inset 0 0 0 6px rgba(241,199,91,.25), 0 18px 40px -24px rgba(0, 0, 0, .45); }
-.pcard[data-red="1"] { --suit: var(--chip-red); }
-/* ratings card: OVR + photo, six attribute bars, last nights line, splits, head to head, footer */
-.rc-top { position: relative; display: flex; justify-content: center; align-items: center; min-height: 112px; }
-.rc-ovr { position: absolute; left: 0; top: 50%; transform: translateY(-50%); display: grid; justify-items: center; line-height: .9; min-width: 64px; text-shadow: 0 2px 10px rgba(0,0,0,.45); }
-/* Discord banner (or profile colour) across the top of the card, fading into it */
-.rc-banner { position: absolute; top: 6px; left: 6px; right: 6px; height: 230px; border-radius: 16px 16px 0 0; pointer-events: none;
-  background-color: var(--bn, transparent); background-size: cover; background-position: center; }
-.rc-banner::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(180deg, rgba(21,19,42,.05) 0%, rgba(21,19,42,.35) 45%, var(--surface) 100%); }
-.rc-banner:not(.on) { display: none; }
-.rc-banner.on ~ .rc-top .rc-ovr { background: rgba(21,19,42,.6); border-radius: 12px; padding: 8px 8px 7px; backdrop-filter: blur(4px); }
-.pcard > :not(.rc-banner) { position: relative; }
-.pcard .pc-mono { box-shadow: 0 0 0 4px var(--surface), 0 0 0 7px var(--gold), 0 10px 24px rgba(0,0,0,.35); }
-.rc-ovr b { font-family: "Bebas Neue", var(--display); font-weight: 400; font-size: 62px; color: var(--gold); }
-.rc-ovr span { font-size: 11px; font-weight: 900; letter-spacing: .14em; color: var(--gold); }
-.rc-ovr em { font-style: normal; font-size: 11px; color: var(--muted); margin-top: 6px; font-weight: 800; text-align: center; }
-.rc-ovr.none b { font-size: 40px; color: var(--muted); }
-.pcard .pc-mono { width: 104px; height: 104px; font-size: 38px; }
-.rc-attrs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; }
-.rc-attr { display: grid; grid-template-columns: 32px minmax(0, 1fr) 26px; gap: 8px; align-items: center; }
-.rc-attr .ab { font-size: 11px; font-weight: 900; letter-spacing: .08em; color: var(--fg); opacity: .85; }
-.rc-attr .tr { height: 7px; border-radius: 4px; background: rgba(255,255,255,.08); overflow: hidden; }
-.rc-attr .tr i { display: block; height: 100%; border-radius: 4px; }
-.rc-attr .v { font-family: var(--mono); font-weight: 600; text-align: right; }
-.rc-note { font-size: 12px; color: var(--muted); text-align: center; }
-.rc-sec { display: grid; gap: 6px; border-top: 1px solid rgba(241,199,91,.18); padding-top: 10px; }
-.rc-sec:empty { display: none; }
-.rc-lab { display: flex; justify-content: space-between; gap: 8px; font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
-.rc-sec svg { display: block; width: 100%; height: auto; overflow: visible; }
-.rc-row { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
-.rc-row span:first-child { color: var(--muted); }
-.rc-row span:last-child { font-family: var(--mono); font-weight: 600; white-space: nowrap; }
-.rc-h2h { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.rc-h2h:empty { display: none; }
-.rc-mu { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,.04); border-radius: 12px; padding: 8px 10px; min-width: 0; }
-.rc-mu .who { position: relative; width: 38px; height: 38px; flex: none; }
-.rc-mu .ava { position: relative; width: 38px; height: 38px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; font-weight: 900; font-size: 15px; background: hsl(var(--h) 80% 86%); color: hsl(var(--h) 45% 28%); }
-.rc-mu .ava img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.rc-mu .badge { position: absolute; right: -4px; bottom: -4px; width: 19px; height: 19px; border-radius: 50%; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--surface); }
-.rc-mu .badge svg { width: 11px; height: 11px; }
-.rc-mu .rec { display: grid; line-height: 1.15; min-width: 0; }
-.rc-mu .rec b { font-family: var(--mono); font-weight: 600; font-size: 16px; }
-.rc-mu .rec span { font-size: 10px; color: var(--muted); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rc-foot { display: flex; gap: 8px; border-top: 1px solid rgba(241,199,91,.25); padding-top: 12px; text-align: center; }
-.rc-foot div { display: grid; flex: 1; }
-.rc-foot b { font-family: var(--mono); font-weight: 600; font-size: 15px; }
-.rc-foot span { font-size: 10.5px; color: var(--muted); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .pc-corner { position: absolute; display: grid; justify-items: center; line-height: 1; gap: 2px; color: var(--suit);
   font-family: var(--display); font-weight: 800; font-size: 22px; }
 .pc-corner .suit { font-size: 18px; }
@@ -203,6 +154,64 @@ footer a { color: var(--felt); }
 .pc-meta { color: var(--muted); font-size: 13px; }
 .pc-badges { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
 .pc-badges .chip { border-color: var(--felt); color: var(--felt); }
+/* player card: same layout as the Discord /player image (api/_late.js playerCardTree): banner hero, gold stat strip,
+   ratings tiles, last nights, the book, matchups */
+.pcard { position: relative; background: #15132a; color: #ece9fb; border-top: 5px solid var(--gold); overflow: hidden; min-width: 0; box-sizing: border-box;
+  padding: 0 0 18px; display: flex; flex-direction: column; }
+.ls-hero { position: relative; min-height: 172px; display: flex; align-items: center; gap: 14px; padding: 18px 16px 36px; overflow: hidden;
+  background: linear-gradient(120deg, #3a2a6e, #a23b58); }
+.rc-banner { position: absolute; inset: 0; background: linear-gradient(135deg, var(--bn, #3a2a6e), #201c3b) center / cover no-repeat; pointer-events: none; }
+.rc-banner:not(.on) { display: none; }
+.rc-banner::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(21,19,42,.6), rgba(21,19,42,.15) 45%, rgba(21,19,42,.35)), linear-gradient(180deg, rgba(21,19,42,0) 55%, rgba(21,19,42,.9)); }
+.ls-ghost { position: absolute; right: -6px; top: -28px; font: 400 170px/1 "Bebas Neue", var(--display); color: rgba(255,255,255,.08); pointer-events: none; }
+.pcard .pc-mono { position: relative; flex: none; width: 96px; height: 96px; border-radius: 0; box-shadow: none; font: 400 46px/1 "Bebas Neue", var(--display); padding-top: 4px; box-sizing: border-box; }
+.ls-id { position: relative; min-width: 0; display: grid; gap: 4px; }
+.ls-kick { display: flex; align-items: center; gap: 6px; font: 400 14px/1.1 "Bebas Neue", var(--display); letter-spacing: .12em; color: var(--gold); }
+.ls-kick::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #e0507f; flex: none; }
+.pcard .pc-name { font: 400 46px/.9 "Bebas Neue", var(--display); letter-spacing: .02em; color: #fff; margin: 2px 0 0; overflow-wrap: anywhere; text-align: left; }
+.pcard .pc-badges { justify-content: flex-start; gap: 5px; margin-top: 4px; }
+.pcard .pc-badges .chip { background: rgba(0,0,0,.35); border: 0; border-radius: 0; color: #fff; font-size: 11.5px; font-weight: 700; padding: 3px 8px; }
+.ls-strip { position: relative; display: flex; margin: -26px 16px 0; min-height: 58px; background: var(--gold); }
+.rc-ovr { display: flex; align-items: center; gap: 8px; padding: 0 12px; background: #15132a; border: 2px solid var(--gold); }
+.rc-ovr b { font: 400 46px/1 "Bebas Neue", var(--display); color: var(--gold); padding-top: 4px; }
+.rc-ovr span { display: grid; gap: 1px; }
+.rc-ovr i { font: 400 17px/1 "Bebas Neue", var(--display); font-style: normal; letter-spacing: .14em; color: var(--gold); }
+.rc-ovr em { font-style: normal; font-size: 10.5px; color: #9a94c4; white-space: nowrap; }
+.rc-foot { flex: 1; display: flex; }
+.rc-foot div { flex: 1; display: grid; justify-items: center; align-content: center; }
+.pcard .rc-foot b { font: 400 27px/1 "Bebas Neue", var(--display); color: #15132a; padding-top: 3px; }
+.rc-foot span { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #15132a; }
+.ls-chy { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 20px 0 10px; }
+.ls-chy b { font: 400 21px/1 "Bebas Neue", var(--display); letter-spacing: .07em; color: #fff; background: var(--violet, #8f78f0); background: #8f78f0; padding: 6px 22px 3px 16px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+.ls-chy.pink b { background: #e0507f; }
+.ls-chy.gold b { background: var(--gold); color: #15132a; }
+.ls-chy span { font-size: 12px; color: #9a94c4; padding-right: 16px; }
+.ls-pad { padding: 0 16px; }
+.ls-attrs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+.ls-attr { position: relative; height: 50px; display: flex; align-items: center; gap: 8px; padding-left: 10px; background: #201c3b; }
+.ls-attr .ab { width: 32px; font: 400 17px/1 "Bebas Neue", var(--display); letter-spacing: .1em; color: #9a94c4; padding-top: 2px; }
+.ls-attr .v { font: 400 32px/1 "Bebas Neue", var(--display); color: #fff; padding-top: 3px; }
+.ls-attr i { position: absolute; left: 0; bottom: 0; height: 4px; }
+.ls-nights { display: flex; gap: 5px; }
+.ls-night { flex: 1; min-width: 0; display: grid; gap: 2px; padding: 8px 10px; background: #201c3b; border-top: 4px solid; }
+.ls-night small { font-size: 11.5px; color: #9a94c4; }
+.ls-night b { font-family: var(--mono); font-weight: 600; font-size: 15px; white-space: nowrap; }
+.ls-line { margin-top: 5px; padding: 8px 6px; background: #201c3b; }
+.ls-line svg { display: block; width: 100%; height: auto; overflow: visible; }
+.rc-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 30px; font-size: 14px; border-bottom: 1px solid #2a2550; }
+.rc-row span:last-child { font-family: var(--mono); font-weight: 600; font-size: 13.5px; white-space: nowrap; padding-right: 6px; }
+.rc-h2h { display: flex; gap: 5px; margin: 10px 16px 0; }
+.rc-h2h:empty { display: none; }
+a.rc-mu { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; background: #201c3b; border-left: 4px solid var(--c); text-decoration: none; color: inherit; }
+.rc-mu .ava { position: relative; flex: none; width: 46px; height: 46px; display: grid; place-items: center; overflow: hidden; font: 400 24px/1 "Bebas Neue", var(--display);
+  background: hsl(var(--h) 70% 80%); color: hsl(var(--h) 45% 22%); }
+.rc-mu .ava img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.rc-mu .rec { display: grid; gap: 2px; min-width: 0; }
+.rc-mu .rec em { font: 400 14px/1 "Bebas Neue", var(--display); font-style: normal; letter-spacing: .12em; color: var(--c); }
+.rc-mu .rec span { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; overflow: hidden; }
+.rc-mu .rec strong { font-size: 14px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; }
+.rc-mu .rec b { font-family: var(--mono); font-weight: 600; font-size: 13px; color: #fff; }
 .pc-net { display: grid; justify-items: center; gap: 2px; padding-block: 12px; border-block: 1px solid var(--line); }
 .pc-k, .pc-stats dt { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .pc-big { font-family: var(--mono); font-weight: 600; font-size: 42px; line-height: 1.05; }
@@ -286,21 +295,21 @@ footer a { color: var(--felt); }
     <p class="p-empty" id="pEmpty" hidden></p>
     <div class="p-top">
       <article class="pcard" id="pCard" aria-label="Player card">
-        <div class="rc-banner" id="rBanner" aria-hidden="true"></div>
-        <div class="rc-top">
-          <div class="rc-ovr" id="rOvr"></div>
+        <div class="ls-hero">
+          <div class="rc-banner" id="rBanner" aria-hidden="true"></div>
+          <div class="ls-ghost" id="rGhost" aria-hidden="true"></div>
           <div class="pc-mono" id="cMono" aria-hidden="true"></div>
+          <div class="ls-id">
+            <div class="ls-kick" id="pSub"></div>
+            <h2 class="pc-name" id="pName"></h2>
+            <div class="pc-badges" id="cBadges"></div>
+          </div>
         </div>
-        <div class="pc-id">
-          <h2 class="pc-name" id="pName"></h2>
-          <div class="pc-meta" id="pSub"></div>
-          <div class="pc-badges" id="cBadges"></div>
-        </div>
-        <div class="rc-attrs" id="rAttrs"></div>
-        <div class="rc-sec" id="rForm"></div>
-        <div class="rc-sec" id="rSplit"></div>
+        <div class="ls-strip"><div class="rc-ovr" id="rOvr"></div><div class="rc-foot" id="rFoot"></div></div>
+        <div id="rAttrs"></div>
+        <div id="rForm"></div>
+        <div id="rSplit"></div>
         <div class="rc-h2h" id="rH2h"></div>
-        <div class="rc-foot" id="rFoot"></div>
       </article>
 
       <section class="panel p-detail">
@@ -688,13 +697,12 @@ function rcLine(games) {
 }
 function rcMatchup(m, kind, me, cp) {
   if (!m) return '';
-  const [bg, path, word] = { up: [RC_UP, '<path d="M6 2 L10.5 8 H1.5 Z" fill="#1a1630"/>', 'vs easiest'], down: [RC_DOWN, '<path d="M6 10 L10.5 4 H1.5 Z" fill="#1a1630"/>', 'vs nemesis'],
-    even: [RC_PERI, '<rect x="2" y="5" width="8" height="2" rx="1" fill="#1a1630"/>', 'best matchup'] }[kind];
+  const [c, word] = { up: [RC_UP, 'vs easiest'], down: [RC_DOWN, 'vs nemesis'], even: [RC_PERI, 'best matchup'] }[kind];
   const pic = IDS[m.p] ? `<img src="/api/avatar?id=${IDS[m.p]}" alt="" onerror="this.remove()">` : '';
   const tip = `${m.p}: ahead ${m.ahead} of ${m.n} games together. Open the head to head`;
   const href = `/h2h?a=${encodeURIComponent(me)}&b=${encodeURIComponent(m.p)}&period=${encodeURIComponent(cp)}`;
-  return `<a class="rc-mu link" href="${esc(href)}" title="${esc(tip)}" aria-label="${esc(tip)}"><span class="who"><span class="ava" style="--h:${rcHue(m.p)}">${esc(m.p[0].toUpperCase())}${pic}</span><span class="badge" style="background:${bg}"><svg viewBox="0 0 12 12">${path}</svg></span></span>
-    <span class="rec"><b>${m.ahead}–${m.n - m.ahead}</b><span>${word}</span></span></a>`;
+  return `<a class="rc-mu link" href="${esc(href)}" title="${esc(tip)}" aria-label="${esc(tip)}" style="--c:${c}"><span class="ava" style="--h:${rcHue(m.p)}">${esc(m.p[0].toUpperCase())}${pic}</span>
+    <span class="rec"><em>${word}</em><span><strong>${esc(m.p)}</strong><b>${m.ahead}–${m.n - m.ahead}</b></span></span></a>`;
 }
 // The card always shows a season or a quarter, never all-time: "All time" on the picker shows this season's card
 function cardPeriod(p) { return p === 'all' ? 'Y' + DATA.reduce((a, r) => r.date > a ? r.date : a, DATA[0].date).getFullYear() : p; }
@@ -703,10 +711,10 @@ function renderCard(name, allGames) {
   const scope = DATA.filter(r => inPeriod(r, cp)), games = allGames.filter(r => inPeriod(r, cp));
   const status = MEMBERS[name] || 'Player';
   const ovr = document.getElementById('rOvr');
-  ['rAttrs', 'rForm', 'rSplit', 'rH2h', 'rFoot'].forEach(id => document.getElementById(id).innerHTML = '');
+  ['rAttrs', 'rForm', 'rSplit', 'rH2h', 'rFoot', 'rGhost'].forEach(id => document.getElementById(id).innerHTML = '');
   if (!games.length) {
-    ovr.className = 'rc-ovr none'; ovr.innerHTML = '<b>–</b><span>OVR</span>';
-    document.getElementById('pSub').textContent = `${status} · no games in ${label}`;
+    ovr.className = 'rc-ovr none'; ovr.innerHTML = '<b>–</b><span><i>OVR</i></span>';
+    document.getElementById('pSub').textContent = `${label} · no games`;
     document.getElementById('cBadges').innerHTML = '';
     return;
   }
@@ -715,25 +723,27 @@ function renderCard(name, allGames) {
   const totals = {}; scope.forEach(r => totals[r.player] = (totals[r.player] || 0) + r.net);
   const ranked = Object.entries(totals).sort((a, b) => b[1] - a[1]), rank = ranked.findIndex(([p]) => p === name) + 1;
   const net = games.reduce((s, r) => s + r.net, 0), wins = games.filter(r => r.win).length;
-  document.getElementById('pSub').textContent = `${label} · played ${days} of ${R.nights} nights`;
+  document.getElementById('pSub').textContent = `${label} · played ${days} of ${R.nights}`;
   let run = 0; games.forEach(r => { run = r.net > 0 ? Math.max(run, 0) + 1 : r.net < 0 ? Math.min(run, 0) - 1 : 0; });
   document.getElementById('cBadges').innerHTML = badgesFor(name, games, run, scope, allGames).map(b => `<span class="chip">${esc(b)}</span>`).join('');
   if (mine) {
     ovr.className = 'rc-ovr';
-    ovr.innerHTML = `<b>${mine.OVR}</b><span>OVR</span><em>${R.order.indexOf(name) + 1} of ${R.order.length}</em>`;
-    document.getElementById('rAttrs').innerHTML = ['PRO', 'CON', 'CLO', 'ATT', 'CSH', 'TRN'].filter(k => mine[k] != null).map(k => { const v = mine[k];
-      return `<div class="rc-attr" title="${{ PRO: 'Average $ per night', CON: 'How often they finish up', CLO: 'How often they win the night', ATT: 'Share of nights played', CSH: 'Average $ per cash game', TRN: 'Average $ per tournament' }[k]}"><span class="ab">${k}</span><span class="tr"><i style="width:${v}%;background:${v >= 90 ? RC_GOLD : v >= 75 ? RC_UP : RC_PERI}"></i></span><span class="v">${v}</span></div>`; }).join('');
+    ovr.innerHTML = `<b>${mine.OVR}</b><span><i>OVR</i><em>${R.order.indexOf(name) + 1} of ${R.order.length} regulars</em></span>`;
+    document.getElementById('rGhost').textContent = mine.OVR;
+    document.getElementById('rAttrs').innerHTML = '<div class="ls-chy"><b>Ratings</b></div><div class="ls-pad ls-attrs">' + ['PRO', 'CON', 'CLO', 'ATT', 'CSH', 'TRN'].filter(k => mine[k] != null).map(k => { const v = mine[k];
+      return `<div class="ls-attr" title="${{ PRO: 'Average $ per night', CON: 'How often they finish up', CLO: 'How often they win the night', ATT: 'Share of nights played', CSH: 'Average $ per cash game', TRN: 'Average $ per tournament' }[k]}"><i style="width:${v}%;background:${v >= 80 ? RC_UP : v >= 60 ? RC_GOLD : RC_DOWN}"></i><span class="ab">${k}</span><span class="v">${v}</span></div>`; }).join('') + '</div>';
   } else {
-    ovr.className = 'rc-ovr none'; ovr.innerHTML = `<b>–</b><span>OVR</span><em>needs ${R.min} nights</em>`;
-    document.getElementById('rAttrs').innerHTML = `<div class="rc-note" style="grid-column:1/-1">Ratings start at ${R.min} nights in ${label}.</div>`;
+    ovr.className = 'rc-ovr none'; ovr.innerHTML = `<b>–</b><span><i>OVR</i><em>needs ${R.min} nights</em></span>`;
   }
-  const last = games.slice(-8), upN = last.filter(r => r.net > 0).length;
-  document.getElementById('rForm').innerHTML = `<div class="rc-lab"><span>Last ${last.length} night${last.length === 1 ? '' : 's'}</span><span>${upN} up · ${last.length - upN} down</span></div>${rcLine(last)}`;
+  const last = games.slice(-8), upN = last.filter(r => r.net > 0).length, downN = last.filter(r => r.net < 0).length;
+  const nightBox = r => `<div class="ls-night" style="border-top-color:${r.net > 0 ? RC_UP : r.net < 0 ? RC_DOWN : css('--muted')}"><small>${esc(fmtDate(r.date).replace(/, \d{4}$/, ''))}</small><b class="${signCls(r.net)}">${fmtSigned(r.net)}</b></div>`;
+  document.getElementById('rForm').innerHTML = `<div class="ls-chy pink"><b>Last ${last.length} night${last.length === 1 ? '' : 's'}</b><span>${upN} up · ${downN} down</span></div>`
+    + `<div class="ls-pad"><div class="ls-nights">${last.slice(-4).map(nightBox).join('')}</div><div class="ls-line">${rcLine(last)}</div></div>`;
   const split = t => { const g = games.filter(r => t === 'Tournament' ? r.type === 'Tournament' : r.type !== 'Tournament'); if (!g.length) return '';
     const v = g.reduce((s, r) => s + r.net, 0); return `<div class="rc-row"><span>${t} · ${g.length} night${g.length === 1 ? '' : 's'}</span><span class="${signCls(v)}">${fmtSigned(v)}</span></div>`; };
   const best = games.reduce((a, r) => r.net > a.net ? r : a);
-  document.getElementById('rSplit').innerHTML = split('Cash') + split('Tournament')
-    + `<div class="rc-row"><span>Best night${best.net > 0 ? ' · ' + fmtDate(best.date) : ''}</span><span class="${signCls(best.net)}">${best.net > 0 ? fmtSigned(best.net) : '–'}</span></div>`;
+  document.getElementById('rSplit').innerHTML = '<div class="ls-chy gold"><b>The book</b></div><div class="ls-pad">' + split('Cash') + split('Tournament')
+    + (best.net > 0 ? `<div class="rc-row"><span>Best night · ${fmtDate(best.date)}</span><span class="${signCls(best.net)}">${fmtSigned(best.net)}</span></div>` : '') + '</div>';
   const h = headToHead(name, scope);
   document.getElementById('rH2h').innerHTML = rcMatchup(h.best, h.best && h.best.rate > .5 ? 'up' : 'even', name, cp) + rcMatchup(h.worst, 'down', name, cp);
   document.getElementById('rFoot').innerHTML = `<div><b class="${signCls(net)}">${fmtSigned(Math.round(net)).replace('.00', '')}</b><span>Net</span></div><div><b>${wins}</b><span>Wins</span></div><div><b>#${rank}</b><span>of ${ranked.length}</span></div>`;
