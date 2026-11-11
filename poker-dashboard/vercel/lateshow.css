@@ -65,7 +65,7 @@ html .trophy .tot { font-family: var(--title); font-weight: 400; font-size: 17px
 html .trophy .av { box-shadow: none; outline: 3px solid rgba(201,195,240,.35); }
 html .trophy.first .av { outline-color: var(--gold); }
 html .brow .md { font-family: var(--title); font-size: 15px; }
-html .picker, html .pick, html .swap, html .seg, html .seg button, html .btn, html .stage { border-radius: 0; }
+html .picker, html .pick, html .swap, html .seg, html .seg button, html .btn, html .stage, html .stage img { border-radius: 0; }
 html .picker, html .stage { background: #1d1a37; }
 html .seg button, html .btn { font-family: var(--title); font-weight: 400; font-size: 17px; letter-spacing: .08em; }
 html .seg button[aria-pressed="true"] { background: var(--gold); }

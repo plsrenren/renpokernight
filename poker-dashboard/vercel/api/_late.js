@@ -73,7 +73,7 @@ const mast = (title, sub, kick) => h({ height: 84, alignItems: 'stretch' },
 const kicker = (t, color = L.gold) => h({ alignItems: 'center', gap: 6 }, h({ width: 8, height: 8, borderRadius: 9, backgroundColor: L.pink }), B(t.toUpperCase(), 15, color, { letterSpacing: 2 }));
 const foot = (l, r = 'renpokernight.vercel.app') => h({ marginTop: 20, height: 34, alignItems: 'center', justifyContent: 'space-between', backgroundColor: L.foot, paddingLeft: PAD, paddingRight: PAD },
   B(l.toUpperCase(), 16, L.gold, { letterSpacing: 1.5 }), T(r, { fontSize: 11.5, color: L.muted }));
-const frame = (...kids) => h({ width: W, flexDirection: 'column', backgroundColor: L.night, color: L.text, borderRadius: 18, overflow: 'hidden',
+const frame = (...kids) => h({ width: W, flexDirection: 'column', backgroundColor: L.night, color: L.text, overflow: 'hidden',
   backgroundImage: 'linear-gradient(115deg, rgba(143,120,240,0.18) 0%, rgba(143,120,240,0.18) 30%, rgba(21,19,42,0) 30%), radial-gradient(circle at 100% 0%, rgba(224,80,127,0.25), rgba(21,19,42,0) 45%)' }, kids);
 const tri = (upw, c) => img(svgUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 8" width="10" height="8"><path d="${upw ? 'M5 0L10 8H0Z' : 'M0 0H10L5 8Z'}" fill="${c}"/></svg>`), 8, 6.4);
 const mv = x => x === '' ? null : x === 'new' ? M('NEW', 10.5, L.gold) : x === 0 ? M('–', 11, '#6d6895') : h({ alignItems: 'center', gap: 2 }, tri(x > 0, x > 0 ? L.up : L.down), M(String(Math.abs(x)), 10.5, x > 0 ? L.up : L.down));
