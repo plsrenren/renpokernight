@@ -67,7 +67,7 @@ const chy = (title, note = '', kind = 'vio') => {
 };
 const pad = (...kids) => h({ flexDirection: 'column', paddingLeft: PAD, paddingRight: PAD }, kids);
 const mast = (title, sub) => h({ height: 84, alignItems: 'stretch' },
-  h({ width: 96, backgroundColor: L.pink, alignItems: 'center', justifyContent: 'center', clipPath: 'polygon(0 0, 100% 0, 82% 100%, 0 100%)' }, img(LOGO, 58, 58)),
+  h({ width: 96, backgroundColor: L.pink, alignItems: 'center', paddingLeft: 13, clipPath: 'polygon(0 0, 100% 0, 82% 100%, 0 100%)' }, img(LOGO, 58, 58)),
   h({ flexDirection: 'column', justifyContent: 'center', paddingLeft: 6, flex: 1 },
     B(title.toUpperCase(), 36), T(sub, { fontSize: 12.5, color: L.muted, marginTop: 3 })));
 const foot = (l, r = 'renpokernight.vercel.app') => h({ marginTop: 20, height: 34, alignItems: 'center', justifyContent: 'space-between', backgroundColor: L.foot, paddingLeft: PAD, paddingRight: PAD },
