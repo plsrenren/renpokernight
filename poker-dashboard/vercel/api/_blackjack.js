@@ -1,4 +1,4 @@
-// Blackjack with play chips (not real money): /daily, /blackjack, /chips, and the Hit / Stand / Double / Split buttons.
+// Blackjack with chips: /daily, /blackjack, /chips, and the Hit / Stand / Double / Split buttons.
 //   /daily          +$100 the first time, then +$50 every 24 hours
 //   /blackjack bet  one hand against the dealer, $1 to $500 (default $20). Blackjack pays 3:2, dealer stands on all 17s,
 //                   double on any first two cards, one split (any two cards of the same value; split aces get one card each)
@@ -13,10 +13,10 @@ export const MAX_BET = 500;
 const DEFAULT_BET = 20, FIRST_CLAIM = 100, DAILY = 50, DAY = 24 * 3600e3;
 
 export const BLACKJACK_COMMANDS = [
-  { name: 'daily', description: 'Claim free blackjack chips: $100 the first time, then $50 a day (play money)', type: 1 },
-  { name: 'blackjack', description: 'Play a hand of blackjack with play chips (not real money)', type: 1,
+  { name: 'daily', description: 'Claim free blackjack chips: $100 the first time, then $50 a day', type: 1 },
+  { name: 'blackjack', description: 'Play a hand of blackjack', type: 1,
     options: [{ type: 4, name: 'bet', description: `How much to bet ($1 to $${MAX_BET}, default $${DEFAULT_BET})`, min_value: 1, max_value: MAX_BET, required: false }] },
-  { name: 'chips', description: 'Blackjack chip leaderboard (play money)', type: 1 },
+  { name: 'chips', description: 'Blackjack chip leaderboard', type: 1 },
 ];
 
 // ---------- storage (Upstash REST: one HTTP call per batch of commands) ----------
@@ -63,8 +63,8 @@ async function daily(i, s) {
   const [bal] = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, amt], ['HSET', 'bj:last', me.id, now], ['HSET', 'bj:name', me.id, me.name]);
   return json({ type: 4, data: { allowed_mentions: { parse: [] }, embeds: [{ color: 0x8ee0b0,
     title: last ? `🎁 ${me.name} claimed ${money(amt)}` : '🎁 Welcome bonus!',
-    description: `${last ? '' : 'First claim gets double. '}**+${money(amt)}** in play chips\n\nBalance **${money(+bal)}**`,
-    footer: { text: `Come back in 24 hours for +${money(DAILY)} · play money only, not real cash` } }] } });
+    description: `${last ? '' : 'First claim gets double. '}**+${money(amt)}** in chips\n\nBalance **${money(+bal)}**`,
+    footer: { text: `Come back in 24 hours for +${money(DAILY)}` } }] } });
 }
 
 // ---------- /chips ----------
@@ -76,7 +76,7 @@ async function chips() {
   const medal = ['🥇', '🥈', '🥉'];
   const lines = rows.map(([nm, v], k) => `${medal[k] || `\`${k + 1}.\``} **${nm}** · ${money(v)}${v < 1 ? ' · broke 💀' : ''}`);
   return json({ type: 4, data: { allowed_mentions: { parse: [] }, embeds: [{ color: 0xf1c75b, title: '🪙 Blackjack chip leaders',
-    description: lines.join('\n') || 'Nobody has chips yet. Use /daily to get started.', footer: { text: 'Play money only · /daily for free chips' } }] } });
+    description: lines.join('\n') || 'Nobody has chips yet. Use /daily to get started.', footer: { text: '/daily for free chips' } }] } });
 }
 
 // ---------- a hand ----------
@@ -129,8 +129,8 @@ function view(g, bal) {
     const hands = g.hands.map((h, k) => `${g.hands.length > 1 ? `Hand ${k + 1}: ` : ''}${total(h.cards).t}${h.doubled ? ' (doubled)' : ''}, ${RES[h.res]}`).join('\n');
     description = `Dealer ${d > 21 ? 'busted with ' + d : 'has ' + d}\n${hands}\n\nBalance **${money(bal)}**`;
   }
-  const footer = g.over ? 'Blackjack pays 3:2 · dealer stands on 17 · play money only'
-    : `Balance ${money(bal)} (+${money(onTable)} on the table) · only ${g.name} can press these · play money`;
+  const footer = g.over ? 'Blackjack pays 3:2 · dealer stands on 17'
+    : `Balance ${money(bal)} (+${money(onTable)} on the table) · only ${g.name} can press these`;
   const btn = (label, emoji, id, style, disabled = false) => ({ type: 2, style, label, emoji: { name: emoji }, custom_id: `bj:${id}:${g.id}`, disabled });
   const row = g.over ? [btn(`Play again (${money(g.bet)})`, '🔁', 'again', 1, bal < g.bet)]
     : [btn('Hit', '👊', 'hit', 1), btn('Stand', '✋', 'stand', 2),
