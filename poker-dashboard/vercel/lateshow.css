@@ -36,18 +36,7 @@ html td.rank { font-family: var(--title); font-size: 20px; color: var(--muted); 
 html #standings tr:first-child td.rank { background: var(--gold); color: #15132a; }
 html td { border-bottom-color: #2a2550; }
 html #standings tr td.num:last-child { font-size: 15px; }
-html .pcard { border-radius: 0; box-shadow: none; border-top: 5px solid var(--gold); background: #1d1a37; }
-html .rc-banner { border-radius: 0; top: 0; left: 0; right: 0; }
-html .rc-banner::after { border-radius: 0; }
-html .pcard .pc-mono { box-shadow: none; outline: 4px solid var(--gold); }
-html .rc-ovr { background: #15132a; outline: 2px solid var(--gold); padding: 8px 10px 6px; }
-html .rc-ovr b { font-family: var(--title); }
-html .rc-attr .tr, html .rc-attr .tr i { border-radius: 0; height: 8px; }
-html .rc-attr .ab { font-family: var(--title); font-size: 16px; font-weight: 400; letter-spacing: .1em; }
-html .rc-lab { font-family: var(--title); font-size: 15px; font-weight: 400; letter-spacing: .12em; }
-html .rc-mu { border-radius: 0; background: #262145; }
 html .p-name { font-family: var(--title); font-weight: 400; font-size: clamp(44px, 6vw, 64px); letter-spacing: .02em; line-height: .9; }
-html .pc-name { font-family: var(--title); font-weight: 400; font-size: 44px; letter-spacing: .03em; line-height: .95; }
 html .chip, html .p-empty { border-radius: 0; }
 html .f2 { border-radius: 0; border-top: 5px solid var(--gold); background: #1d1a37; }
 html .f2 * { border-radius: 0 !important; }
