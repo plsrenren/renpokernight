@@ -35,7 +35,9 @@ const money = (v, size, style) => M(usd(v), size, col(v), style);
 
 /** a player's square: their Discord pfp, or their initial on their colour */
 export const sq = (pics, name, s, ring) => {
-  const base = { width: s, height: s, flexShrink: 0, boxSizing: 'border-box', ...(ring ? { border: `${Math.max(2, s / 18)}px solid ${ring}` } : {}) };
+  // every pfp gets a border: gold on the big ones, soft white on small ones, unless a colour is passed
+  const c = ring || (s >= 60 ? L.gold : 'rgba(236,233,251,0.85)');
+  const base = { width: s, height: s, flexShrink: 0, boxSizing: 'border-box', border: `${Math.max(2, Math.round(s / 28))}px solid ${c}` };
   const pic = pics && pics[name];
   if (pic) return h({ ...base, overflow: 'hidden', backgroundColor: '#000' }, img(pic, s, s, { objectFit: 'cover' }));
   const hue = hueFor(name);
@@ -127,7 +129,7 @@ export const recapCard = withAssets(m => {
   return frame(
     mast(m.title, m.sub + (m.off ? ' · ' + m.off : ''), `Final · ${date}`),
     h({ marginTop: 16, marginLeft: PAD, marginRight: PAD, height: 96, backgroundImage: 'linear-gradient(100deg, #3a2a6e, #a23b58)' },
-      h({ width: 96, backgroundColor: L.gold, alignItems: 'center', justifyContent: 'center' }, sq(pics, m.winner.name, 70)),
+      h({ width: 96, backgroundColor: L.gold, alignItems: 'center', justifyContent: 'center' }, sq(pics, m.winner.name, 70, L.night)),
       h({ flex: 1, flexDirection: 'column', justifyContent: 'center', paddingLeft: 16 }, B('WINNER WINNER', 17, '#ffd7e1', { letterSpacing: 3 }), B(m.winner.name.toUpperCase(), 54)),
       h({ flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end', paddingRight: 16 }, M(usd(m.winner.net), 28, L.gold), T(m.winner.note.replace('<br>', ' '), { fontSize: 12, color: '#ffd7e1' }))),
     chy('Tonight', 'line = last 6 nights'),
@@ -142,6 +144,14 @@ export const recapCard = withAssets(m => {
 });
 export const toWords = words;
 
+// how names sit on top of banners (mockup options): plain | shadow | scrim | plate
+let TEXT = 'plate';
+export const setTextStyle = t => { TEXT = t; };
+const SHADOW = { textShadow: '0 2px 6px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.9)' };
+const plate = (kid, slantSide = 'right') => h({ position: 'relative', alignSelf: 'flex-start', paddingLeft: 10, paddingRight: 18 },
+  h({ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }, img(svgUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 30" preserveAspectRatio="none" width="100" height="30"><path d="${slantSide === 'right' ? 'M0 0H100L92 30H0Z' : 'M8 0H100V30H0Z'}" fill="${L.night}" fill-opacity="0.88"/></svg>`), '100%', '100%', { width: '100%', height: '100%' })),
+  h({ position: 'relative' }, kid));
+
 // ---------- player (/api/card) ----------
 export const playerCardTree = withAssets((c, art = {}) => {
   const pics = art.pics || {}, ov = c.ovr, hh = c.h2h || {};
@@ -152,9 +162,10 @@ export const playerCardTree = withAssets((c, art = {}) => {
     art.banner ? h({ position: 'absolute', left: 0, top: 0, width: W, height: 220, backgroundImage: 'linear-gradient(180deg, rgba(21,19,42,0) 55%, rgba(21,19,42,0.9))' }) : null,
     ov ? h({ position: 'absolute', right: -10, top: -38, fontFamily: 'Bebas', fontSize: 250, lineHeight: 1, color: 'rgba(255,255,255,0.08)' }, String(ov.value)) : null,
     h({ width: 190, alignItems: 'center', justifyContent: 'center', position: 'relative' }, sq(pics, c.name, 140)),
-    h({ flex: 1, flexDirection: 'column', justifyContent: 'center', paddingRight: 12, position: 'relative' },
-      kicker(`${c.label} · played ${c.played} of ${c.nights}`),
-      B(c.name.toUpperCase(), c.name.length > 9 ? 50 : 66, '#fff', { marginTop: 4 }),
+    art.banner && TEXT === 'scrim' ? h({ position: 'absolute', left: 0, top: 0, width: W, height: 220, backgroundImage: 'linear-gradient(90deg, rgba(21,19,42,0) 25%, rgba(21,19,42,0.78) 55%, rgba(21,19,42,0.78))' }) : null,
+    h({ flex: 1, flexDirection: 'column', justifyContent: 'center', paddingRight: 12, position: 'relative', ...(art.banner && TEXT === 'shadow' ? SHADOW : {}) },
+      TEXT === 'plate' && art.banner ? plate(kicker(`${c.label} · played ${c.played} of ${c.nights}`)) : kicker(`${c.label} · played ${c.played} of ${c.nights}`),
+      TEXT === 'plate' && art.banner ? h({ marginTop: 4 }, plate(B(c.name.toUpperCase(), c.name.length > 9 ? 50 : 66, '#fff'))) : B(c.name.toUpperCase(), c.name.length > 9 ? 50 : 66, '#fff', { marginTop: 4 }),
       h({ gap: 6, marginTop: 8, flexWrap: 'wrap' }, (c.badges || []).map(b => h({ backgroundColor: 'rgba(0,0,0,0.35)', padding: '4px 10px' }, T(b, { fontSize: 12, fontWeight: 700, color: '#fff' }))))));
   if (c.empty) return frame(hero, pad(T(`No games in ${c.label}.`, { fontSize: 15, color: L.muted, marginTop: 24 })), foot('Poker Club @ The Study'));
   const stat = (v, l) => h({ flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }, B(v, 30, L.night), T(l, { fontSize: 10.5, fontWeight: 700, letterSpacing: 1.5, color: L.night }));
@@ -243,18 +254,33 @@ export const wrapCardTree = withAssets((w, pics = {}) => {
 // ---------- head to head (/api/h2h) ----------
 export const h2hCardTree = withAssets((p, pics = {}, art = {}) => {
   const banners = art.banners || {}, colors = art.colors || {}, lead = p.aw === p.bw ? 'All square' : `${p.bw > p.aw ? p.b : p.a} leads`;
-  // each player's banner fills their half, wall to wall, split straight down the middle
-  const half = (name, tint, fallback, side) => {
-    const bg = banners[name] ? {} : { backgroundImage: colors[name] ? `linear-gradient(${side ? 200 : 160}deg, ${colors[name]}, #201c3b)` : fallback };
-    return h({ position: 'absolute', top: 0, height: 245, width: W / 2, left: side ? W / 2 : 0, overflow: 'hidden', ...bg },
-      banners[name] ? cover(banners[name], W / 2, 245) : null,
-      banners[name] ? h({ position: 'absolute', left: 0, top: 0, width: W / 2, height: 245, backgroundImage: tint }) : null);
+  // each player's banner fills their side, wall to wall; the sides meet on a slash through the middle that fades a little
+  // in the middle. Drawn as one SVG picture (satori shrinks images inside clipPath boxes).
+  const SL = 22, TH = 245, seam = [W / 2 + SL, W / 2 - SL];
+  const sideSvg = (name, k) => {
+    const pts = k ? `${seam[0]},0 ${W},0 ${W},${TH} ${seam[1]},${TH}` : `0,0 ${seam[0]},0 ${seam[1]},${TH} 0,${TH}`;
+    const [c1, c2] = colors[name] ? [colors[name], '#201c3b'] : k ? ['#b8456a', '#4a1f3a'] : ['#4a3a9a', '#2a2150'];
+    const [t1, t2] = k ? ['rgba(184,69,106,0.5)', 'rgba(21,19,42,0.75)'] : ['rgba(74,58,154,0.55)', 'rgba(21,19,42,0.75)'];
+    const x0 = k ? seam[1] : 0, x1 = k ? W : seam[0];
+    return `<clipPath id="c${k}"><polygon points="${pts}"/></clipPath>`
+      + `<linearGradient id="g${k}" x1="${k ? 1 : 0}" y1="0" x2="${k ? 0 : 1}" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient>`
+      + `<linearGradient id="t${k}" x1="${k ? 1 : 0}" y1="0" x2="${k ? 0 : 1}" y2="1"><stop offset="0" stop-color="${t1}"/><stop offset="1" stop-color="${t2}"/></linearGradient>`
+      + `<g clip-path="url(#c${k})"><rect x="0" y="0" width="${W}" height="${TH}" fill="url(#g${k})"/>`
+      + (banners[name] ? `<image href="${banners[name]}" x="${x0}" y="0" width="${x1 - x0}" height="${TH}" preserveAspectRatio="xMidYMid slice"/><rect x="0" y="0" width="${W}" height="${TH}" fill="url(#t${k})"/>` : '')
+      + '</g>';
   };
-  const who = (name, x, color) => h({ position: 'absolute', left: x, top: 26, width: 200, flexDirection: 'column', alignItems: 'center' }, sq(pics, name, 104), B(name.toUpperCase(), 40, color, { marginTop: 22 }));
+  const topSvg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${TH}" width="${W * 2}" height="${TH * 2}">`
+    + sideSvg(p.a, 0) + sideSvg(p.b, 1)
+    + `<linearGradient id="f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${L.night}" stop-opacity="1"/><stop offset=".5" stop-color="${L.night}" stop-opacity=".35"/><stop offset="1" stop-color="${L.night}" stop-opacity="1"/></linearGradient>`
+    + `<line x1="${seam[0]}" y1="-2" x2="${seam[1]}" y2="${TH + 2}" stroke="url(#f)" stroke-width="7"/></svg>`;
+  // rasterised here with resvg: pictures nested inside an SVG image don't survive satori
+  const backdrop = img('data:image/png;base64,' + Buffer.from(new Resvg(topSvg, { fitTo: { mode: 'width', value: W * 2 } }).render().asPng()).toString('base64'), W, TH, { position: 'absolute', left: 0, top: 0 });
+  const nm = (name, color) => TEXT === 'plate' && banners[name] ? h({ marginTop: 16, backgroundColor: 'rgba(21,19,42,0.88)', paddingLeft: 12, paddingRight: 12 }, B(name.toUpperCase(), 40, color))
+    : B(name.toUpperCase(), 40, color, { marginTop: 22, ...(TEXT === 'shadow' && banners[name] ? SHADOW : {}) });
+  const who = (name, x, color) => h({ position: 'absolute', left: x, top: 26, width: 200, flexDirection: 'column', alignItems: 'center' }, sq(pics, name, 104), nm(name, color));
   const top = h({ position: 'relative', height: 245 },
-    half(p.a, 'linear-gradient(160deg, rgba(74,58,154,0.55), rgba(21,19,42,0.75))', 'linear-gradient(160deg, #4a3a9a, #2a2150)', 0),
-    half(p.b, 'linear-gradient(200deg, rgba(184,69,106,0.5), rgba(21,19,42,0.75))', 'linear-gradient(200deg, #b8456a, #4a1f3a)', 1),
-    h({ position: 'absolute', left: W / 2 - 1.5, top: 0, width: 3, height: 245, backgroundColor: L.gold }),
+    backdrop,
+    TEXT === 'scrim' && (banners[p.a] || banners[p.b]) ? h({ position: 'absolute', left: 0, top: 0, width: W, height: TH, backgroundImage: 'linear-gradient(180deg, rgba(21,19,42,0) 45%, rgba(21,19,42,0.85) 85%)' }) : null,
     who(p.a, 30, '#fff'), who(p.b, W - 230, L.gold),
     h({ position: 'absolute', left: 0, width: W, top: 50, flexDirection: 'column', alignItems: 'center' },
       h({ alignItems: 'center', backgroundColor: L.night, border: `2px solid ${L.gold}`, padding: '0 14px' }, B(String(p.aw), 64), B('VS', 22, L.muted, { marginLeft: 8, marginRight: 8 }), B(String(p.bw), 64, L.gold)),
