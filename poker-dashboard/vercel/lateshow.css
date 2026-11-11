@@ -41,7 +41,7 @@ html .f2 { border-radius: 0; border-top: 5px solid var(--gold); background: #1d1
 html .f2 * { border-radius: 0 !important; }
 html .f2 h1 { font-size: 38px; letter-spacing: .02em; }
 html .f2-win { border-left: 5px solid var(--gold); }
-html .f2-win .k, html .tl-h, html .sec { font-family: var(--title); font-weight: 400; font-size: 16px; letter-spacing: .12em; color: var(--gold); }
+html .tl-h, html .sec { font-family: var(--title); font-weight: 400; font-size: 16px; letter-spacing: .12em; color: var(--gold); }
 html .f2-win .nm { font-family: var(--title); font-weight: 400; font-size: 34px; letter-spacing: .02em; }
 html .tiles li { border-left: 3px solid var(--vio); }
 html .chart .ch b { font-family: var(--title); font-weight: 400; font-size: 24px; letter-spacing: .06em; color: #fff; }
