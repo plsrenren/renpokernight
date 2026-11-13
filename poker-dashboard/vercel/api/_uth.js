@@ -1,6 +1,6 @@
 // /uth: Ultimate Texas Hold'em style hand against the dealer, with the blackjack chips (bj:bal).
 //   /uth ante:10 trips:5   ante + an equal blind go up (plus the optional Trips side bet)
-//   Pre-flop: bet 4x or 3x the ante, or check.  Flop: bet 2x, or check.  River: bet 1x, or fold (lose ante + blind).
+//   Pre-flop: bet 4x the ante, or check.  Flop: bet 2x, or check.  River: bet 1x, or fold (lose ante + blind).
 //   One bet per hand; after it the rest of the cards come out and it's showdown.
 //   Dealer needs a pair to qualify; if not, the ante pushes. Play pays 1:1. Blind pays only when you win with a
 //   straight or better (royal 500:1, straight flush 50:1, quads 10:1, full house 3:1, flush 3:2, straight 1:1),
@@ -123,8 +123,8 @@ function view(g, bal) {
   if (!done) {
     title = `♠️ Ultimate Hold'em · ${g.name}`; color = 0x6e52c8;
     const can = m => bal >= g.ante * m;
-    if (g.stage === 'pre') { footer = 'Pre-flop: bet 4x or 3x your ante now, or check and decide later';
-      row = [btn(`Bet 4x (${money(g.ante * 4)})`, '💰', 'b4', 3, !can(4)), btn(`Bet 3x (${money(g.ante * 3)})`, null, 'b3', 3, !can(3)), btn('Check', '✋', 'chk', 2)]; }
+    if (g.stage === 'pre') { footer = 'Pre-flop: bet 4x your ante now, or check and decide later';
+      row = [btn(`Bet 4x (${money(g.ante * 4)})`, '💰', 'b4', 3, !can(4)), btn('Check', '✋', 'chk', 2)]; }
     else if (g.stage === 'flop') { footer = 'Flop: bet 2x your ante, or check';
       row = [btn(`Bet 2x (${money(g.ante * 2)})`, '💰', 'b2', 3, !can(2)), btn('Check', '✋', 'chk', 2)]; }
     else { footer = 'River: bet 1x your ante, or fold and lose the ante and blind';
@@ -175,7 +175,7 @@ export async function uthCommand(i, opts, s) {
   } catch (e) { console.error('uth', e); return quiet("Couldn't reach the chip storage just now. Try again in a moment."); }
 }
 
-/** A decision on a hand in progress (b4 b3 chk | b2 chk | b1 fold). Shared by the Discord buttons and the site.
+/** A decision on a hand in progress (b4 chk | b2 chk | b1 fold). Shared by the Discord buttons and the site.
  *  Returns { g, bal }, { err }, { gone }, { notYours }, or { busy }. */
 export async function uthAction(me, gid, act) {
   // one trip to read the hand, take the lock and read the balance; one trip to write and unlock
@@ -189,7 +189,7 @@ export async function uthAction(me, gid, act) {
   try {
     if (g.stage === 'done') return { busy: true };
     let bal = +balRaw || 0;
-    const ok = { pre: ['b4', 'b3', 'chk'], flop: ['b2', 'chk'], river: ['b1', 'fold'] }[g.stage];
+    const ok = { pre: ['b4', 'chk'], flop: ['b2', 'chk'], river: ['b1', 'fold'] }[g.stage];
     if (!ok.includes(act)) return { busy: true };
     let spend = 0;
     if (act[0] === 'b') {
@@ -215,7 +215,7 @@ export function publicUth(g, bal) {
     board: [...g.board.slice(0, n), ...Array(5 - n).fill('XX')], dealer: done ? g.dealer : ['XX', 'XX'], myHand: mine,
     dlHand: done ? g.dlHand : null, qualifies: done ? g.qualifies : null, res: done ? g.res : null,
     lines: done ? g.lines : null, net: done ? g.net : null, onTable: onTable(g),
-    afford: { 4: bal >= g.ante * 4, 3: bal >= g.ante * 3, 2: bal >= g.ante * 2, 1: bal >= g.ante } };
+    afford: { 4: bal >= g.ante * 4, 2: bal >= g.ante * 2, 1: bal >= g.ante } };
 }
 export { PAYTABLE as UTH_PAYTABLE };
 
