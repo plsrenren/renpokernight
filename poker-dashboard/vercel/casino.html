@@ -81,7 +81,7 @@ button:disabled { cursor: default; opacity: .4; }
 .earn summary span { color: var(--muted); font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .earn summary i { margin-left: auto; font: 400 17px var(--title); letter-spacing: .08em; color: var(--gold); font-style: normal; white-space: nowrap; }
 .earn summary i::after { content: ' ▾'; } .earn[open] summary i::after { content: ' ▴'; }
-.earn .groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 28px; padding: 0 16px 6px; font-size: 13px; }
+.earn .groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 28px; padding: 0 16px 14px; font-size: 13px; }
 .earn h3 { font: 400 16px var(--title); letter-spacing: .08em; color: var(--vio); margin: 4px 0 2px; }
 .earn .row { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px solid #2a2550; }
 .earn .row b { font: 500 13px var(--mono); color: var(--gold); white-space: nowrap; }
@@ -378,8 +378,7 @@ function rewards() {
   if (!S.rewards || !S.rewards.length || !S.rewards[0].items) return '';
   const top = S.rewards.flatMap(g => g.items).reduce((m, r) => Math.max(m, +String(r.amt).replace(/[^\d]/g, '') || 0), 0);
   return `<details class="earn"${pref('earn', false) ? ' open' : ''}><summary><b>💰 Earn chips at poker night</b><span>RSVP, places, comebacks, streaks · up to ${money(top)}</span><i>See all</i></summary>
-    <div class="groups">${S.rewards.map(g => `<div><h3>${esc(g.group)}</h3>${g.items.map(r => `<div class="row"><span>${esc(r.what)}</span><b>${esc(r.amt)}</b></div>`).join('')}</div>`).join('')}</div>
-    <p class="hint">Paid automatically when the night's results are saved, to the Discord ID on the Members tab.</p></details>`;
+    <div class="groups">${S.rewards.map(g => `<div><h3>${esc(g.group)}</h3>${g.items.map(r => `<div class="row"><span>${esc(r.what)}</span><b>${esc(r.amt)}</b></div>`).join('')}</div>`).join('')}</div></details>`;
 }
 function dailyTile() {
   const d = S.me.daily;
