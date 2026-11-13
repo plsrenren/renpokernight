@@ -8,8 +8,8 @@
 //   RSVP            reacted to the /tourney or /cash invite for that night
 //   Showed up       reacted AND played
 //   1st / 2nd / 3rd cash games by net, tournaments by cash out; only players who finished up or cashed; ties both get it
-//   Bad beat        the night's biggest loser: 20% of the real loss back, up to $100
-//   Consolation     everyone else who lost money that night
+//   Bad beat        the night's biggest loser: 20% of the real loss back, up to $100 (on top of consolation)
+//   Consolation     everyone who lost money that night
 //   PKO bounties    1 chip per $1 of bounty money won (notes "PKO bounties $X"; ~ $10 per knockout at a $40 buy-in)
 //   Heater          once per streak, when someone has finished up 3 nights in a row
 // Per finished quarter (paid when the first night of the next quarter is saved):
@@ -59,7 +59,7 @@ export function owed(rows, rsvps = {}, ids = {}, start = REWARDS_START) {
     });
     // bad beat + consolation
     const losers = list.filter(r => r.net < 0), worst = losers.length ? Math.min(...losers.map(r => r.net)) : 0;
-    losers.forEach(r => r.net === worst ? add(night, 'bad', r.player, Math.min(R.badBeatMax, -r.net * R.badBeatPct)) : add(night, 'cons', r.player, R.consolation));
+    losers.forEach(r => { add(night, 'cons', r.player, R.consolation); if (r.net === worst) add(night, 'bad', r.player, Math.min(R.badBeatMax, -r.net * R.badBeatPct)); });
     // PKO
     list.forEach(r => r.pko > 0 && add(night, 'pko', r.player, r.pko * R.pkoPerDollar));
     // RSVP + showed up (reactors are Discord IDs)
