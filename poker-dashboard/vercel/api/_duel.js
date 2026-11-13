@@ -6,7 +6,7 @@
 // Both stakes come off when the duel is accepted; the winner gets the pot. Challenges expire after 10 minutes.
 // Keys: du:<id> (the duel, 30 min), du:lock:<id> (stops double taps), du:rec (hash "<lo id>:<hi id>:<winner id>" → wins).
 import { randomBytes } from 'node:crypto';
-import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, freshDeck, MAX_BET } from './_blackjack.js';
+import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, freshDeck, MAX_BET, feedCmds } from './_blackjack.js';
 
 const SITE = 'https://renpokernight.vercel.app';
 const DEFAULT_BET = 20, EXPIRES = 10 * 60e3, TTL = 1800;
@@ -81,8 +81,10 @@ const broke = (bal, bet) => bal === null ? `You don't have any chips yet. Use **
   : bal < bet ? `You only have ${money(bal)}, and this duel needs ${money(bet)}.` : null;
 
 async function finish(d) {
-  const [ra] = await kv(['HINCRBYFLOAT', 'bj:bal', d.winner, d.bet * 2], ['HINCRBY', 'du:rec', `${recKey(d.a.id, d.b.id)}:${d.winner}`, 1]);
   const loser = d.winner === d.a.id ? d.b.id : d.a.id;
+  const W = d.winner === d.a.id ? d.a : d.b, L = d.winner === d.a.id ? d.b : d.a;
+  const [ra] = await kv(['HINCRBYFLOAT', 'bj:bal', d.winner, d.bet * 2], ['HINCRBY', 'du:rec', `${recKey(d.a.id, d.b.id)}:${d.winner}`, 1],
+    ...feedCmds({ id: L.id, name: L.name }, 'duel vs ' + W.name, -d.bet), ...feedCmds({ id: W.id, name: W.name }, 'duel vs ' + L.name, d.bet));
   const [lb, wa, wb] = await kv(['HGET', 'bj:bal', loser], ['HGET', 'du:rec', `${recKey(d.a.id, d.b.id)}:${d.a.id}`], ['HGET', 'du:rec', `${recKey(d.a.id, d.b.id)}:${d.b.id}`]);
   d.bal = { [d.winner]: +ra, [loser]: +lb || 0 };
   d.rec = { [d.a.id]: +wa || 0, [d.b.id]: +wb || 0 };

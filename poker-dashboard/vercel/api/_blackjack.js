@@ -51,7 +51,7 @@ export function whoIs(i, s) {
 }
 export const noStorage = () => quiet("Blackjack isn't set up yet: the site needs its chip storage (Upstash) connected in Vercel.");
 
-// "Just now" feed on the site's /casino page: the last 30 finished hands from Discord and the site.
+// "Just now" feed on the site's /casino page: the last 30 finished hands, spins, duels and daily claims from Discord and the site.
 // me.src is 'site' for the website; Discord players have no src.
 export const feedCmds = (me, game, net) => [
   ['LPUSH', 'cas:feed', JSON.stringify({ id: me.id, name: me.name, game, net: Math.round(net * 100) / 100, src: me.src || 'discord', at: Date.now() })],

@@ -9,7 +9,7 @@
 // Keys: ro:t:<id> (table, 1 hour), ro:open:<channel> (open table id), ro:lock:<id>, ro:chip (hash user → chip size),
 //       ro:hist:<channel> (last spins).
 import { randomBytes, randomInt } from 'node:crypto';
-import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage } from './_blackjack.js';
+import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds } from './_blackjack.js';
 
 const SITE = 'https://renpokernight.vercel.app', API = 'https://discord.com/api/v10';
 const OPEN_MS = 30e3, CHIPS = [5, 10, 25, 50, 100], DEFAULT_CHIP = 10, MAX_PER_SPIN = 1000;
@@ -94,7 +94,10 @@ async function spin(t) {
     if (wins(b, n)) { const r = b.amt * (pays(b) + 1); back[b.uid] = (back[b.uid] || 0) + r; t.nets[b.uid] += r; }
   }
   const pay = Object.entries(back).map(([uid, amt]) => ['HINCRBYFLOAT', 'bj:bal', uid, amt]);
-  const res = await kv(...pay, ['LPUSH', 'ro:hist:' + t.channel, n], ['LTRIM', 'ro:hist:' + t.channel, 0, 4], ['LRANGE', 'ro:hist:' + t.channel, 0, 4], save(t), ['DEL', 'ro:open:' + t.channel]);
+  // one "Just now" line per player at the table (after the reads below, so the result indexes stay put)
+  const names = {}; t.bets.forEach(b => { names[b.uid] = b.name; });
+  const feed = Object.entries(t.nets).flatMap(([uid, net]) => feedCmds({ id: uid, name: names[uid] }, 'roulette', net));
+  const res = await kv(...pay, ['LPUSH', 'ro:hist:' + t.channel, n], ['LTRIM', 'ro:hist:' + t.channel, 0, 4], ['LRANGE', 'ro:hist:' + t.channel, 0, 4], save(t), ['DEL', 'ro:open:' + t.channel], ...feed);
   t.hist = (res[pay.length + 2] || []).map(Number);
   await kv(save(t));
   return t;
