@@ -35,7 +35,7 @@ export const REWARD_LIST = [
   ['Every night', [['RSVP to the invite', R.rsvp], ['RSVP and play', R.showed], ['1st place', R.places[0]], ['2nd place', R.places[1]], ['3rd place', R.places[2]],
     ['Lost money', R.consolation], ['Biggest loser', `+${R.badBeatPct * 100}% back`]]],
   ['Special', [['PKO bounties', '$1 per $1'], ['Comeback (up after a down night)', R.comeback], ['Giant killer (beat the leader)', R.giant],
-    ['Rebuy grit (rebought, finished up)', R.grit], ['Bring a friend ("brought by" note)', R.friend]]],
+    ['Rebuy grit (rebought, finished up)', R.grit], ['Bring a friend', R.friend]]],
   ['Streaks + quarter', [['Heater (3 up in a row)', R.heater], ['Cold streak (3 down)', R.cold], ['Quarter champ', R.champ], ['Most improved', R.improved]]],
 ].map(([group, items]) => ({ group, items: items.map(([what, amt]) => ({ what, amt: typeof amt === 'number' ? '$' + amt.toLocaleString('en-US') : amt })) }));
 const r2 = n => Math.round(n * 100) / 100;
