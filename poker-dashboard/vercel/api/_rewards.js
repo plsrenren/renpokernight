@@ -1,6 +1,7 @@
 // Casino chips for real poker nights. Runs after each save on the entry page (it calls /api/roles, which calls this).
 // Everything is worked out again from the whole sheet each time and compared with what was already paid (rw:paid),
 // so a night pays once, and fixing a result and saving again pays (or takes back) only the difference.
+// After paying, a plain-text note lists who got what in the #casino channel on Discord.
 // Only nights from REWARDS_START on count; older nights never pay. Chips go to the Discord ID on the Members tab
 // (RSVP chips go straight to whoever reacted on the invite, Members tab or not).
 //
@@ -156,6 +157,50 @@ async function captureRsvp(rows, idsByName) {
   return night;
 }
 
+// ---------- the #casino channel note ----------
+const API = 'https://discord.com/api/v10';
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** "Nov 15 tournament", "Nov 20 cash game" or "Q4 2026" from a payout's night key. */
+export function nightLabel(night) {
+  if (night.startsWith('Q:')) return night.slice(2);
+  const [date, type] = night.split('|'), [, m, d] = date.split('-').map(Number);
+  return `${MON[m - 1]} ${d} ${type === 'Tournament' ? 'tournament' : 'cash game'}`;
+}
+/** The plain-text message: one line per player, biggest payout first. Mentions show names without pinging anyone. */
+export function casinoText(people, nights) {
+  const ns = [...new Set(nights)].sort().map(nightLabel);
+  const head = `🎰 **Poker night chips** · ${ns.join(', ')}`;
+  const $ = n => (n < 0 ? '-' : '+') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
+  const lines = [...people].sort((a, b) => b.total - a.total).map(p => {
+    const by = new Map();   // same reason twice (two nights) shows once, as "×2"
+    p.lines.forEach(l => { const m = l.match(/^(.*) ([+-][\d.]+)$/); const k = m ? m[1] : l, v = m ? +m[2] : 0, x = by.get(k) || { n: 0, v: 0 }; by.set(k, { n: x.n + 1, v: r2(x.v + v) }); });
+    return `<@${p.id}> **${$(p.total)}** · ${[...by].filter(([, x]) => x.v).map(([k, x]) => `${k}${x.n > 1 ? ' ×' + x.n : ''} ${$(x.v)}`).join(', ')}`;
+  });
+  let text = [head, ...lines, '-# Spend them at /blackjack, /uth, /baccarat, /roulette or renpokernight.vercel.app/casino'].join('\n');
+  if (text.length > 1990) text = text.slice(0, 1985) + '…';
+  return text;
+}
+/** Finds the #casino text channel (remembered in rw:chan) and posts the note there. Returns where it went, or why not. */
+async function postToCasino(people, nights) {
+  const token = process.env.DISCORD_BOT_TOKEN;
+  if (!token) return 'no bot token';
+  const H = { Authorization: `Bot ${token}`, 'Content-Type': 'application/json' };
+  const get = path => fetch(API + path, { headers: H }).then(r => r.ok ? r.json() : null);
+  let [chan] = await kv(['GET', 'rw:chan']);
+  if (!chan) {
+    for (const g of ((await get('/users/@me/guilds')) || []).slice(0, 3)) {
+      const c = ((await get(`/guilds/${g.id}/channels`)) || []).find(x => (x.type === 0 || x.type === 5) && /^casino$/i.test(x.name));
+      if (c) { chan = c.id; break; }
+    }
+    if (!chan) return 'no #casino channel found';
+    await kv(['SET', 'rw:chan', chan, 'EX', 86400]);
+  }
+  const r = await fetch(`${API}/channels/${chan}/messages`, { method: 'POST', headers: H,
+    body: JSON.stringify({ content: casinoText(people, nights), allowed_mentions: { parse: [] } }) });
+  if (!r.ok) { await kv(['DEL', 'rw:chan']); return `Discord said ${r.status} (does the bot have Send Messages in #casino?)`; }
+  return 'posted in #casino';
+}
+
 /** Pays what's owed minus what was paid. csv = Input tab CSV, ids = { sheetName: discordId }. Returns a short report. */
 export async function payRewards(csv, ids) {
   const [lock] = await kv(['SET', 'rw:lock', '1', 'NX', 'EX', 25]);
@@ -171,7 +216,7 @@ export async function payRewards(csv, ids) {
     const [paidRaw] = await kv(['HGETALL', 'rw:paid']);
     const paid = {}; for (let k = 0; k < (paidRaw || []).length; k += 2) paid[paidRaw[k]] = +paidRaw[k + 1];
     // what changed, per payout line (including lines that are no longer owed: a fixed typo takes the chips back)
-    const cmds = [], perPerson = {}, noId = new Set();
+    const cmds = [], perPerson = {}, noId = new Set(), nightsPaid = new Set();
     for (const key of new Set([...Object.keys(want), ...Object.keys(paid)])) {
       const w = want[key], delta = r2((w ? w.amt : 0) - (paid[key] || 0));
       if (!delta) continue;
@@ -181,6 +226,7 @@ export async function payRewards(csv, ids) {
       cmds.push(['HINCRBYFLOAT', 'bj:bal', id, delta], ['HSET', 'rw:paid', key, w ? w.amt : 0]);
       if (!isId) cmds.push(['HSETNX', 'bj:name', id, who]);
       const p = perPerson[id] ||= { id, name: isId ? null : who, total: 0, lines: [] };
+      nightsPaid.add(night);
       p.total = r2(p.total + delta); p.lines.push(`${LABEL[why] || why} ${delta > 0 ? '+' : ''}${delta}`);
     }
     // one "Just now" feed line per person on the casino page
@@ -192,6 +238,8 @@ export async function payRewards(csv, ids) {
     }
     if (cmds.length) cmds.push(['LTRIM', 'cas:feed', 0, 29]);
     if (cmds.length) await kv(...cmds);
-    return { paid: Object.values(perPerson).map(p => ({ name: p.name, total: p.total, lines: p.lines })), rsvpNight, waitingForDiscordId: [...noId] };
+    let posted = null;
+    if (Object.keys(perPerson).length) { try { posted = await postToCasino(Object.values(perPerson), [...nightsPaid]); } catch (e) { console.error('rewards post', e); posted = 'failed: ' + e.message; } }
+    return { posted, paid: Object.values(perPerson).map(p => ({ name: p.name, total: p.total, lines: p.lines })), rsvpNight, waitingForDiscordId: [...noId] };
   } finally { await kv(['DEL', 'rw:lock']).catch(() => {}); }
 }
