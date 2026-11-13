@@ -11,7 +11,7 @@
 // Needs Vercel env var DISCORD_CLIENT_SECRET (Developer Portal > OAuth2) and the redirect
 // https://renpokernight.vercel.app/api/login added there. The app's client ID is looked up with DISCORD_BOT_TOKEN.
 import { createHmac, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { kv, kvUrl, kvToken, MAX_BET, claimDaily, dailyStatus, chipBoard, newHand as bjStart, handAction, publicHand } from './_blackjack.js';
+import { kv, kvUrl, kvToken, MAX_BET, claimDaily, dailyStatus, boardFrom, dailyFrom, newHand as bjStart, handAction, publicHand } from './_blackjack.js';
 import { newHand as uthStart, uthAction, publicUth, MAX_ANTE, MAX_TRIPS, UTH_PAYTABLE } from './_uth.js';
 import { playHand } from './_baccarat.js';
 
@@ -82,19 +82,22 @@ async function login(req, sheet) {
 
 // ---------- the page's data ----------
 async function state(me) {
-  const [board, feedRaw] = await Promise.all([chipBoard(), kv(['LRANGE', 'cas:feed', 0, 9]).then(r => r[0] || [])]);
-  const feed = feedRaw.map(x => { try { return JSON.parse(x); } catch (e) { return null; } }).filter(Boolean);
+  // two storage trips: everything for the lobby at once, then any unfinished hands
+  const [bal, names, feedRaw, last, cur] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['LRANGE', 'cas:feed', 0, 9],
+    ['HGET', 'bj:last', me ? me.id : '-'], ['HGETALL', 'cas:cur:' + (me ? me.id : '-')]);
+  const board = boardFrom(bal, names);
+  const feed = (feedRaw || []).map(x => { try { return JSON.parse(x); } catch (e) { return null; } }).filter(Boolean);
   const body = { me: null, board: board.slice(0, 15), players: board.length, feed, maxBet: MAX_BET, maxAnte: MAX_ANTE, maxTrips: MAX_TRIPS, uthPaytable: plain(UTH_PAYTABLE) };
   if (!me) return body;
   const mine = board.find(r => r.id === me.id);
-  const [daily, cur] = await Promise.all([dailyStatus(me.id), kv(['HGETALL', 'cas:cur:' + me.id]).then(r => r[0] || [])]);
-  body.me = { id: me.id, name: me.name, bal: mine ? mine.bal : null, rank: mine ? board.indexOf(mine) + 1 : null, daily };
+  body.me = { id: me.id, name: me.name, bal: mine ? mine.bal : null, rank: mine ? board.indexOf(mine) + 1 : null, daily: dailyFrom(last) };
   // an unfinished hand started on the site comes back after a reload
-  const c = {}; for (let k = 0; k < cur.length; k += 2) c[cur[k]] = cur[k + 1];
+  const c = {}; for (let k = 0; k < (cur || []).length; k += 2) c[cur[k]] = cur[k + 1];
+  if (!c.bj && !c.uth) return body;
   const [bjRaw, uthRaw] = await kv(['GET', 'bj:g:' + (c.bj || 'none')], ['GET', 'uth:g:' + (c.uth || 'none')]);
-  const bal = body.me.bal || 0;
-  if (bjRaw) { const g = JSON.parse(bjRaw); if (!g.over && g.uid === me.id) body.bj = publicHand(g, bal); }
-  if (uthRaw) { const g = JSON.parse(uthRaw); if (g.stage !== 'done' && g.uid === me.id) body.uth = publicUth(g, bal); }
+  const b = body.me.bal || 0;
+  if (bjRaw) { const g = JSON.parse(bjRaw); if (!g.over && g.uid === me.id) body.bj = publicHand(g, b); }
+  if (uthRaw) { const g = JSON.parse(uthRaw); if (g.stage !== 'done' && g.uid === me.id) body.uth = publicUth(g, b); }
   return body;
 }
 

@@ -178,7 +178,9 @@ export async function uthCommand(i, opts, s) {
 /** A decision on a hand in progress (b4 b3 chk | b2 chk | b1 fold). Shared by the Discord buttons and the site.
  *  Returns { g, bal }, { err }, { gone }, { notYours }, or { busy }. */
 export async function uthAction(me, gid, act) {
-  const [raw, lock] = await kv(['GET', 'uth:g:' + gid], ['SET', 'uth:lock:' + gid, '1', 'NX', 'EX', 5]);
+  // one trip to read the hand, take the lock and read the balance; one trip to write and unlock
+  const [raw, lock, balRaw] = await kv(['GET', 'uth:g:' + gid], ['SET', 'uth:lock:' + gid, '1', 'NX', 'EX', 5], ['HGET', 'bj:bal', me.id]);
+  let wrote = false;
   const unlock = () => kv(['DEL', 'uth:lock:' + gid]).catch(() => {});
   if (!raw) { if (lock) await unlock(); return { gone: true }; }
   const g = JSON.parse(raw);
@@ -186,7 +188,6 @@ export async function uthAction(me, gid, act) {
   if (!lock) return { busy: true };
   try {
     if (g.stage === 'done') return { busy: true };
-    const [balRaw] = await kv(['HGET', 'bj:bal', me.id]);
     let bal = +balRaw || 0;
     const ok = { pre: ['b4', 'b3', 'chk'], flop: ['b2', 'chk'], river: ['b1', 'fold'] }[g.stage];
     if (!ok.includes(act)) return { busy: true };
@@ -199,11 +200,11 @@ export async function uthAction(me, gid, act) {
     else g.stage = g.stage === 'pre' ? 'flop' : 'river';
     g.step++;
     const done = g.stage === 'done', delta = (done ? g.payout : 0) - spend;
-    const res = await kv(...(delta ? [['HINCRBYFLOAT', 'bj:bal', me.id, delta]] : [['HGET', 'bj:bal', me.id]]), ['SET', 'uth:g:' + g.id, JSON.stringify(g), 'EX', 3600],
+    const res = await kv(...(delta ? [['HINCRBYFLOAT', 'bj:bal', me.id, delta]] : [['HGET', 'bj:bal', me.id]]), ['SET', 'uth:g:' + g.id, JSON.stringify(g), 'EX', 3600], ['DEL', 'uth:lock:' + gid],
       ...(done ? feedCmds(me, 'UTH', g.net) : []));
-    bal = +res[0];
+    wrote = true; bal = +res[0];
     return { g, bal };
-  } finally { await unlock(); }
+  } finally { if (!wrote) await unlock(); }
 }
 
 /** What the site may see: board cards only as far as they're out, dealer cards only at showdown. */

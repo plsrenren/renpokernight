@@ -70,9 +70,10 @@ export async function claimDaily(me) {
   return { amt, bal: +bal, first: !last };
 }
 /** When the next daily is ready (ms from now, 0 = ready) and how much it gives. */
+export const dailyFrom = last => ({ wait: last ? Math.max(0, DAY - (Date.now() - +last)) : 0, amt: last ? DAILY : FIRST_CLAIM });
 export async function dailyStatus(id) {
   const [last] = await kv(['HGET', 'bj:last', id]);
-  return { wait: last ? Math.max(0, DAY - (Date.now() - +last)) : 0, amt: last ? DAILY : FIRST_CLAIM };
+  return dailyFrom(last);
 }
 
 async function daily(i, s) {
@@ -94,6 +95,10 @@ async function daily(i, s) {
 /** Everyone's chips, most first: [{ id, name, bal }]. Shared by /chips and the site. */
 export async function chipBoard() {
   const [bal, names] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name']);
+  return boardFrom(bal, names);
+}
+/** The leaderboard from raw HGETALL bj:bal and bj:name replies. */
+export function boardFrom(bal, names) {
   const pairs = a => { const o = {}; for (let k = 0; k < (a || []).length; k += 2) o[a[k]] = a[k + 1]; return o; };
   const b = pairs(bal), n = pairs(names);
   return Object.entries(b).map(([id, v]) => ({ id, name: n[id] || 'Someone', bal: +v })).sort((x, y) => y.bal - x.bal);
@@ -189,7 +194,9 @@ async function blackjack(i, opts, s) {
 /** Hit / Stand / Double / Split on a hand in progress. Shared by the Discord buttons and the site.
  *  Returns { g, bal }, { err } (a message for the player), { gone } (hand expired), { notYours }, or { busy } (a tap is already being handled). */
 export async function handAction(me, gid, action) {
-  const [raw, lock] = await kv(['GET', 'bj:g:' + gid], ['SET', 'bj:lock:' + gid, '1', 'NX', 'EX', 5]);
+  // one trip to read the hand, take the lock and read the balance; one trip to write and unlock
+  const [raw, lock, balRaw] = await kv(['GET', 'bj:g:' + gid], ['SET', 'bj:lock:' + gid, '1', 'NX', 'EX', 5], ['HGET', 'bj:bal', me.id]);
+  let wrote = false;
   const unlock = () => kv(['DEL', 'bj:lock:' + gid]).catch(() => {});
   if (!raw) { if (lock) await unlock(); return { gone: true }; }
   const g = JSON.parse(raw);
@@ -197,7 +204,6 @@ export async function handAction(me, gid, action) {
   if (!lock) return { busy: true };
   try {
     if (g.over) return { busy: true };
-    const [balRaw] = await kv(['HGET', 'bj:bal', me.id]);
     let bal = +balRaw || 0, spend = 0;
     const h = active(g);
     if (action === 'hit') { h.cards.push(draw(g)); autoDone(h); }
@@ -214,11 +220,11 @@ export async function handAction(me, gid, action) {
     } else return { busy: true };
     advance(g); g.step++;
     const delta = (g.over ? g.payout : 0) - spend;
-    const res = await kv(...(delta ? [['HINCRBYFLOAT', 'bj:bal', me.id, delta]] : [['HGET', 'bj:bal', me.id]]), ['SET', 'bj:g:' + g.id, JSON.stringify(g), 'EX', 3600],
+    const res = await kv(...(delta ? [['HINCRBYFLOAT', 'bj:bal', me.id, delta]] : [['HGET', 'bj:bal', me.id]]), ['SET', 'bj:g:' + g.id, JSON.stringify(g), 'EX', 3600], ['DEL', 'bj:lock:' + gid],
       ...(g.over ? feedCmds(me, 'blackjack', g.net) : []));
-    bal = +res[0];
+    wrote = true; bal = +res[0];
     return { g, bal };
-  } finally { await unlock(); }
+  } finally { if (!wrote) await unlock(); }
 }
 
 /** What the site may see of a hand: no deck, and the dealer's second card stays face down until it's over. */
