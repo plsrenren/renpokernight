@@ -75,6 +75,7 @@ button:disabled { cursor: default; opacity: .4; }
 .feed .amt { margin-left: auto; font-family: var(--mono); white-space: nowrap; }
 .src { font: 600 10px var(--mono); padding: 1px 5px; background: #2a2550; color: var(--muted); }
 .src.d { background: rgba(88,101,242,.25); color: #c9cdfb; }
+.src.n { background: rgba(241,199,91,.22); color: var(--gold); }
 .pos { color: var(--up); } .neg { color: var(--down); }
 /* signed out */
 .hero { margin-top: 16px; background: linear-gradient(100deg, #3a2a6e, #a23b58); border-left: 6px solid var(--gold); padding: 20px 22px 22px; display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center; }
@@ -259,8 +260,8 @@ function board() {
 }
 function feed() {
   const ago = t => { const m = Math.round((Date.now() - t) / 60e3); return m < 1 ? 'now' : m < 60 ? m + 'm' : m < 1440 ? Math.round(m / 60) + 'h' : Math.round(m / 1440) + 'd'; };
-  const rows = S.feed.map(f => `<div>${av(f.id, f.name)}${esc(f.name)} <small>${esc(f.game)} · ${ago(f.at)}</small> <span class="src${f.src === 'site' ? '' : ' d'}">${f.src === 'site' ? 'site' : 'discord'}</span><span class="amt ${f.net > 0 ? 'pos' : f.net < 0 ? 'neg' : ''}">${signed(f.net)}</span></div>`).join('');
-  return `<div class="panel"><h2 class="p">Just now</h2><p class="hint">Latest hands from Discord and the site.</p><div class="feed">${rows || '<p class="hint">No hands yet.</p>'}</div></div>`;
+  const rows = S.feed.map(f => `<div>${av(f.id, f.name)}${esc(f.name)} <small>${esc(f.game)} · ${ago(f.at)}</small> <span class="src${f.src === 'site' ? '' : f.src === 'night' ? ' n' : ' d'}">${f.src === 'site' ? 'site' : f.src === 'night' ? 'reward' : 'discord'}</span><span class="amt ${f.net > 0 ? 'pos' : f.net < 0 ? 'neg' : ''}">${signed(f.net)}</span></div>`).join('');
+  return `<div class="panel"><h2 class="p">Just now</h2><p class="hint">Latest hands from Discord and the site, plus chip rewards from poker nights.</p><div class="feed">${rows || '<p class="hint">No hands yet.</p>'}</div></div>`;
 }
 function dailyTile() {
   const d = S.me.daily;
