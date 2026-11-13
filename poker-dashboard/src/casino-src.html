@@ -108,7 +108,8 @@ button:disabled { cursor: default; opacity: .4; }
 .bal b { color: var(--gold); font-weight: 400; font-size: 30px; margin-left: 6px; }
 .bal i { font-style: normal; font-size: 20px; margin-left: 6px; }
 .felt { background: radial-gradient(120% 90% at 50% 0%, #2f5a45, #173326 70%); border: 6px solid #3a2a6e; outline: 3px solid var(--gold); padding: 18px 22px 20px; position: relative; margin-top: 12px; min-height: 330px; }
-.felt .lbl { font: 400 17px var(--title); letter-spacing: .14em; color: #cfe9da; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.felt .lbl { font: 400 17px var(--title); letter-spacing: .14em; color: #cfe9da; display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; min-height: 30px; white-space: nowrap; }
+.felt .lbl .tot { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .felt .lbl.on { color: var(--gold); }
 .tot { font: 600 14px var(--mono); background: #0e1f17; color: #fff; padding: 3px 9px; letter-spacing: 0; }
 .tag { font: 900 11px Nunito, sans-serif; letter-spacing: .08em; padding: 2px 7px; }
@@ -191,7 +192,12 @@ details.pay summary { cursor: pointer; font: 400 17px var(--title); letter-spaci
   .felt { padding: 12px 12px 14px; border-width: 4px; min-height: 280px; }
   .card { width: 52px; height: 74px; font-size: 24px; } .card i { font-size: 19px; margin-top: 2px; } .hand { gap: 6px; }
   .betchip { width: 56px; height: 56px; font-size: 17px; right: 10px; bottom: 10px; }
-  .result { position: static; display: inline-block; transform: rotate(-2deg); margin-top: 4px; font-size: 36px; }
+  /* the stamp gets a reserved strip at the bottom of the table, so a result never pushes the buttons down */
+  .felt { padding-bottom: 92px; }
+  .tablebar { flex-wrap: nowrap; gap: 6px; } .tablebar .cbtn { font-size: 16px; padding: 6px 14px 4px 10px; flex: none; }
+  .bal { font-size: 15px; } .bal b { font-size: 23px; margin-left: 4px; } .bal i { font-size: 15px; margin-left: 4px; } .snd { font-size: 12px; padding: 5px 7px 3px; margin-left: 6px; }
+  .felt.bac { min-height: 418px; }
+  .result, .result.flat, .felt.bac .result { position: absolute; left: 12px; right: auto; top: auto; bottom: 12px; display: block; transform: rotate(-2deg); margin: 0; font-size: 36px; }
   .result.slide { animation-name: slide2; }
   .shoe { width: 36px; height: 50px; right: 10px; top: 10px; }
   .slots .cbtn { font-size: 19px; padding: 11px 4px 9px; }
@@ -453,18 +459,17 @@ function uth() {
       <div class="lbl">Board</div><div class="hand uth-board">${g.board.map(c => c === 'XX' ? card('__') : card(c)).join('')}</div>
       <div class="lbl">${esc(S.me.name)} <span class="tot" data-late>${esc(g.myHand)}</span>${done ? `<span data-late class="tag ${g.res}">${g.res.toUpperCase()}</span>` : ''}</div><div class="hand">${g.me.map(card).join('')}</div>
       <div class="betchip">${money(g.onTable)}</div>${done ? resultStamp(g.net) : ''}`;
-  // three buttons that never move: main bet (or Deal), second bet, check/fold; ante and trips chips stay underneath
+  // two buttons that never move: the bet (or Deal) and check/fold, right under the table; results and chips go below them
   const live = g && !done, st = live ? g.stage : '', a = live ? g.ante : ante;
   const b = (m, cls) => btn(`data-uth="b${m}"`, `Bet ${m}x ${money(a * m)}`, cls, live && g.afford[m]);
-  const controls = `<div class="slots" style="--n:3">${!live ? btn('data-do="uth-deal"', `Deal ${money(ante * 2 + trips)}`, 'gold') : st === 'pre' ? b(4, 'gold') : st === 'flop' ? b(2, 'gold') : b(1, 'gold')}
-      ${st === 'pre' ? b(3, '') : btn('data-uth="b3"', 'Bet 3x', '', false)}
-      ${st === 'river' ? btn('data-uth="fold"', 'Fold', 'ghost') : btn('data-uth="chk"', 'Check', 'ghost', st === 'pre' || st === 'flop')}</div>
-    <p class="rules stage">${!live ? `Ante + equal blind up front${trips ? ', plus trips' : ''}. Then bet 4x or 3x before the flop, 2x on the flop, or 1x on the river.`
-      : st === 'pre' ? 'Pre-flop: bet 4x or 3x your ante now, or check and decide after the flop.' : st === 'flop' ? 'Flop: bet 2x your ante, or check.' : 'River: bet 1x your ante, or fold and lose the ante and blind.'}
+  const slots = `<div class="slots" style="--n:2">${!live ? btn('data-do="uth-deal"', `Deal ${money(ante * 2 + trips)}`, 'gold') : st === 'pre' ? b(4, 'gold') : st === 'flop' ? b(2, 'gold') : b(1, 'gold')}
+      ${st === 'river' ? btn('data-uth="fold"', 'Fold', 'ghost') : btn('data-uth="chk"', 'Check', 'ghost', st === 'pre' || st === 'flop')}</div>`;
+  const controls = `<p class="rules stage">${!live ? `Ante + equal blind up front${trips ? ', plus trips' : ''}. Then bet 4x before the flop, 2x on the flop, or 1x on the river.`
+      : st === 'pre' ? 'Pre-flop: bet 4x your ante now, or check and decide after the flop.' : st === 'flop' ? 'Flop: bet 2x your ante, or check.' : 'River: bet 1x your ante, or fold and lose the ante and blind.'}
       ${live ? `Ante ${money(g.ante)} · Blind ${money(g.ante)}${g.trips ? ` · Trips ${money(g.trips)}` : ''}` : ''}</p>
     <div class="acts">${chipPicker('ante', [5, 10, 25, 50, 100], ante, 'Ante', live)}</div><div class="acts">${chipPicker('trips', [0, 5, 10, 25], trips, 'Trips', live)}</div>`;
   const lines = done ? `<div class="lines" data-late>${g.lines.map(([b, why, amt]) => `<div><b>${esc(b)}</b><span>${esc(why)}</span><span class="${amt > 0 ? 'pos' : amt < 0 ? 'neg' : ''}">${amt ? signed(amt) : '$0'}</span></div>`).join('')}</div>` : '';
-  return `${balBar("Ultimate Hold'em", done ? g.net : 0)}${felt(g ? g.id : '', inner)}${lines}${controls}<div class="err">${esc(T.err)}</div>
+  return `${balBar("Ultimate Hold'em", done ? g.net : 0)}${felt(g ? g.id : '', inner)}${slots}<div class="err">${esc(T.err)}</div>${lines}${controls}
     <details class="pay"><summary>Payouts</summary>${esc(S.uthPaytable)}</details>${syncLine}`;
 }
 
