@@ -74,9 +74,19 @@ button:disabled { cursor: default; opacity: .4; }
 .feed small { color: var(--muted); font-size: 11px; }
 .feed .who { min-width: 0; }
 .feed em { display: block; font-style: normal; font-size: 11px; color: var(--gold); white-space: normal; }
-.rw { width: 100%; border-collapse: collapse; font-size: 14px; }
-.rw td { padding: 7px 0; border-bottom: 1px solid #2a2550; }
-.rw td.m { text-align: right; font-family: var(--mono); color: var(--gold); white-space: nowrap; padding-left: 12px; }
+.earn { background: var(--panel); border-left: 4px solid var(--gold); margin-top: 16px; }
+.earn summary { display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; list-style: none; }
+.earn summary::-webkit-details-marker { display: none; }
+.earn summary b { font: 400 22px var(--title); letter-spacing: .06em; white-space: nowrap; }
+.earn summary span { color: var(--muted); font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.earn summary i { margin-left: auto; font: 400 17px var(--title); letter-spacing: .08em; color: var(--gold); font-style: normal; white-space: nowrap; }
+.earn summary i::after { content: ' ▾'; } .earn[open] summary i::after { content: ' ▴'; }
+.earn .groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 28px; padding: 0 16px 6px; font-size: 13px; }
+.earn h3 { font: 400 16px var(--title); letter-spacing: .08em; color: var(--vio); margin: 4px 0 2px; }
+.earn .row { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px solid #2a2550; }
+.earn .row b { font: 500 13px var(--mono); color: var(--gold); white-space: nowrap; }
+.earn .hint { padding: 6px 16px 12px; margin: 0; }
+@media (max-width: 640px) { .earn .groups { grid-template-columns: 1fr; } .earn summary span { display: none; } .earn summary b { font-size: 19px; } }
 .feed .amt { margin-left: auto; font-family: var(--mono); white-space: nowrap; }
 .src { font: 600 10px var(--mono); padding: 1px 5px; background: #2a2550; color: var(--muted); }
 .src.d { background: rgba(88,101,242,.25); color: #c9cdfb; }
@@ -365,9 +375,11 @@ function feed() {
   return `<div class="panel"><h2 class="p">Just now</h2><p class="hint">Latest hands from Discord and the site, plus chip rewards from poker nights.</p><div class="feed">${rows || '<p class="hint">No hands yet.</p>'}</div></div>`;
 }
 function rewards() {
-  if (!S.rewards || !S.rewards.length) return '';
-  return `<div class="panel"><h2 class="g">Earn chips at poker night</h2><p class="hint">Paid automatically when the night's results are saved. Chips go to the Discord ID on the Members tab.</p>
-    <table class="rw">${S.rewards.map(r => `<tr><td>${esc(r.what)}</td><td class="m">${esc(r.amt)}</td></tr>`).join('')}</table></div>`;
+  if (!S.rewards || !S.rewards.length || !S.rewards[0].items) return '';
+  const top = S.rewards.flatMap(g => g.items).reduce((m, r) => Math.max(m, +String(r.amt).replace(/[^\d]/g, '') || 0), 0);
+  return `<details class="earn"${pref('earn', false) ? ' open' : ''}><summary><b>💰 Earn chips at poker night</b><span>RSVP, places, comebacks, streaks · up to ${money(top)}</span><i>See all</i></summary>
+    <div class="groups">${S.rewards.map(g => `<div><h3>${esc(g.group)}</h3>${g.items.map(r => `<div class="row"><span>${esc(r.what)}</span><b>${esc(r.amt)}</b></div>`).join('')}</div>`).join('')}</div>
+    <p class="hint">Paid automatically when the night's results are saved, to the Discord ID on the Members tab.</p></details>`;
 }
 function dailyTile() {
   const d = S.me.daily;
@@ -481,6 +493,7 @@ const LIMIT = { bj: [1, () => S.maxBet], bac: [1, () => S.maxBet], ante: [1, () 
 const clamp = (k, v) => Math.min(LIMIT[k][1](), Math.max(LIMIT[k][0], Math.floor(+v || 0)));
 function wire() {
   document.querySelectorAll('[data-bj],[data-uth],[data-do]').forEach(b => b.addEventListener('pointerdown', () => { b.classList.add('pressed'); }));
+  document.querySelectorAll('details.earn').forEach(d => d.ontoggle = () => setPref('earn', d.open));
   document.querySelectorAll('[data-snd]').forEach(b => b.onclick = () => { setPref('snd', !pref('snd', false)); render(); tick(); });
   document.querySelectorAll('[data-chip]').forEach(b => b.onclick = () => { setPref(b.dataset.chip, clamp(b.dataset.chip, b.dataset.v)); render(); });
   document.querySelectorAll('[data-amt]').forEach(i => i.onchange = () => { setPref(i.dataset.amt, clamp(i.dataset.amt, i.value)); render(); });

@@ -30,15 +30,14 @@ export const R = { rsvp: 25, showed: 50, places: [200, 100, 50], badBeatPct: 0.2
 const LABEL = { rsvp: 'RSVP', showed: 'showed up', p1: '1st place', p2: '2nd place', p3: '3rd place', bad: 'bad beat insurance',
   cons: 'consolation', pko: 'PKO bounties', heater: 'Heater', cold: 'cold streak insurance', comeback: 'Comeback', giant: 'Giant killer', grit: 'Rebuy grit',
   friend: 'Bring a friend', champ: 'quarter champion', improved: 'most improved' };
-/** What the casino lobby lists under "Earn chips at poker night". */
+/** What the casino lobby lists under "Earn chips at poker night", in three groups. */
 export const REWARD_LIST = [
-  ['RSVP to the invite', R.rsvp], ['RSVP and play', R.showed], ['1st / 2nd / 3rd', R.places.map(v => '$' + v).join(' / ')],
-  ['Biggest loser of the night (on top of the $20)', `20% of the loss back, up to $${R.badBeatMax}`], ['Everyone who lost', R.consolation],
-  ['PKO bounties', '$1 per $1 won'], ['Comeback: up the night after a down night', R.comeback],
-  ['Giant killer: up, and ahead of the quarter leader', R.giant], ['Rebuy grit: rebought and still finished up', R.grit],
-  ['Bring a friend: their first night, note says "brought by you"', R.friend], ['Heater: up 3 nights in a row', R.heater],
-  ['Cold streak: down 3 nights in a row', R.cold], ['Quarter champion', R.champ], ['Most improved quarter', R.improved],
-].map(([what, amt]) => ({ what, amt: typeof amt === 'number' ? '$' + amt.toLocaleString('en-US') : amt }));
+  ['Every night', [['RSVP to the invite', R.rsvp], ['RSVP and play', R.showed], ['1st place', R.places[0]], ['2nd place', R.places[1]], ['3rd place', R.places[2]],
+    ['Lost money', R.consolation], ['Biggest loser', `+${R.badBeatPct * 100}% back`]]],
+  ['Special', [['PKO bounties', '$1 per $1'], ['Comeback (up after a down night)', R.comeback], ['Giant killer (beat the leader)', R.giant],
+    ['Rebuy grit (rebought, finished up)', R.grit], ['Bring a friend ("brought by" note)', R.friend]]],
+  ['Streaks + quarter', [['Heater (3 up in a row)', R.heater], ['Cold streak (3 down)', R.cold], ['Quarter champ', R.champ], ['Most improved', R.improved]]],
+].map(([group, items]) => ({ group, items: items.map(([what, amt]) => ({ what, amt: typeof amt === 'number' ? '$' + amt.toLocaleString('en-US') : amt })) }));
 const r2 = n => Math.round(n * 100) / 100;
 const money = s => { const n = parseFloat(String(s).replace(/[$,\s]/g, '')); return isNaN(n) ? 0 : n; };
 
