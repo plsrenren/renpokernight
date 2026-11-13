@@ -72,6 +72,11 @@ button:disabled { cursor: default; opacity: .4; }
 .youtag { font: 600 10px var(--mono); color: #15132a; background: var(--gold); padding: 1px 5px; }
 .feed div { display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 5px 0; border-bottom: 1px solid #2a2550; }
 .feed small { color: var(--muted); font-size: 11px; }
+.feed .who { min-width: 0; }
+.feed em { display: block; font-style: normal; font-size: 11px; color: var(--gold); white-space: normal; }
+.rw { width: 100%; border-collapse: collapse; font-size: 14px; }
+.rw td { padding: 7px 0; border-bottom: 1px solid #2a2550; }
+.rw td.m { text-align: right; font-family: var(--mono); color: var(--gold); white-space: nowrap; padding-left: 12px; }
 .feed .amt { margin-left: auto; font-family: var(--mono); white-space: nowrap; }
 .src { font: 600 10px var(--mono); padding: 1px 5px; background: #2a2550; color: var(--muted); }
 .src.d { background: rgba(88,101,242,.25); color: #c9cdfb; }
@@ -356,8 +361,13 @@ function board() {
 }
 function feed() {
   const ago = t => { const m = Math.round((Date.now() - t) / 60e3); return m < 1 ? 'now' : m < 60 ? m + 'm' : m < 1440 ? Math.round(m / 60) + 'h' : Math.round(m / 1440) + 'd'; };
-  const rows = S.feed.map(f => `<div>${av(f.id, f.name)}${esc(f.name)} <small>${esc(f.game)} · ${ago(f.at)}</small> <span class="src${f.src === 'site' ? '' : f.src === 'night' ? ' n' : ' d'}">${f.src === 'site' ? 'site' : f.src === 'night' ? 'reward' : 'discord'}</span><span class="amt ${f.net > 0 ? 'pos' : f.net < 0 ? 'neg' : ''}">${signed(f.net)}</span></div>`).join('');
+  const rows = S.feed.map(f => `<div>${av(f.id, f.name)}<span class="who">${esc(f.name)} <small>${esc(f.game)} · ${ago(f.at)}</small>${f.why ? `<em>${esc(f.why)}</em>` : ''}</span> <span class="src${f.src === 'site' ? '' : f.src === 'night' ? ' n' : ' d'}">${f.src === 'site' ? 'site' : f.src === 'night' ? 'reward' : 'discord'}</span><span class="amt ${f.net > 0 ? 'pos' : f.net < 0 ? 'neg' : ''}">${signed(f.net)}</span></div>`).join('');
   return `<div class="panel"><h2 class="p">Just now</h2><p class="hint">Latest hands from Discord and the site, plus chip rewards from poker nights.</p><div class="feed">${rows || '<p class="hint">No hands yet.</p>'}</div></div>`;
+}
+function rewards() {
+  if (!S.rewards || !S.rewards.length) return '';
+  return `<div class="panel"><h2 class="g">Earn chips at poker night</h2><p class="hint">Paid automatically when the night's results are saved. Chips go to the Discord ID on the Members tab.</p>
+    <table class="rw">${S.rewards.map(r => `<tr><td>${esc(r.what)}</td><td class="m">${esc(r.amt)}</td></tr>`).join('')}</table></div>`;
 }
 function dailyTile() {
   const d = S.me.daily;
@@ -386,7 +396,8 @@ function lobby() {
         <div class="game soon" style="--c:var(--up)"><div class="ic">🎡</div><b>Roulette</b><span>Play it with /roulette in the Discord server.</span><div class="go">Discord only</div></div>
         <div class="game soon" style="--c:#7fb6ff"><div class="ic">⚔️</div><b>Duel</b><span>Challenge someone with /duel in the Discord server.</span><div class="go">Discord only</div></div>
       </div></div>
-    <div class="cols">${board()}${feed()}</div>`;
+    <div class="cols">${board()}${feed()}</div>
+    ${rewards()}`;
 }
 
 // ---------- shared table bits ----------
