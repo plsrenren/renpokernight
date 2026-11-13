@@ -49,7 +49,7 @@ poker-dashboard/
                        casino: _casino.js (site /casino page: Discord sign-in + blackjack/UTH/baccarat/daily with the same bj:bal chips;
                        /api/login and /api/casino are vercel.json rewrites into discord.js?web=, so no extra function. Env DISCORD_CLIENT_SECRET,
                        redirect https://renpokernight.vercel.app/api/login in the Developer Portal. Game rules stay in the _game.js files, shared)
-                       rewards: _rewards.js (casino chips for real nights: RSVP/showed up/places/bad beat (on top of consolation)/consolation/PKO/Heater/cold streak/comeback/giant killer/rebuy grit/bring a friend ("brought by X" note on a first-timer)/quarter champ/most improved; listed in the casino lobby via REWARD_LIST; amounts in R, only nights from REWARDS_START; run by api/roles.js after each entry-page save;
+                       rewards: _rewards.js (casino chips for real nights: RSVP/showed up/places/bad beat (on top of consolation)/consolation/PKO/Heater/cold streak/comeback/giant killer/rebuy grit/bring a friend ("brought by X" note on a first-timer)/quarter champ/most improved; listed in the casino lobby (folded bar, 3 groups) via REWARD_LIST; cas:feed gets bj/uth/baccarat hands, roulette spins, duels, daily claims, rewards; amounts in R, only nights from REWARDS_START; run by api/roles.js after each entry-page save;
                        recomputed from the sheet and diffed against rw:paid, so re-saves pay only the difference. Not in the recap post, by request)
     vercel.json        Function durations + included files. Env vars on Vercel: DISCORD_BOT_TOKEN, DISCORD_PUBLIC_KEY
 poker-entry/
