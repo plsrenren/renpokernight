@@ -8,10 +8,10 @@
 //   (royal 50, straight flush 40, quads 30, full house 8, flush 7, straight 4, three of a kind 3).
 // Keys: uth:g:<id> (the hand, 1 hour), uth:lock:<id> (stops double taps).
 import { randomBytes } from 'node:crypto';
-import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, freshDeck } from './_blackjack.js';
+import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, freshDeck, feedCmds } from './_blackjack.js';
 
 const SITE = 'https://renpokernight.vercel.app';
-const MAX_ANTE = 100, MAX_TRIPS = 100, DEFAULT_ANTE = 10;
+export const MAX_ANTE = 100, MAX_TRIPS = 100, DEFAULT_ANTE = 10;
 
 export const UTH_COMMAND = { name: 'uth', description: "Ultimate Texas Hold'em against the dealer", type: 1,
   options: [
@@ -151,7 +151,8 @@ const PAYTABLE = [
   'Ties push everything except Trips. Folding on the river loses the ante and blind.'].join('\n');
 
 // ---------- a hand ----------
-async function newHand(me, ante, trips) {
+/** Deals a new hand and takes ante + blind (+ trips). Shared by /uth and the site: { g, bal } or { err }. */
+export async function newHand(me, ante, trips) {
   const [balRaw] = await kv(['HGET', 'bj:bal', me.id]);
   const need = ante * 2 + trips;
   if (balRaw === null) return { err: "You don't have any chips yet. Use **/daily** to get some free." };
@@ -174,41 +175,73 @@ export async function uthCommand(i, opts, s) {
   } catch (e) { console.error('uth', e); return quiet("Couldn't reach the chip storage just now. Try again in a moment."); }
 }
 
+/** A decision on a hand in progress (b4 b3 chk | b2 chk | b1 fold). Shared by the Discord buttons and the site.
+ *  Returns { g, bal }, { err }, { gone }, { notYours }, or { busy }. */
+export async function uthAction(me, gid, act) {
+  const [raw, lock] = await kv(['GET', 'uth:g:' + gid], ['SET', 'uth:lock:' + gid, '1', 'NX', 'EX', 5]);
+  const unlock = () => kv(['DEL', 'uth:lock:' + gid]).catch(() => {});
+  if (!raw) { if (lock) await unlock(); return { gone: true }; }
+  const g = JSON.parse(raw);
+  if (g.uid !== me.id) { if (lock) await unlock(); return { notYours: g.name }; }
+  if (!lock) return { busy: true };
+  try {
+    if (g.stage === 'done') return { busy: true };
+    const [balRaw] = await kv(['HGET', 'bj:bal', me.id]);
+    let bal = +balRaw || 0;
+    const ok = { pre: ['b4', 'b3', 'chk'], flop: ['b2', 'chk'], river: ['b1', 'fold'] }[g.stage];
+    if (!ok.includes(act)) return { busy: true };
+    let spend = 0;
+    if (act[0] === 'b') {
+      spend = g.ante * +act[1];
+      if (bal < spend) return { err: `You need ${money(spend)} for that bet and have ${money(bal)}.` };
+      g.play = spend; settle(g);
+    } else if (act === 'fold') { g.folded = true; settle(g); }
+    else g.stage = g.stage === 'pre' ? 'flop' : 'river';
+    g.step++;
+    const done = g.stage === 'done', delta = (done ? g.payout : 0) - spend;
+    const res = await kv(...(delta ? [['HINCRBYFLOAT', 'bj:bal', me.id, delta]] : [['HGET', 'bj:bal', me.id]]), ['SET', 'uth:g:' + g.id, JSON.stringify(g), 'EX', 3600],
+      ...(done ? feedCmds(me, 'UTH', g.net) : []));
+    bal = +res[0];
+    return { g, bal };
+  } finally { await unlock(); }
+}
+
+/** What the site may see: board cards only as far as they're out, dealer cards only at showdown. */
+export function publicUth(g, bal) {
+  const done = g.stage === 'done', n = shown(g);
+  const mine = done ? g.myHand : n ? best([...g.me, ...g.board.slice(0, n)]).name : holeName(g.me);
+  return { id: g.id, stage: g.stage, ante: g.ante, trips: g.trips, play: g.play, me: g.me,
+    board: [...g.board.slice(0, n), ...Array(5 - n).fill('XX')], dealer: done ? g.dealer : ['XX', 'XX'], myHand: mine,
+    dlHand: done ? g.dlHand : null, qualifies: done ? g.qualifies : null, res: done ? g.res : null,
+    lines: done ? g.lines : null, net: done ? g.net : null, onTable: onTable(g),
+    afford: { 4: bal >= g.ante * 4, 3: bal >= g.ante * 3, 2: bal >= g.ante * 2, 1: bal >= g.ante } };
+}
+export { PAYTABLE as UTH_PAYTABLE };
+
 /** The buttons (custom_id uth:<action>:<hand id>). */
 export async function uthButton(i, s) {
   if (!kvUrl() || !kvToken()) return noStorage();
   const [, act, gid] = String(i.data.custom_id).split(':');
   if (act === 'pay') return quiet(PAYTABLE);
   const me = whoIs(i, s);
-  const [raw, lock] = await kv(['GET', 'uth:g:' + gid], ['SET', 'uth:lock:' + gid, '1', 'NX', 'EX', 5]);
-  const unlock = () => kv(['DEL', 'uth:lock:' + gid]).catch(() => {});
-  if (!raw) { if (lock) await unlock(); return quiet('This hand has expired. Start a new one with **/uth**.'); }
-  const g = JSON.parse(raw);
-  if (g.uid !== me.id) { if (lock) await unlock(); return quiet(`That's ${g.name}'s hand. Start your own with **/uth**.`); }
-  if (!lock) return json({ type: 6 }); // a second tap while the first is still being handled
-  try {
-    if (act === 'again') {
+  if (act === 'again') {
+    const [raw, lock] = await kv(['GET', 'uth:g:' + gid], ['SET', 'uth:lock:' + gid, '1', 'NX', 'EX', 5]);
+    const unlock = () => kv(['DEL', 'uth:lock:' + gid]).catch(() => {});
+    if (!raw) { if (lock) await unlock(); return quiet('This hand has expired. Start a new one with **/uth**.'); }
+    const g = JSON.parse(raw);
+    if (g.uid !== me.id) { if (lock) await unlock(); return quiet(`That's ${g.name}'s hand. Start your own with **/uth**.`); }
+    if (!lock) return json({ type: 6 });
+    try {
       if (g.stage !== 'done') return json({ type: 6 });
       const out = await newHand(me, g.ante, g.trips);
       if (out.err) return quiet(out.err);
       return json({ type: 4, data: view(out.g, out.bal) });
-    }
-    if (g.stage === 'done') return json({ type: 6 });
-    const [balRaw] = await kv(['HGET', 'bj:bal', me.id]);
-    let bal = +balRaw || 0;
-    const ok = { pre: ['b4', 'b3', 'chk'], flop: ['b2', 'chk'], river: ['b1', 'fold'] }[g.stage];
-    if (!ok.includes(act)) return json({ type: 6 });
-    let spend = 0;
-    if (act[0] === 'b') {
-      spend = g.ante * +act[1];
-      if (bal < spend) return quiet(`You need ${money(spend)} for that bet and have ${money(bal)}.`);
-      g.play = spend; settle(g);
-    } else if (act === 'fold') { g.folded = true; settle(g); }
-    else g.stage = g.stage === 'pre' ? 'flop' : 'river';
-    g.step++;
-    const delta = (g.stage === 'done' ? g.payout : 0) - spend;
-    const res = await kv(...(delta ? [['HINCRBYFLOAT', 'bj:bal', me.id, delta]] : [['HGET', 'bj:bal', me.id]]), ['SET', 'uth:g:' + g.id, JSON.stringify(g), 'EX', 3600]);
-    bal = +res[0];
-    return json({ type: 7, data: view(g, bal) });
-  } finally { await unlock(); }
+    } finally { await unlock(); }
+  }
+  const r = await uthAction(me, gid, act);
+  if (r.gone) return quiet('This hand has expired. Start a new one with **/uth**.');
+  if (r.notYours) return quiet(`That's ${r.notYours}'s hand. Start your own with **/uth**.`);
+  if (r.busy) return json({ type: 6 });
+  if (r.err) return quiet(r.err);
+  return json({ type: 7, data: view(r.g, r.bal) });
 }

@@ -3,9 +3,10 @@
 //   Tie 8:1. Player and Banker bets push on a tie.
 // The buttons under a result deal a new hand for whoever presses them (same bet), so anyone can join in.
 import { randomInt } from 'node:crypto';
-import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, MAX_BET } from './_blackjack.js';
+import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, MAX_BET, feedCmds } from './_blackjack.js';
 
-const SITE = 'https://renpokernight.vercel.app', DEFAULT_BET = 20;
+const SITE = 'https://renpokernight.vercel.app';
+export const DEFAULT_BET = 20;
 const SIDES = { player: 'Player', banker: 'Banker', tie: 'Tie' };
 
 export const BACCARAT_COMMAND = { name: 'baccarat', description: 'Bet Player, Banker or Tie in baccarat', type: 1,
@@ -43,12 +44,20 @@ export function payout(side, amt, winner) {
   return side === 'banker' ? amt + Math.round(amt * 0.95 * 100) / 100 : amt * 2;
 }
 
-async function play(me, side, bet) {
+/** Deals one hand and settles the bet. Shared by /baccarat and the site: { c, back, net, bal } or { err }. */
+export async function playHand(me, side, bet) {
   const [balRaw] = await kv(['HGET', 'bj:bal', me.id]);
-  if (balRaw === null) return quiet("You don't have any chips yet. Use **/daily** to get some free.");
-  if (+balRaw < bet) return quiet(`You only have ${money(+balRaw)}. Bet that or less.`);
+  if (balRaw === null) return { err: "You don't have any chips yet. Use **/daily** to get some free." };
+  if (+balRaw < bet) return { err: `You only have ${money(+balRaw)}. Bet that or less.` };
   const c = coup(), back = payout(side, bet, c.winner), net = Math.round((back - bet) * 100) / 100;
-  const [bal] = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, back - bet], ['HSET', 'bj:name', me.id, me.name]);
+  const [bal] = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, back - bet], ['HSET', 'bj:name', me.id, me.name], ...feedCmds(me, 'baccarat', net));
+  return { c, back, net, bal: +bal };
+}
+
+async function play(me, side, bet) {
+  const r = await playHand(me, side, bet);
+  if (r.err) return quiet(r.err);
+  const { c, net, bal } = r;
   const how = c.natural ? 'a natural' : c.p.length + c.b.length > 4 ? 'third cards' : 'two cards each';
   const won = c.winner === 'tie' ? `It's a tie, ${c.ps}–${c.bs}` : `${SIDES[c.winner]} wins ${Math.max(c.ps, c.bs)}–${Math.min(c.ps, c.bs)}`;
   const title = net > 0 ? `🎴 ${me.name} wins ${money(net)}!` : net < 0 ? `🎴 ${me.name} loses ${money(-net)}` : `🎴 ${me.name} pushes`;

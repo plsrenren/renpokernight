@@ -32,7 +32,7 @@ poker-dashboard/
                        by inlining the logo where __LOGO__ appears) and the parts of recap-core.js:
                        cat core.part.js stories.part.js members.part.js hof.part.js card.part.js > ../vercel/recap-core.js
   vercel/              What Vercel deploys (project root dir). cleanUrls on, so /recap serves recap.html.
-    index.html recap.html hall.html h2h.html entry.html (entry = redirect to the Apps Script page)
+    index.html recap.html hall.html h2h.html casino.html entry.html (entry = redirect to the Apps Script page; casino.html = copy of src/casino-src.html)
     lateshow.css       "Late Show" look (Nov 2026), linked last on every page; every selector is prefixed with html so it beats
                        the page's own <style> (which sits in <body>)
     recap-core.js      Shared logic (browser + API): parsing, recap stories, Hall of Fame, player cards, h2h, quarter wrap
@@ -46,6 +46,9 @@ poker-dashboard/
                        roulette: _roulette.js (/roulette shared 30s table; the opening call stays awake to spin, so discord.js maxDuration is 60) + roulette.js (wheel picture)
                        baccarat: _baccarat.js (/baccarat Player/Banker/Tie; picture = bjcards?m=bac)
                        seats: _seats.js (/seats random seat order from the latest invite's reactions) + seats.js (table picture)
+                       casino: _casino.js (site /casino page: Discord sign-in + blackjack/UTH/baccarat/daily with the same bj:bal chips;
+                       /api/login and /api/casino are vercel.json rewrites into discord.js?web=, so no extra function. Env DISCORD_CLIENT_SECRET,
+                       redirect https://renpokernight.vercel.app/api/login in the Developer Portal. Game rules stay in the _game.js files, shared)
     vercel.json        Function durations + included files. Env vars on Vercel: DISCORD_BOT_TOKEN, DISCORD_PUBLIC_KEY
 poker-entry/
   Code.gs              Apps Script server: doGet, getSetup(), saveNight(payload), Discord recap post. The live copy has the

@@ -1,5 +1,15 @@
 {
   "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/api/login",
+      "destination": "/api/discord?web=login"
+    },
+    {
+      "source": "/api/casino",
+      "destination": "/api/discord?web=casino"
+    }
+  ],
   "functions": {
     "api/recap.js": {
       "includeFiles": "{api/_assets/**,recap-core.js}",

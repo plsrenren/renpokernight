@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Casino · Poker Club @ The Study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@500;700&family=Nunito:wght@600;700;800;900&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>
+/* Casino page: the Discord bot's games (blackjack, UTH, baccarat) with the same chips. Sign in with Discord.
+   Talks to /api/casino and /api/login (served by api/_casino.js). Late Show look built in; lateshow.css is linked last like every page. */
+:root {
+  --page: #15132a; --panel: #1d1a37; --panel2: #2a2550; --line: #332e57;
+  --fg: #ece9fb; --soft: #cfcaf0; --muted: #9a94c4;
+  --gold: #f1c75b; --pink: #e0507f; --vio: #8f78f0; --up: #8ee0b0; --down: #f59bb0; --blurple: #5865f2;
+  --title: "Bebas Neue", Impact, sans-serif; --body: "Space Grotesk", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace;
+  --logo: url(/icon-192.png);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; color: var(--fg); font-family: var(--body); background: var(--page); -webkit-tap-highlight-color: transparent; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 22px 20px 40px; }
+a { color: inherit; }
+button { cursor: pointer; border: 0; color: inherit; }
+button:disabled { cursor: default; opacity: .4; }
+/* header */
+.top { display: flex; gap: 14px; align-items: flex-start; }
+.brand { display: flex; align-items: stretch; }
+.brand .lg { display: block; width: 92px; height: 78px; flex: none; }
+.brand h1 { font: 400 54px/.9 var(--title); letter-spacing: .02em; margin: 6px 0 6px; }
+.links { display: flex; gap: 8px; flex-wrap: wrap; }
+.links a { text-decoration: none; }
+.me { margin-left: auto; display: flex; align-items: center; gap: 10px; font: 700 14px var(--body); color: var(--soft); margin-top: 10px; white-space: nowrap; }
+.me button { background: none; color: var(--muted); font: 500 12px var(--body); letter-spacing: 0; padding: 0; text-decoration: underline; }
+/* avatars: initials underneath, Discord pfp on top when it loads */
+.av { --h: 260; position: relative; width: 30px; height: 30px; flex: none; display: grid; place-items: center; overflow: hidden; font: 900 12px Nunito, sans-serif; background: hsl(var(--h) 75% 82%); color: hsl(var(--h) 45% 25%); }
+.av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* panels + tiles */
+.panel { background: var(--panel); padding: 0 18px 16px; margin-top: 16px; }
+.panel h2 { display: inline-block; font: 400 26px/1 var(--title); letter-spacing: .06em; color: #fff; background: var(--vio); margin: 0 0 10px -18px; padding: 7px 26px 3px 18px; clip-path: polygon(0 0,100% 0,calc(100% - 13px) 100%,0 100%); }
+.panel h2.g { background: var(--gold); color: #15132a; } .panel h2.p { background: var(--pink); }
+.hint { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; }
+.strip { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 12px; margin-top: 16px; }
+.tl { background: var(--panel); border-left: 4px solid var(--vio); padding: 12px 16px; min-width: 0; }
+.tl:first-child { border-left-color: var(--gold); background: linear-gradient(100deg, #3a2a6e, #a23b58); }
+.tl .k { font: 400 17px var(--title); letter-spacing: .12em; color: var(--soft); }
+.tl .v { font: 400 46px/.95 var(--title); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl .s { font: 500 12px var(--mono); color: var(--soft); margin-top: 4px; }
+.cbtn { display: inline-block; font: 400 19px var(--title); letter-spacing: .08em; padding: 8px 18px 6px; background: var(--pink); color: #fff; clip-path: polygon(0 0,100% 0,calc(100% - 10px) 100%,0 100%); text-decoration: none; }
+.cbtn.up { background: var(--up); color: #0e2a1c; } .cbtn.gold { background: var(--gold); color: #15132a; } .cbtn.ghost { background: var(--panel2); color: var(--fg); } .cbtn.vio { background: var(--vio); }
+.cbtn.big { font-size: 22px; padding: 10px 24px 8px; }
+/* game tiles */
+.games { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.game { background: var(--panel2); padding: 12px; display: flex; flex-direction: column; gap: 6px; border-top: 4px solid var(--c); text-decoration: none; position: relative; min-height: 150px; }
+.game:hover { background: #332d60; }
+.game .ic { font-size: 30px; line-height: 1; }
+.game b { font: 400 26px/1 var(--title); letter-spacing: .04em; }
+.game span { font-size: 12px; color: var(--muted); line-height: 1.35; }
+.game .go { margin-top: auto; font: 400 15px var(--title); letter-spacing: .1em; color: var(--c); }
+.game.soon { opacity: .55; pointer-events: none; }
+/* leaderboard + feed */
+.cols { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
+.lb { width: 100%; border-collapse: collapse; }
+.lb td { padding: 5px 6px; border-bottom: 1px solid #2a2550; font-size: 14px; }
+.lb td.rk { font: 400 20px var(--title); color: var(--muted); text-align: center; background: #2a2550; width: 34px; }
+.lb tr:first-child td.rk { background: var(--gold); color: #15132a; }
+.lb td.n { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.lb td.m { text-align: right; font: 600 14px var(--mono); white-space: nowrap; }
+.lb tr.you td { background: rgba(241,199,91,.08); }
+.youtag { font: 600 10px var(--mono); color: #15132a; background: var(--gold); padding: 1px 5px; }
+.feed div { display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 5px 0; border-bottom: 1px solid #2a2550; }
+.feed small { color: var(--muted); font-size: 11px; }
+.feed .amt { margin-left: auto; font-family: var(--mono); white-space: nowrap; }
+.src { font: 600 10px var(--mono); padding: 1px 5px; background: #2a2550; color: var(--muted); }
+.src.d { background: rgba(88,101,242,.25); color: #c9cdfb; }
+.pos { color: var(--up); } .neg { color: var(--down); }
+/* signed out */
+.hero { margin-top: 16px; background: linear-gradient(100deg, #3a2a6e, #a23b58); border-left: 6px solid var(--gold); padding: 20px 22px 22px; display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center; }
+.hero h2 { font: 400 50px/.95 var(--title); margin: 0 0 8px; letter-spacing: .02em; }
+.hero p { margin: 0; color: #eee; font-size: 15px; line-height: 1.45; max-width: 560px; }
+.dbtn { display: flex; align-items: center; justify-content: center; gap: 10px; background: var(--blurple); color: #fff; font: 800 17px Nunito, sans-serif; padding: 14px 22px; text-decoration: none; }
+.dbtn svg { width: 24px; height: 24px; flex: none; }
+.fine { font-size: 11.5px; color: #ddd; margin-top: 8px; opacity: .85; line-height: 1.4; max-width: 300px; }
+.note { margin-top: 16px; padding: 10px 14px; border-left: 4px solid var(--down); background: rgba(245,155,176,.1); font-size: 14px; line-height: 1.45; }
+.note.ok { border-left-color: var(--up); background: rgba(142,224,176,.1); }
+/* tables */
+.tablebar { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; gap: 10px; flex-wrap: wrap; }
+.tablebar h2 { margin: 0; font: 400 34px/1 var(--title); letter-spacing: .04em; }
+.bal { font: 400 22px var(--title); letter-spacing: .06em; color: var(--soft); white-space: nowrap; }
+.bal b { color: var(--gold); font-weight: 400; font-size: 30px; margin-left: 6px; }
+.bal i { font-style: normal; font-size: 20px; margin-left: 6px; }
+.felt { background: radial-gradient(120% 90% at 50% 0%, #2f5a45, #173326 70%); border: 6px solid #3a2a6e; outline: 3px solid var(--gold); padding: 18px 22px 20px; position: relative; margin-top: 12px; min-height: 330px; }
+.felt .lbl { font: 400 17px var(--title); letter-spacing: .14em; color: #cfe9da; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.felt .lbl.on { color: var(--gold); }
+.tot { font: 600 14px var(--mono); background: #0e1f17; color: #fff; padding: 3px 9px; letter-spacing: 0; }
+.tag { font: 900 11px Nunito, sans-serif; letter-spacing: .08em; padding: 2px 7px; }
+.tag.win, .tag.bj { background: var(--up); color: #0e2a1c; } .tag.bj { background: var(--gold); color: #2a1f00; }
+.tag.lose, .tag.bust, .tag.fold { background: var(--down); color: #3a0d18; } .tag.push { background: var(--muted); color: #16132b; }
+.hand { display: flex; gap: 10px; margin: 8px 0 18px; flex-wrap: wrap; }
+.hands { display: flex; gap: 34px; flex-wrap: wrap; }
+.card { width: 74px; height: 104px; background: #f6f3ea; display: flex; flex-direction: column; align-items: center; justify-content: center; font: 900 32px/1 Nunito, sans-serif; color: #1b1b1b; box-shadow: 0 4px 10px rgba(0,0,0,.35); flex: none; animation: deal .25s ease-out both; }
+.card.r { color: #c2283e; } .card i { font-style: normal; font-size: 28px; margin-top: 4px; }
+.card.back { background: repeating-linear-gradient(45deg, #5a40ad 0 7px, #6e52c8 7px 14px); border: 4px solid #f6f3ea; }
+.card.empty { background: rgba(255,255,255,.06); box-shadow: none; border: 2px dashed rgba(255,255,255,.18); animation: none; }
+@keyframes deal { from { transform: translateY(-14px); opacity: 0; } }
+.betchip { position: absolute; right: 26px; bottom: 22px; width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; font: 400 24px var(--title); color: #fff;
+  background: radial-gradient(circle, #a23b58 0 46%, #fff 46% 50%, #a23b58 50% 62%, transparent 62%), repeating-conic-gradient(#fff 0 15deg, #a23b58 15deg 45deg); box-shadow: 0 6px 14px rgba(0,0,0,.4); }
+.result { position: absolute; right: 140px; top: 45%; transform: translateY(-50%) rotate(-4deg); background: var(--gold); color: #15132a; font: 400 54px/1 var(--title); padding: 10px 26px 4px; letter-spacing: .04em; box-shadow: 0 10px 30px rgba(0,0,0,.5); text-align: center; white-space: nowrap; animation: pop .3s ease-out both; }
+.result.lost { background: var(--down); } .result.even { background: var(--muted); }
+.result small { display: block; font: 600 15px var(--mono); padding-bottom: 6px; letter-spacing: 0; }
+@keyframes pop { from { transform: translateY(-50%) rotate(-4deg) scale(.6); opacity: 0; } }
+@keyframes pop2 { from { transform: rotate(-2deg) scale(.6); opacity: 0; } }
+.result.flat, .felt.bac .result { position: static; display: inline-block; transform: rotate(-2deg); margin-top: 10px; animation-name: pop2; }
+.acts { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+.acts .cbtn { font-size: 22px; padding: 11px 24px 9px; }
+.chips { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.chips .lab { font: 400 18px var(--title); letter-spacing: .08em; color: var(--soft); margin-right: 4px; min-width: 64px; }
+.chipb { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font: 400 17px var(--title); color: #fff; border: 4px dashed rgba(255,255,255,.7); letter-spacing: .02em; }
+.chipb[aria-pressed="true"] { outline: 3px solid var(--gold); outline-offset: 2px; }
+.amt-in { width: 86px; background: var(--panel2); border: 1px solid var(--line); color: var(--fg); font: 600 15px var(--mono); padding: 10px 8px; }
+.rules { font-size: 12px; color: var(--muted); margin-top: 12px; line-height: 1.5; }
+.sync { display: flex; gap: 8px; align-items: center; margin-top: 12px; font-size: 12.5px; color: var(--soft); background: rgba(88,101,242,.16); border-left: 3px solid var(--blurple); padding: 8px 10px; }
+.err { color: var(--down); font-size: 14px; margin-top: 10px; min-height: 1em; }
+.lines { margin-top: 12px; display: grid; gap: 4px; font-size: 14px; }
+.lines div { display: flex; gap: 8px; } .lines b { min-width: 56px; } .lines span:last-child { margin-left: auto; font-family: var(--mono); }
+.sides { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.side { background: var(--panel2); padding: 12px; text-align: left; border-top: 4px solid var(--c); }
+.side b { display: block; font: 400 26px/1 var(--title); letter-spacing: .04em; }
+.side span { font: 500 12px var(--mono); color: var(--muted); }
+.side[aria-pressed="true"] { background: #3d3577; outline: 3px solid var(--c); }
+.bacrow { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.bacrow .won { outline: 3px solid var(--gold); outline-offset: 6px; }
+details.pay { margin-top: 10px; font-size: 13px; color: var(--soft); line-height: 1.5; white-space: pre-line; }
+details.pay summary { cursor: pointer; font: 400 17px var(--title); letter-spacing: .08em; color: var(--gold); }
+.hidden { display: none !important; }
+.loading { color: var(--muted); padding: 40px 0; text-align: center; }
+@media (max-width: 760px) {
+  .games { grid-template-columns: 1fr 1fr; gap: 8px; } .game { min-height: 0; } .game span { display: none; } .game b { font-size: 22px; }
+  .cols { grid-template-columns: 1fr; } .hero { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .wrap { padding: 14px 14px 30px; }
+  .brand .lg { width: 70px; height: 60px; } .brand h1 { font-size: 38px; margin-top: 4px; }
+  .links { display: none; } .me { margin-top: 4px; } .me .nm { display: none; }
+  .strip { grid-template-columns: 1fr 1fr; } .strip .tl:first-child { grid-column: 1 / -1; } .tl .v { font-size: 36px; }
+  .hero h2 { font-size: 40px; }
+  .felt { padding: 12px 12px 14px; border-width: 4px; min-height: 280px; }
+  .card { width: 52px; height: 74px; font-size: 24px; } .card i { font-size: 19px; margin-top: 2px; } .hand { gap: 6px; }
+  .betchip { width: 56px; height: 56px; font-size: 17px; right: 10px; bottom: 10px; }
+  .result { position: static; display: inline-block; transform: rotate(-2deg); margin-top: 4px; font-size: 36px; animation-name: pop2; }
+  .acts .cbtn { flex: 1; text-align: center; font-size: 20px; padding: 11px 6px 9px; }
+  .chipb { width: 42px; height: 42px; font-size: 15px; }
+  .sides { gap: 6px; } .side b { font-size: 21px; }
+  .bacrow { gap: 10px; }
+  .uth-board .card { width: 46px; height: 66px; font-size: 21px; } .uth-board .card i { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><a class="lg" href="/" aria-label="Dashboard"></a><div><h1><a href="/casino" style="text-decoration:none">The Study Casino</a></h1>
+      <nav class="links"><a class="recap-link" href="/">Dashboard</a><a class="recap-link hof-link" href="/hall">🏆 Hall of Fame</a><a class="recap-link h2h-link" href="/h2h">⚔️ Head to head</a></nav></div></div>
+    <div class="me hidden" id="me"></div>
+  </header>
+  <div id="note"></div>
+  <main id="view"><p class="loading">Shuffling…</p></main>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = n => (n < 0 ? '−' : '') + '$' + (Math.abs(n) % 1 ? Math.abs(n).toFixed(2) : Math.abs(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+const signed = n => (n > 0 ? '+' : '') + money(n);
+const hue = n => [...String(n)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
+const initials = n => String(n).split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+const av = (id, name) => `<span class="av" style="--h:${hue(name)}">${esc(initials(name))}${id ? `<img src="/api/avatar?id=${esc(id)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
+const SUIT = { S: '♠', H: '♥', D: '♦', C: '♣' };
+const card = c => !c || c === 'XX' ? '<div class="card back"></div>' : c === '__' ? '<div class="card empty"></div>'
+  : `<div class="card${'HD'.includes(c[1]) ? ' r' : ''}">${c[0] === 'T' ? '10' : c[0]}<i>${SUIT[c[1]]}</i></div>`;
+const DISCORD_SVG = '<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M20.3 4.4A19.6 19.6 0 0 0 15.4 3l-.6 1.3a18 18 0 0 0-5.6 0L8.6 3a19.6 19.6 0 0 0-4.9 1.5C.6 9-.3 13.6.1 18.1A19.8 19.8 0 0 0 6.1 21l1.3-2.1a12.8 12.8 0 0 1-2-1l.5-.4a14 14 0 0 0 12.2 0l.5.4c-.6.4-1.3.7-2 1l1.3 2.1a19.7 19.7 0 0 0 6-3c.5-5.2-.9-9.8-3.6-13.7zM8.3 15.3c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4zm7.4 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4z"/></svg>';
+const ERRS = { cancelled: 'Sign-in was cancelled.', expired: 'That sign-in link expired. Try again.', discord: "Discord didn't let the sign-in through. Try again in a moment.",
+  setup: "Discord sign-in isn't switched on yet (the site needs its Discord client secret).",
+  stranger: "That Discord account isn't one the club knows yet. Use /daily once in the Discord server, or ask Renato to add your Discord ID to the Members tab, then sign in again." };
+
+// remembered bets (this browser only)
+const pref = (k, d) => { try { const v = localStorage.getItem('cas.' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } };
+const setPref = (k, v) => { try { localStorage.setItem('cas.' + k, JSON.stringify(v)); } catch (e) {} };
+
+let S = null;                 // what /api/casino said
+let T = { bj: null, uth: null, bac: null, err: '' };  // what's on each table
+let busy = false;
+
+async function api(body) {
+  const r = await fetch('/api/casino', body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' } : { credentials: 'same-origin', cache: 'no-store' });
+  let j = {}; try { j = await r.json(); } catch (e) { j = { err: 'Something went wrong. Try again.' }; }
+  if (j.signedOut) { S.me = null; render(); }
+  return j;
+}
+async function load() {
+  S = await api();
+  if (S.bj) T.bj = S.bj;
+  if (S.uth) T.uth = S.uth;
+  render();
+}
+const setBal = b => { if (S.me && typeof b === 'number') S.me.bal = b; };
+
+async function play(body, apply) {
+  if (busy) return; busy = true; T.err = ''; render();
+  try {
+    const j = await api(body);
+    if (j.busy) return;
+    if (j.err) { T.err = j.err; if (j.daily) S.me.daily = j.daily; return; }
+    setBal(j.bal); apply(j);
+  } catch (e) { T.err = "Couldn't reach the table. Check your connection."; }
+  finally { busy = false; render(); }
+}
+
+// ---------- page frame ----------
+function header() {
+  const me = $('#me');
+  if (!S.me) { me.classList.add('hidden'); return; }
+  me.classList.remove('hidden');
+  me.innerHTML = `${av(S.me.id, S.me.name)}<span class="nm">${esc(S.me.name)}</span><button id="out">sign out</button>`;
+  $('#out').onclick = async () => { await api({ a: 'logout' }); location.href = '/casino'; };
+}
+const route = () => (location.hash || '#').slice(1);
+function render() {
+  if (!S) return;
+  header();
+  const err = new URLSearchParams(location.search).get('err');
+  $('#note').innerHTML = err && ERRS[err] ? `<div class="note">${esc(ERRS[err])}</div>` : '';
+  const r = route(), v = $('#view');
+  if (!S.me || !['blackjack', 'uth', 'baccarat'].includes(r)) v.innerHTML = lobby();
+  else v.innerHTML = r === 'blackjack' ? blackjack() : r === 'uth' ? uth() : baccarat();
+  wire();
+}
+window.addEventListener('hashchange', () => { T.err = ''; T.got = 0; if (!route()) load(); else render(); window.scrollTo(0, 0); });
+
+// ---------- lobby ----------
+function board() {
+  const rows = S.board.map((r, k) => `<tr class="${S.me && r.id === S.me.id ? 'you' : ''}"><td class="rk">${k + 1}</td><td class="n">${av(r.id, r.name)}${esc(r.name)}${S.me && r.id === S.me.id ? ' <span class="youtag">you</span>' : ''}</td><td class="m">${money(r.bal)}</td></tr>`).join('');
+  return `<div class="panel"><h2 class="g">Chip leaders</h2><p class="hint">Everyone's chips, Discord and site together.</p>
+    ${rows ? `<table class="lb">${rows}</table>` : '<p class="hint">Nobody has chips yet.</p>'}</div>`;
+}
+function feed() {
+  const ago = t => { const m = Math.round((Date.now() - t) / 60e3); return m < 1 ? 'now' : m < 60 ? m + 'm' : m < 1440 ? Math.round(m / 60) + 'h' : Math.round(m / 1440) + 'd'; };
+  const rows = S.feed.map(f => `<div>${av(f.id, f.name)}${esc(f.name)} <small>${esc(f.game)} · ${ago(f.at)}</small> <span class="src${f.src === 'site' ? '' : ' d'}">${f.src === 'site' ? 'site' : 'discord'}</span><span class="amt ${f.net > 0 ? 'pos' : f.net < 0 ? 'neg' : ''}">${signed(f.net)}</span></div>`).join('');
+  return `<div class="panel"><h2 class="p">Just now</h2><p class="hint">Latest hands from Discord and the site.</p><div class="feed">${rows || '<p class="hint">No hands yet.</p>'}</div></div>`;
+}
+function dailyTile() {
+  const d = S.me.daily;
+  if (!d.wait) return `<div class="tl" style="border-left-color:var(--up)"><div class="k">Daily chips</div><div style="margin-top:8px"><button class="cbtn up" data-do="daily"${busy ? ' disabled' : ''}>Claim ${money(d.amt)}</button></div><div class="s">shared with /daily</div></div>`;
+  const m = Math.ceil(d.wait / 60e3);
+  return `<div class="tl" style="border-left-color:var(--up)"><div class="k">Daily chips</div><div class="v" style="font-size:34px">${Math.floor(m / 60)}h ${m % 60}m</div><div class="s">until +${money(d.amt)}</div></div>`;
+}
+function lobby() {
+  if (!S.me) return `<section class="hero"><div><h2>Same chips as Discord</h2>
+      <p>Play blackjack, Ultimate Hold'em and baccarat with your Discord chips. Win here and /chips on Discord shows it, and the other way round. Sign in once so the site knows whose chips they are.</p></div>
+      <div><a class="dbtn" href="/api/login">${DISCORD_SVG}Sign in with Discord</a><div class="fine">The site only gets your Discord name, pfp and ID. No password, no email, no messages.</div></div></section>
+    <div class="cols">${board()}${feed()}</div>`;
+  const me = S.me, top = S.board[0];
+  const msg = T.got ? `<div class="note ok">+${money(T.got)} added${T.first ? ' (welcome bonus)' : ''}. Good luck.</div>` : '';
+  return `${msg}<div class="strip">
+      <div class="tl"><div class="k">Your chips</div><div class="v">${me.bal === null ? '$0' : money(me.bal)}</div><div class="s">${me.rank ? `#${me.rank} of ${S.players} · same balance as /chips on Discord` : 'Claim your daily chips to get started'}</div></div>
+      ${dailyTile()}
+      <div class="tl" style="border-left-color:var(--pink)"><div class="k">Top stack</div><div class="v">${top ? esc(top.name) : '–'}</div><div class="s">${top ? money(top.bal) : ''}</div></div>
+    </div>
+    ${T.err ? `<div class="err">${esc(T.err)}</div>` : ''}
+    <div class="panel"><h2>Pick a table</h2><p class="hint">Same games, rules and limits as the Discord commands.</p>
+      <div class="games">
+        <a class="game" href="#blackjack" style="--c:var(--gold)"><div class="ic">🂡</div><b>Blackjack</b><span>$1 to $${S.maxBet}. Hit, stand, double, split.</span><div class="go">${T.bj && !T.bj.over ? 'Back to your hand →' : 'Play →'}</div></a>
+        <a class="game" href="#uth" style="--c:var(--pink)"><div class="ic">🤠</div><b>Ultimate Hold'em</b><span>Ante $1 to $${S.maxAnte} + blind, optional trips.</span><div class="go">${T.uth && T.uth.stage !== 'done' ? 'Back to your hand →' : 'Play →'}</div></a>
+        <a class="game" href="#baccarat" style="--c:var(--vio)"><div class="ic">🎴</div><b>Baccarat</b><span>Player, Banker or Tie.</span><div class="go">Play →</div></a>
+        <div class="game soon" style="--c:var(--up)"><div class="ic">🎡</div><b>Roulette</b><span>Coming next. Use /roulette in Discord for now.</span><div class="go">Soon</div></div>
+        <div class="game soon" style="--c:#7fb6ff"><div class="ic">⚔️</div><b>Duel</b><span>Coming next. Use /duel in Discord for now.</span><div class="go">Soon</div></div>
+      </div></div>
+    <div class="cols">${board()}${feed()}</div>`;
+}
+
+// ---------- shared table bits ----------
+const balBar = (title, net) => `<div class="tablebar"><a class="cbtn vio" href="#">← Lobby</a><span class="bal">Chips<b>${money(S.me.bal || 0)}</b>${net ? `<i class="${net > 0 ? 'pos' : 'neg'}">${signed(net)}</i>` : ''}</span></div>`;
+const resultStamp = net => `<div class="result${net < 0 ? ' lost' : net === 0 ? ' even' : ''}">${net > 0 ? 'You win' : net < 0 ? 'You lose' : 'Push'}<small>${net ? signed(net) : 'bet back'}</small></div>`;
+const CHIP_COLORS = ['#6e52c8', '#a23b58', '#2f7a55', '#1b1b1b', '#bd8210'];
+function chipPicker(key, values, current, label) {
+  return `<div class="chips"><span class="lab">${label}</span>${values.map((v, k) => `<button class="chipb" style="background:${CHIP_COLORS[k % 5]}" data-chip="${key}" data-v="${v}" aria-pressed="${v === current}">${v}</button>`).join('')}
+    <input class="amt-in" type="number" inputmode="numeric" min="${key === 'trips' ? 0 : 1}" data-amt="${key}" value="${current}" aria-label="${label} amount"></div>`;
+}
+const syncLine = '<div class="sync">🔗 Uses your Discord chips. Your balance and /chips on Discord update straight away.</div>';
+
+// ---------- blackjack ----------
+function blackjack() {
+  const g = T.bj, bet = pref('bj', 20), live = g && !g.over;
+  let felt = '<div class="lbl">Dealer</div><div class="hand">' + card('__') + card('__') + '</div><div class="lbl">' + esc(S.me.name) + '</div><div class="hand">' + card('__') + card('__') + '</div>';
+  if (g) {
+    const dTxt = g.over ? (g.dealerTotal > 21 ? `${g.dealerTotal} · bust` : g.dealerTotal) : `${g.dealerTotal} + ?`;
+    felt = `<div class="lbl">Dealer <span class="tot">${dTxt}</span></div><div class="hand">${g.dealer.map(card).join('')}</div><div class="hands">` +
+      g.hands.map((h, k) => `<div><div class="lbl${live && g.active === k && g.hands.length > 1 ? ' on' : ''}">${esc(S.me.name)}${g.hands.length > 1 ? ` · hand ${k + 1}` : ''} · ${money(h.bet)}${h.doubled ? ' (doubled)' : ''}
+        <span class="tot">${h.soft && h.total < 21 && live ? `${h.total - 10} / ${h.total}` : h.total}</span>${h.res ? `<span class="tag ${h.res}">${{ win: 'WIN', bj: 'BLACKJACK', push: 'PUSH', lose: 'LOSE', bust: 'BUST' }[h.res]}</span>` : ''}</div>
+        <div class="hand">${h.cards.map(card).join('')}</div></div>`).join('') + '</div>' +
+      `<div class="betchip">${money(g.hands.reduce((a, h) => a + h.bet, 0))}</div>` + (g.over ? resultStamp(g.net) : '');
+  }
+  const controls = live
+    ? `<div class="acts"><button class="cbtn gold" data-bj="hit">Hit</button><button class="cbtn" data-bj="stand">Stand</button>
+        <button class="cbtn ghost" data-bj="double"${g.canDouble ? '' : ' disabled'}>Double</button><button class="cbtn ghost" data-bj="split"${g.canSplit ? '' : ' disabled'}>Split</button></div>`
+    : `<div class="acts">${chipPicker('bj', [5, 20, 50, 100, 500], bet, 'Bet')}</div>
+       <div class="acts"><button class="cbtn gold big" data-do="bj-deal">Deal ${money(bet)}</button></div>`;
+  return `${balBar('Blackjack', g && g.over ? g.net : 0)}<div class="felt">${felt}</div>${controls}<div class="err">${esc(T.err)}</div>
+    <p class="rules">Blackjack pays 3:2 · dealer stands on all 17s · double on any first two cards · one split (split aces get one card each) · $1 to $${S.maxBet}. Same as /blackjack.</p>${syncLine}`;
+}
+
+// ---------- Ultimate Hold'em ----------
+function uth() {
+  const g = T.uth, ante = pref('ante', 10), trips = pref('trips', 0), done = g && g.stage === 'done';
+  let felt;
+  if (!g) felt = `<div class="lbl">Dealer</div><div class="hand">${card('__')}${card('__')}</div><div class="lbl">Board</div><div class="hand uth-board">${Array(5).fill(card('__')).join('')}</div><div class="lbl">${esc(S.me.name)}</div><div class="hand">${card('__')}${card('__')}</div>`;
+  else felt = `<div class="lbl">Dealer ${done ? `<span class="tot">${esc(g.dlHand)}${g.qualifies ? ' · qualifies' : " · doesn't qualify"}</span>` : ''}</div><div class="hand">${g.dealer.map(card).join('')}</div>
+      <div class="lbl">Board</div><div class="hand uth-board">${g.board.map(c => c === 'XX' ? card('__') : card(c)).join('')}</div>
+      <div class="lbl">${esc(S.me.name)} <span class="tot">${esc(g.myHand)}</span>${done ? `<span class="tag ${g.res}">${g.res.toUpperCase()}</span>` : ''}</div><div class="hand">${g.me.map(card).join('')}</div>
+      <div class="betchip">${money(g.onTable)}</div>${done ? resultStamp(g.net) : ''}`;
+  let controls;
+  if (g && !done) {
+    const a = g.ante, b = (m, label, cls = 'gold') => `<button class="cbtn ${cls}" data-uth="b${m}"${g.afford[m] ? '' : ' disabled'}>${label} ${money(a * m)}</button>`;
+    controls = `<div class="acts">${g.stage === 'pre' ? b(4, 'Bet 4x') + b(3, 'Bet 3x', '') + '<button class="cbtn ghost" data-uth="chk">Check</button>'
+      : g.stage === 'flop' ? b(2, 'Bet 2x') + '<button class="cbtn ghost" data-uth="chk">Check</button>'
+      : b(1, 'Bet 1x') + '<button class="cbtn ghost" data-uth="fold">Fold</button>'}</div>
+      <p class="rules">${g.stage === 'pre' ? 'Pre-flop: bet 4x or 3x your ante now, or check and decide after the flop.' : g.stage === 'flop' ? 'Flop: bet 2x your ante, or check.' : 'River: bet 1x your ante, or fold and lose the ante and blind.'}
+      Ante ${money(g.ante)} · Blind ${money(g.ante)}${g.trips ? ` · Trips ${money(g.trips)}` : ''}</p>`;
+  } else {
+    controls = `<div class="acts">${chipPicker('ante', [5, 10, 25, 50, 100], ante, 'Ante')}</div><div class="acts">${chipPicker('trips', [0, 5, 10, 25], trips, 'Trips')}</div>
+      <div class="acts"><button class="cbtn gold big" data-do="uth-deal">Deal (${money(ante * 2 + trips)} up front)</button></div>`;
+  }
+  const lines = done ? `<div class="lines">${g.lines.map(([b, why, amt]) => `<div><b>${esc(b)}</b><span>${esc(why)}</span><span class="${amt > 0 ? 'pos' : amt < 0 ? 'neg' : ''}">${amt ? signed(amt) : '$0'}</span></div>`).join('')}</div>` : '';
+  return `${balBar("Ultimate Hold'em", done ? g.net : 0)}<div class="felt">${felt}</div>${lines}${controls}<div class="err">${esc(T.err)}</div>
+    <details class="pay"><summary>Payouts</summary>${esc(S.uthPaytable)}</details>${syncLine}`;
+}
+
+// ---------- baccarat ----------
+function baccarat() {
+  const r = T.bac, bet = pref('bac', 20), side = pref('side', 'banker');
+  const SIDES = { player: ['Player', 'pays 1:1', 'var(--vio)'], banker: ['Banker', 'pays 0.95:1', 'var(--gold)'], tie: ['Tie', 'pays 8:1', 'var(--up)'] };
+  let felt = `<div class="bacrow"><div><div class="lbl">Player</div><div class="hand">${card('__')}${card('__')}</div></div><div><div class="lbl">Banker</div><div class="hand">${card('__')}${card('__')}</div></div></div>`;
+  if (r) {
+    const c = r.coup, w = c.winner;
+    felt = `<div class="bacrow"><div class="${w === 'player' ? 'won' : ''}"><div class="lbl">Player <span class="tot">${c.ps}</span>${w === 'player' ? '<span class="tag win">WINS</span>' : ''}</div><div class="hand">${c.p.map(card).join('')}</div></div>
+      <div class="${w === 'banker' ? 'won' : ''}"><div class="lbl">Banker <span class="tot">${c.bs}</span>${w === 'banker' ? '<span class="tag win">WINS</span>' : ''}</div><div class="hand">${c.b.map(card).join('')}</div></div></div>
+      <div class="lbl" style="margin-top:6px">${w === 'tie' ? `Tie ${c.ps}–${c.bs}` : `${SIDES[w][0]} wins ${Math.max(c.ps, c.bs)}–${Math.min(c.ps, c.bs)}`}${c.natural ? ' · natural' : ''} · you bet ${money(r.bet)} on ${SIDES[r.side][0]}</div>
+      ${resultStamp(r.net)}`;
+  }
+  return `${balBar('Baccarat', r ? r.net : 0)}<div class="felt bac" style="min-height:250px">${felt}</div>
+    <div class="acts" style="display:block"><div class="sides">${Object.entries(SIDES).map(([k, [n, p, c]]) => `<button class="side" style="--c:${c}" data-side="${k}" aria-pressed="${k === side}"><b>${n}</b><span>${p}</span></button>`).join('')}</div></div>
+    <div class="acts">${chipPicker('bac', [5, 20, 50, 100, 500], bet, 'Bet')}</div>
+    <div class="acts"><button class="cbtn gold big" data-do="bac-deal">Deal ${money(bet)} on ${SIDES[side][0]}</button></div><div class="err">${esc(T.err)}</div>
+    <p class="rules">Fresh 6-deck shoe each hand, standard third-card rules. Player and Banker bets push on a tie. Same as /baccarat.</p>${syncLine}`;
+}
+
+// ---------- buttons ----------
+const LIMIT = { bj: [1, () => S.maxBet], bac: [1, () => S.maxBet], ante: [1, () => S.maxAnte], trips: [0, () => S.maxTrips] };
+const clamp = (k, v) => Math.min(LIMIT[k][1](), Math.max(LIMIT[k][0], Math.floor(+v || 0)));
+function wire() {
+  document.querySelectorAll('[data-chip]').forEach(b => b.onclick = () => { setPref(b.dataset.chip, clamp(b.dataset.chip, b.dataset.v)); render(); });
+  document.querySelectorAll('[data-amt]').forEach(i => i.onchange = () => { setPref(i.dataset.amt, clamp(i.dataset.amt, i.value)); render(); });
+  document.querySelectorAll('[data-side]').forEach(b => b.onclick = () => { setPref('side', b.dataset.side); render(); });
+  document.querySelectorAll('[data-bj]').forEach(b => b.onclick = () => play({ a: 'bj-act', id: T.bj.id, do: b.dataset.bj }, j => { T.bj = j.hand; }));
+  document.querySelectorAll('[data-uth]').forEach(b => b.onclick = () => play({ a: 'uth-act', id: T.uth.id, do: b.dataset.uth }, j => { T.uth = j.hand; }));
+  document.querySelectorAll('[data-do]').forEach(b => b.onclick = () => {
+    const d = b.dataset.do;
+    if (d === 'daily') play({ a: 'daily' }, j => { S.me.daily = j.daily; T.got = j.got; T.first = j.first; load(); });
+    if (d === 'bj-deal') play({ a: 'bj', bet: pref('bj', 20) }, j => { T.bj = j.hand; });
+    if (d === 'uth-deal') play({ a: 'uth', ante: pref('ante', 10), trips: pref('trips', 0) }, j => { T.uth = j.hand; });
+    if (d === 'bac-deal') { const bet = pref('bac', 20), side = pref('side', 'banker'); play({ a: 'bac', bet, side }, j => { T.bac = { ...j, bet }; }); }
+  });
+  if (busy) document.querySelectorAll('[data-bj],[data-uth],[data-do]').forEach(b => b.disabled = true);
+}
+load();
+</script>
+
+<!-- phone-only tab bar at the bottom (the header buttons hide on phones) -->
+<style>
+.tabbar { display: none; }
+@media (max-width: 640px) {
+  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: grid; grid-template-columns: repeat(5, 1fr);
+    background: rgba(22,19,42,.94); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border-top: 1px solid rgba(255,255,255,.1);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
+  .tabbar a { display: flex; flex-direction: column; align-items: center; gap: 3px; color: #a9a3cf; text-decoration: none; font: 800 11px/1.1 Nunito, system-ui, sans-serif; padding: 4px 0; }
+  .tabbar a span { font-size: 20px; line-height: 1; }
+  .tabbar a.on { color: #f1c75b; }
+  body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
+  .recap-link, .tab-hide { display: none !important; }
+}
+</style>
+<nav class="tabbar" aria-label="Pages"><a href="/"><span aria-hidden="true">📊</span>Dashboard</a><a href="/recap"><span aria-hidden="true">📰</span>Recap</a><a href="/hall"><span aria-hidden="true">🏆</span>Hall</a><a href="/h2h"><span aria-hidden="true">⚔️</span>H2H</a><a href="/casino" class="on" aria-current="page"><span aria-hidden="true">🃏</span>Casino</a></nav>
+<link rel="stylesheet" href="/lateshow.css">
+</body>
+</html>

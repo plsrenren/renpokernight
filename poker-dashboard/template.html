@@ -41,6 +41,7 @@ h1 { font-family: var(--title); font-weight: 400; font-size: clamp(32px, 5vw, 46
 .recap-link:hover { filter: brightness(1.12); }
 .hof-link { background: linear-gradient(120deg, #6b4e12, #a8801f); margin-left: 6px; }
 .h2h-link { background: linear-gradient(120deg, #4a3a8c, #7a5fd0); margin-left: 6px; }
+.casino-link { background: linear-gradient(120deg, #1f5a40, #2f7a55); margin-left: 6px; }
 a.rc-mu { text-decoration: none; color: inherit; }
 .recap-link:focus-visible { outline: 2px solid var(--felt); outline-offset: 2px; }
 .sub { color: var(--muted); margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
@@ -232,7 +233,7 @@ a.rc-mu { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; b
     <div>
       <div class="brand"><div class="lg" role="img" aria-label="Poker Club @ The Study logo"></div>
         <div><h1>Poker Club @ The Study</h1>
-        <div class="sub"><span class="src-line"><span class="dot" id="srcDot"></span> <span id="srcText">Loading results…</span></span><a class="recap-link" href="/recap">Latest recap →</a><a class="recap-link hof-link" href="/hall">🏆 Hall of Fame</a><a class="recap-link h2h-link" href="/h2h">⚔️ Head to head</a></div></div></div>
+        <div class="sub"><span class="src-line"><span class="dot" id="srcDot"></span> <span id="srcText">Loading results…</span></span><a class="recap-link" href="/recap">Latest recap →</a><a class="recap-link hof-link" href="/hall">🏆 Hall of Fame</a><a class="recap-link h2h-link" href="/h2h">⚔️ Head to head</a><a class="recap-link casino-link" href="/casino">🃏 Casino</a></div></div></div>
     </div>
     <div class="controls" id="controls">
       <label class="lbl" for="oYear">Year</label>
@@ -929,7 +930,7 @@ boot();
 <style>
 .tabbar { display: none; }
 @media (max-width: 640px) {
-  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: grid; grid-template-columns: repeat(4, 1fr);
+  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: grid; grid-template-columns: repeat(5, 1fr);
     background: rgba(22,19,42,.94); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border-top: 1px solid rgba(255,255,255,.1);
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
   .tabbar a { display: flex; flex-direction: column; align-items: center; gap: 3px; color: #a9a3cf; text-decoration: none; font: 800 11px/1.1 Nunito, system-ui, sans-serif; padding: 4px 0; }
@@ -939,5 +940,5 @@ boot();
   .recap-link, .tab-hide { display: none !important; }
 }
 </style>
-<nav class="tabbar" aria-label="Pages"><a href="/" class="on" aria-current="page"><span aria-hidden="true">📊</span>Dashboard</a><a href="/recap"><span aria-hidden="true">📰</span>Recap</a><a href="/hall"><span aria-hidden="true">🏆</span>Hall</a><a href="/h2h"><span aria-hidden="true">⚔️</span>H2H</a></nav>
+<nav class="tabbar" aria-label="Pages"><a href="/" class="on" aria-current="page"><span aria-hidden="true">📊</span>Dashboard</a><a href="/recap"><span aria-hidden="true">📰</span>Recap</a><a href="/hall"><span aria-hidden="true">🏆</span>Hall</a><a href="/h2h"><span aria-hidden="true">⚔️</span>H2H</a><a href="/casino"><span aria-hidden="true">🃏</span>Casino</a></nav>
 <link rel="stylesheet" href="/lateshow.css">

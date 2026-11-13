@@ -51,16 +51,39 @@ export function whoIs(i, s) {
 }
 export const noStorage = () => quiet("Blackjack isn't set up yet: the site needs its chip storage (Upstash) connected in Vercel.");
 
+// "Just now" feed on the site's /casino page: the last 30 finished hands from Discord and the site.
+// me.src is 'site' for the website; Discord players have no src.
+export const feedCmds = (me, game, net) => [
+  ['LPUSH', 'cas:feed', JSON.stringify({ id: me.id, name: me.name, game, net: Math.round(net * 100) / 100, src: me.src || 'discord', at: Date.now() })],
+  ['LTRIM', 'cas:feed', 0, 29]];
+
 // ---------- /daily ----------
+/** Shared by /daily and the site: { wait } (ms until the next claim) or { amt, bal, first }. */
+export async function claimDaily(me) {
+  const now = Date.now();
+  // a short lock so two taps (or Discord and the site at once) can't both claim
+  const [last, got] = await kv(['HGET', 'bj:last', me.id], ['SET', 'bj:dlock:' + me.id, '1', 'NX', 'PX', 3000]);
+  if (last && now - +last < DAY) return { wait: DAY - (now - +last), amt: DAILY };
+  if (!got) return { wait: 0, busy: true, amt: DAILY };
+  const amt = last ? DAILY : FIRST_CLAIM;
+  const [bal] = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, amt], ['HSET', 'bj:last', me.id, now], ['HSET', 'bj:name', me.id, me.name], ...feedCmds(me, 'daily', amt));
+  return { amt, bal: +bal, first: !last };
+}
+/** When the next daily is ready (ms from now, 0 = ready) and how much it gives. */
+export async function dailyStatus(id) {
+  const [last] = await kv(['HGET', 'bj:last', id]);
+  return { wait: last ? Math.max(0, DAY - (Date.now() - +last)) : 0, amt: last ? DAILY : FIRST_CLAIM };
+}
+
 async function daily(i, s) {
-  const me = whoIs(i, s), now = Date.now();
-  const [last] = await kv(['HGET', 'bj:last', me.id]);
-  if (last && now - +last < DAY) {
-    const left = Math.ceil((DAY - (now - +last)) / 60e3), hrs = Math.floor(left / 60), mins = left % 60;
+  const me = whoIs(i, s);
+  const r = await claimDaily(me);
+  if (r.busy) return quiet('One moment, that claim is already going through.');
+  if (r.wait !== undefined) {
+    const left = Math.ceil(r.wait / 60e3), hrs = Math.floor(left / 60), mins = left % 60;
     return quiet(`⏳ Already claimed. Next **+${money(DAILY)}** in ${hrs}h ${mins}m.`);
   }
-  const amt = last ? DAILY : FIRST_CLAIM;
-  const [bal] = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, amt], ['HSET', 'bj:last', me.id, now], ['HSET', 'bj:name', me.id, me.name]);
+  const { amt, bal } = r, last = !r.first;
   return json({ type: 4, data: { allowed_mentions: { parse: [] }, embeds: [{ color: 0x8ee0b0,
     title: last ? `🎁 ${me.name} claimed ${money(amt)}` : '🎁 Welcome bonus!',
     description: `${last ? '' : 'First claim gets double. '}**+${money(amt)}** in chips\n\nBalance **${money(+bal)}**`,
@@ -68,11 +91,15 @@ async function daily(i, s) {
 }
 
 // ---------- /chips ----------
-async function chips() {
+/** Everyone's chips, most first: [{ id, name, bal }]. Shared by /chips and the site. */
+export async function chipBoard() {
   const [bal, names] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name']);
   const pairs = a => { const o = {}; for (let k = 0; k < (a || []).length; k += 2) o[a[k]] = a[k + 1]; return o; };
   const b = pairs(bal), n = pairs(names);
-  const rows = Object.entries(b).map(([id, v]) => [n[id] || 'Someone', +v]).sort((x, y) => y[1] - x[1]).slice(0, 15);
+  return Object.entries(b).map(([id, v]) => ({ id, name: n[id] || 'Someone', bal: +v })).sort((x, y) => y.bal - x.bal);
+}
+async function chips() {
+  const rows = (await chipBoard()).slice(0, 15).map(r => [r.name, r.bal]);
   const medal = ['🥇', '🥈', '🥉'];
   const lines = rows.map(([nm, v], k) => `${medal[k] || `\`${k + 1}.\``} **${nm}** · ${money(v)}${v < 1 ? ' · broke 💀' : ''}`);
   return json({ type: 4, data: { allowed_mentions: { parse: [] }, embeds: [{ color: 0xf1c75b, title: '🪙 Blackjack chip leaders',
@@ -139,14 +166,16 @@ function view(g, bal) {
     components: [{ type: 1, components: row }] };
 }
 
-async function newHand(me, bet) {
+/** Deals a new hand and takes the bet. Shared by /blackjack and the site: { g, bal } or { err }. */
+export async function newHand(me, bet) {
   const [balRaw] = await kv(['HGET', 'bj:bal', me.id]);
   if (balRaw === null) return { err: `You don't have any chips yet. Use **/daily** to get ${money(FIRST_CLAIM)} free.` };
   if (+balRaw < bet) return { err: +balRaw < 1 ? `You're out of chips 💀 Use **/daily** for more.` : `You only have ${money(+balRaw)}. Bet that or less.` };
   const g = { id: randomBytes(5).toString('hex'), uid: me.id, name: me.name, bet, step: 0, deck: freshDeck(), dealer: [], hands: [{ cards: [], bet }], active: 0, over: false };
   g.hands[0].cards.push(draw(g)); g.dealer.push(draw(g)); g.hands[0].cards.push(draw(g)); g.dealer.push(draw(g));
   if (natural(g.hands[0]) || total(g.dealer).t === 21) settle(g);
-  const res = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, (g.over ? g.payout : 0) - bet], ['HSET', 'bj:name', me.id, me.name], ['SET', 'bj:g:' + g.id, JSON.stringify(g), 'EX', 3600]);
+  const res = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, (g.over ? g.payout : 0) - bet], ['HSET', 'bj:name', me.id, me.name], ['SET', 'bj:g:' + g.id, JSON.stringify(g), 'EX', 3600],
+    ...(g.over ? feedCmds(me, 'blackjack', g.net) : []));
   return { g, bal: +res[0] };
 }
 
@@ -157,46 +186,74 @@ async function blackjack(i, opts, s) {
   return json({ type: 4, data: view(out.g, out.bal) });
 }
 
-/** The buttons under a hand (custom_id bj:<action>:<hand id>). */
-export async function blackjackButton(i, s) {
-  if (!kvUrl() || !kvToken()) return noStorage();
-  const [, action, gid] = String(i.data.custom_id).split(':');
-  const me = whoIs(i, s);
+/** Hit / Stand / Double / Split on a hand in progress. Shared by the Discord buttons and the site.
+ *  Returns { g, bal }, { err } (a message for the player), { gone } (hand expired), { notYours }, or { busy } (a tap is already being handled). */
+export async function handAction(me, gid, action) {
   const [raw, lock] = await kv(['GET', 'bj:g:' + gid], ['SET', 'bj:lock:' + gid, '1', 'NX', 'EX', 5]);
   const unlock = () => kv(['DEL', 'bj:lock:' + gid]).catch(() => {});
-  if (!raw) { await unlock(); return quiet('This hand has expired. Start a new one with **/blackjack**.'); }
+  if (!raw) { if (lock) await unlock(); return { gone: true }; }
   const g = JSON.parse(raw);
-  if (g.uid !== me.id) { if (lock) await unlock(); return quiet(`That's ${g.name}'s hand. Start your own with **/blackjack**.`); }
-  if (!lock) return json({ type: 6 }); // a second tap while the first is still being handled
+  if (g.uid !== me.id) { if (lock) await unlock(); return { notYours: g.name }; }
+  if (!lock) return { busy: true };
   try {
-    if (action === 'again') {
-      if (!g.over) return json({ type: 6 });
-      const out = await newHand(me, g.bet);
-      if (out.err) return quiet(out.err);
-      return json({ type: 4, data: view(out.g, out.bal) });
-    }
-    if (g.over) return json({ type: 6 });
+    if (g.over) return { busy: true };
     const [balRaw] = await kv(['HGET', 'bj:bal', me.id]);
     let bal = +balRaw || 0, spend = 0;
     const h = active(g);
     if (action === 'hit') { h.cards.push(draw(g)); autoDone(h); }
     else if (action === 'stand') h.done = true;
     else if (action === 'double') {
-      if (!canDouble(g, bal)) return quiet("You can't double here (two cards only, and you need the chips to match your bet).");
+      if (!canDouble(g, bal)) return { err: "You can't double here (two cards only, and you need the chips to match your bet)." };
       spend = h.bet; h.bet *= 2; h.doubled = true; h.cards.push(draw(g)); h.done = true;
     } else if (action === 'split') {
-      if (!canSplit(g, bal)) return quiet("You can only split two cards of the same value once, with chips to match your bet.");
+      if (!canSplit(g, bal)) return { err: 'You can only split two cards of the same value once, with chips to match your bet.' };
       spend = h.bet;
       const [c1, c2] = h.cards, aces = c1[0] === 'A';
       g.hands = [{ cards: [c1, draw(g)], bet: h.bet, split: true }, { cards: [c2, draw(g)], bet: h.bet, split: true }];
       for (const x of g.hands) { if (aces) x.done = true; autoDone(x); }
-    } else return json({ type: 6 });
+    } else return { busy: true };
     advance(g); g.step++;
     const delta = (g.over ? g.payout : 0) - spend;
-    const res = await kv(...(delta ? [['HINCRBYFLOAT', 'bj:bal', me.id, delta]] : [['HGET', 'bj:bal', me.id]]), ['SET', 'bj:g:' + g.id, JSON.stringify(g), 'EX', 3600]);
+    const res = await kv(...(delta ? [['HINCRBYFLOAT', 'bj:bal', me.id, delta]] : [['HGET', 'bj:bal', me.id]]), ['SET', 'bj:g:' + g.id, JSON.stringify(g), 'EX', 3600],
+      ...(g.over ? feedCmds(me, 'blackjack', g.net) : []));
     bal = +res[0];
-    return json({ type: 7, data: view(g, bal) });
+    return { g, bal };
   } finally { await unlock(); }
+}
+
+/** What the site may see of a hand: no deck, and the dealer's second card stays face down until it's over. */
+export function publicHand(g, bal) {
+  return { id: g.id, bet: g.bet, over: g.over, active: g.active, net: g.net, payout: g.payout,
+    dealer: g.over ? g.dealer : [g.dealer[0], 'XX'], dealerTotal: total(g.over ? g.dealer : [g.dealer[0]]).t,
+    hands: g.hands.map((h, k) => ({ cards: h.cards, bet: h.bet, doubled: !!h.doubled, res: h.res || null, total: total(h.cards).t, soft: total(h.cards).soft })),
+    canDouble: canDouble(g, bal), canSplit: canSplit(g, bal) };
+}
+
+/** The buttons under a hand (custom_id bj:<action>:<hand id>). */
+export async function blackjackButton(i, s) {
+  if (!kvUrl() || !kvToken()) return noStorage();
+  const [, action, gid] = String(i.data.custom_id).split(':');
+  const me = whoIs(i, s);
+  if (action === 'again') {
+    const [raw, lock] = await kv(['GET', 'bj:g:' + gid], ['SET', 'bj:lock:' + gid, '1', 'NX', 'EX', 5]);
+    const unlock = () => kv(['DEL', 'bj:lock:' + gid]).catch(() => {});
+    if (!raw) { if (lock) await unlock(); return quiet('This hand has expired. Start a new one with **/blackjack**.'); }
+    const g = JSON.parse(raw);
+    if (g.uid !== me.id) { if (lock) await unlock(); return quiet(`That's ${g.name}'s hand. Start your own with **/blackjack**.`); }
+    if (!lock) return json({ type: 6 });
+    try {
+      if (!g.over) return json({ type: 6 });
+      const out = await newHand(me, g.bet);
+      if (out.err) return quiet(out.err);
+      return json({ type: 4, data: view(out.g, out.bal) });
+    } finally { await unlock(); }
+  }
+  const r = await handAction(me, gid, action);
+  if (r.gone) return quiet('This hand has expired. Start a new one with **/blackjack**.');
+  if (r.notYours) return quiet(`That's ${r.notYours}'s hand. Start your own with **/blackjack**.`);
+  if (r.busy) return json({ type: 6 });
+  if (r.err) return quiet(r.err);
+  return json({ type: 7, data: view(r.g, r.bal) });
 }
 
 /** Slash commands: returns a Response, or null when the command isn't a blackjack one. */
