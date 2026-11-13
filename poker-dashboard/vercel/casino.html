@@ -75,6 +75,7 @@ button:disabled { cursor: default; opacity: .4; }
 .feed .amt { margin-left: auto; font-family: var(--mono); white-space: nowrap; }
 .src { font: 600 10px var(--mono); padding: 1px 5px; background: #2a2550; color: var(--muted); }
 .src.d { background: rgba(88,101,242,.25); color: #c9cdfb; }
+.src.n { background: rgba(241,199,91,.22); color: var(--gold); }
 .pos { color: var(--up); } .neg { color: var(--down); }
 /* signed out */
 .hero { margin-top: 16px; background: linear-gradient(100deg, #3a2a6e, #a23b58); border-left: 6px solid var(--gold); padding: 20px 22px 22px; display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center; }
@@ -105,6 +106,7 @@ button:disabled { cursor: default; opacity: .4; }
 .card.back { background: repeating-linear-gradient(45deg, #5a40ad 0 7px, #6e52c8 7px 14px); border: 4px solid #f6f3ea; }
 .card.empty { background: rgba(255,255,255,.06); box-shadow: none; border: 2px dashed rgba(255,255,255,.18); animation: none; }
 @keyframes deal { from { transform: translateY(-14px); opacity: 0; } }
+.card.still, .result.still { animation: none; } /* already on the table before this update: no re-deal */
 .betchip { position: absolute; right: 26px; bottom: 22px; width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; font: 400 24px var(--title); color: #fff;
   background: radial-gradient(circle, #a23b58 0 46%, #fff 46% 50%, #a23b58 50% 62%, transparent 62%), repeating-conic-gradient(#fff 0 15deg, #a23b58 15deg 45deg); box-shadow: 0 6px 14px rgba(0,0,0,.4); }
 .result { position: absolute; right: 140px; top: 45%; transform: translateY(-50%) rotate(-4deg); background: var(--gold); color: #15132a; font: 400 54px/1 var(--title); padding: 10px 26px 4px; letter-spacing: .04em; box-shadow: 0 10px 30px rgba(0,0,0,.5); text-align: center; white-space: nowrap; animation: pop .3s ease-out both; }
@@ -233,9 +235,20 @@ function render() {
   const err = new URLSearchParams(location.search).get('err');
   $('#note').innerHTML = err && ERRS[err] ? `<div class="note">${esc(ERRS[err])}</div>` : '';
   const r = route(), v = $('#view');
+  const before = onTable();
   if (!S.me || !['blackjack', 'uth', 'baccarat'].includes(r)) v.innerHTML = lobby();
   else v.innerHTML = r === 'blackjack' ? blackjack() : r === 'uth' ? uth() : baccarat();
+  onTable(before);
   wire();
+}
+// Only newly dealt cards (and a new result stamp) animate. Cards already on the table keep still when the page redraws.
+// Without a set: returns what's on the table now. With one: marks the cards that were already there.
+function onTable(before) {
+  const now = new Set(), f = document.querySelector('.felt'), hid = route() + '|' + (f ? f.dataset.hid : '');
+  const mark = (el, key) => { if (before) { if (before.has(key)) el.classList.add('still'); } else now.add(key); };
+  document.querySelectorAll('.felt .hand').forEach((h, i) => [...h.children].forEach((c, j) => mark(c, `${hid}|${i}|${j}|${c.className.replace(' still', '')}|${c.textContent}`)));
+  const st = document.querySelector('.result'); if (st) mark(st, `${hid}|result|${st.textContent}`);
+  return now;
 }
 window.addEventListener('hashchange', () => { T.err = ''; T.got = 0; if (!route()) load(); else render(); window.scrollTo(0, 0); });
 
@@ -247,8 +260,8 @@ function board() {
 }
 function feed() {
   const ago = t => { const m = Math.round((Date.now() - t) / 60e3); return m < 1 ? 'now' : m < 60 ? m + 'm' : m < 1440 ? Math.round(m / 60) + 'h' : Math.round(m / 1440) + 'd'; };
-  const rows = S.feed.map(f => `<div>${av(f.id, f.name)}${esc(f.name)} <small>${esc(f.game)} · ${ago(f.at)}</small> <span class="src${f.src === 'site' ? '' : ' d'}">${f.src === 'site' ? 'site' : 'discord'}</span><span class="amt ${f.net > 0 ? 'pos' : f.net < 0 ? 'neg' : ''}">${signed(f.net)}</span></div>`).join('');
-  return `<div class="panel"><h2 class="p">Just now</h2><p class="hint">Latest hands from Discord and the site.</p><div class="feed">${rows || '<p class="hint">No hands yet.</p>'}</div></div>`;
+  const rows = S.feed.map(f => `<div>${av(f.id, f.name)}${esc(f.name)} <small>${esc(f.game)} · ${ago(f.at)}</small> <span class="src${f.src === 'site' ? '' : f.src === 'night' ? ' n' : ' d'}">${f.src === 'site' ? 'site' : f.src === 'night' ? 'reward' : 'discord'}</span><span class="amt ${f.net > 0 ? 'pos' : f.net < 0 ? 'neg' : ''}">${signed(f.net)}</span></div>`).join('');
+  return `<div class="panel"><h2 class="p">Just now</h2><p class="hint">Latest hands from Discord and the site, plus chip rewards from poker nights.</p><div class="feed">${rows || '<p class="hint">No hands yet.</p>'}</div></div>`;
 }
 function dailyTile() {
   const d = S.me.daily;
@@ -307,7 +320,7 @@ function blackjack() {
         <button class="cbtn ghost" data-bj="double"${g.canDouble ? '' : ' disabled'}>Double</button><button class="cbtn ghost" data-bj="split"${g.canSplit ? '' : ' disabled'}>Split</button></div>`
     : `<div class="acts">${chipPicker('bj', [5, 20, 50, 100, 500], bet, 'Bet')}</div>
        <div class="acts"><button class="cbtn gold big" data-do="bj-deal">Deal ${money(bet)}</button></div>`;
-  return `${balBar('Blackjack', g && g.over ? g.net : 0)}<div class="felt">${felt}</div>${controls}<div class="err">${esc(T.err)}</div>
+  return `${balBar('Blackjack', g && g.over ? g.net : 0)}<div class="felt" data-hid="${g ? g.id : ''}">${felt}</div>${controls}<div class="err">${esc(T.err)}</div>
     <p class="rules">Blackjack pays 3:2 · dealer stands on all 17s · double on any first two cards · one split (split aces get one card each) · $1 to $${S.maxBet}. Same as /blackjack.</p>${syncLine}`;
 }
 
@@ -333,7 +346,7 @@ function uth() {
       <div class="acts"><button class="cbtn gold big" data-do="uth-deal">Deal (${money(ante * 2 + trips)} up front)</button></div>`;
   }
   const lines = done ? `<div class="lines">${g.lines.map(([b, why, amt]) => `<div><b>${esc(b)}</b><span>${esc(why)}</span><span class="${amt > 0 ? 'pos' : amt < 0 ? 'neg' : ''}">${amt ? signed(amt) : '$0'}</span></div>`).join('')}</div>` : '';
-  return `${balBar("Ultimate Hold'em", done ? g.net : 0)}<div class="felt">${felt}</div>${lines}${controls}<div class="err">${esc(T.err)}</div>
+  return `${balBar("Ultimate Hold'em", done ? g.net : 0)}<div class="felt" data-hid="${g ? g.id : ''}">${felt}</div>${lines}${controls}<div class="err">${esc(T.err)}</div>
     <details class="pay"><summary>Payouts</summary>${esc(S.uthPaytable)}</details>${syncLine}`;
 }
 
@@ -349,7 +362,7 @@ function baccarat() {
       <div class="lbl" style="margin-top:6px">${w === 'tie' ? `Tie ${c.ps}–${c.bs}` : `${SIDES[w][0]} wins ${Math.max(c.ps, c.bs)}–${Math.min(c.ps, c.bs)}`}${c.natural ? ' · natural' : ''} · you bet ${money(r.bet)} on ${SIDES[r.side][0]}</div>
       ${resultStamp(r.net)}`;
   }
-  return `${balBar('Baccarat', r ? r.net : 0)}<div class="felt bac" style="min-height:250px">${felt}</div>
+  return `${balBar('Baccarat', r ? r.net : 0)}<div class="felt bac" data-hid="${r ? r.n : ''}" style="min-height:250px">${felt}</div>
     <div class="acts" style="display:block"><div class="sides">${Object.entries(SIDES).map(([k, [n, p, c]]) => `<button class="side" style="--c:${c}" data-side="${k}" aria-pressed="${k === side}"><b>${n}</b><span>${p}</span></button>`).join('')}</div></div>
     <div class="acts">${chipPicker('bac', [5, 20, 50, 100, 500], bet, 'Bet')}</div>
     <div class="acts"><button class="cbtn gold big" data-do="bac-deal">Deal ${money(bet)} on ${SIDES[side][0]}</button></div><div class="err">${esc(T.err)}</div>
@@ -370,7 +383,7 @@ function wire() {
     if (d === 'daily') play({ a: 'daily' }, j => { S.me.daily = j.daily; T.got = j.got; T.first = j.first; load(); });
     if (d === 'bj-deal') play({ a: 'bj', bet: pref('bj', 20) }, j => { T.bj = j.hand; });
     if (d === 'uth-deal') play({ a: 'uth', ante: pref('ante', 10), trips: pref('trips', 0) }, j => { T.uth = j.hand; });
-    if (d === 'bac-deal') { const bet = pref('bac', 20), side = pref('side', 'banker'); play({ a: 'bac', bet, side }, j => { T.bac = { ...j, bet }; }); }
+    if (d === 'bac-deal') { const bet = pref('bac', 20), side = pref('side', 'banker'); play({ a: 'bac', bet, side }, j => { T.bac = { ...j, bet, n: (T.bac ? T.bac.n : 0) + 1 }; }); }
   });
   if (busy) document.querySelectorAll('[data-bj],[data-uth],[data-do]').forEach(b => b.disabled = true);
 }
