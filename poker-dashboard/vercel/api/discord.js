@@ -17,6 +17,7 @@
 //   /roulette               shared roulette table, 30 seconds to bet, then it spins (see _roulette.js)
 //   /baccarat               bet Player, Banker or Tie (see _baccarat.js)
 //   /seats                  random seat order for everyone in on the latest invite (see _seats.js)
+// Also serves the site's casino: /api/login and /api/casino are rewritten here with ?web= (see _casino.js).
 // One-time setup: open /api/discord?setup=1 in a browser. It registers the command and shows the "add to server" link.
 // Needs Vercel env vars DISCORD_BOT_TOKEN (already there) and DISCORD_PUBLIC_KEY (from the Developer Portal).
 import { createPublicKey, verify } from 'node:crypto';
@@ -29,6 +30,7 @@ import { SEATS_COMMAND, startSeats, reshuffle } from './_seats.js';
 import { UTH_COMMAND, uthCommand, uthButton } from './_uth.js';
 import { ROULETTE_COMMAND, rouletteCommand, rouletteInteraction } from './_roulette.js';
 import { BACCARAT_COMMAND, baccaratCommand, baccaratButton } from './_baccarat.js';
+import { casinoWeb } from './_casino.js';
 import { SHEET_URL, MEMBERS_URL, gameRecords, findPlayer, latestQuarter, memberIds, toNights, hallOfFame, usd, wrapDefault, quartersWithGames } from '../recap-core.js';
 
 const SITE = 'https://renpokernight.vercel.app';
@@ -87,7 +89,10 @@ async function sheet() {
   return cache;
 }
 
+const webRoute = req => { const w = new URL(req.url).searchParams.get('web'); return w === 'login' || w === 'casino' ? w : null; };
+
 export async function POST(req) {
+  if (webRoute(req)) return casinoWeb(req, webRoute(req), sheet);
   const body = await req.text();
   if (!signed(req, body)) return new Response('bad signature', { status: 401 });
   const i = JSON.parse(body);
@@ -251,6 +256,7 @@ function hall(i, opts, s) {
 
 // one-time setup in a browser: registers the commands and shows the link that adds them to your server
 export async function GET(req) {
+  if (webRoute(req)) return casinoWeb(req, webRoute(req), sheet);
   const url = new URL(req.url), token = process.env.DISCORD_BOT_TOKEN;
   if (!url.searchParams.has('setup')) return new Response('This is the Discord commands endpoint. Open ?setup=1 once to register the commands.', { status: 200 });
   if (!token) return new Response('DISCORD_BOT_TOKEN is missing in Vercel env vars.', { status: 500 });
