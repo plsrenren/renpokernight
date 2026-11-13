@@ -14,16 +14,15 @@
 //   Heater          once per streak, when someone has finished up 3 nights in a row
 // Per finished quarter (paid when the first night of the next quarter is saved):
 //   Quarter champ   top net of the quarter
-//   Perfect attend. played every night of the quarter (3+ nights)
 import { kv } from './_blackjack.js';
 import { parseCSV } from '../recap-core.js';
 import { dc, latestInvite, readReacts } from './_tourney.js';
 
 export const REWARDS_START = '2026-11-13';   // nights on or after this date pay chips
 export const R = { rsvp: 25, showed: 50, places: [200, 100, 50], badBeatPct: 0.2, badBeatMax: 100, consolation: 20,
-  pkoPerDollar: 1, heater: 100, champ: 1000, perfect: 250 };
+  pkoPerDollar: 1, heater: 100, champ: 1000 };
 const LABEL = { rsvp: 'RSVP', showed: 'showed up', p1: '1st place', p2: '2nd place', p3: '3rd place', bad: 'bad beat insurance',
-  cons: 'consolation', pko: 'PKO bounties', heater: 'Heater', champ: 'quarter champion', perfect: 'perfect attendance' };
+  cons: 'consolation', pko: 'PKO bounties', heater: 'Heater', champ: 'quarter champion' };
 const r2 = n => Math.round(n * 100) / 100;
 const money = s => { const n = parseFloat(String(s).replace(/[$,\s]/g, '')); return isNaN(n) ? 0 : n; };
 
@@ -85,8 +84,6 @@ export function owed(rows, rsvps = {}, ids = {}, start = REWARDS_START) {
     const tot = {}; qs[q].forEach(r => tot[r.player] = (tot[r.player] || 0) + r.net);
     const best = Math.max(...Object.values(tot));
     if (best > 0) Object.entries(tot).filter(([, v]) => v === best).forEach(([p]) => add('Q:' + q, 'champ', p, R.champ));
-    const all = new Set(qs[q].map(r => r.night));
-    if (all.size >= 3) Object.entries(byPlayer).forEach(([p, g]) => { const mine = new Set(g.filter(r => r.quarter === q).map(r => r.night)); if (mine.size === all.size) add('Q:' + q, 'perfect', p, R.perfect); });
   });
   return out;
 }
