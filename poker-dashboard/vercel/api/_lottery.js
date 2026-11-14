@@ -18,20 +18,24 @@ export const qKey = q => { const [n, y] = String(q).split(' '); return +y * 10 +
 export const quarterOf = (t = new Date()) => `Q${Math.floor(t.getUTCMonth() / 3) + 1} ${t.getUTCFullYear()}`;
 const r2 = n => Math.round(n * 100) / 100;
 
-/** One quarter's tickets: { quarter, holders: [{ name, cin, t, from, to }], total, jackpot, nights }. Ticket numbers run 1..total. */
-export function board(rows, quarter) {
+/** One quarter's tickets: { quarter, holders: [{ name, cin, t, in, from, to }], total, out, jackpot, nights }.
+ *  ids = { name: discordId } from the Members tab: only players with a Discord ID are in the draw (in: true, ticket
+ *  numbers 1..total, odds out of total). The others still show, as "join Discord to enter" (out = their tickets).
+ *  Without ids everyone counts. The jackpot is everything bought in, by everyone. */
+export function board(rows, quarter, ids = null) {
   const inQ = rows.filter(r => r.quarter === quarter), per = {};
   inQ.forEach(r => { per[r.player] = r2((per[r.player] || 0) + r.cin); });
   let n = 0;
-  const holders = Object.entries(per).map(([name, cin]) => ({ name, cin, t: Math.floor(cin / TICKET + 1e-9) }))
-    .filter(h => h.t > 0).sort((a, b) => b.t - a.t || a.name.localeCompare(b.name))
-    .map(h => ({ ...h, from: n + 1, to: (n += h.t) }));
-  return { quarter, holders, total: n, jackpot: Math.round(Object.values(per).reduce((a, v) => a + v, 0)), nights: new Set(inQ.map(r => r.night)).size };
+  const holders = Object.entries(per).map(([name, cin]) => ({ name, cin, t: Math.floor(cin / TICKET + 1e-9), in: !ids || !!ids[name] }))
+    .filter(h => h.t > 0).sort((a, b) => (b.in - a.in) || b.t - a.t || a.name.localeCompare(b.name))
+    .map(h => h.in ? { ...h, from: n + 1, to: (n += h.t) } : { ...h, from: null, to: null });
+  const out = holders.filter(h => !h.in).reduce((a, h) => a + h.t, 0);
+  return { quarter, holders, total: n, out, jackpot: Math.round(Object.values(per).reduce((a, v) => a + v, 0)), nights: new Set(inQ.map(r => r.night)).size };
 }
 
 /** Draws a ticket: { name, ticket }. Any ticket can come up except the SKIP players' ones. */
 export function pickTicket(b, rnd = randomInt) {
-  const ok = b.holders.filter(h => !SKIP.has(h.name.toLowerCase()));
+  const ok = b.holders.filter(h => h.in && !SKIP.has(h.name.toLowerCase()));
   const count = ok.reduce((a, h) => a + h.t, 0);
   if (!count) return null;
   let k = rnd(count);
@@ -61,7 +65,7 @@ export async function runDraws(csv, ids) {
       const q = due[k];
       let d = saved[k] ? JSON.parse(saved[k]) : null, fresh = false;
       if (!d) {
-        const b = board(rows, q), pick = pickTicket(b);
+        const b = board(rows, q, ids), pick = pickTicket(b);
         if (!pick) continue;
         d = { quarter: q, name: pick.name, ticket: pick.ticket, total: b.total, tickets: b.holders.find(h => h.name === pick.name).t, jackpot: b.jackpot, at: Date.now(), paid: 0 };
         const [ok] = await kv(['SET', 'lt:draw:' + q, JSON.stringify(d), 'NX']);
@@ -101,8 +105,8 @@ export async function luckyHolder() {
 }
 
 /** What the lobby, /lottery and the card show: this quarter's board plus the latest draw (if any). */
-export async function lotteryView(csv, quarter) {
-  const rows = nightRows(csv), b = board(rows, quarter || await shownQuarter(rows));
+export async function lotteryView(csv, quarter, ids = null) {
+  const rows = nightRows(csv), b = board(rows, quarter || await shownQuarter(rows), ids);
   const [lastQ] = await kv(['GET', 'lt:last']);
   const [raw] = lastQ ? await kv(['GET', 'lt:draw:' + lastQ]) : [null];
   let last = null; try { last = raw ? JSON.parse(raw) : null; } catch (e) {}

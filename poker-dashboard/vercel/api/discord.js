@@ -254,11 +254,12 @@ function wrap(i, opts, s) {
 }
 
 async function lottery(i, opts, s) {
-  const rows = nightRows(s.csv), q = await shownQuarter(rows).catch(() => quarterOf()), b = lotteryBoard(rows, q), pending = q !== quarterOf();
+  const rows = nightRows(s.csv), q = await shownQuarter(rows).catch(() => quarterOf()), b = lotteryBoard(rows, q, s.ids), pending = q !== quarterOf();
   const byId = Object.fromEntries(Object.entries(s.ids).map(([n, id]) => [id, n]));
   const me = byId[(i.member && i.member.user || i.user || {}).id], mine = me && b.holders.find(x => x.name === me);
   const pct = t => { const p = 100 * t / (b.total || 1); return (p < 10 ? p.toFixed(1) : Math.round(p)) + '%'; };
-  const you = mine ? `You have **${mine.t} ticket${mine.t === 1 ? '' : 's'}** (${pct(mine.t)} to win).` : me ? 'You have no tickets yet this quarter.' : '';
+  const you = mine ? `You have **${mine.t} ticket${mine.t === 1 ? '' : 's'}** (${pct(mine.t)} to win).` : me ? 'You have no tickets yet this quarter.'
+    : "Your Discord isn't linked to a player yet, so you're not in the draw. Ask Renato to add your Discord ID to the Members tab.";
   return embed({ url: `${SITE}/casino`, title: `🎟️ ${q} lottery · ${'$' + b.jackpot.toLocaleString('en-US')} jackpot`,
     description: `1 free ticket for every $${TICKET} you buy in at poker night. ${pending ? 'The quarter is over: the winner is drawn as soon as the first night of the new quarter is saved.' : 'One winner is drawn when the quarter ends and gets everything bought in, in chips.'}${you ? '\n\n' + you : ''}`,
     image: { url: `${SITE}/api/wrap?lottery=${encodeURIComponent(q)}&v=${stampNow()}` } });

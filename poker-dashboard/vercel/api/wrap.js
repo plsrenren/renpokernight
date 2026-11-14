@@ -25,8 +25,7 @@ export async function render(csv, q, membersCsv = '', getPic = avatarPng) {
 /** The lottery card for quarter q (default this quarter): odds before the draw, the winner once drawn. */
 export async function renderLottery(csv, q, membersCsv = '', getPic = avatarPng) {
   const rows = nightRows(csv), quarter = /^Q[1-4] \d{4}$/.test(q || '') ? q : await shownQuarter(rows).catch(() => quarterOf());
-  const b = board(rows, quarter), d = await drawOf(quarter).catch(() => null);
-  const ids = memberIds(membersCsv);
+  const ids = memberIds(membersCsv), b = board(rows, quarter, ids), d = await drawOf(quarter).catch(() => null);
   const people = [...new Set([...b.holders.slice(0, 8).map(x => x.name), d && d.name])].filter(p => p && ids[p]);
   const pics = Object.fromEntries((await Promise.all(people.map(async p => {
     try { const x = await getPic(ids[p]); return x ? [p, 'data:image/png;base64,' + Buffer.from(x).toString('base64')] : null; } catch (e) { return null; }
