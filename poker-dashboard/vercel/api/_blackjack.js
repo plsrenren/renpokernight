@@ -51,11 +51,13 @@ export function whoIs(i, s) {
 }
 export const noStorage = () => quiet("Blackjack isn't set up yet: the site needs its chip storage (Upstash) connected in Vercel.");
 
-// "Just now" feed on the site's /casino page: the last 30 finished hands, spins, duels and daily claims from Discord and the site.
+// "Just now" feed on the site's /casino page: the last 300 finished hands, spins, duels and daily claims from Discord and the site.
 // me.src is 'site' for the website; Discord players have no src.
 export const feedCmds = (me, game, net) => [
   ['LPUSH', 'cas:feed', JSON.stringify({ id: me.id, name: me.name, game, net: Math.round(net * 100) / 100, src: me.src || 'discord', at: Date.now() })],
-  ['LTRIM', 'cas:feed', 0, 29]];
+  ['LTRIM', 'cas:feed', 0, FEED_KEEP - 1]];
+/** How many raw feed entries are kept; the lobby rolls them into session lines (see groupFeed in _casino.js). */
+export const FEED_KEEP = 300;
 
 // ---------- /daily ----------
 /** Shared by /daily and the site: { wait } (ms until the next claim) or { amt, bal, first }. */

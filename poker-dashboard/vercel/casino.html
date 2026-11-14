@@ -73,6 +73,7 @@ button:disabled { cursor: default; opacity: .4; }
 .feed div { display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 5px 0; border-bottom: 1px solid #2a2550; }
 .feed small { color: var(--muted); font-size: 11px; }
 .feed .who { min-width: 0; }
+.feed .st { display: block; font: 500 11px var(--mono); color: var(--soft); }
 .feed em { display: block; font-style: normal; font-size: 11px; color: var(--gold); white-space: normal; }
 .earn { background: var(--panel); border-left: 4px solid var(--gold); margin-top: 16px; }
 .earn summary { display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; list-style: none; }
@@ -377,8 +378,10 @@ function board() {
 }
 function feed() {
   const ago = t => { const m = Math.round((Date.now() - t) / 60e3); return m < 1 ? 'now' : m < 60 ? m + 'm' : m < 1440 ? Math.round(m / 60) + 'h' : Math.round(m / 1440) + 'd'; };
-  const rows = S.feed.map(f => `<div>${av(f.id, f.name)}<span class="who">${esc(f.name)} <small>${esc(f.game)} · ${ago(f.at)}</small>${f.why ? `<em>${esc(f.why)}</em>` : ''}</span> <span class="src${f.src === 'site' ? '' : f.src === 'night' ? ' n' : ' d'}">${f.src === 'site' ? 'site' : f.src === 'night' ? 'reward' : 'discord'}</span><span class="amt ${f.net > 0 ? 'pos' : f.net < 0 ? 'neg' : ''}">${signed(f.net)}</span></div>`).join('');
-  return `<div class="panel"><h2 class="p">Just now</h2><p class="hint">Latest hands from Discord and the site, plus chip rewards from poker nights.</p><div class="feed">${rows || '<p class="hint">No hands yet.</p>'}</div></div>`;
+  const unit = g => g === 'roulette' ? 'spins' : g.startsWith('duel') ? 'duels' : 'hands';
+  const sess = f => f.n > 1 ? `<span class="st">${f.n} ${unit(f.game)} · ${f.w}W ${f.l}L · ${Math.max(1, Math.round((f.at - f.first) / 60e3))} min</span>` : '';
+  const rows = S.feed.map(f => `<div>${av(f.id, f.name)}<span class="who">${esc(f.name)} <small>${esc(f.game)} · ${ago(f.at)}</small>${sess(f)}${f.why ? `<em>${esc(f.why)}</em>` : ''}</span> <span class="src${f.src === 'site' ? '' : f.src === 'night' ? ' n' : ' d'}">${f.src === 'site' ? 'site' : f.src === 'night' ? 'reward' : 'discord'}</span><span class="amt ${f.net > 0 ? 'pos' : f.net < 0 ? 'neg' : ''}">${signed(f.net)}</span></div>`).join('');
+  return `<div class="panel"><h2 class="p">Just now</h2><p class="hint">Latest play from Discord and the site, plus poker night rewards. A run of hands by one player is one line.</p><div class="feed">${rows || '<p class="hint">No hands yet.</p>'}</div></div>`;
 }
 function rewards() {
   if (!S.rewards || !S.rewards.length || !S.rewards[0].items) return '';

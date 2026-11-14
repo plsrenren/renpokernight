@@ -11,7 +11,7 @@
 // Needs Vercel env var DISCORD_CLIENT_SECRET (Developer Portal > OAuth2) and the redirect
 // https://renpokernight.vercel.app/api/login added there. The app's client ID is looked up with DISCORD_BOT_TOKEN.
 import { createHmac, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { kv, kvUrl, kvToken, MAX_BET, claimDaily, dailyStatus, boardFrom, dailyFrom, newHand as bjStart, handAction, publicHand } from './_blackjack.js';
+import { kv, kvUrl, kvToken, MAX_BET, FEED_KEEP, claimDaily, dailyStatus, boardFrom, dailyFrom, newHand as bjStart, handAction, publicHand } from './_blackjack.js';
 import { newHand as uthStart, uthAction, publicUth, MAX_ANTE, MAX_TRIPS, UTH_PAYTABLE } from './_uth.js';
 import { playHand } from './_baccarat.js';
 import { REWARD_LIST } from './_rewards.js';
@@ -82,12 +82,26 @@ async function login(req, sheet) {
 }
 
 // ---------- the page's data ----------
+const SESSION_GAP = 10 * 60e3, SOLO = new Set(['daily', 'poker night']);
+/** "Just now" session lines: the same person playing the same game (same place), with no gap over 10 minutes, becomes one
+ *  line with the total, hand count, wins/losses and when it started. Dailies and rewards stay single. Newest first, 10 lines. */
+export function groupFeed(feed, lines = 10) {
+  const out = [];
+  for (const f of feed) {
+    const g = !SOLO.has(f.game) && out.find(x => x.n && x.id === f.id && x.game === f.game && x.src === f.src && x.first - f.at <= SESSION_GAP);
+    if (g) { g.n++; g.net = Math.round((g.net + f.net) * 100) / 100; g.first = f.at; if (f.net > 0) g.w++; else if (f.net < 0) g.l++; continue; }
+    if (out.length >= lines) continue; // keep folding older hands into the lines already shown
+    out.push(SOLO.has(f.game) ? { ...f } : { ...f, n: 1, w: f.net > 0 ? 1 : 0, l: f.net < 0 ? 1 : 0, first: f.at });
+  }
+  return out;
+}
+
 async function state(me) {
   // two storage trips: everything for the lobby at once, then any unfinished hands
-  const [bal, names, feedRaw, last, cur] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['LRANGE', 'cas:feed', 0, 9],
+  const [bal, names, feedRaw, last, cur] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['LRANGE', 'cas:feed', 0, FEED_KEEP - 1],
     ['HGET', 'bj:last', me ? me.id : '-'], ['HGETALL', 'cas:cur:' + (me ? me.id : '-')]);
   const board = boardFrom(bal, names);
-  const feed = (feedRaw || []).map(x => { try { return JSON.parse(x); } catch (e) { return null; } }).filter(Boolean);
+  const feed = groupFeed((feedRaw || []).map(x => { try { return JSON.parse(x); } catch (e) { return null; } }).filter(Boolean));
   const body = { me: null, board: board.slice(0, 15), players: board.length, feed, maxBet: MAX_BET, maxAnte: MAX_ANTE, maxTrips: MAX_TRIPS, uthPaytable: plain(UTH_PAYTABLE), rewards: REWARD_LIST };
   if (!me) return body;
   const mine = board.find(r => r.id === me.id);
