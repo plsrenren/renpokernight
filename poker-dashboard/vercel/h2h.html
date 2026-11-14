@@ -30,17 +30,36 @@ body { margin: 0; background: var(--page); color: var(--fg); font-family: var(--
 h1 { margin: 0; font-family: var(--title); font-weight: 400; font-size: 46px; line-height: .95; color: #fff; letter-spacing: .02em; }
 .lede { margin: 4px 0 0; color: var(--muted); }
 .picker { background: var(--panel); border-radius: 18px; padding: 14px; display: grid; gap: 12px; }
-.who { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); gap: 10px; align-items: center; }
-.pick { display: flex; align-items: center; gap: 10px; min-width: 0; background: var(--panel2); border-radius: 12px; padding: 6px 10px; border: 2px solid var(--ring); }
-.pick.a { --ring: var(--a); } .pick.b { --ring: var(--b); }
-.av { --h: 260; position: relative; flex: none; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; font-weight: 900; font-size: 14px; background: hsl(var(--h) 80% 86%); color: hsl(var(--h) 45% 28%); }
+/* matchup: two big slots with the score between; tap a slot to open the face picker under it */
+.slots { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: stretch; }
+.slot { --ring: var(--vio, var(--a)); display: flex; align-items: center; gap: 12px; min-width: 0; padding: 10px 12px; background: var(--panel2); border: 0; border-bottom: 4px solid var(--ring); color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.slot.b { --ring: var(--pink, var(--b)); flex-direction: row-reverse; text-align: right; }
+.slot:hover, .slot[aria-expanded="true"] { background: #352f5c; }
+.slot .t { min-width: 0; }
+.slot .t b { display: block; font: 400 30px/1 var(--title); letter-spacing: .03em; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot .t small { color: var(--muted); font-size: 12px; }
+.av { --h: 260; position: relative; flex: none; width: var(--s, 58px); height: var(--s, 58px); overflow: hidden; display: grid; place-items: center; font: 400 calc(var(--s, 58px) * .42) var(--title); letter-spacing: .03em; background: hsl(var(--h) 70% 82%); color: hsl(var(--h) 45% 26%); }
 .av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-select { appearance: none; -webkit-appearance: none; min-width: 0; flex: 1; background: transparent; color: var(--bright); border: 0; font: 900 16px var(--body); padding: 6px 18px 6px 0; cursor: pointer;
-  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: right 6px center, right 1px center; background-size: 5px 5px; background-repeat: no-repeat; }
-select:focus-visible, button:focus-visible { outline: 2px solid var(--peri); outline-offset: 2px; border-radius: 6px; }
-select option { background: var(--panel); color: var(--fg); }
-.swap { width: 38px; height: 38px; border-radius: 50%; border: 0; background: var(--panel2); color: var(--soft); font-size: 17px; cursor: pointer; }
+.mid { display: grid; place-items: center; align-content: center; gap: 4px; padding: 6px 12px; background: #100e20; border-block: 3px solid var(--gold); }
+.mid .sc { font: 400 34px/1 var(--title); color: #fff; white-space: nowrap; } .mid .sc em { font-style: normal; font-size: 18px; color: var(--muted); margin: 0 4px; } .mid .sc .y { color: var(--gold); }
+.swap { border: 0; background: transparent; color: var(--muted); font: 700 12px var(--body); cursor: pointer; padding: 2px 6px; }
 .swap:hover { color: #fff; }
+.sheet { background: #262148; border: 1px solid var(--line); padding: 12px; display: grid; gap: 10px; }
+.sheet .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; font: 400 18px var(--title); letter-spacing: .08em; color: var(--ring); }
+.sheet .x { border: 0; background: transparent; color: var(--muted); font-size: 18px; cursor: pointer; padding: 0 4px; }
+.sheet input { width: 100%; background: #15132a; border: 1px solid var(--line); color: var(--fg); font: 500 15px var(--body); padding: 9px 12px; }
+.sheet input::placeholder { color: var(--muted); }
+.sec { font: 400 14px var(--title); letter-spacing: .12em; color: var(--muted); }
+.faces { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 12px 6px; }
+.face { display: grid; justify-items: center; gap: 0; border: 0; background: transparent; color: var(--soft); font: inherit; cursor: pointer; padding: 4px 0; min-width: 0; }
+.face .av { --s: 56px; }
+.face .nm { font: 400 15px/1 var(--title); letter-spacing: .06em; margin-top: 6px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.face .gt { font: 500 10.5px var(--mono); color: var(--muted); }
+.face.dim { opacity: .38; }
+.face.cur .av { outline: 3px solid var(--ring); outline-offset: 2px; }
+.face:hover .nm { color: #fff; }
+.none { color: var(--muted); font-size: 13px; margin: 0; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--peri); outline-offset: 2px; }
 .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
 .seg { display: inline-flex; background: var(--panel2); border-radius: 10px; padding: 3px; }
 .seg button { border: 0; background: transparent; color: var(--muted); font: 800 13px var(--body); padding: 7px 14px; border-radius: 8px; cursor: pointer; }
@@ -53,19 +72,25 @@ select option { background: var(--panel); color: var(--fg); }
 .stage img.loading { opacity: .35; }
 .msg { color: var(--muted); padding: 40px 16px; text-align: center; }
 .note { color: var(--muted); font-size: 12.5px; margin: 0; }
-@media (max-width: 520px) { h1 { font-size: 38px; } .who { grid-template-columns: minmax(0,1fr); } .swap { justify-self: center; transform: rotate(90deg); } .seg { width: 100%; } .seg button { flex: 1; padding-inline: 6px; } }
+@media (max-width: 520px) { h1 { font-size: 38px; } .slot, .slot.b { flex-direction: column; text-align: center; padding: 10px 6px; gap: 8px; } .slot .av { --s: 64px; } .slot .t { max-width: 100%; } .slot .t b { font-size: 26px; } .mid { padding: 6px 8px; } .faces { grid-template-columns: repeat(4, minmax(0,1fr)); } .seg { width: 100%; } .seg button { flex: 1; padding-inline: 6px; } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="bar"><a href="/">← Dashboard</a><a href="/hall">Hall of Fame →</a></div>
-  <div><h1>Head to head</h1><p class="lede">Pick two players. Only games they both played count.</p></div>
+  <div><h1>Head to head</h1><p class="lede">Tap a side to change who’s in it. Only games they both played count.</p></div>
 
   <section class="picker" aria-label="Choose the matchup">
-    <div class="who">
-      <label class="pick a"><span class="av" id="avA"></span><select id="selA" aria-label="First player"></select></label>
-      <button class="swap" id="swap" type="button" title="Swap sides" aria-label="Swap sides">⇄</button>
-      <label class="pick b"><span class="av" id="avB"></span><select id="selB" aria-label="Second player"></select></label>
+    <div class="slots">
+      <button class="slot a" id="slotA" type="button" aria-expanded="false" aria-controls="sheet"><span class="av" id="avA"></span><span class="t"><b id="nmA">…</b><small>tap to change</small></span></button>
+      <div class="mid"><div class="sc" id="score" aria-live="polite"></div><button class="swap" id="swap" type="button" title="Swap sides">⇄ swap</button></div>
+      <button class="slot b" id="slotB" type="button" aria-expanded="false" aria-controls="sheet"><span class="av" id="avB"></span><span class="t"><b id="nmB">…</b><small>tap to change</small></span></button>
+    </div>
+    <div class="sheet" id="sheet" hidden>
+      <div class="top"><span id="shTitle"></span><button class="x" id="shClose" type="button" aria-label="Close">✕</button></div>
+      <input id="shFind" type="search" placeholder="Search players" autocomplete="off" aria-label="Search players">
+      <div class="sec" id="shSec"></div>
+      <div class="faces" id="shFaces"></div>
     </div>
     <div class="row">
       <div class="seg" role="group" aria-label="Period">
@@ -85,7 +110,7 @@ select option { background: var(--panel); color: var(--fg); }
 import { SHEET_URL, MEMBERS_URL, gameRecords, latestQuarter, pairStats, memberIds, avatarUrl, hueFor, initials } from '/recap-core.js';
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-let RECS = [], IDS = {}, Q = '', YEAR = '', state = { a: '', b: '', p: 'year' };
+let RECS = [], IDS = {}, NAMES = [], Q = '', YEAR = '', state = { a: '', b: '', p: 'year' }, open = ''; // open = 'a' | 'b' | '' (which slot's picker is showing)
 
 const periodOf = p => p === 'quarter' ? Q : p === 'all' ? 'all' : YEAR;
 const fromParam = v => !v ? null : v === 'all' ? 'all' : /^Q[1-4] \d{4}$/.test(v) ? 'quarter' : 'year';
@@ -96,9 +121,35 @@ function face(el, name) {
 function cardUrl() { return `/api/h2h?a=${encodeURIComponent(state.a)}&b=${encodeURIComponent(state.b)}&period=${encodeURIComponent(periodOf(state.p))}`; }
 function pageUrl() { const u = new URL(location.href); u.search = ''; u.searchParams.set('a', state.a); u.searchParams.set('b', state.b); const latest = latestQuarter(RECS); if (state.p !== 'year' || YEAR !== 'Y' + latest.split(' ')[1]) u.searchParams.set('period', periodOf(state.p)); return u.toString(); }
 
+// how many games each player shared with `who` in the current period (the picker sorts by this)
+function sharedWith(who) {
+  const per = periodOf(state.p), mine = new Set(), n = {};
+  RECS.forEach(r => { if (r.player === who && inPeriod(r, per)) mine.add(r.key + '|' + r.type); });
+  RECS.forEach(r => { if (r.player !== who && inPeriod(r, per) && mine.has(r.key + '|' + r.type)) n[r.player] = (n[r.player] || 0) + 1; });
+  return n;
+}
+const inPeriod = (r, per) => per === 'all' || (per[0] === 'Y' ? 'Y' + r.y === per : r.quarter === per);
+function sheet() {
+  ['a', 'b'].forEach(k => $('slot' + k.toUpperCase()).setAttribute('aria-expanded', String(open === k)));
+  const el = $('sheet');
+  if (!open) { el.hidden = true; return; }
+  const other = open === 'a' ? state.b : state.a, cur = state[open], n = sharedWith(other), label = periodOf(state.p) === 'all' ? 'all time' : periodOf(state.p) === Q ? Q.split(' ')[0] : YEAR.slice(1);
+  el.hidden = false; el.style.setProperty('--ring', open === 'a' ? 'var(--vio, var(--a))' : 'var(--pink, var(--b))');
+  $('shTitle').textContent = `Pick ${other}’s opponent`;
+  $('shSec').textContent = `Played ${other} most · ${label}`;
+  const q = $('shFind').value.trim().toLowerCase();
+  const list = NAMES.filter(x => x !== other && (!q || x.toLowerCase().includes(q))).sort((x, y) => (n[y] || 0) - (n[x] || 0) || NAMES.indexOf(x) - NAMES.indexOf(y));
+  $('shFaces').innerHTML = list.length ? list.map(x => `<button type="button" class="face${x === cur ? ' cur' : ''}${(n[x] || 0) < 1 ? ' dim' : ''}" data-n="${esc(x)}"><span class="av" data-face="${esc(x)}"></span><span class="nm">${esc(x)}</span><span class="gt">${n[x] || 0} game${n[x] === 1 ? '' : 's'}</span></button>`).join('') : '<p class="none">No one by that name.</p>';
+  $('shFaces').querySelectorAll('[data-face]').forEach(f => face(f, f.dataset.face));
+}
+function pickSide(k) { open = open === k ? '' : k; $('shFind').value = ''; show(); if (open && matchMedia('(hover: hover)').matches) $('shFind').focus(); }
+
 function show() {
-  $('selA').value = state.a; $('selB').value = state.b;
+  $('nmA').textContent = state.a; $('nmB').textContent = state.b;
   face($('avA'), state.a); face($('avB'), state.b);
+  const sc = state.a !== state.b ? pairStats(RECS, state.a, state.b, periodOf(state.p)) : null;
+  $('score').innerHTML = sc && sc.n ? `${sc.aw}<em>vs</em><span class="y">${sc.bw}</span>` : `–<em>vs</em><span class="y">–</span>`;
+  sheet();
   document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.p === state.p)));
   try { history.replaceState(null, '', pageUrl()); } catch (e) {}
   const img = $('card'), msg = $('msg');
@@ -129,16 +180,20 @@ async function main() {
   // players who played most recently first, then everyone else A to Z
   const last = {}; RECS.forEach(r => last[r.player] = r.key);
   const names = Object.keys(last).sort((x, y) => (last[y] > last[x]) - (last[y] < last[x]) || x.localeCompare(y));
-  const opts = names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
-  $('selA').innerHTML = opts; $('selB').innerHTML = opts;
+  NAMES = names;
   const qs = new URLSearchParams(location.search), find = v => v && names.find(n => n.toLowerCase() === v.toLowerCase());
   // default: this quarter's top two by net
   const tot = {}; RECS.filter(r => r.quarter === Q).forEach(r => tot[r.player] = (tot[r.player] || 0) + r.net);
   const top = Object.entries(tot).sort((x, y) => y[1] - x[1]).map(e => e[0]);
   state = { a: find(qs.get('a')) || top[0] || names[0], b: find(qs.get('b')) || top[1] || names[1], p: fromParam(qs.get('period')) || 'year' };
   if (state.a === state.b) state.b = names.find(n => n !== state.a);
-  $('selA').onchange = e => { state.a = e.target.value; show(); };
-  $('selB').onchange = e => { state.b = e.target.value; show(); };
+  $('slotA').onclick = () => pickSide('a');
+  $('slotB').onclick = () => pickSide('b');
+  $('shClose').onclick = () => { open = ''; show(); };
+  $('shFind').oninput = sheet;
+  $('shFind').onkeydown = e => { if (e.key === 'Enter') { const f = $('shFaces').querySelector('.face'); if (f) f.click(); } };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && open) { open = ''; show(); } });
+  $('shFaces').onclick = e => { const f = e.target.closest('.face'); if (!f) return; state[open] = f.dataset.n; open = ''; show(); };
   $('swap').onclick = () => { [state.a, state.b] = [state.b, state.a]; show(); };
   document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { state.p = b.dataset.p; show(); });
   $('copy').onclick = async () => { try { await navigator.clipboard.writeText(pageUrl()); $('copy').textContent = 'Copied!'; } catch (e) { $('copy').textContent = 'Copy failed'; } setTimeout(() => $('copy').textContent = 'Copy link', 1500); };
