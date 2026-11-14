@@ -318,9 +318,27 @@ export const h2hCardTree = withAssets((p, pics = {}, art = {}) => {
 
 // ---------- quarter lottery (/api/wrap?lottery=Q4%202026) ----------
 /** b = board(...) from _lottery.js for that quarter; d = its draw (null before the draw: shows the odds instead). */
+const WHEEL_COLORS = ['#f1c75b', '#e0507f', '#8f78f0', '#8ee0b0', '#7fb6ff', '#ff9f6b', '#c9a2ff', '#5fd3c6', '#f59bb0', '#b8e986', '#d7d3ef', '#e39a68'];
+/** Prize wheel (same colours and order as the site's lobby). After a draw it is turned so the winning ticket sits under the pointer. */
+function lotteryWheelSvg(b, d) {
+  const S = 210, c = S / 2, R = 96, inDraw = b.holders.filter(x => x.in !== false && x.from), rot = d ? -360 * (d.ticket - 0.5) / b.total : 0;
+  let a0 = -Math.PI / 2, paths = '';
+  inDraw.forEach((x, i) => {
+    const a1 = a0 + 2 * Math.PI * x.t / b.total, big = a1 - a0 > Math.PI ? 1 : 0, P = a => `${(c + R * Math.cos(a)).toFixed(1)},${(c + 10 + R * Math.sin(a)).toFixed(1)}`;
+    paths += inDraw.length === 1 ? `<circle cx="${c}" cy="${c + 10}" r="${R}" fill="${WHEEL_COLORS[0]}"/>` : `<path d="M${c},${c + 10} L${P(a0)} A${R},${R} 0 ${big} 1 ${P(a1)} Z" fill="${WHEEL_COLORS[i % WHEEL_COLORS.length]}" stroke="#15132a" stroke-width="2"/>`;
+    a0 = a1;
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S + 10}" width="${S * 2}" height="${(S + 10) * 2}"><g transform="rotate(${rot} ${c} ${c + 10})">${paths}</g>`
+    + `<circle cx="${c}" cy="${c + 10}" r="28" fill="#15132a" stroke="${L.gold}" stroke-width="3"/><path d="M${c - 10},0 L${c + 10},0 L${c},22 Z" fill="#fff" stroke="#15132a" stroke-width="1.5"/></svg>`;
+}
 export const lotteryCardTree = withAssets((b, d, pics = {}) => {
   const pct = t => { const p = 100 * t / (b.total || 1); return (p < 10 ? p.toFixed(1) : Math.round(p)) + '%'; };
-  const max = Math.max(1, ...b.holders.map(x => x.t)), shown = b.holders.slice(0, 8), rest = b.holders.slice(8).filter(x => x.in !== false), unlinked = b.holders.slice(8).filter(x => x.in === false);
+  let ci = 0;
+  const colored = b.holders.map(x => ({ ...x, col: x.in === false ? '#3b3566' : WHEEL_COLORS[ci++ % WHEEL_COLORS.length] }));
+  const listed = colored.slice(0, 11), more = colored.slice(11);
+  const wheelRow = x => h({ alignItems: 'center', gap: 8, height: 20, borderBottom: `1px solid ${L.line}`, opacity: x.in === false ? 0.45 : 1 },
+    h({ width: 10, height: 10, backgroundColor: x.col }), T(x.name, { flex: 1, fontSize: 12.5, fontWeight: 700, color: d && x.name === d.name ? L.up : '#fff' }),
+    M(`${x.t}`, 11.5, L.soft, { width: 30, justifyContent: 'flex-end' }), M(x.in === false ? 'no Discord' : pct(x.t), x.in === false ? 10 : 11, x.in === false ? L.muted : '#fff', { width: 82, justifyContent: 'flex-end', whiteSpace: 'nowrap' }));
   const row = (x, k) => {
     const hl = d ? x.name === d.name : k === 0;
     // not in the draw (no Discord linked): greyed, no odds
@@ -336,7 +354,7 @@ export const lotteryCardTree = withAssets((b, d, pics = {}) => {
     ? h({ marginTop: 18, marginLeft: PAD, marginRight: PAD, padding: '14px 16px', gap: 16, alignItems: 'center', borderLeft: `6px solid ${L.gold}`, backgroundImage: 'linear-gradient(100deg, #3a2a6e, #a23b58)' },
         sq(pics, d.name, 92),
         h({ flex: 1, flexDirection: 'column' }, B('WINNER', 16, L.gold, { letterSpacing: 2 }), B(d.name.toUpperCase(), d.name.length > 8 ? 42 : 54, '#fff'),
-          M(`${d.tickets} of ${d.total} tickets · ${pct(d.tickets)} chance`, 11.5, L.soft, { marginTop: 4 })),
+          M(`${d.tickets} of ${d.total} tickets · ${(100 * d.tickets / d.total).toFixed(1).replace(/\.0$/, '')}% chance`, 11.5, L.soft, { marginTop: 4 })),
         h({ flexDirection: 'column', alignItems: 'flex-end' }, B('JACKPOT', 14, L.soft, { letterSpacing: 2 }), B('$' + d.jackpot.toLocaleString('en-US'), 54, L.up)))
     : h({ marginTop: 18, marginLeft: PAD, marginRight: PAD, gap: 8 },
         tile('Jackpot', jp, 'everything bought in, 1:1', L.gold, true),
@@ -346,11 +364,13 @@ export const lotteryCardTree = withAssets((b, d, pics = {}) => {
     h({ backgroundColor: L.gold, padding: '2px 14px 0' }, B(`TICKET #${String(d.ticket).padStart(3, '0')}`, 24, L.night, { letterSpacing: 1.5 })),
     M(`drawn from #001 to #${String(d.total).padStart(3, '0')} · + ${'Lucky Ticket'} role`, 11.5, L.soft)) : null;
   return frame(
-    mast('Quarter lottery', d ? `${b.quarter} draw · ${b.total} tickets in the drum` : `${b.quarter} · drawn after the quarter ends`),
+    mast('Quarter lottery', d ? `${b.quarter} draw · ${d && d.total} tickets in the drum` : `${b.quarter} · drawn after the quarter ends`),
     hero, ticket,
     chy(d ? 'Who was in' : 'Odds right now', `1 ticket per $10 bought in`, d ? 'vio' : 'gold'),
-    pad(shown.length ? shown.map(row) : [T('No tickets yet this quarter.', { fontSize: 14, color: L.muted, paddingTop: 6 })],
-      rest.length ? M(`+ ${rest.length} more with ${rest.reduce((a, x) => a + x.t, 0)} tickets`, 11, L.muted, { marginTop: 8 }) : null,
-      unlinked.length ? M(`+ ${unlinked.length} not in the draw yet (no Discord linked)`, 11, L.muted, { marginTop: 6 }) : null),
+    b.total ? h({ paddingLeft: PAD, paddingRight: PAD, gap: 18, alignItems: 'flex-start' },
+      img(svgUri(lotteryWheelSvg(b, d)), 210, 220),
+      h({ flex: 1, flexDirection: 'column' }, listed.map(wheelRow),
+        more.length ? M(`+ ${more.length} more`, 11, L.muted, { marginTop: 6 }) : null))
+      : pad(T('No tickets yet this quarter.', { fontSize: 14, color: L.muted, paddingTop: 6 })),
     foot('Poker Club @ The Study', d ? 'tickets start over every quarter' : '/lottery · renpokernight.vercel.app/casino'));
 });

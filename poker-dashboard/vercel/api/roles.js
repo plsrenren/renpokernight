@@ -2,12 +2,10 @@
 // sheet as JSON { input, members }) right after a night is saved; /roles in Discord does the same.
 // Safe to call any time: it only changes roles that don't match the results.
 // It also pays the casino chip rewards for poker nights (see _rewards.js); those pay each night only once.
-// And it runs the quarter lottery draw when a quarter is over (see _lottery.js), before the roles so Lucky Ticket moves too.
 import { SHEET_URL, MEMBERS_URL, gameRecords, memberIds } from '../recap-core.js';
 import { syncRoles } from './_roles.js';
 import { payRewards } from './_rewards.js';
 import { kvUrl, kvToken } from './_blackjack.js';
-import { runDraws } from './_lottery.js';
 
 async function readBody(req) {
   if (typeof req.body === 'string') return req.body;
@@ -27,11 +25,8 @@ export default async function handler(req, res) {
     if (!csv || csv.length > 2_000_000) { res.status(400).json({ error: 'could not read the sheet' }); return; }
     const ids = memberIds(members);
     const hasKv = kvUrl() && kvToken();
-    let lottery = null;
-    if (hasKv) { try { lottery = await runDraws(csv, ids); } catch (e) { console.error('lottery', e); lottery = { error: e.message }; } }
     let report;
     try { report = await syncRoles(gameRecords(csv), ids); } catch (e) { report = { changes: [], errors: ['Roles: ' + e.message], holders: {} }; }
-    report.lottery = lottery;
     if (hasKv) {
       try { report.chips = await payRewards(csv, ids); } catch (e) { console.error('rewards', e); report.errors = [...(report.errors || []), 'Chip rewards: ' + e.message]; }
     }

@@ -16,7 +16,8 @@
 //   /uth                    Ultimate Texas Hold'em against the dealer for chips (see _uth.js)
 //   /roulette               shared roulette table, 30 seconds to bet, then it spins (see _roulette.js)
 //   /baccarat               bet Player, Banker or Tie (see _baccarat.js)
-//   /lottery                this quarter's lottery: jackpot, your tickets and everyone's odds (see _lottery.js)
+//   /lottery odds           this quarter's lottery: jackpot, your tickets and everyone's odds (see _lottery.js)
+//   /lottery draw           the host draws last quarter's winner live in the channel (host only)
 //   /seats                  random seat order for everyone in on the latest invite (see _seats.js)
 // Also serves the site's casino: /api/login and /api/casino are rewritten here with ?web= (see _casino.js).
 // One-time setup: open /api/discord?setup=1 in a browser. It registers the command and shows the "add to server" link.
@@ -32,7 +33,7 @@ import { UTH_COMMAND, uthCommand, uthButton } from './_uth.js';
 import { ROULETTE_COMMAND, rouletteCommand, rouletteInteraction } from './_roulette.js';
 import { BACCARAT_COMMAND, baccaratCommand, baccaratButton } from './_baccarat.js';
 import { casinoWeb } from './_casino.js';
-import { board as lotteryBoard, quarterOf, shownQuarter, TICKET } from './_lottery.js';
+import { board as lotteryBoard, quarterOf, shownQuarter, drawable, drawQuarter, TICKET, LUCKY_ROLE, nextQuarter } from './_lottery.js';
 import { nightRows } from './_rewards.js';
 import { SHEET_URL, MEMBERS_URL, gameRecords, findPlayer, latestQuarter, memberIds, toNights, hallOfFame, usd, wrapDefault, quartersWithGames } from '../recap-core.js';
 
@@ -63,7 +64,9 @@ const COMMANDS = [
   ROULETTE_COMMAND,
   BACCARAT_COMMAND,
   SEATS_COMMAND,
-  { name: 'lottery', description: "This quarter's lottery: the jackpot, your tickets and everyone's odds", type: 1 },
+  { name: 'lottery', description: 'The quarter lottery', type: 1, options: [
+    { type: 1, name: 'odds', description: "The jackpot, your tickets and everyone's odds" },
+    { type: 1, name: 'draw', description: "Draw last quarter's winner, live (host only)" }] },
 ];
 // /fish and /donkey ping this person when nobody is picked (their Discord user ID, in quotes). Empty = they ask who.
 const FISH_DEFAULT = '170443455590301696';
@@ -141,6 +144,7 @@ export async function POST(req) {
   if (i.data.name === 'seats') return json(startSeats(i, opts, s, waitUntil));
   if (i.data.name === 'tourney' || i.data.name === 'cash') return json(startTourney(i, opts, s || { ids: {} }, waitUntil));
   if (!s) return say("Couldn't reach the poker sheet just now. Try again in a minute.");
+  if (i.data.name === 'lottery' && (i.data.options || [])[0] && i.data.options[0].name === 'draw') return lotteryDraw(i, s, waitUntil);
   if (i.data.name === 'roles') { // can take a few seconds, so answer "thinking…" and finish in the background
     waitUntil((async () => {
       let r; try { r = await syncRoles(s.recs, s.ids); } catch (e) { r = { changes: [], errors: ['Something went wrong: ' + e.message], holders: {} }; }
@@ -261,8 +265,40 @@ async function lottery(i, opts, s) {
   const you = mine ? `You have **${mine.t} ticket${mine.t === 1 ? '' : 's'}** (${pct(mine.t)} to win).` : me ? 'You have no tickets yet this quarter.'
     : "Your Discord isn't linked to a player yet, so you're not in the draw. Ask Renato to add your Discord ID to the Members tab.";
   return embed({ url: `${SITE}/casino`, title: `🎟️ ${q} lottery · ${'$' + b.jackpot.toLocaleString('en-US')} jackpot`,
-    description: `1 free ticket for every $${TICKET} you buy in at poker night. ${pending ? 'The quarter is over: the winner is drawn as soon as the first night of the new quarter is saved.' : 'One winner is drawn when the quarter ends and gets everything bought in, in chips.'}${you ? '\n\n' + you : ''}`,
+    description: `1 free ticket for every $${TICKET} you buy in at poker night. ${pending ? 'The quarter is over: the winner gets drawn live here soon.' : 'One winner is drawn live after the quarter ends and gets everything bought in, in chips.'}${you ? '\n\n' + you : ''}`,
     image: { url: `${SITE}/api/wrap?lottery=${encodeURIComponent(q)}&v=${stampNow()}` } });
+}
+
+// /lottery draw: host only. Answers "thinking…" in the channel, then edits that message so the ticket number rolls
+// and lands digit by digit, then drops the winner card. The draw itself is stored (and paid) before the roll starts.
+const HOST_ID = '147939795400654848';
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function lotteryDraw(i, s, waitUntil) {
+  const uid = (i.member && i.member.user || i.user || {}).id;
+  if (uid !== HOST_ID && uid !== s.ids.Renato) return say('Only the host can run the lottery draw.');
+  const rows = nightRows(s.csv);
+  return drawable(rows, s.ids).then(ok => {
+    if (ok.err) return say(ok.err);
+    const q = ok.q, b = lotteryBoard(rows, q, s.ids), jp = '$' + b.jackpot.toLocaleString('en-US');
+    const edit = body => fetch(`https://discord.com/api/v10/webhooks/${i.application_id}/${i.token}/messages/@original`, { method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ allowed_mentions: { parse: [] }, ...body }) }).catch(() => {});
+    const head = `🎟️ **${q} lottery draw** · ${b.total} tickets in the drum · **${jp}** jackpot`;
+    waitUntil((async () => {
+      const r = await drawQuarter(s.csv, s.ids, q);
+      if (r.err) { await edit({ content: `${head}\n⚠️ ${r.err}` }); return; }
+      const d = r.d, digits = String(b.total).length, num = String(d.ticket).padStart(digits, '0');
+      const rand = () => String(1 + Math.floor(Math.random() * b.total)).padStart(digits, '0');
+      const show = t => `${head}\n\n# 🎰 #${t.split('').join(' ')}`;
+      await edit({ content: `${head}\n\n🥁 Spinning the drum…` }); await sleep(1500);
+      for (let k = 0; k < 4; k++) { await edit({ content: show(rand()) }); await sleep(700); }
+      for (let k = 1; k <= digits; k++) { await edit({ content: show(num.slice(0, k) + '?'.repeat(digits - k)) }); await sleep(1300); }
+      await sleep(600);
+      await edit({ content: `${head}\n\n🎉 Ticket **#${num}** belongs to <@${r.id}>! **${jp}** in chips and the ${LUCKY_ROLE} role are yours. Tickets start over for ${nextQuarter(q)}.`,
+        embeds: [{ color: 0xf1c75b, url: `${SITE}/casino`, image: { url: `${SITE}/api/wrap?lottery=${encodeURIComponent(q)}&v=${d.at}` } }], allowed_mentions: { users: [r.id] } });
+      try { await syncRoles(s.recs, s.ids); } catch (e) { console.error('lucky role', e); }
+    })());
+    return json({ type: 5 });
+  });
 }
 
 function hall(i, opts, s) {
