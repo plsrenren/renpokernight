@@ -53,7 +53,7 @@ poker-dashboard/
                        recomputed from the sheet and diffed against rw:paid, so re-saves pay only the difference. Not in the recap post, by request)
                        lottery: _lottery.js (quarter lottery: 1 ticket per $10 of Cash_In in the quarter, jackpot = all buy-ins 1:1 in chips;
                        drawn by hand with /lottery draw (host only, live ticket roll in Discord, draws the last finished quarter once), Lucky Ticket role (_roles.js);
-                       /lottery odds|draw, lobby prize wheel (spins to the winner once per viewer), lobby panel, card at /api/wrap?lottery=<quarter> (no spare function slot). Some names are shown
+                       /lottery odds|draw, lobby prize wheel with pfps (spins to the winner once per viewer), lobby panel, card at /api/wrap?lottery=<quarter>, spinning wheel GIF at /api/wrap?lottery=<quarter>&spin=1 (_wheelgif.js; no spare function slot). Some names are shown
                        with tickets but never drawn (SKIP in _lottery.js), by request: don't mention it anywhere user-facing)
     vercel.json        Function durations + included files. Env vars on Vercel: DISCORD_BOT_TOKEN, DISCORD_PUBLIC_KEY
 poker-entry/
