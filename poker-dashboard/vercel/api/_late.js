@@ -3,6 +3,7 @@
 import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
 import { readFileSync } from 'node:fs';
+import { WHEEL_COLORS, wheelPngUri } from './_wheelgif.js';
 import { usd, hueFor, initials, words } from '../recap-core.js';
 
 const asset = name => readFileSync(new URL(`./_assets/${name}`, import.meta.url));
@@ -318,19 +319,6 @@ export const h2hCardTree = withAssets((p, pics = {}, art = {}) => {
 
 // ---------- quarter lottery (/api/wrap?lottery=Q4%202026) ----------
 /** b = board(...) from _lottery.js for that quarter; d = its draw (null before the draw: shows the odds instead). */
-const WHEEL_COLORS = ['#f1c75b', '#e0507f', '#8f78f0', '#8ee0b0', '#7fb6ff', '#ff9f6b', '#c9a2ff', '#5fd3c6', '#f59bb0', '#b8e986', '#d7d3ef', '#e39a68'];
-/** Prize wheel (same colours and order as the site's lobby). After a draw it is turned so the winning ticket sits under the pointer. */
-function lotteryWheelSvg(b, d) {
-  const S = 210, c = S / 2, R = 96, inDraw = b.holders.filter(x => x.in !== false && x.from), rot = d ? -360 * (d.ticket - 0.5) / b.total : 0;
-  let a0 = -Math.PI / 2, paths = '';
-  inDraw.forEach((x, i) => {
-    const a1 = a0 + 2 * Math.PI * x.t / b.total, big = a1 - a0 > Math.PI ? 1 : 0, P = a => `${(c + R * Math.cos(a)).toFixed(1)},${(c + 10 + R * Math.sin(a)).toFixed(1)}`;
-    paths += inDraw.length === 1 ? `<circle cx="${c}" cy="${c + 10}" r="${R}" fill="${WHEEL_COLORS[0]}"/>` : `<path d="M${c},${c + 10} L${P(a0)} A${R},${R} 0 ${big} 1 ${P(a1)} Z" fill="${WHEEL_COLORS[i % WHEEL_COLORS.length]}" stroke="#15132a" stroke-width="2"/>`;
-    a0 = a1;
-  });
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S + 10}" width="${S * 2}" height="${(S + 10) * 2}"><g transform="rotate(${rot} ${c} ${c + 10})">${paths}</g>`
-    + `<circle cx="${c}" cy="${c + 10}" r="28" fill="#15132a" stroke="${L.gold}" stroke-width="3"/><path d="M${c - 10},0 L${c + 10},0 L${c},22 Z" fill="#fff" stroke="#15132a" stroke-width="1.5"/></svg>`;
-}
 export const lotteryCardTree = withAssets((b, d, pics = {}) => {
   const pct = t => { const p = 100 * t / (b.total || 1); return (p < 10 ? p.toFixed(1) : Math.round(p)) + '%'; };
   let ci = 0;
@@ -368,7 +356,7 @@ export const lotteryCardTree = withAssets((b, d, pics = {}) => {
     hero, ticket,
     chy(d ? 'Who was in' : 'Odds right now', `1 ticket per $10 bought in`, d ? 'vio' : 'gold'),
     b.total ? h({ paddingLeft: PAD, paddingRight: PAD, gap: 18, alignItems: 'flex-start' },
-      img(svgUri(lotteryWheelSvg(b, d)), 210, 220),
+      img(wheelPngUri({ holders: b.holders, total: d ? d.total : b.total, ticket: d && d.ticket, winner: d && d.name, quarter: b.quarter, jackpot: d ? d.jackpot : b.jackpot }, pics, 420), 210, 207),
       h({ flex: 1, flexDirection: 'column' }, listed.map(wheelRow),
         more.length ? M(`+ ${more.length} more`, 11, L.muted, { marginTop: 6 }) : null))
       : pad(T('No tickets yet this quarter.', { fontSize: 14, color: L.muted, paddingTop: 6 })),

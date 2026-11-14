@@ -269,8 +269,9 @@ async function lottery(i, opts, s) {
     image: { url: `${SITE}/api/wrap?lottery=${encodeURIComponent(q)}&v=${stampNow()}` } });
 }
 
-// /lottery draw: host only. Answers "thinking…" in the channel, then edits that message so the ticket number rolls
-// and lands digit by digit, then drops the winner card. The draw itself is stored (and paid) before the roll starts.
+// /lottery draw: host only. Answers "thinking…" in the channel, then edits that message: first the wheel GIF
+// (/api/wrap?lottery=q&spin=1, pfps on the slices) spinning to the winning ticket, then the winner ping + card.
+// The draw itself is stored (and paid) before anything is shown.
 const HOST_ID = '147939795400654848';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 function lotteryDraw(i, s, waitUntil) {
@@ -286,15 +287,14 @@ function lotteryDraw(i, s, waitUntil) {
     waitUntil((async () => {
       const r = await drawQuarter(s.csv, s.ids, q);
       if (r.err) { await edit({ content: `${head}\n⚠️ ${r.err}` }); return; }
-      const d = r.d, digits = String(b.total).length, num = String(d.ticket).padStart(digits, '0');
-      const rand = () => String(1 + Math.floor(Math.random() * b.total)).padStart(digits, '0');
-      const show = t => `${head}\n\n# 🎰 #${t.split('').join(' ')}`;
-      await edit({ content: `${head}\n\n🥁 Spinning the drum…` }); await sleep(1500);
-      for (let k = 0; k < 4; k++) { await edit({ content: show(rand()) }); await sleep(700); }
-      for (let k = 1; k <= digits; k++) { await edit({ content: show(num.slice(0, k) + '?'.repeat(digits - k)) }); await sleep(1300); }
-      await sleep(600);
-      await edit({ content: `${head}\n\n🎉 Ticket **#${num}** belongs to <@${r.id}>! **${jp}** in chips and the ${LUCKY_ROLE} role are yours. Tickets start over for ${nextQuarter(q)}.`,
-        embeds: [{ color: 0xf1c75b, url: `${SITE}/casino`, image: { url: `${SITE}/api/wrap?lottery=${encodeURIComponent(q)}&v=${d.at}` } }], allowed_mentions: { users: [r.id] } });
+      const d = r.d, num = String(d.ticket).padStart(3, '0'), v = `&v=${d.at}`;
+      // the GIF embed gets its own url, so Discord stacks it above the card instead of merging the two into one gallery
+      const spin = { color: 0x8f78f0, url: `${SITE}/casino?wheel=1`, image: { url: `${SITE}/api/wrap?lottery=${encodeURIComponent(q)}&spin=1${v}` } };
+      await edit({ content: `${head}\n\n🎡 Spinning the wheel…`, embeds: [spin] });
+      // Discord fetches + renders the GIF (about 1-2s), then it spins for about 3.5s
+      await sleep(7500);
+      await edit({ content: `${head}\n\n🎉 Ticket **#${num}** belongs to <@${r.id}>! **${jp}** in chips and the ${LUCKY_ROLE} role are yours. Tickets start over for ${nextQuarter(q)}. Watch it again at ${SITE}/casino`,
+        embeds: [spin, { color: 0xf1c75b, url: `${SITE}/casino`, image: { url: `${SITE}/api/wrap?lottery=${encodeURIComponent(q)}${v}` } }], allowed_mentions: { users: [r.id] } });
       try { await syncRoles(s.recs, s.ids); } catch (e) { console.error('lucky role', e); }
     })());
     return json({ type: 5 });
