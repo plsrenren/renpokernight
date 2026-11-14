@@ -55,7 +55,6 @@ h1 { margin: 0; font-family: var(--title); font-weight: 400; font-size: 46px; li
 .face .av { --s: 56px; }
 .face .nm { font: 400 15px/1 var(--title); letter-spacing: .06em; margin-top: 6px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .face .gt { font: 500 10.5px var(--mono); color: var(--muted); }
-.face.dim { opacity: .38; }
 .face.cur .av { outline: 3px solid var(--ring); outline-offset: 2px; }
 .face:hover .nm { color: #fff; }
 .none { color: var(--muted); font-size: 13px; margin: 0; }
@@ -138,8 +137,10 @@ function sheet() {
   $('shTitle').textContent = `Pick ${other}’s opponent`;
   $('shSec').textContent = `Played ${other} most · ${label}`;
   const q = $('shFind').value.trim().toLowerCase();
-  const list = NAMES.filter(x => x !== other && (!q || x.toLowerCase().includes(q))).sort((x, y) => (n[y] || 0) - (n[x] || 0) || NAMES.indexOf(x) - NAMES.indexOf(y));
-  $('shFaces').innerHTML = list.length ? list.map(x => `<button type="button" class="face${x === cur ? ' cur' : ''}${(n[x] || 0) < 1 ? ' dim' : ''}" data-n="${esc(x)}"><span class="av" data-face="${esc(x)}"></span><span class="nm">${esc(x)}</span><span class="gt">${n[x] || 0} game${n[x] === 1 ? '' : 's'}</span></button>`).join('') : '<p class="none">No one by that name.</p>';
+  // only players who shared at least one game with `other` in this period
+  const list = NAMES.filter(x => x !== other && n[x] > 0 && (!q || x.toLowerCase().includes(q))).sort((x, y) => (n[y] || 0) - (n[x] || 0) || NAMES.indexOf(x) - NAMES.indexOf(y));
+  $('shFaces').innerHTML = list.length ? list.map(x => `<button type="button" class="face${x === cur ? ' cur' : ''}" data-n="${esc(x)}"><span class="av" data-face="${esc(x)}"></span><span class="nm">${esc(x)}</span><span class="gt">${n[x]} game${n[x] === 1 ? '' : 's'}</span></button>`).join('')
+    : `<p class="none">${Object.keys(n).length ? `No one by that name has played ${esc(other)} in ${esc(label)}.` : `${esc(other)} hasn’t shared a game with anyone in ${esc(label)}. Try All time.`}</p>`;
   $('shFaces').querySelectorAll('[data-face]').forEach(f => face(f, f.dataset.face));
 }
 function pickSide(k) { open = open === k ? '' : k; $('shFind').value = ''; show(); if (open && matchMedia('(hover: hover)').matches) $('shFind').focus(); }
