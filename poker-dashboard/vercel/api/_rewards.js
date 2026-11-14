@@ -21,7 +21,7 @@
 // Per finished quarter (paid when the first night of the next quarter is saved):
 //   Quarter champ   top net of the quarter
 //   Most improved   biggest jump in net from the quarter before (played both)
-import { kv } from './_blackjack.js';
+import { kv, FEED_KEEP } from './_blackjack.js';
 import { parseCSV } from '../recap-core.js';
 import { dc, latestInvite, readReacts } from './_tourney.js';
 
@@ -236,7 +236,7 @@ export async function payRewards(csv, ids) {
       p.name = p.name || nm[p.id] || 'Someone';
       cmds.push(['LPUSH', 'cas:feed', JSON.stringify({ id: p.id, name: p.name, game: 'poker night', why: p.lines.map(l => l.replace(/ [+-][\d.]+$/, '')).join(' · '), net: p.total, src: 'night', at: Date.now() })]);
     }
-    if (cmds.length) cmds.push(['LTRIM', 'cas:feed', 0, 29]);
+    if (cmds.length) cmds.push(['LTRIM', 'cas:feed', 0, FEED_KEEP - 1]);
     if (cmds.length) await kv(...cmds);
     let posted = null;
     if (Object.keys(perPerson).length) { try { posted = await postToCasino(Object.values(perPerson), [...nightsPaid]); } catch (e) { console.error('rewards post', e); posted = 'failed: ' + e.message; } }
