@@ -101,13 +101,22 @@ export async function luckyHolder() {
 }
 
 /** What the lobby, /lottery and the card show: this quarter's board plus the latest draw (if any). */
-export async function lotteryView(csv, quarter = quarterOf()) {
-  const rows = nightRows(csv), b = board(rows, quarter);
+export async function lotteryView(csv, quarter) {
+  const rows = nightRows(csv), b = board(rows, quarter || await shownQuarter(rows));
   const [lastQ] = await kv(['GET', 'lt:last']);
   const [raw] = lastQ ? await kv(['GET', 'lt:draw:' + lastQ]) : [null];
   let last = null; try { last = raw ? JSON.parse(raw) : null; } catch (e) {}
   const past = lastQ ? await pastDraws(lastQ) : [];
-  return { ...b, ticket: TICKET, last, past };
+  return { ...b, ticket: TICKET, last, past, pending: qKey(b.quarter) < qKey(quarterOf()) };
+}
+/** The quarter to show: this calendar quarter, except that last quarter stays up (pending: waiting for the first night
+ *  of the new quarter, which runs its draw) until it has been drawn and the new quarter has tickets. */
+export async function shownQuarter(rows, now = new Date()) {
+  const q = quarterOf(now);
+  if (board(rows, q).total) return q;
+  const [n, y] = q.split(' '), k = +n.slice(1), prev = k === 1 ? `Q4 ${+y - 1}` : `Q${k - 1} ${y}`;
+  if (qKey(prev) < qKey(FIRST_QUARTER) || !board(rows, prev).total) return q;
+  return (await drawOf(prev)) ? q : prev;
 }
 /** Up to 6 most recent draws, newest first. */
 async function pastDraws(lastQ) {

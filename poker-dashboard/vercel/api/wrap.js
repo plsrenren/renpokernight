@@ -5,7 +5,7 @@
 //                               Lives here because the Hobby plan allows only 12 functions.
 import { SHEET_URL, MEMBERS_URL, gameRecords, wrapStats, wrapDefault, memberIds } from '../recap-core.js';
 import { draw, wrapCardTree, lotteryCardTree } from './_late.js';
-import { drawOf, board, quarterOf } from './_lottery.js';
+import { drawOf, board, quarterOf, shownQuarter } from './_lottery.js';
 import { nightRows } from './_rewards.js';
 import { avatarPng } from './_discord.js';
 
@@ -24,8 +24,8 @@ export async function render(csv, q, membersCsv = '', getPic = avatarPng) {
 
 /** The lottery card for quarter q (default this quarter): odds before the draw, the winner once drawn. */
 export async function renderLottery(csv, q, membersCsv = '', getPic = avatarPng) {
-  const quarter = /^Q[1-4] \d{4}$/.test(q || '') ? q : quarterOf();
-  const b = board(nightRows(csv), quarter), d = await drawOf(quarter).catch(() => null);
+  const rows = nightRows(csv), quarter = /^Q[1-4] \d{4}$/.test(q || '') ? q : await shownQuarter(rows).catch(() => quarterOf());
+  const b = board(rows, quarter), d = await drawOf(quarter).catch(() => null);
   const ids = memberIds(membersCsv);
   const people = [...new Set([...b.holders.slice(0, 8).map(x => x.name), d && d.name])].filter(p => p && ids[p]);
   const pics = Object.fromEntries((await Promise.all(people.map(async p => {

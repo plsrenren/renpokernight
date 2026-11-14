@@ -432,11 +432,11 @@ function lottery() {
     : `<div class="tl" style="border-left-color:var(--up)"><div class="k">Tickets</div><div class="v">${L.total}</div><div class="s">${L.holders.length} players</div></div>`;
   const past = (L.past || []).map(p => `<div class="past"><span class="q">${esc(p.quarter)}</span>${esc(p.name)} · #${String(p.ticket).padStart(3, '0')}<span class="amt">${money(p.jackpot)}</span></div>`).join('');
   return `<div class="panel lot"><h2 class="g">🎟️ ${esc(L.quarter)} lottery</h2>
-    <p class="hint">Free. Every $${L.ticket} you buy in at poker night this quarter is a ticket. One winner is drawn when the quarter ends and gets everything bought in, in chips.</p>
+    <p class="hint">Free. Every $${L.ticket} you buy in at poker night this quarter is a ticket. ${L.pending ? `${esc(L.quarter)} is over: the winner is drawn as soon as the first night of the new quarter is saved.` : 'One winner is drawn when the quarter ends and gets everything bought in, in chips.'}</p>
     ${won}<div class="ltiles">
       <div class="tl jp"><div class="k">Jackpot</div><div class="v">${money(L.jackpot)}</div><div class="s">everything bought in this quarter, 1:1</div></div>
       ${mineTile}
-      <div class="tl" style="border-left-color:var(--pink)"><div class="k">Draw in</div><div class="v">${days} day${days === 1 ? '' : 's'}</div><div class="s">at the first ${k === 4 ? 'Q1' : 'Q' + (k + 1)} night</div></div>
+      <div class="tl" style="border-left-color:var(--pink)"><div class="k">Draw</div><div class="v">${L.pending || !days ? 'Next night' : `${days} day${days === 1 ? '' : 's'}`}</div><div class="s">at the first ${k === 4 ? 'Q1' : 'Q' + (k + 1)} night</div></div>
     </div>
     <div class="lcols"><div><div class="sub">Everyone's odds</div>${rows || '<p class="hint">No tickets yet this quarter.</p>'}
         ${L.holders.length > 8 ? `<button class="more" data-lot-all>${all ? 'Show fewer' : `Show all ${L.holders.length}`}</button>` : ''}</div>
