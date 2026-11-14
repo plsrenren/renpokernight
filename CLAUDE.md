@@ -39,7 +39,7 @@ poker-dashboard/
     api/               Serverless functions: recap/card/hall/h2h/wrap (PNG cards via satori + resvg, all drawn by _late.js = Late Show design), avatar (Discord pfps/banners),
                        discord (slash commands endpoint; ?setup=1 registers commands), invite (who reacted to /tourney or /cash),
                        roles (results roles), _tourney.js/_roles.js/_discord.js helpers, _assets/ fonts + logo
-                       blackjack: _blackjack.js (/daily /blackjack /chips, play chips in Upstash Redis via KV_REST_API_URL/TOKEN),
+                       blackjack: _blackjack.js (/daily /blackjack /chips, play chips in Upstash Redis via KV_REST_API_URL/TOKEN; daily resets once a day at 16:00 UTC, not 24h after the last claim),
                        bjcards (table picture under each hand)
                        duel: _duel.js (/duel rock paper scissors or high card for the same chips; high card picture = bjcards?m=duel)
                        uth: _uth.js (/uth Ultimate Texas Hold'em vs the dealer for the same chips; no 3x pre-flop bet (only 4x or check), by request; table picture = bjcards?m=uth)
@@ -51,6 +51,10 @@ poker-dashboard/
                        redirect https://renpokernight.vercel.app/api/login in the Developer Portal. Game rules stay in the _game.js files, shared)
                        rewards: _rewards.js (casino chips for real nights: RSVP/showed up/places/bad beat (on top of consolation)/consolation/PKO/Heater/cold streak/comeback/giant killer/rebuy grit/bring a friend ("brought by X" note on a first-timer)/quarter champ/most improved; listed in the casino lobby (folded bar, 3 groups) via REWARD_LIST; cas:feed (300 kept) gets bj/uth/baccarat hands, roulette spins, duels, daily claims, rewards, and the lobby rolls a player's run of hands in one game (gaps under 10 min) into one "session line" (groupFeed in _casino.js); amounts in R, only nights from REWARDS_START; run by api/roles.js after each entry-page save, then posts a plain-text "who got what" note in the #casino Discord channel (channel id cached in rw:chan; bot needs Send Messages there);
                        recomputed from the sheet and diffed against rw:paid, so re-saves pay only the difference. Not in the recap post, by request)
+                       lottery: _lottery.js (quarter lottery: 1 ticket per $10 of Cash_In in the quarter, jackpot = all buy-ins 1:1 in chips;
+                       drawn by api/roles.js when the next quarter's first night is saved, posted in #casino, Lucky Ticket role (_roles.js);
+                       /lottery command, lobby panel, card at /api/wrap?lottery=<quarter> (no spare function slot). Some names are shown
+                       with tickets but never drawn (SKIP in _lottery.js), by request: don't mention it anywhere user-facing)
     vercel.json        Function durations + included files. Env vars on Vercel: DISCORD_BOT_TOKEN, DISCORD_PUBLIC_KEY
 poker-entry/
   Code.gs              Apps Script server: doGet, getSetup(), saveNight(payload), Discord recap post. The live copy has the

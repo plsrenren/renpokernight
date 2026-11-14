@@ -16,6 +16,7 @@
 //   /uth                    Ultimate Texas Hold'em against the dealer for chips (see _uth.js)
 //   /roulette               shared roulette table, 30 seconds to bet, then it spins (see _roulette.js)
 //   /baccarat               bet Player, Banker or Tie (see _baccarat.js)
+//   /lottery                this quarter's lottery: jackpot, your tickets and everyone's odds (see _lottery.js)
 //   /seats                  random seat order for everyone in on the latest invite (see _seats.js)
 // Also serves the site's casino: /api/login and /api/casino are rewritten here with ?web= (see _casino.js).
 // One-time setup: open /api/discord?setup=1 in a browser. It registers the command and shows the "add to server" link.
@@ -31,6 +32,8 @@ import { UTH_COMMAND, uthCommand, uthButton } from './_uth.js';
 import { ROULETTE_COMMAND, rouletteCommand, rouletteInteraction } from './_roulette.js';
 import { BACCARAT_COMMAND, baccaratCommand, baccaratButton } from './_baccarat.js';
 import { casinoWeb } from './_casino.js';
+import { board as lotteryBoard, quarterOf, TICKET } from './_lottery.js';
+import { nightRows } from './_rewards.js';
 import { SHEET_URL, MEMBERS_URL, gameRecords, findPlayer, latestQuarter, memberIds, toNights, hallOfFame, usd, wrapDefault, quartersWithGames } from '../recap-core.js';
 
 const SITE = 'https://renpokernight.vercel.app';
@@ -60,6 +63,7 @@ const COMMANDS = [
   ROULETTE_COMMAND,
   BACCARAT_COMMAND,
   SEATS_COMMAND,
+  { name: 'lottery', description: "This quarter's lottery: the jackpot, your tickets and everyone's odds", type: 1 },
 ];
 // /fish and /donkey ping this person when nobody is picked (their Discord user ID, in quotes). Empty = they ask who.
 const FISH_DEFAULT = '170443455590301696';
@@ -147,7 +151,7 @@ export async function POST(req) {
     })());
     return json({ type: 5, data: { flags: 64 } });
   }
-  const run = { player, standings, recap, h2h, hall, wrap }[i.data.name];
+  const run = { player, standings, recap, h2h, hall, wrap, lottery }[i.data.name];
   return run ? run(i, opts, s) : say('Unknown command.');
 }
 
@@ -247,6 +251,17 @@ function wrap(i, opts, s) {
   if (!q) return say(`No games in "${String(want).slice(0, 20)}". Try one of: ${qs.slice(0, 6).join(', ')}.`);
   // the card is drawn by /api/wrap; Discord fetches the picture itself
   return embed({ url: `${SITE}/hall`, title: `🏁 ${q} wrapped`, image: { url: `${SITE}/api/wrap?q=${encodeURIComponent(q)}&v=${stampNow()}` } });
+}
+
+function lottery(i, opts, s) {
+  const q = quarterOf(), b = lotteryBoard(nightRows(s.csv), q);
+  const byId = Object.fromEntries(Object.entries(s.ids).map(([n, id]) => [id, n]));
+  const me = byId[(i.member && i.member.user || i.user || {}).id], mine = me && b.holders.find(x => x.name === me);
+  const pct = t => { const p = 100 * t / (b.total || 1); return (p < 10 ? p.toFixed(1) : Math.round(p)) + '%'; };
+  const you = mine ? `You have **${mine.t} ticket${mine.t === 1 ? '' : 's'}** (${pct(mine.t)} to win).` : me ? 'You have no tickets yet this quarter.' : '';
+  return embed({ url: `${SITE}/casino`, title: `🎟️ ${q} lottery · ${'$' + b.jackpot.toLocaleString('en-US')} jackpot`,
+    description: `1 free ticket for every $${TICKET} you buy in at poker night. One winner is drawn when the quarter ends and gets everything bought in, in chips.${you ? '\n\n' + you : ''}`,
+    image: { url: `${SITE}/api/wrap?lottery=${encodeURIComponent(q)}&v=${stampNow()}` } });
 }
 
 function hall(i, opts, s) {

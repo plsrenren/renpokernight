@@ -1,8 +1,12 @@
 // /api/wrap?q=Q3%202026   "quarter wrapped" card as a PNG: champion and podium, best and toughest night,
 // biggest turnaround, iron man, most wins, tournament king. Default q = the last finished quarter.
 // POST with JSON { input, members } (the entry page does this when the first night of a new quarter is saved).
+// /api/wrap?lottery=Q4%202026   the quarter lottery card instead (odds before the draw, the winner after; see _lottery.js).
+//                               Lives here because the Hobby plan allows only 12 functions.
 import { SHEET_URL, MEMBERS_URL, gameRecords, wrapStats, wrapDefault, memberIds } from '../recap-core.js';
-import { draw, wrapCardTree } from './_late.js';
+import { draw, wrapCardTree, lotteryCardTree } from './_late.js';
+import { drawOf, board, quarterOf } from './_lottery.js';
+import { nightRows } from './_rewards.js';
 import { avatarPng } from './_discord.js';
 
 export async function render(csv, q, membersCsv = '', getPic = avatarPng) {
@@ -18,6 +22,18 @@ export async function render(csv, q, membersCsv = '', getPic = avatarPng) {
   return draw(wrapCardTree(w, pics));
 }
 
+/** The lottery card for quarter q (default this quarter): odds before the draw, the winner once drawn. */
+export async function renderLottery(csv, q, membersCsv = '', getPic = avatarPng) {
+  const quarter = /^Q[1-4] \d{4}$/.test(q || '') ? q : quarterOf();
+  const b = board(nightRows(csv), quarter), d = await drawOf(quarter).catch(() => null);
+  const ids = memberIds(membersCsv);
+  const people = [...new Set([...b.holders.slice(0, 8).map(x => x.name), d && d.name])].filter(p => p && ids[p]);
+  const pics = Object.fromEntries((await Promise.all(people.map(async p => {
+    try { const x = await getPic(ids[p]); return x ? [p, 'data:image/png;base64,' + Buffer.from(x).toString('base64')] : null; } catch (e) { return null; }
+  }))).filter(Boolean));
+  return draw(lotteryCardTree(b, d, pics));
+}
+
 async function readBody(req) {
   if (typeof req.body === 'string') return req.body;
   if (Buffer.isBuffer(req.body)) return req.body.toString('utf8');
@@ -28,13 +44,13 @@ async function readBody(req) {
 
 export default async function handler(req, res) {
   try {
-    const q = new URL(req.url, 'http://x').searchParams.get('q') || '';
+    const sp = new URL(req.url, 'http://x').searchParams, q = sp.get('q') || '', lot = sp.get('lottery');
     let csv = '', members = null;
     if (req.method === 'POST') { const j = JSON.parse(await readBody(req) || '{}'); csv = j.input || ''; members = j.members ?? null; }
     else csv = await fetch(SHEET_URL, { cache: 'no-store' }).then(r => r.ok ? r.text() : '').catch(() => '');
     if (members == null) members = await fetch(MEMBERS_URL, { cache: 'no-store' }).then(r => r.ok ? r.text() : '').catch(() => '');
     if (!csv || csv.length > 2_000_000) { res.status(400).send('could not read the sheet'); return; }
-    const png = await render(csv, q, members);
+    const png = lot !== null ? await renderLottery(csv, lot, members) : await render(csv, q, members);
     if (!png) { res.status(404).send(`No games in ${q || 'that quarter'}`); return; }
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Cache-Control', req.method === 'POST' ? 'no-store' : 'public, s-maxage=300, stale-while-revalidate=3600');

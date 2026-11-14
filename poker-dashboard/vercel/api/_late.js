@@ -315,3 +315,40 @@ export const h2hCardTree = withAssets((p, pics = {}, art = {}) => {
     pad(p.last.map(meet)),
     foot('Poker Club @ The Study'));
 });
+
+// ---------- quarter lottery (/api/wrap?lottery=Q4%202026) ----------
+/** b = board(...) from _lottery.js for that quarter; d = its draw (null before the draw: shows the odds instead). */
+export const lotteryCardTree = withAssets((b, d, pics = {}) => {
+  const pct = t => { const p = 100 * t / (b.total || 1); return (p < 10 ? p.toFixed(1) : Math.round(p)) + '%'; };
+  const max = Math.max(1, ...b.holders.map(x => x.t)), shown = b.holders.slice(0, 8), rest = b.holders.slice(8);
+  const row = (x, k) => {
+    const hl = d ? x.name === d.name : k === 0;
+    return h({ alignItems: 'center', gap: 10, height: 38, borderBottom: `1px solid ${L.line}` },
+      sq(pics, x.name, 26), h({ width: 92, flexDirection: 'column' }, T(x.name, { fontSize: 13.5, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap' }), M(`${usd(x.cin, { sign: false, cents: false })} in`, 10, L.muted)),
+      h({ flex: 1, height: 12, backgroundColor: L.panel2 }, h({ width: `${Math.max(2, 100 * x.t / max)}%`, height: 12, backgroundColor: hl ? (d ? L.up : L.gold) : L.vio })),
+      M(String(x.t), 13, '#fff', { width: 36, justifyContent: 'flex-end' }), M(pct(x.t), 11.5, L.soft, { width: 46, justifyContent: 'flex-end' }));
+  };
+  const tile = (k, v, s, c, grad) => h({ flex: grad ? 1.25 : 1, flexDirection: 'column', padding: '9px 12px', borderLeft: `4px solid ${c}`, backgroundColor: L.panel, backgroundImage: grad ? 'linear-gradient(100deg, #3a2a6e, #a23b58)' : 'none' },
+    B(k.toUpperCase(), 15, L.soft, { letterSpacing: 1.8 }), B(v, 38, '#fff'), M(s, 10.5, L.soft));
+  const jp = '$' + b.jackpot.toLocaleString('en-US');
+  const hero = d
+    ? h({ marginTop: 18, marginLeft: PAD, marginRight: PAD, padding: '14px 16px', gap: 16, alignItems: 'center', borderLeft: `6px solid ${L.gold}`, backgroundImage: 'linear-gradient(100deg, #3a2a6e, #a23b58)' },
+        sq(pics, d.name, 92),
+        h({ flex: 1, flexDirection: 'column' }, B('WINNER', 16, L.gold, { letterSpacing: 2 }), B(d.name.toUpperCase(), d.name.length > 8 ? 42 : 54, '#fff'),
+          M(`${d.tickets} of ${d.total} tickets · ${pct(d.tickets)} chance`, 11.5, L.soft, { marginTop: 4 })),
+        h({ flexDirection: 'column', alignItems: 'flex-end' }, B('JACKPOT', 14, L.soft, { letterSpacing: 2 }), B('$' + d.jackpot.toLocaleString('en-US'), 54, L.up)))
+    : h({ marginTop: 18, marginLeft: PAD, marginRight: PAD, gap: 8 },
+        tile('Jackpot', jp, 'everything bought in, 1:1', L.gold, true),
+        tile('Tickets', String(b.total), `${b.holders.length} players`, L.up),
+        tile('Leader', b.holders[0] ? b.holders[0].name : '–', b.holders[0] ? `${b.holders[0].t} tickets · ${pct(b.holders[0].t)}` : 'no tickets yet', L.pink));
+  const ticket = d ? h({ marginTop: 12, marginLeft: PAD, marginRight: PAD, alignItems: 'center', gap: 12 },
+    h({ backgroundColor: L.gold, padding: '2px 14px 0' }, B(`TICKET #${String(d.ticket).padStart(3, '0')}`, 24, L.night, { letterSpacing: 1.5 })),
+    M(`drawn from #001 to #${String(d.total).padStart(3, '0')} · + ${'Lucky Ticket'} role`, 11.5, L.soft)) : null;
+  return frame(
+    mast('Quarter lottery', d ? `${b.quarter} draw · ${b.total} tickets in the drum` : `${b.quarter} · drawn after the quarter ends`),
+    hero, ticket,
+    chy(d ? 'Who was in' : 'Odds right now', `1 ticket per $10 bought in`, d ? 'vio' : 'gold'),
+    pad(shown.length ? shown.map(row) : [T('No tickets yet this quarter.', { fontSize: 14, color: L.muted, paddingTop: 6 })],
+      rest.length ? M(`+ ${rest.length} more with ${rest.reduce((a, x) => a + x.t, 0)} tickets`, 11, L.muted, { marginTop: 8 }) : null),
+    foot('Poker Club @ The Study', d ? 'tickets start over every quarter' : '/lottery · renpokernight.vercel.app/casino'));
+});

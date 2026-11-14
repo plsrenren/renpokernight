@@ -15,6 +15,7 @@ import { kv, kvUrl, kvToken, MAX_BET, FEED_KEEP, claimDaily, dailyStatus, boardF
 import { newHand as uthStart, uthAction, publicUth, MAX_ANTE, MAX_TRIPS, UTH_PAYTABLE } from './_uth.js';
 import { playHand } from './_baccarat.js';
 import { REWARD_LIST } from './_rewards.js';
+import { lotteryView } from './_lottery.js';
 
 const DAYS30 = 30 * 24 * 3600;
 const out = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers } });
@@ -96,13 +97,15 @@ export function groupFeed(feed, lines = 10) {
   return out;
 }
 
-async function state(me) {
+async function state(me, sheet) {
   // two storage trips: everything for the lobby at once, then any unfinished hands
   const [bal, names, feedRaw, last, cur] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['LRANGE', 'cas:feed', 0, FEED_KEEP - 1],
     ['HGET', 'bj:last', me ? me.id : '-'], ['HGETALL', 'cas:cur:' + (me ? me.id : '-')]);
   const board = boardFrom(bal, names);
   const feed = groupFeed((feedRaw || []).map(x => { try { return JSON.parse(x); } catch (e) { return null; } }).filter(Boolean));
   const body = { me: null, board: board.slice(0, 15), players: board.length, feed, maxBet: MAX_BET, maxAnte: MAX_ANTE, maxTrips: MAX_TRIPS, uthPaytable: plain(UTH_PAYTABLE), rewards: REWARD_LIST };
+  // the quarter lottery panel (needs the sheet; left out if it can't be read)
+  try { const sh = sheet && await sheet(); if (sh && sh.csv) { const v = await lotteryView(sh.csv); v.holders = v.holders.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); body.lottery = v; } } catch (e) { console.error('lottery view', e); }
   if (!me) return body;
   const mine = board.find(r => r.id === me.id);
   body.me = { id: me.id, name: me.name, bal: mine ? mine.bal : null, rank: mine ? board.indexOf(mine) + 1 : null, daily: dailyFrom(last) };
@@ -165,7 +168,7 @@ export async function casinoWeb(req, what, sheet) {
   try {
     if (what === 'login') return await login(req, sheet);
     const me = readSession(req);
-    if (req.method === 'GET') return out(await state(me));
+    if (req.method === 'GET') return out(await state(me, sheet));
     if (req.method !== 'POST') return out({ err: 'Method not allowed.' }, 405);
     // same-site only: the cookie is SameSite=Lax already; this also refuses posts from other sites
     const o = req.headers.get('origin');
