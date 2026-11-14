@@ -24,9 +24,10 @@ export default async function handler(req, res) {
     if (members == null) members = await fetch(MEMBERS_URL, { cache: 'no-store' }).then(r => r.ok ? r.text() : '').catch(() => '');
     if (!csv || csv.length > 2_000_000) { res.status(400).json({ error: 'could not read the sheet' }); return; }
     const ids = memberIds(members);
+    const hasKv = kvUrl() && kvToken();
     let report;
     try { report = await syncRoles(gameRecords(csv), ids); } catch (e) { report = { changes: [], errors: ['Roles: ' + e.message], holders: {} }; }
-    if (kvUrl() && kvToken()) {
+    if (hasKv) {
       try { report.chips = await payRewards(csv, ids); } catch (e) { console.error('rewards', e); report.errors = [...(report.errors || []), 'Chip rewards: ' + e.message]; }
     }
     res.setHeader('Cache-Control', 'no-store');

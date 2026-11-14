@@ -181,7 +181,9 @@ export function casinoText(people, nights) {
   return text;
 }
 /** Finds the #casino text channel (remembered in rw:chan) and posts the note there. Returns where it went, or why not. */
-async function postToCasino(people, nights) {
+const postToCasino = (people, nights) => postCasino({ content: casinoText(people, nights), allowed_mentions: { parse: [] } });
+/** Posts a Discord message body ({ content, embeds, allowed_mentions }) in #casino. Also used by the lottery draw. */
+export async function postCasino(payload) {
   const token = process.env.DISCORD_BOT_TOKEN;
   if (!token) return 'no bot token';
   const H = { Authorization: `Bot ${token}`, 'Content-Type': 'application/json' };
@@ -196,7 +198,7 @@ async function postToCasino(people, nights) {
     await kv(['SET', 'rw:chan', chan, 'EX', 86400]);
   }
   const r = await fetch(`${API}/channels/${chan}/messages`, { method: 'POST', headers: H,
-    body: JSON.stringify({ content: casinoText(people, nights), allowed_mentions: { parse: [] } }) });
+    body: JSON.stringify(payload) });
   if (!r.ok) { await kv(['DEL', 'rw:chan']); return `Discord said ${r.status} (does the bot have Send Messages in #casino?)`; }
   return 'posted in #casino';
 }

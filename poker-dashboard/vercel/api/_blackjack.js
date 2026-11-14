@@ -1,5 +1,5 @@
 // Blackjack with chips: /daily, /blackjack, /chips, and the Hit / Stand / Double / Split buttons.
-//   /daily          +$100 the first time, then +$50 every 24 hours
+//   /daily          +$100 the first time, then +$50 once a day (resets at 16:00 UTC)
 //   /blackjack bet  one hand against the dealer, $1 to $500 (default $20). Blackjack pays 3:2, dealer stands on all 17s,
 //                   double on any first two cards, one split (any two cards of the same value; split aces get one card each)
 //   /chips          leaderboard of everyone's chips
@@ -11,9 +11,15 @@ import { randomInt, randomBytes } from 'node:crypto';
 const SITE = 'https://renpokernight.vercel.app';
 export const MAX_BET = 500;
 const DEFAULT_BET = 20, FIRST_CLAIM = 100, DAILY = 50, DAY = 24 * 3600e3;
+/** The daily claim resets once a day at this hour (UTC), instead of 24 hours after your last claim. */
+export const DAILY_RESET_UTC = 16;
+/** The most recent reset time (ms) at or before now. */
+export const lastReset = (now = Date.now()) => { const d = new Date(now), r = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), DAILY_RESET_UTC); return r > now ? r - DAY : r; };
+/** ms until the next claim (0 = can claim now). */
+const dailyWait = (last, now = Date.now()) => !last || +last < lastReset(now) ? 0 : lastReset(now) + DAY - now;
 
 export const BLACKJACK_COMMANDS = [
-  { name: 'daily', description: 'Claim free blackjack chips: $100 the first time, then $50 a day', type: 1 },
+  { name: 'daily', description: 'Claim free blackjack chips: $100 the first time, then $50 a day (resets 16:00 UTC)', type: 1 },
   { name: 'blackjack', description: 'Play a hand of blackjack', type: 1,
     options: [{ type: 4, name: 'bet', description: `How much to bet ($1 to $${MAX_BET}, default $${DEFAULT_BET})`, min_value: 1, max_value: MAX_BET, required: false }] },
   { name: 'chips', description: 'Blackjack chip leaderboard', type: 1 },
@@ -65,14 +71,15 @@ export async function claimDaily(me) {
   const now = Date.now();
   // a short lock so two taps (or Discord and the site at once) can't both claim
   const [last, got] = await kv(['HGET', 'bj:last', me.id], ['SET', 'bj:dlock:' + me.id, '1', 'NX', 'PX', 3000]);
-  if (last && now - +last < DAY) return { wait: DAY - (now - +last), amt: DAILY };
+  const wait = dailyWait(last, now);
+  if (wait) return { wait, amt: DAILY };
   if (!got) return { wait: 0, busy: true, amt: DAILY };
   const amt = last ? DAILY : FIRST_CLAIM;
   const [bal] = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, amt], ['HSET', 'bj:last', me.id, now], ['HSET', 'bj:name', me.id, me.name], ...feedCmds(me, 'daily', amt));
   return { amt, bal: +bal, first: !last };
 }
 /** When the next daily is ready (ms from now, 0 = ready) and how much it gives. */
-export const dailyFrom = last => ({ wait: last ? Math.max(0, DAY - (Date.now() - +last)) : 0, amt: last ? DAILY : FIRST_CLAIM });
+export const dailyFrom = last => ({ wait: dailyWait(last), amt: last ? DAILY : FIRST_CLAIM });
 export async function dailyStatus(id) {
   const [last] = await kv(['HGET', 'bj:last', id]);
   return dailyFrom(last);
@@ -90,7 +97,7 @@ async function daily(i, s) {
   return json({ type: 4, data: { allowed_mentions: { parse: [] }, embeds: [{ color: 0x8ee0b0,
     title: last ? `🎁 ${me.name} claimed ${money(amt)}` : '🎁 Welcome bonus!',
     description: `${last ? '' : 'First claim gets double. '}**+${money(amt)}** in chips\n\nBalance **${money(+bal)}**`,
-    footer: { text: `Come back in 24 hours for +${money(DAILY)}` } }] } });
+    footer: { text: `Next +${money(DAILY)} after ${DAILY_RESET_UTC}:00 UTC` } }] } });
 }
 
 // ---------- /chips ----------

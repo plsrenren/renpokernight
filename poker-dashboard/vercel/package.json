@@ -4,6 +4,7 @@
   "dependencies": {
     "satori": "0.63.2",
     "@resvg/resvg-js": "2.6.2",
-    "@vercel/functions": "2.2.13"
+    "@vercel/functions": "2.2.13",
+    "gifenc": "1.0.3"
   }
 }

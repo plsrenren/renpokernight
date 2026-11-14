@@ -208,6 +208,36 @@ details.pay summary { cursor: pointer; font: 400 17px var(--title); letter-spaci
   .bacrow { gap: 10px; }
   .uth-board .card { width: 46px; height: 66px; font-size: 21px; } .uth-board .card i { font-size: 16px; }
 }
+/* quarter lottery panel */
+.lot .wheelbox { display: flex; gap: 18px; align-items: flex-start; } .lot .wheel { flex: none; overflow: visible; }
+.lot .wheel g[data-spin] { transition: transform 5.5s cubic-bezier(.12,.62,.16,1); }
+.lot .llist { flex: 1; min-width: 0; }
+.lot .lrow { display: flex; align-items: center; gap: 8px; font-size: 13.5px; padding: 4px 0; border-bottom: 1px solid #2a2550; }
+.lot .lrow i { width: 10px; height: 10px; flex: none; } .lot .lrow .av { width: 22px; height: 22px; font-size: 10px; }
+.lot .lrow .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .lot .lrow .tk { margin-left: auto; font: 600 12px var(--mono); color: var(--soft); }
+.lot .lrow b { font: 600 12px var(--mono); width: 48px; text-align: right; }
+.lot .lrow.mine { color: var(--up); background: rgba(142,224,176,.07); margin: 0 -6px; padding: 4px 6px; } .lot .lrow.out { opacity: .45; } .lot .lrow.out b { font-size: 10px; color: var(--muted); width: auto; white-space: nowrap; }
+.lot .won .wt { transition: opacity .6s; } .lot .won .tkt { display: inline-block; margin-bottom: 6px; }
+@media (max-width: 640px) { .lot .wheelbox { flex-direction: column; align-items: center; } .lot .llist { width: 100%; } }
+.lot .ltiles { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 12px; }
+.lot .tl { background: #2a2550; } .lot .tl.jp { border-left-color: var(--gold); background: linear-gradient(100deg, #3a2a6e, #a23b58); }
+.lot .lcols { display: grid; grid-template-columns: 1.5fr 1fr; gap: 22px; margin-top: 16px; }
+.lot .sub { font: 400 18px var(--title); letter-spacing: .12em; color: var(--gold); margin: 0 0 6px; }
+.lot .hold { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid #2a2550; font-size: 14px; }
+.lot .hold.mine { background: rgba(142,224,176,.07); margin: 0 -8px; padding: 6px 8px; }
+.lot .hold .nm { width: 96px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .lot .hold .nm small { display: block; font: 500 11px var(--mono); color: var(--muted); }
+.lot .hold .bar { flex: 1; height: 14px; background: #2a2550; } .lot .hold .bar span { display: block; height: 100%; background: var(--vio); }
+.lot .hold.out { opacity: .45; } .lot .hold.out .od { font-size: 10.5px; color: var(--muted); }
+.lot .hold.mine .bar span { background: var(--up); } .lot .hold.top .bar span { background: var(--gold); }
+.lot .hold .tk { font: 600 13px var(--mono); width: 48px; text-align: right; } .lot .hold .od { font: 500 12px var(--mono); color: var(--soft); width: 50px; text-align: right; }
+.lot .how { padding-left: 18px; margin: 0 0 14px; } .lot .how li { font-size: 13px; color: var(--soft); margin: 0 0 6px; } .lot .how b { color: var(--fg); }
+.lot .past { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid #2a2550; font-size: 13px; }
+.lot .past .q { font: 400 17px var(--title); letter-spacing: .08em; color: var(--muted); width: 62px; } .lot .past .amt { margin-left: auto; font: 600 13px var(--mono); color: var(--up); }
+.lot .more { font: 500 12px var(--mono); color: var(--muted); margin-top: 8px; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; letter-spacing: 0; }
+.lot .won { margin: 0 0 14px; background: linear-gradient(100deg, #3a2a6e, #a23b58); border-left: 6px solid var(--gold); padding: 12px 16px; display: flex; align-items: center; gap: 14px; }
+.lot .won .tkt { font: 400 22px var(--title); letter-spacing: .08em; background: var(--gold); color: #15132a; padding: 4px 14px 1px; clip-path: polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%); }
+.lot .won b { font: 400 26px/1 var(--title); letter-spacing: .03em; } .lot .won small { display: block; font: 500 12px var(--mono); color: var(--soft); margin-top: 3px; }
+@media (max-width: 640px) { .lot .ltiles { grid-template-columns: 1fr 1fr; } .lot .tl.jp { grid-column: 1 / -1; } .lot .lcols { grid-template-columns: 1fr; } .lot .won { flex-wrap: wrap; } }
 </style>
 </head>
 <body>
@@ -393,13 +423,84 @@ function dailyTile() {
   const d = S.me.daily;
   if (!d.wait) return `<div class="tl" style="border-left-color:var(--up)"><div class="k">Daily chips</div><div style="margin-top:8px"><button class="cbtn up" data-do="daily"${busy ? ' disabled' : ''}>Claim ${money(d.amt)}</button></div><div class="s">shared with /daily</div></div>`;
   const m = Math.ceil(d.wait / 60e3);
-  return `<div class="tl" style="border-left-color:var(--up)"><div class="k">Daily chips</div><div class="v" style="font-size:34px">${Math.floor(m / 60)}h ${m % 60}m</div><div class="s">until +${money(d.amt)}</div></div>`;
+  return `<div class="tl" style="border-left-color:var(--up)"><div class="k">Daily chips</div><div class="v" style="font-size:34px">${Math.floor(m / 60)}h ${m % 60}m</div><div class="s">until +${money(d.amt)} · resets 16:00 UTC</div></div>`;
+}
+// ---------- quarter lottery panel (data from /api/casino, see api/_lottery.js) ----------
+const WHEEL_COLORS = ['#f1c75b', '#e0507f', '#8f78f0', '#8ee0b0', '#7fb6ff', '#ff9f6b', '#c9a2ff', '#5fd3c6', '#f59bb0', '#b8e986', '#d7d3ef', '#e39a68'];
+/** The prize wheel: one slice per player in the draw, sized by tickets, in ticket-number order (slice k starts at ticket from).
+ *  spinTo = a ticket number: the wheel turns so that ticket stops under the pointer (animated once by wire()). */
+function wheelSvg(holders, total, size, centre, opts = {}) {
+  const R = size / 2 - 6, c = size / 2, inDraw = holders.filter(x => x.in !== false && x.from);
+  let a0 = -Math.PI / 2, paths = '';
+  inDraw.forEach((x, i) => {
+    const a1 = a0 + 2 * Math.PI * x.t / total, big = a1 - a0 > Math.PI ? 1 : 0, mid = (a0 + a1) / 2;
+    const pull = x.name === opts.me ? 6 : 0, dx = pull * Math.cos(mid), dy = pull * Math.sin(mid);
+    const P = a => `${(c + R * Math.cos(a) + dx).toFixed(1)},${(c + R * Math.sin(a) + dy).toFixed(1)}`;
+    paths += inDraw.length === 1 ? `<circle cx="${c}" cy="${c}" r="${R}" fill="${WHEEL_COLORS[0]}"/>`
+      : `<path d="M${c + dx},${c + dy} L${P(a0)} A${R},${R} 0 ${big} 1 ${P(a1)} Z" fill="${WHEEL_COLORS[i % WHEEL_COLORS.length]}" stroke="#1d1a37" stroke-width="2"><title>${esc(x.name)} · ${x.t} tickets</title></path>`;
+    // the player's pfp on their slice (a lettered square shows through if there's no picture), turned to face outwards
+    const deg = (mid * 180 / Math.PI + 90).toFixed(1), rr = R * 0.62, sz = Math.max(size * 0.06, Math.min(size * 0.12, (a1 - a0) * rr * 0.6));
+    const px = c + rr * Math.cos(mid) + dx, py = c + rr * Math.sin(mid) + dy, x0 = px - sz / 2, y0 = py - sz / 2;
+    paths += `<g transform="rotate(${deg} ${px.toFixed(1)} ${py.toFixed(1)})" pointer-events="none"><rect x="${x0 - 2}" y="${y0 - 2}" width="${sz + 4}" height="${sz + 4}" fill="#15132a"/>`
+      + `<rect x="${x0}" y="${y0}" width="${sz}" height="${sz}" fill="hsl(${hue(x.name)} 45% 75%)"/><text x="${px}" y="${py + sz * 0.3}" text-anchor="middle" font-family="Bebas Neue" font-size="${sz * 0.8}" fill="#15132a">${esc(x.name[0].toUpperCase())}</text>`
+      + (x.id ? `<image href="/api/avatar?id=${esc(x.id)}" x="${x0}" y="${y0}" width="${sz}" height="${sz}" preserveAspectRatio="xMidYMid slice"/>` : '') + '</g>';
+    if (x.t / total >= 0.06 && size >= 200) {
+      const nx = c + R * 0.88 * Math.cos(mid) + dx, ny = c + R * 0.88 * Math.sin(mid) + dy;
+      paths += `<text x="${nx.toFixed(1)}" y="${(ny + 5).toFixed(1)}" text-anchor="middle" font-family="Bebas Neue" font-size="${size >= 260 ? 14 : 12}" fill="#15132a" letter-spacing="1" transform="rotate(${deg} ${nx.toFixed(1)} ${ny.toFixed(1)})" pointer-events="none">${esc(x.name.toUpperCase().slice(0, 9))}</text>`;
+    }
+    a0 = a1;
+  });
+  // the ticket's angle clockwise from the top, so the wheel turns back by that much (+ 5 full turns) to put it under the pointer
+  const end = opts.spinTo ? -(360 * (opts.spinTo - 0.5) / total) - 360 * 5 : 0;
+  const spin = opts.spinTo ? ` data-spin="${end}" style="transform-origin:${c}px ${c}px;transform:rotate(${opts.animate ? 0 : end}deg)"` : '';
+  return `<svg class="wheel" width="${size}" height="${size + 8}" viewBox="0 -8 ${size} ${size + 8}"><g${spin}>${paths}</g>
+    <circle cx="${c}" cy="${c}" r="${size * 0.15}" fill="#15132a" stroke="#f1c75b" stroke-width="3"/>
+    <text x="${c}" y="${c + (centre[1] ? 2 : 6)}" text-anchor="middle" font-family="Bebas Neue" font-size="${size * 0.085}" fill="#fff">${esc(centre[0])}</text>
+    ${centre[1] ? `<text x="${c}" y="${c + size * 0.06}" text-anchor="middle" font-family="IBM Plex Mono" font-size="${Math.max(8, size * 0.03)}" fill="#9a94c4">${esc(centre[1])}</text>` : ''}
+    <path d="M${c - 10},-8 L${c + 10},-8 L${c},14 Z" fill="#fff" stroke="#15132a" stroke-width="1.5"/></svg>`;
+}
+function lottery() {
+  const L = S.lottery;
+  if (!L) return '';
+  const pct = t => { const p = 100 * t / (L.total || 1); return (p < 10 ? p.toFixed(1) : Math.round(p)) + '%'; };
+  const meName = S.me && S.me.name, mine = meName && L.holders.find(x => x.name === meName && x.in !== false);
+  const inDraw = L.holders.filter(x => x.in !== false), rank = mine ? inDraw.indexOf(mine) + 1 : 0;
+  const [qn, qy] = L.quarter.split(' '), k = +qn.slice(1), end = Date.UTC(+qy, k * 3, 1), days = Math.max(0, Math.ceil((end - Date.now()) / 864e5));
+  let ci = 0;
+  const list = L.holders.map(x => {
+    const col = x.in !== false ? WHEEL_COLORS[ci++ % WHEEL_COLORS.length] : '#3b3566';
+    return `<div class="lrow${x.name === meName ? ' mine' : ''}${x.in === false ? ' out' : ''}"><i style="background:${col}"></i>${av(x.id, x.name)}<span class="nm">${esc(x.name)}</span><span class="tk">${x.t} 🎟</span><b>${x.in === false ? 'no Discord' : pct(x.t)}</b></div>`;
+  }).join('');
+  // a fresh draw: its own wheel, which spins to the winning ticket the first time each person sees it
+  const d = L.last, fresh = d && d.quarter !== L.quarter && Date.now() - d.at < 14 * 864e5 && L.lastBoard;
+  const seen = fresh && pref('lotSeen:' + d.quarter, false);
+  const won = fresh ? `<div class="won">${wheelSvg(L.lastBoard, d.total, 150, ['#' + String(d.ticket).padStart(3, '0')], { spinTo: d.ticket, animate: !seen })}
+      <div class="wt" data-late-won${seen ? '' : ' style="opacity:0"'}><span class="tkt">Ticket #${String(d.ticket).padStart(3, '0')}</span><b>${esc(d.name)} won the ${esc(d.quarter)} jackpot · ${money(d.jackpot)}</b><small>held ${d.tickets} of ${d.total} tickets</small></div></div>` : '';
+  const mineTile = S.me
+    ? `<div class="tl" style="border-left-color:var(--up)"><div class="k">Your tickets</div><div class="v">${mine ? mine.t : 0}</div><div class="s">${mine ? `${pct(mine.t)} to win · #${rank} of ${inDraw.length}` : 'buy in at poker night to get some'}</div></div>`
+    : `<div class="tl" style="border-left-color:var(--up)"><div class="k">Tickets</div><div class="v">${L.total}</div><div class="s">${inDraw.length} players in the draw</div></div>`;
+  const past = (L.past || []).map(p => `<div class="past"><span class="q">${esc(p.quarter)}</span>${esc(p.name)} · #${String(p.ticket).padStart(3, '0')}<span class="amt">${money(p.jackpot)}</span></div>`).join('');
+  return `<div class="panel lot"><h2 class="g">🎟️ ${esc(L.quarter)} lottery</h2>
+    <p class="hint">Free. Every $${L.ticket} you buy in at poker night this quarter is a ticket. ${L.pending ? `${esc(L.quarter)} is over: the winner gets drawn live in Discord soon.` : 'After the quarter ends, one winner is drawn live in Discord and gets everything bought in, in chips.'}</p>
+    ${won}<div class="ltiles">
+      <div class="tl jp"><div class="k">Jackpot</div><div class="v">${money(L.jackpot)}</div><div class="s">everything bought in this quarter, 1:1</div></div>
+      ${mineTile}
+      <div class="tl" style="border-left-color:var(--pink)"><div class="k">Draw</div><div class="v">${L.pending || !days ? 'Soon' : `${days} day${days === 1 ? '' : 's'}`}</div><div class="s">live in Discord after ${esc(L.quarter.slice(0, 2))}</div></div>
+    </div>
+    <div class="lcols"><div class="wheelbox">${L.total ? wheelSvg(L.holders, L.total, 280, [money(L.jackpot), 'JACKPOT'], { me: meName }) : '<p class="hint">No tickets yet this quarter.</p>'}<div class="llist">${list}</div></div>
+      <div><div class="sub">How it works</div><ul class="how">
+        <li><b>1 ticket per $${L.ticket}</b> of buy-ins: rebuys and top-ups count, cash or tourney.</li>
+        <li>Comes straight from the sheet, so tickets show up as soon as a night is saved.</li>
+        <li><b>Winner gets the jackpot</b> in chips + the <b>Lucky Ticket</b> role on Discord until the next draw.</li>
+        <li>You need your Discord linked to be in the draw (the chips live on Discord). Greyed out = not linked yet: ask Renato to add your Discord ID.</li>
+        <li>Tickets start over every quarter. /lottery odds shows this in Discord too.</li></ul>
+        ${past ? `<div class="sub">Past winners</div>${past}` : ''}</div></div></div>`;
 }
 function lobby() {
   if (!S.me) return `<section class="hero"><div><h2>Same chips as Discord</h2>
       <p>Play blackjack, Ultimate Hold'em and baccarat with your Discord chips. Win here and /chips on Discord shows it, and the other way round. Sign in once so the site knows whose chips they are.</p></div>
       <div><a class="dbtn" href="/api/login">${DISCORD_SVG}Sign in with Discord</a><div class="fine">The site only gets your Discord name, pfp and ID. No password, no email, no messages.</div></div></section>
-    <div class="cols">${board()}${feed()}</div>`;
+    ${lottery()}<div class="cols">${board()}${feed()}</div>`;
   const me = S.me, top = S.board[0];
   const msg = T.got ? `<div class="note ok">+${money(T.got)} added${T.first ? ' (welcome bonus)' : ''}. Good luck.</div>` : '';
   return `${msg}<div class="strip">
@@ -416,6 +517,7 @@ function lobby() {
         <div class="game soon" style="--c:var(--up)"><div class="ic">🎡</div><b>Roulette</b><span>Play it with /roulette in the Discord server.</span><div class="go">Discord only</div></div>
         <div class="game soon" style="--c:#7fb6ff"><div class="ic">⚔️</div><b>Duel</b><span>Challenge someone with /duel in the Discord server.</span><div class="go">Discord only</div></div>
       </div></div>
+    ${lottery()}
     <div class="cols">${board()}${feed()}</div>
     ${rewards()}`;
 }
@@ -502,6 +604,14 @@ function wire() {
   document.querySelectorAll('[data-bj],[data-uth],[data-do]').forEach(b => b.addEventListener('pointerdown', () => { b.classList.add('pressed'); }));
   document.querySelectorAll('details.earn').forEach(d => d.ontoggle = () => setPref('earn', d.open));
   document.querySelectorAll('[data-snd]').forEach(b => b.onclick = () => { setPref('snd', !pref('snd', false)); render(); tick(); });
+  // the lottery wheel spins to the winning ticket once per person per draw
+  document.querySelectorAll('.won g[data-spin]').forEach(g => {
+    const t = document.querySelector('[data-late-won]'), q = S.lottery && S.lottery.last && S.lottery.last.quarter;
+    if (!q || pref('lotSeen:' + q, false)) return;
+    setPref('lotSeen:' + q, true);
+    requestAnimationFrame(() => requestAnimationFrame(() => { g.style.transform = `rotate(${g.dataset.spin}deg)`; }));
+    setTimeout(() => { if (t) t.style.opacity = 1; }, 5600);
+  });
   document.querySelectorAll('[data-chip]').forEach(b => b.onclick = () => { setPref(b.dataset.chip, clamp(b.dataset.chip, b.dataset.v)); render(); });
   document.querySelectorAll('[data-amt]').forEach(i => i.onchange = () => { setPref(i.dataset.amt, clamp(i.dataset.amt, i.value)); render(); });
   document.querySelectorAll('[data-side]').forEach(b => b.onclick = () => { setPref('side', b.dataset.side); render(); });

@@ -5,12 +5,15 @@
 //   Tourney King         best tournament net this quarter
 //   Cash King            best cash game net this quarter
 //   2025 Champion, ...   top net of each finished year (a keepsake, a new role every year)
+//   Lucky Ticket         won the latest quarter lottery draw (see _lottery.js; only once there has been a draw)
 // Only touches players with a Discord ID in the Members tab, and only these roles. Roles are found by name,
 // so recolouring or moving them in Discord is fine, renaming makes the bot create a fresh one.
 // Needs the bot's Manage Roles permission, and the bot's own role above these roles.
+import { kvUrl, kvToken } from './_blackjack.js';
+import { luckyHolder, LUCKY_ROLE } from './_lottery.js';
 const API = 'https://discord.com/api/v10';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-export const ROLE_COLORS = { "Quarter Leader": 0xf1c75b, "Last Night's Winner": 0x8ee0b0, Heater: 0xff7a45, 'Tourney King': 0xd9a21b, 'Cash King': 0x8f78f0 };
+export const ROLE_COLORS = { "Quarter Leader": 0xf1c75b, "Last Night's Winner": 0x8ee0b0, Heater: 0xff7a45, 'Tourney King': 0xd9a21b, 'Cash King': 0x8f78f0, 'Lucky Ticket': 0x5fd3c6 };
 const CHAMP_COLOR = 0xe0507f;
 
 /** { roleName: [player names] } worked out from game records (see gameRecords). */
@@ -51,6 +54,8 @@ async function dc(method, path, body) {
 /** Applies computeRoles to every server the bot is in. ids = { playerName: discordId }. Returns a short report. */
 export async function syncRoles(recs, ids) {
   const want = computeRoles(recs), report = { changes: [], errors: [], holders: {} };
+  // the lottery winner (left alone if the chip storage can't be read, and not created before the first draw)
+  if (kvUrl() && kvToken()) { try { const w = await luckyHolder(); if (w.length) want[LUCKY_ROLE] = w; } catch (e) {} }
   for (const [role, names] of Object.entries(want)) report.holders[role] = names;
   const guilds = await dc('GET', '/users/@me/guilds');
   if (!guilds.ok || !Array.isArray(guilds.data)) { report.errors.push("Couldn't list the bot's servers."); return report; }
