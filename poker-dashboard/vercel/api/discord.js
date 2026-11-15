@@ -19,6 +19,7 @@
 //   /lottery odds           this quarter's lottery: jackpot, your tickets and everyone's odds (see _lottery.js)
 //   /lottery draw           the host draws last quarter's winner live in the channel (host only)
 //   /seats                  random seat order for everyone in on the latest invite (see _seats.js)
+// Casino commands only run in #casino and poker commands only in #the-table; elsewhere they point there (_channels.js).
 // Also serves the site's casino: /api/login and /api/casino are rewritten here with ?web= (see _casino.js).
 // One-time setup: open /api/discord?setup=1 in a browser. It registers the command and shows the "add to server" link.
 // Needs Vercel env vars DISCORD_BOT_TOKEN (already there) and DISCORD_PUBLIC_KEY (from the Developer Portal).
@@ -33,6 +34,7 @@ import { UTH_COMMAND, uthCommand, uthButton } from './_uth.js';
 import { ROULETTE_COMMAND, rouletteCommand, rouletteInteraction } from './_roulette.js';
 import { BACCARAT_COMMAND, baccaratCommand, baccaratButton } from './_baccarat.js';
 import { casinoWeb } from './_casino.js';
+import { wrongChannel } from './_channels.js';
 import { board as lotteryBoard, quarterOf, shownQuarter, drawable, drawQuarter, TICKET, LUCKY_ROLE, nextQuarter } from './_lottery.js';
 import { nightRows } from './_rewards.js';
 import { SHEET_URL, MEMBERS_URL, gameRecords, findPlayer, latestQuarter, memberIds, toNights, hallOfFame, usd, wrapDefault, quartersWithGames } from '../recap-core.js';
@@ -128,6 +130,8 @@ export async function POST(req) {
   }
   if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('seats:')) return json(reshuffle(i)); // /seats Reshuffle
   if (i.type !== 2 || !i.data) return say('Unknown command.');
+  const hint = await wrongChannel(i); // casino games only in #casino, poker commands only in #the-table (see _channels.js)
+  if (hint) return say(hint);
   if (i.data.name === 'roulette') return rouletteCommand(i, waitUntil); // no sheet needed; stays awake 30s to spin
   if (i.data.name === 'fish' || i.data.name === 'donkey') { // fun pings, no sheet needed
     const id = (opts.who && opts.who.value) || FISH_DEFAULT;

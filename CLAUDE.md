@@ -46,6 +46,7 @@ poker-dashboard/
                        roulette: _roulette.js (/roulette shared 30s table; the opening call stays awake to spin, so discord.js maxDuration is 60) + roulette.js (wheel picture)
                        baccarat: _baccarat.js (/baccarat Player/Banker/Tie; picture = bjcards?m=bac)
                        seats: _seats.js (/seats random seat order from the latest invite's reactions) + seats.js (table picture)
+                       channels: _channels.js (casino commands only in #casino, poker commands only in #the-table, matched by channel name; wrong channel = ephemeral "lives in #x" hint; /fish /donkey anywhere; no such channel = allowed anywhere)
                        casino: _casino.js (site /casino page: Discord sign-in + blackjack/UTH/baccarat/daily with the same bj:bal chips;
                        /api/login and /api/casino are vercel.json rewrites into discord.js?web=, so no extra function. Env DISCORD_CLIENT_SECRET,
                        redirect https://renpokernight.vercel.app/api/login in the Developer Portal. Game rules stay in the _game.js files, shared)
