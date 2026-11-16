@@ -29,7 +29,7 @@ import { waitUntil } from '@vercel/functions';
 import { TOURNEY_COMMAND, CASH_COMMAND, startTourney, tally } from './_tourney.js';
 import { syncRoles } from './_roles.js';
 import { BLACKJACK_COMMANDS, blackjackCommand, blackjackButton } from './_blackjack.js';
-import { DUEL_COMMAND, duelCommand, duelButton } from './_duel.js';
+import { DUEL_COMMAND, duelCommand, duelButton, sweepDuels } from './_duel.js';
 import { SEATS_COMMAND, startSeats, reshuffle } from './_seats.js';
 import { UTH_COMMAND, uthCommand, uthButton } from './_uth.js';
 import { ROULETTE_COMMAND, rouletteCommand, rouletteInteraction } from './_roulette.js';
@@ -143,7 +143,13 @@ export async function POST(req) {
     const lines = i.data.name === 'fish' ? FISH_LINES : DONKEY_LINES;
     return json({ type: 4, data: { content: lines[Math.floor(Math.random() * lines.length)].replace('ID', id), allowed_mentions: { users: [id] } } });
   }
-  const s = await sheet();
+  // chip commands answer from the sheet copy already in memory (names only) instead of waiting on Google: a slow sheet read
+  // could push the reply past Discord's 3 seconds after the bet was already taken. The copy refreshes in the background.
+  const CHIP = ['daily', 'blackjack', 'chips', 'pack', 'loadout', 'tip', 'duel', 'uth', 'baccarat'];
+  const chipCmd = CHIP.includes(i.data.name);
+  if (chipCmd && (i.data.name === 'daily' || i.data.name === 'duel')) waitUntil(sweepDuels().catch(e => console.error('duel sweep', e))); // refunds stuck duels
+  const s = chipCmd ? (cache.recs ? cache : null) : await sheet();
+  if (chipCmd && (!cache.recs || Date.now() - cache.at >= 60e3)) waitUntil(sheet().catch(() => {}));
   const bj = await blackjackCommand(i, opts, s);
   if (bj) return bj;
   const shop = await shopCommand(i, opts, s); // /pack /loadout /tip

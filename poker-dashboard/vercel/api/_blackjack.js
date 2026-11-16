@@ -35,6 +35,17 @@ export async function kv(...cmds) {
   return out.map(x => { if (x.error) throw new Error(x.error); return x.result; });
 }
 
+// Takes chips in one step (check + take inside Redis), so two games started at once can't both spend the same chips.
+// ARGV[1] = user, ARGV[2] = amount. Returns the new balance, or '-1' if they don't have that many.
+export const DEBIT = "local b=tonumber(redis.call('HGET',KEYS[1],ARGV[1]) or '0') if b<tonumber(ARGV[2]) then return '-1' end return redis.call('HINCRBYFLOAT',KEYS[1],ARGV[1],-tonumber(ARGV[2]))";
+/** Takes amt chips from id: { bal } (new balance) or { short: true, had } (had = their balance, null if they have none). */
+export async function takeChips(id, amt) {
+  const [left] = await kv(['EVAL', DEBIT, 1, 'bj:bal', id, amt]);
+  if (String(left) !== '-1') return { bal: +left };
+  const [b] = await kv(['HGET', 'bj:bal', id]);
+  return { short: true, had: b === null ? null : +b };
+}
+
 // ---------- cards ----------
 const RANKS = 'A23456789TJQK', SUITS = 'SHDC';
 export const freshDeck = () => { const d = []; for (const r of RANKS) for (const s of SUITS) d.push(r + s);
@@ -182,13 +193,15 @@ function view(g, bal) {
 
 /** Deals a new hand and takes the bet. Shared by /blackjack and the site: { g, bal } or { err }. */
 export async function newHand(me, bet) {
-  const [balRaw] = await kv(['HGET', 'bj:bal', me.id]);
-  if (balRaw === null) return { err: `You don't have any chips yet. Use **/daily** to get ${money(FIRST_CLAIM)} free.` };
-  if (+balRaw < bet) return { err: +balRaw < 1 ? `You're out of chips 💀 Use **/daily** for more.` : `You only have ${money(+balRaw)}. Bet that or less.` };
+  const took = await takeChips(me.id, bet);
+  if (took.short) { const b = took.had;
+    if (b === null) return { err: `You don't have any chips yet. Use **/daily** to get ${money(FIRST_CLAIM)} free.` };
+    return { err: b < 1 ? `You're out of chips 💀 Use **/daily** for more.` : `You only have ${money(b)}. Bet that or less.` }; }
   const g = { id: randomBytes(5).toString('hex'), uid: me.id, name: me.name, bet, step: 0, deck: freshDeck(), dealer: [], hands: [{ cards: [], bet }], active: 0, over: false };
   g.hands[0].cards.push(draw(g)); g.dealer.push(draw(g)); g.hands[0].cards.push(draw(g)); g.dealer.push(draw(g));
   if (natural(g.hands[0]) || total(g.dealer).t === 21) settle(g);
-  const res = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, (g.over ? g.payout : 0) - bet], ['HSET', 'bj:name', me.id, me.name], ['SET', 'bj:g:' + g.id, JSON.stringify(g), 'EX', 3600],
+  // the bet is already off (takeChips); this pays a hand that settled on the deal and saves it
+  const res = await kv(g.over && g.payout ? ['HINCRBYFLOAT', 'bj:bal', me.id, g.payout] : ['HGET', 'bj:bal', me.id], ['HSET', 'bj:name', me.id, me.name], ['SET', 'bj:g:' + g.id, JSON.stringify(g), 'EX', 3600],
     ...(g.over ? feedCmds(me, 'blackjack', g.net) : []));
   return { g, bal: +res[0] };
 }
@@ -227,8 +240,12 @@ export async function handAction(me, gid, action) {
       g.hands = [{ cards: [c1, draw(g)], bet: h.bet, split: true }, { cards: [c2, draw(g)], bet: h.bet, split: true }];
       for (const x of g.hands) { if (aces) x.done = true; autoDone(x); }
     } else return { busy: true };
+    if (spend) { // doubles and splits: take the extra bet in one step (another game may have spent the chips since we read them)
+      const took = await takeChips(me.id, spend);
+      if (took.short) return { err: `You need ${money(spend)} more on the table and have ${money(took.had || 0)}.` };
+    }
     advance(g); g.step++;
-    const delta = (g.over ? g.payout : 0) - spend;
+    const delta = g.over ? g.payout : 0;
     const res = await kv(...(delta ? [['HINCRBYFLOAT', 'bj:bal', me.id, delta]] : [['HGET', 'bj:bal', me.id]]), ['SET', 'bj:g:' + g.id, JSON.stringify(g), 'EX', 3600], ['DEL', 'bj:lock:' + gid],
       ...(g.over ? feedCmds(me, 'blackjack', g.net) : []));
     wrote = true; bal = +res[0];
