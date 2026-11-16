@@ -17,7 +17,8 @@ export const MAX_BET = 500;
 export const MAX_HANDS = 6;
 /** Biggest Push 22 side bet on /freebet. */
 export const MAX_PUSH22 = 25;
-const DEFAULT_BET = 20, FIRST_CLAIM = 100, DAILY = 50, DAY = 24 * 3600e3;
+const DEFAULT_BET = 20, DAY = 24 * 3600e3;
+export const FIRST_CLAIM = 100, DAILY = 50;
 /** The daily claim resets once a day at this hour (UTC), instead of 24 hours after your last claim. */
 export const DAILY_RESET_UTC = 16;
 /** The most recent reset time (ms) at or before now. */

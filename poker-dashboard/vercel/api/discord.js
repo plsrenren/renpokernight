@@ -36,6 +36,8 @@ import { ROULETTE_COMMAND, rouletteCommand, rouletteInteraction } from './_roule
 import { BACCARAT_COMMAND, baccaratCommand, baccaratButton } from './_baccarat.js';
 import { casinoWeb } from './_casino.js';
 import { houseEmbed } from './_rakeback.js';
+import { REWARD_LIST } from './_rewards.js';
+import { FIRST_CLAIM, DAILY, DAILY_RESET_UTC, RAKE } from './_blackjack.js';
 import { SHOP_COMMANDS, shopCommand, shopInteraction } from './_shop.js';
 import { wrongChannel } from './_channels.js';
 import { board as lotteryBoard, quarterOf, shownQuarter, drawable, drawQuarter, TICKET, LUCKY_ROLE, nextQuarter } from './_lottery.js';
@@ -73,6 +75,7 @@ const COMMANDS = [
   { name: 'lottery', description: 'The quarter lottery', type: 1, options: [
     { type: 1, name: 'odds', description: "The jackpot, your tickets and everyone's odds" },
     { type: 1, name: 'draw', description: "Draw last quarter's winner, live (host only)" }] },
+  { name: 'earn', description: 'Every way to earn chips: daily, poker night rewards, rakeback, the lottery', type: 1 },
   { name: 'house', description: 'The casino books: what the house has won, by game (pitbosses only)', type: 1 },
 ];
 // /fish and /donkey ping this person when nobody is picked (their Discord user ID, in quotes). Empty = they ask who.
@@ -151,7 +154,7 @@ export async function POST(req) {
   }
   // chip commands answer from the sheet copy already in memory (names only) instead of waiting on Google: a slow sheet read
   // could push the reply past Discord's 3 seconds after the bet was already taken. The copy refreshes in the background.
-  const CHIP = ['daily', 'blackjack', 'freebet', 'chips', 'pack', 'loadout', 'tip', 'duel', 'uth', 'baccarat', 'house'];
+  const CHIP = ['daily', 'blackjack', 'freebet', 'chips', 'pack', 'loadout', 'tip', 'duel', 'uth', 'baccarat', 'house', 'earn'];
   const chipCmd = CHIP.includes(i.data.name);
   if (chipCmd && (i.data.name === 'daily' || i.data.name === 'duel')) waitUntil(sweepDuels().catch(e => console.error('duel sweep', e))); // refunds stuck duels
   const s = chipCmd ? (cache.recs ? cache : null) : await sheet();
@@ -168,6 +171,7 @@ export async function POST(req) {
     const no = await inviteBlocked(i, s || { ids: {} }, HOST_ID);
     return json(no || startTourney(i, opts, s || { ids: {} }, waitUntil));
   }
+  if (i.data.name === 'earn') return json({ type: 4, data: { flags: 64, allowed_mentions: { parse: [] }, embeds: [earnEmbed()] } });
   if (i.data.name === 'house') { // pitbosses only (plus Renato and admins), and only they see the answer
     const no = await inviteBlocked(i, s || { ids: {} }, HOST_ID, true);
     if (no) return json(no);
@@ -188,6 +192,20 @@ export async function POST(req) {
   }
   const run = { player, standings, recap, h2h, hall, wrap, lottery }[i.data.name];
   return run ? run(i, opts, s) : say('Unknown command.');
+}
+
+// /earn (only the person who runs it sees it): every way to get chips. Poker night amounts come from REWARD_LIST, so they never go stale.
+function earnEmbed() {
+  const nights = REWARD_LIST.map(g => `__${g.group}__\n` + g.items.map(x => `${x.what} **${x.amt}**`).join(' · ')).join('\n');
+  return { color: 0xf1c75b, title: '💰 How to earn chips', url: `${SITE}/casino`,
+    fields: [
+      { name: '🎁 /daily', value: `$${FIRST_CLAIM} your first time, then $${DAILY} every day (resets ${DAILY_RESET_UTC}:00 UTC)` },
+      { name: '🃏 Poker night', value: 'Paid automatically after every saved night:\n' + nights },
+      { name: '💸 Weekly rakeback', value: `Every Monday you get a cut back on everything you played at the tables, up to $${RAKE.cap}. Paid straight into your balance; /chips shows yours so far.` },
+      { name: '🎟️ Quarter lottery', value: `Every $${TICKET} you buy in at poker night is a free ticket. One winner takes the whole quarter's buy-ins in chips. See /lottery odds.` },
+      { name: '🤝 /tip', value: 'Any player can send you chips.' },
+    ],
+    footer: { text: 'Spend them at /blackjack, /freebet, /uth, /baccarat, /roulette, /duel, /pack or the site casino' } };
 }
 
 const stampNow = () => Math.floor(Date.now() / 600e3); // Discord re-fetches pictures at most every 10 minutes
