@@ -52,15 +52,18 @@ async function pitbossRole(guild) {
     return roleCache.id;
   } catch (e) { return undefined; } finally { clearTimeout(t); }
 }
-/** null when this person may run /tourney or /cash, otherwise the (ephemeral) answer to send back. */
-export async function inviteBlocked(i, s, hostId) {
+/** null when this person may run /tourney or /cash, otherwise the (ephemeral) answer to send back.
+ *  strict (used by /house): DMs, a missing pitboss role, or a failed check block everyone but Renato and admins. */
+export async function inviteBlocked(i, s, hostId, strict = false) {
   const m = i.member, uid = ((m && m.user) || i.user || {}).id;
-  if (!m || !i.guild_id || uid === hostId || (uid && uid === s.ids.Renato)) return null;
+  if (uid && (uid === hostId || uid === s.ids.Renato)) return null;
+  const no = text => ({ type: 4, data: { flags: 64, allowed_mentions: { parse: [] }, content: text } });
+  if (!m || !i.guild_id) return strict ? no('Only pitbosses can use this, in the server.') : null;
   if (m.permissions && (BigInt(m.permissions) & 8n)) return null; // server admins
   const rid = await pitbossRole(i.guild_id);
-  if (!rid || (m.roles || []).includes(rid)) return null; // no such role (or couldn't check): don't get in the way
-  return { type: 4, data: { flags: 64, allowed_mentions: { parse: [] },
-    content: `Only <@&${rid}> can post game invites. Ask one of them to run /${i.data.name}.` } };
+  if (rid && (m.roles || []).includes(rid)) return null;
+  if (!rid) return strict ? no("Only pitbosses can use this, and I couldn't find a pitboss role.") : null; // invites: don't get in the way
+  return no(strict ? `Only <@&${rid}> can see the house books.` : `Only <@&${rid}> can post game invites. Ask one of them to run /${i.data.name}.`);
 }
 
 /** The /tourney command: answers "thinking…" right away, then finishes the post in the background. */
