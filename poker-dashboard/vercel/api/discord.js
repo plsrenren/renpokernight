@@ -98,6 +98,13 @@ async function sheet() {
   return cache;
 }
 
+// for commands that only use the sheet for display names: the cached copy straight away (refreshed in the background
+// when it's old), and on a cold start wait at most 700ms for Google before going with Discord names
+async function namesSoon() {
+  if (cache.recs) { if (Date.now() - cache.at >= 60e3) waitUntil(sheet().catch(() => {})); return cache; }
+  return Promise.race([sheet().catch(() => null), new Promise(r => setTimeout(() => r(null), 700))]);
+}
+
 const webRoute = req => { const w = new URL(req.url).searchParams.get('web'); return w === 'login' || w === 'casino' ? w : null; };
 
 export async function POST(req) {
@@ -139,6 +146,7 @@ export async function POST(req) {
     const lines = i.data.name === 'fish' ? FISH_LINES : DONKEY_LINES;
     return json({ type: 4, data: { content: lines[Math.floor(Math.random() * lines.length)].replace('ID', id), allowed_mentions: { users: [id] } } });
   }
+  if (i.data.name === 'duel') return duelCommand(i, opts, await namesSoon()); // only needs names, so don't wait on Google
   const s = await sheet();
   const bj = await blackjackCommand(i, opts, s);
   if (bj) return bj;
