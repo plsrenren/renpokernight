@@ -62,5 +62,11 @@
       "includeFiles": "api/_assets/**",
       "maxDuration": 10
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/roles?rakeback=1",
+      "schedule": "0 16 * * 1"
+    }
+  ]
 }

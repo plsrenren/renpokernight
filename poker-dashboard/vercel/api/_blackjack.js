@@ -80,9 +80,38 @@ export const noStorage = () => quiet("Blackjack isn't set up yet: the site needs
 
 // "Just now" feed on the site's /casino page: the last 300 finished hands, spins, duels and daily claims from Discord and the site.
 // me.src is 'site' for the website; Discord players have no src.
-export const feedCmds = (me, game, net) => [
+export const feedCmds = (me, game, net, wager = 0) => [
   ['LPUSH', 'cas:feed', JSON.stringify({ id: me.id, name: me.name, game, net: Math.round(net * 100) / 100, src: me.src || 'discord', at: Date.now() })],
-  ['LTRIM', 'cas:feed', 0, FEED_KEEP - 1]];
+  ['LTRIM', 'cas:feed', 0, FEED_KEEP - 1], ...houseCmds(me.id, game, net, wager)];
+
+// ---------- the house's books + weekly rakeback ----------
+// Every finished hand at a house game goes through feedCmds, so it is counted here too:
+//   hs:all            game -> what the house won all-time (from when this was added), plus 'rakeback' (paid back, negative)
+//   hs:wk:<week>      the same for one week
+//   rb:wk:<week>      Discord ID -> that player's net at the house games that week   } what rakeback pays from,
+//   rb:vol:<week>     Discord ID -> everything they bet at the house games that week } see _rakeback.js
+// Duels, tips, packs and dailies aren't house games, so they don't count.
+// A week starts Monday at the daily reset (16:00 UTC); <week> is that Monday's date, e.g. 2026-11-16.
+export const HOUSE_GAMES = new Set(['blackjack', 'free bet', 'UTH', 'baccarat', 'roulette']);
+export const weekStart = (now = Date.now()) => { const r = lastReset(now); return r - ((new Date(r).getUTCDay() + 6) % 7) * DAY; };
+export const weekKey = (now = Date.now()) => new Date(weekStart(now)).toISOString().slice(0, 10);
+const KEEP_WEEKS = 120 * 86400;   // seconds the weekly hashes are kept
+function houseCmds(id, game, net, wager) {
+  net = Math.round(net * 100) / 100; wager = Math.round((+wager || 0) * 100) / 100;
+  if (!HOUSE_GAMES.has(game) || !id || (!net && !wager)) return [];
+  const wk = weekKey();
+  return [['HINCRBYFLOAT', 'rb:wk:' + wk, id, net], ['EXPIRE', 'rb:wk:' + wk, KEEP_WEEKS],
+    ...(wager ? [['HINCRBYFLOAT', 'rb:vol:' + wk, id, wager], ['EXPIRE', 'rb:vol:' + wk, KEEP_WEEKS]] : []),
+    ['HINCRBYFLOAT', 'hs:wk:' + wk, game, -net], ['EXPIRE', 'hs:wk:' + wk, KEEP_WEEKS], ['HINCRBYFLOAT', 'hs:all', game, -net]];
+}
+// Rakeback = a share of the week's net loss + a sliver of everything bet (kept under the house edge), capped per week.
+export const RAKE = { loss: 0.10, volume: 0.0025, cap: 250 };
+/** What a week pays back on Monday, from the player's net and total bet at the house games. */
+export const rakeFor = (net, vol = 0) => Math.min(RAKE.cap, Math.round((Math.max(0, -(+net || 0)) * RAKE.loss + (+vol || 0) * RAKE.volume) * 100) / 100);
+/** The /chips line: only the rakeback so far, never the loss. '' when they haven't played this week. */
+export const weekLine = (net, vol) => { const r = rakeFor(net, vol); return r >= 0.01 ? `**${money(r)}** rakeback so far, paid Monday` : ''; };
+/** Total bet in a blackjack hand (all hands incl. paid doubles/splits, plus the side bet). */
+const staked = g => g.hands.reduce((a, h) => a + h.bet, 0) + (g.side || 0);
 /** How many raw feed entries are kept; the lobby rolls them into session lines (see groupFeed in _casino.js). */
 export const FEED_KEEP = 300;
 
@@ -133,12 +162,15 @@ export function boardFrom(bal, names) {
   const b = pairs(bal), n = pairs(names);
   return Object.entries(b).map(([id, v]) => ({ id, name: n[id] || 'Someone', bal: +v })).sort((x, y) => y.bal - x.bal);
 }
-async function chips() {
-  const rows = (await chipBoard()).slice(0, 15).map(r => [r.name, r.bal]);
+async function chips(i) {
+  const me = whoIs(i), wk = weekKey();
+  const [bal, names, net, vol] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['HGET', 'rb:wk:' + wk, me.id || '-'], ['HGET', 'rb:vol:' + wk, me.id || '-']);
+  const rows = boardFrom(bal, names).slice(0, 15).map(r => [r.name, r.bal]);
+  const week = weekLine(net, vol);
   const medal = ['🥇', '🥈', '🥉'];
   const lines = rows.map(([nm, v], k) => `${medal[k] || `\`${k + 1}.\``} **${nm}** · ${money(v)}${v < 1 ? ' · broke 💀' : ''}`);
   return json({ type: 4, data: { allowed_mentions: { parse: [] }, embeds: [{ color: 0xf1c75b, title: '🪙 Blackjack chip leaders',
-    description: lines.join('\n') || 'Nobody has chips yet. Use /daily to get started.', footer: { text: '/daily for free chips' } }] } });
+    description: (lines.join('\n') || 'Nobody has chips yet. Use /daily to get started.') + (week ? `\n\n**${me.name}**, this week: ${week}` : ''), footer: { text: '/daily for free chips' } }] } });
 }
 
 // ---------- a hand ----------
@@ -243,7 +275,7 @@ export async function newHand(me, bet, mode = '', side = 0) {
   if (natural(g.hands[0]) || total(g.dealer).t === 21) settle(g);
   // the bet is already off (takeChips); this pays a hand that settled on the deal and saves it
   const res = await kv(g.over && g.payout ? ['HINCRBYFLOAT', 'bj:bal', me.id, g.payout] : ['HGET', 'bj:bal', me.id], ['HSET', 'bj:name', me.id, me.name], ['SET', 'bj:g:' + g.id, JSON.stringify(g), 'EX', 3600],
-    ...(g.over ? feedCmds(me, GAME(g), g.net) : []));
+    ...(g.over ? feedCmds(me, GAME(g), g.net, staked(g)) : []));
   return { g, bal: +res[0] };
 }
 
@@ -292,7 +324,7 @@ export async function handAction(me, gid, action) {
     advance(g); g.step++;
     const delta = g.over ? g.payout : 0;
     const res = await kv(...(delta ? [['HINCRBYFLOAT', 'bj:bal', me.id, delta]] : [['HGET', 'bj:bal', me.id]]), ['SET', 'bj:g:' + g.id, JSON.stringify(g), 'EX', 3600], ['DEL', 'bj:lock:' + gid],
-      ...(g.over ? feedCmds(me, GAME(g), g.net) : []));
+      ...(g.over ? feedCmds(me, GAME(g), g.net, staked(g)) : []));
     wrote = true; bal = +res[0];
     return { g, bal };
   } finally { if (!wrote) await unlock(); }

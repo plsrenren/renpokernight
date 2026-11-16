@@ -201,7 +201,7 @@ export async function uthAction(me, gid, act) {
     g.step++;
     const done = g.stage === 'done', delta = done ? g.payout : 0; // the play bet is already off (takeChips)
     const res = await kv(...(delta ? [['HINCRBYFLOAT', 'bj:bal', me.id, delta]] : [['HGET', 'bj:bal', me.id]]), ['SET', 'uth:g:' + g.id, JSON.stringify(g), 'EX', 3600], ['DEL', 'uth:lock:' + gid],
-      ...(done ? feedCmds(me, 'UTH', g.net) : []));
+      ...(done ? feedCmds(me, 'UTH', g.net, onTable(g)) : []));
     wrote = true; bal = +res[0];
     return { g, bal };
   } finally { if (!wrote) await unlock(); }

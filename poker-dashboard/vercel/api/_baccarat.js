@@ -50,7 +50,7 @@ export async function playHand(me, side, bet) {
   if (took.short && took.had === null) return { err: "You don't have any chips yet. Use **/daily** to get some free." };
   if (took.short) return { err: `You only have ${money(took.had)}. Bet that or less.` };
   const c = coup(), back = payout(side, bet, c.winner), net = Math.round((back - bet) * 100) / 100;
-  const [bal] = await kv(back ? ['HINCRBYFLOAT', 'bj:bal', me.id, back] : ['HGET', 'bj:bal', me.id], ['HSET', 'bj:name', me.id, me.name], ...feedCmds(me, 'baccarat', net));
+  const [bal] = await kv(back ? ['HINCRBYFLOAT', 'bj:bal', me.id, back] : ['HGET', 'bj:bal', me.id], ['HSET', 'bj:name', me.id, me.name], ...feedCmds(me, 'baccarat', net, bet));
   return { c, back, net, bal: +bal };
 }
 

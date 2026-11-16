@@ -518,7 +518,7 @@ function lobby() {
   const me = S.me, top = S.board[0];
   const msg = T.got ? `<div class="note ok">+${money(T.got)} added${T.first ? ' (welcome bonus)' : ''}. Good luck.</div>` : '';
   return `${msg}<div class="strip">
-      <div class="tl"><div class="k">Your chips</div><div class="v">${me.bal === null ? '$0' : money(me.bal)}</div><div class="s">${me.rank ? `#${me.rank} of ${S.players} · same balance as /chips on Discord` : 'Claim your daily chips to get started'}</div></div>
+      <div class="tl"><div class="k">Your chips</div><div class="v">${me.bal === null ? '$0' : money(me.bal)}</div><div class="s">${me.rank ? `#${me.rank} of ${S.players} · same balance as /chips on Discord` : 'Claim your daily chips to get started'}</div>${me.rake >= 0.01 ? `<div class="s rk">💸 ${money(me.rake)} rakeback so far · paid Monday</div>` : ''}</div>
       ${dailyTile()}
       <div class="tl" style="border-left-color:var(--pink)"><div class="k">Top stack</div><div class="v">${top ? esc(top.name) : '–'}</div><div class="s">${top ? money(top.bal) : ''}</div></div>
     </div>

@@ -12,7 +12,7 @@
 // Needs Vercel env var DISCORD_CLIENT_SECRET (Developer Portal > OAuth2) and the redirect
 // https://renpokernight.vercel.app/api/login added there. The app's client ID is looked up with DISCORD_BOT_TOKEN.
 import { createHmac, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { kv, kvUrl, kvToken, MAX_BET, FEED_KEEP, claimDaily, dailyStatus, boardFrom, dailyFrom, newHand as bjStart, handAction, publicHand, MAX_PUSH22 } from './_blackjack.js';
+import { kv, kvUrl, kvToken, MAX_BET, FEED_KEEP, claimDaily, dailyStatus, boardFrom, dailyFrom, weekKey, rakeFor, newHand as bjStart, handAction, publicHand, MAX_PUSH22 } from './_blackjack.js';
 import { newHand as uthStart, uthAction, publicUth, MAX_ANTE, MAX_TRIPS, UTH_PAYTABLE } from './_uth.js';
 import { playHand } from './_baccarat.js';
 import { REWARD_LIST } from './_rewards.js';
@@ -88,7 +88,7 @@ async function login(req, sheet) {
 }
 
 // ---------- the page's data ----------
-const SESSION_GAP = 10 * 60e3, SOLO = new Set(['daily', 'poker night']), solo = g => SOLO.has(g) || /^tip /.test(g);
+const SESSION_GAP = 10 * 60e3, SOLO = new Set(['daily', 'poker night', 'rakeback']), solo = g => SOLO.has(g) || /^tip /.test(g);
 /** "Just now" session lines: the same person playing the same game (same place), with no gap over 10 minutes, becomes one
  *  line with the total, hand count, wins/losses and when it started. Dailies and rewards stay single. Newest first, 10 lines. */
 export function groupFeed(feed, lines = 10) {
@@ -104,8 +104,9 @@ export function groupFeed(feed, lines = 10) {
 
 async function state(me, sheet) {
   // two storage trips: everything for the lobby at once, then any unfinished hands
-  const [bal, names, feedRaw, last, cur] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['LRANGE', 'cas:feed', 0, FEED_KEEP - 1],
-    ['HGET', 'bj:last', me ? me.id : '-'], ['HGETALL', 'cas:cur:' + (me ? me.id : '-')]);
+  const [bal, names, feedRaw, last, cur, wkNet, wkVol] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['LRANGE', 'cas:feed', 0, FEED_KEEP - 1],
+    ['HGET', 'bj:last', me ? me.id : '-'], ['HGETALL', 'cas:cur:' + (me ? me.id : '-')],
+    ['HGET', 'rb:wk:' + weekKey(), me ? me.id : '-'], ['HGET', 'rb:vol:' + weekKey(), me ? me.id : '-']);
   const board = boardFrom(bal, names);
   const feed = groupFeed((feedRaw || []).map(x => { try { return JSON.parse(x); } catch (e) { return null; } }).filter(Boolean));
   const body = { me: null, board: board.slice(0, 15), players: board.length, feed, maxBet: MAX_BET, maxPush22: MAX_PUSH22, maxAnte: MAX_ANTE, maxTrips: MAX_TRIPS, uthPaytable: plain(UTH_PAYTABLE), rewards: REWARD_LIST };
@@ -113,7 +114,7 @@ async function state(me, sheet) {
   try { const sh = sheet && await sheet(); if (sh && sh.csv) { const v = await lotteryView(sh.csv, null, sh.ids || {}); v.holders = v.holders.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); if (v.lastBoard) v.lastBoard = v.lastBoard.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); body.lottery = v; } } catch (e) { console.error('lottery view', e); }
   if (!me) return body;
   const mine = board.find(r => r.id === me.id);
-  body.me = { id: me.id, name: me.name, bal: mine ? mine.bal : null, rank: mine ? board.indexOf(mine) + 1 : null, daily: dailyFrom(last) };
+  body.me = { id: me.id, name: me.name, bal: mine ? mine.bal : null, rank: mine ? board.indexOf(mine) + 1 : null, daily: dailyFrom(last), rake: rakeFor(wkNet, wkVol) };   // rakeback so far this week (never the loss itself)
   // an unfinished hand started on the site comes back after a reload
   const c = {}; for (let k = 0; k < (cur || []).length; k += 2) c[cur[k]] = cur[k + 1];
   if (!c.bj && !c.fb && !c.uth) return body;

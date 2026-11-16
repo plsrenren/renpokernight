@@ -35,6 +35,7 @@ import { UTH_COMMAND, uthCommand, uthButton } from './_uth.js';
 import { ROULETTE_COMMAND, rouletteCommand, rouletteInteraction } from './_roulette.js';
 import { BACCARAT_COMMAND, baccaratCommand, baccaratButton } from './_baccarat.js';
 import { casinoWeb } from './_casino.js';
+import { houseEmbed } from './_rakeback.js';
 import { SHOP_COMMANDS, shopCommand, shopInteraction } from './_shop.js';
 import { wrongChannel } from './_channels.js';
 import { board as lotteryBoard, quarterOf, shownQuarter, drawable, drawQuarter, TICKET, LUCKY_ROLE, nextQuarter } from './_lottery.js';
@@ -72,6 +73,7 @@ const COMMANDS = [
   { name: 'lottery', description: 'The quarter lottery', type: 1, options: [
     { type: 1, name: 'odds', description: "The jackpot, your tickets and everyone's odds" },
     { type: 1, name: 'draw', description: "Draw last quarter's winner, live (host only)" }] },
+  { name: 'house', description: 'The casino books: what the house has won, by game (pitbosses only)', type: 1 },
 ];
 // /fish and /donkey ping this person when nobody is picked (their Discord user ID, in quotes). Empty = they ask who.
 const FISH_DEFAULT = '170443455590301696';
@@ -149,7 +151,7 @@ export async function POST(req) {
   }
   // chip commands answer from the sheet copy already in memory (names only) instead of waiting on Google: a slow sheet read
   // could push the reply past Discord's 3 seconds after the bet was already taken. The copy refreshes in the background.
-  const CHIP = ['daily', 'blackjack', 'freebet', 'chips', 'pack', 'loadout', 'tip', 'duel', 'uth', 'baccarat'];
+  const CHIP = ['daily', 'blackjack', 'freebet', 'chips', 'pack', 'loadout', 'tip', 'duel', 'uth', 'baccarat', 'house'];
   const chipCmd = CHIP.includes(i.data.name);
   if (chipCmd && (i.data.name === 'daily' || i.data.name === 'duel')) waitUntil(sweepDuels().catch(e => console.error('duel sweep', e))); // refunds stuck duels
   const s = chipCmd ? (cache.recs ? cache : null) : await sheet();
@@ -165,6 +167,12 @@ export async function POST(req) {
   if (i.data.name === 'tourney' || i.data.name === 'cash') { // pitboss role only (plus Renato and admins), see inviteBlocked
     const no = await inviteBlocked(i, s || { ids: {} }, HOST_ID);
     return json(no || startTourney(i, opts, s || { ids: {} }, waitUntil));
+  }
+  if (i.data.name === 'house') { // pitbosses only (plus Renato and admins), and only they see the answer
+    const no = await inviteBlocked(i, s || { ids: {} }, HOST_ID, true);
+    if (no) return json(no);
+    try { return json({ type: 4, data: { flags: 64, allowed_mentions: { parse: [] }, embeds: [await houseEmbed()] } }); }
+    catch (e) { console.error('house', e); return json({ type: 4, data: { flags: 64, content: "Couldn't reach the chip storage just now." } }); }
   }
   if (!s) return say("Couldn't reach the poker sheet just now. Try again in a minute.");
   if (i.data.name === 'lottery' && (i.data.options || [])[0] && i.data.options[0].name === 'draw') return lotteryDraw(i, s, waitUntil);
