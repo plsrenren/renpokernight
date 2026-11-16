@@ -45,7 +45,11 @@ function postQuarterWrapIfNew(dateStr) {
 function syncRoles() {
   const site = String(DASHBOARD_URL || '').replace(/\/$/, '');
   if (!site) return { changes: [], errors: [] };
+  // The site only trusts this sheet with the secret key (Project Settings > Script Properties > ROLES_KEY, same value as
+  // ROLES_KEY in Vercel). Without it the site still works, but reads the sheet from Google itself (a minute or two behind).
+  const key = PropertiesService.getScriptProperties().getProperty('ROLES_KEY') || '';
   const res = UrlFetchApp.fetch(site + '/api/roles', {
-    method: 'post', contentType: 'application/json', payload: JSON.stringify({ input: inputCsv_(), members: membersCsv_() }), muteHttpExceptions: true });
+    method: 'post', contentType: 'application/json', headers: key ? { 'X-Roles-Key': key } : {},
+    payload: JSON.stringify({ input: inputCsv_(), members: membersCsv_() }), muteHttpExceptions: true });
   try { return JSON.parse(res.getContentText()); } catch (e) { return { changes: [], errors: ['Roles: the site said ' + res.getResponseCode()] }; }
 }

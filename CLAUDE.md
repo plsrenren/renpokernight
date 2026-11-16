@@ -43,12 +43,15 @@ poker-dashboard/
     recap-core.js      Shared logic (browser + API): parsing, recap stories, Hall of Fame, player cards, h2h, quarter wrap
     api/               Serverless functions: recap/card/hall/h2h/wrap (PNG cards via satori + resvg, all drawn by _late.js = Late Show design), avatar (Discord pfps/banners),
                        discord (slash commands endpoint; ?setup=1 registers commands), invite (who reacted to /tourney or /cash),
-                       roles (results roles), _tourney.js/_roles.js/_discord.js helpers, _assets/ fonts + logo
+                       roles (results roles + chip rewards; trusts a POSTed sheet only with header X-Roles-Key = env ROLES_KEY, which Invite.gs reads from
+                       Script Properties; otherwise reads Google's copy), _tourney.js/_roles.js/_discord.js helpers, _assets/ fonts + logo
                        blackjack: _blackjack.js (/daily /blackjack /chips, play chips in Upstash Redis via KV_REST_API_URL/TOKEN; daily resets once a day at 16:00 UTC, not 24h after the last claim),
                        bjcards (table picture under each hand)
-                       duel: _duel.js (/duel rock paper scissors or high card for the same chips; high card picture = bjcards?m=duel)
+                       duel: _duel.js (/duel rock paper scissors or high card for the same chips; high card picture = bjcards?m=duel; both stakes taken in one Lua step;
+                       RPS: "Call it off" refunds both after 3 min, sweepDuels refunds duels stuck 30+ min (run on /duel and /daily, du:live hash))
                        uth: _uth.js (/uth Ultimate Texas Hold'em vs the dealer for the same chips; no 3x pre-flop bet (only 4x or check), by request; table picture = bjcards?m=uth)
-                       roulette: _roulette.js (/roulette shared 30s table; the opening call stays awake to spin, so discord.js maxDuration is 60) + roulette.js (wheel picture)
+                       roulette: _roulette.js (/roulette shared 30s table; the opening call stays awake to spin, so discord.js maxDuration is 60; a table that never spun
+                       is spun by the next tap, New round or /roulette for up to a day) + roulette.js (wheel picture)
                        baccarat: _baccarat.js (/baccarat Player/Banker/Tie; picture = bjcards?m=bac)
                        seats: _seats.js (/seats random seat order from the latest invite's reactions) + seats.js (table picture)
                        channels: _channels.js (casino commands only in #casino, poker commands only in #the-table, matched by channel name; wrong channel = ephemeral "lives in #x" hint; /fish /donkey anywhere; no such channel = allowed anywhere)
@@ -56,9 +59,10 @@ poker-dashboard/
                        /api/login and /api/casino are vercel.json rewrites into discord.js?web=, so no extra function. Env DISCORD_CLIENT_SECRET,
                        redirect https://renpokernight.vercel.app/api/login in the Developer Portal. Game rules stay in the _game.js files, shared)
                        rewards: _rewards.js (casino chips for real nights: RSVP/showed up/places/bad beat (on top of consolation)/consolation/PKO/Heater/cold streak/comeback/giant killer/rebuy grit/bring a friend ("brought by X" note on a first-timer)/quarter champ/most improved; listed in the casino lobby (folded bar, 3 groups) via REWARD_LIST; cas:feed (300 kept) gets bj/uth/baccarat hands, roulette spins, duels, daily claims, rewards, and the lobby rolls a player's run of hands in one game (gaps under 10 min) into one "session line" (groupFeed in _casino.js); amounts in R, only nights from REWARDS_START; run by api/roles.js after each entry-page save, then posts a plain-text "who got what" note in the #casino Discord channel (channel id cached in rw:chan; bot needs Send Messages there);
-                       recomputed from the sheet and diffed against rw:paid, so re-saves pay only the difference. Not in the recap post, by request)
+                       recomputed from the sheet and diffed against rw:paid, so re-saves pay only the difference; a night missing from the sheet entirely is never clawed back. Not in the recap post, by request)
                        shop: _shop.js (Study Cards: /pack $100 for 3 cosmetics, tear + flip buttons, third card Uncommon+, duplicates refund chips;
-                       /loadout (ephemeral menus) and /tip user amount note (moves bj:bal chips, atomic Lua script). Keys sh:own:<id>, sh:eq, sh:packs, sh:pk:<pack>.
+                       /loadout (ephemeral menus) and /tip user amount note (moves bj:bal chips, atomic Lua script). Every game takes bets with takeChips() (DEBIT Lua in _blackjack.js: check + take in one step);
+                       never read the balance and then HINCRBYFLOAT a bet separately. Chip slash commands use the in-memory sheet copy, never wait on Google (3s limit). Keys sh:own:<id>, sh:eq, sh:packs, sh:pk:<pack>.
                        Site /shop talks to /api/shop = vercel.json rewrite into discord.js?web=shop (shopWeb); /api/login?to=shop returns to /shop.
                        Pack + card images = bjcards?m=pack|cards (_shopimg.js); equipped items drawn on /player (_late.js) and the dashboard card)
                        lottery: _lottery.js (quarter lottery: 1 ticket per $10 of Cash_In in the quarter, jackpot = all buy-ins 1:1 in chips;

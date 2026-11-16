@@ -18,6 +18,7 @@ import { playHand } from './_baccarat.js';
 import { REWARD_LIST } from './_rewards.js';
 import { lotteryView } from './_lottery.js';
 import { shopWeb } from './_shop.js';
+import { sweepDuels } from './_duel.js';
 
 const DAYS30 = 30 * 24 * 3600;
 const out = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers } });
@@ -134,6 +135,7 @@ async function act(req, me) {
   switch (b.a) {
     case 'logout': return out({ ok: true }, 200, { 'Set-Cookie': cookie('cas', '', 0) });
     case 'daily': {
+      await sweepDuels().catch(e => console.error('duel sweep', e)); // refunds rock paper scissors duels stuck for 30+ min
       const r = await claimDaily(who);
       if (r.busy) return out({ busy: true });
       if (r.wait !== undefined) return out({ err: 'Already claimed today.', daily: { wait: r.wait, amt: r.amt } });

@@ -8,7 +8,7 @@
 // bought), sh:pk:<pack id> (an opened pack and which cards are flipped, 1 day), sh:lock:<user id> (stops double taps).
 // Chips come off with one storage script (DEBIT) so two taps can never spend chips you don't have.
 import { randomBytes, randomInt } from 'node:crypto';
-import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds } from './_blackjack.js';
+import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds, DEBIT } from './_blackjack.js';
 import { ITEMS, BY_ID, PRICE, REFUND, ODDS, TIERS, SLOT_NAMES, PACKS, rollPack } from '../loot.js';
 
 const SITE = 'https://renpokernight.vercel.app';
@@ -24,8 +24,6 @@ export const SHOP_COMMANDS = [
 
 // ---------- storage ----------
 const rand = () => randomInt(0, 2 ** 32) / 2 ** 32;
-// takes ARGV[2] chips from ARGV[1] if they have that many; returns the new balance, or '-1' if not enough
-const DEBIT = "local b=tonumber(redis.call('HGET',KEYS[1],ARGV[1]) or '0') if b<tonumber(ARGV[2]) then return '-1' end return redis.call('HINCRBYFLOAT',KEYS[1],ARGV[1],-tonumber(ARGV[2]))";
 // moves ARGV[3] chips from ARGV[1] to ARGV[2] if ARGV[1] has that many; returns {from balance, to balance} or {'-1', balance}
 const MOVE = "local b=tonumber(redis.call('HGET',KEYS[1],ARGV[1]) or '0') if b<tonumber(ARGV[3]) then return {'-1',tostring(b)} end local a=redis.call('HINCRBYFLOAT',KEYS[1],ARGV[1],-tonumber(ARGV[3])) local c=redis.call('HINCRBYFLOAT',KEYS[1],ARGV[2],tonumber(ARGV[3])) return {a,c}";
 const lock = async uid => { const [got] = await kv(['SET', 'sh:lock:' + uid, '1', 'NX', 'PX', 3000]); return !!got; };
