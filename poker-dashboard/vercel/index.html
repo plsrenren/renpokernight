@@ -766,6 +766,34 @@ function loadBanner(name) {
   }).catch(() => {});
 }
 
+// Study Cards (the /shop): what each player has equipped, from /api/shop, plus the item list from /loot.js. Loaded once.
+// Missing (like on the claude.ai snapshot copy) just means plain cards.
+let COS = null, LOOT = null, cosLoading = null;
+function loadCosmetics() {
+  if (COS) return Promise.resolve();
+  return cosLoading ||= Promise.all([import('/loot.js'), fetch('/api/shop', { cache: 'no-store' }).then(r => r.ok ? r.json() : null)])
+    .then(([m, j]) => { LOOT = m; COS = (j && j.byName) || {}; }).catch(() => { COS = {}; });
+}
+function applyCosmetics(name) {
+  const card = document.getElementById('pCard'), hero = card.querySelector('.ls-hero'), strip = card.querySelector('.ls-strip');
+  let mono = document.getElementById('cMono');
+  // undo the last player's look first
+  hero.querySelectorAll('.cos-stk').forEach(e => e.remove());
+  const oldT = document.getElementById('cTitle'); if (oldT) oldT.remove();
+  if (mono.parentElement.classList.contains('cos-hold')) mono.parentElement.replaceWith(mono);
+  strip.className = 'ls-strip';
+  const eq = COS && COS[name]; if (!eq || !LOOT) return;
+  const { BY_ID, DECO, STICKERS, TCOL } = LOOT, it = s => BY_ID[eq[s]];
+  const b = it('Pfp border'), sk = it('Sticker') && STICKERS[it('Sticker').name];
+  if (b || sk) { // wrap the pfp: the border goes around it, the sticker sits on its corner
+    const w = document.createElement('span'); w.className = 'cos-hold' + (b ? ' cbw cb-' + b.key : '') + (sk ? ' has-stk' : ''); mono.replaceWith(w); w.appendChild(mono);
+    if (b) w.insertAdjacentHTML('beforeend', DECO[b.key] || '');
+    if (sk) w.insertAdjacentHTML('beforeend', `<span class="cos-stk" aria-hidden="true">${sk}</span>`);
+  }
+  if (it('Overall bar')) strip.classList.add('cbar-' + it('Overall bar').key);
+  if (it('Title')) { const t = document.createElement('div'); t.id = 'cTitle'; t.className = 'cos-ttl'; t.style.color = TCOL[it('Title').tier]; t.textContent = it('Title').name.toUpperCase(); document.getElementById('pName').after(t); }
+}
+
 function renderPlayer(name) {
   const allGames = DATA.filter(r => r.player === name).sort((a, b) => a.date - b.date);
   if (!allGames.length) { currentPlayer = null; return show(); }
@@ -786,6 +814,7 @@ function renderPlayer(name) {
   loadBanner(name);
   document.getElementById('pName').textContent = name;
   renderCard(name, allGames);
+  loadCosmetics().then(() => { if (currentPlayer === name) applyCosmetics(name); });
 
   // No games in this period: show the card shell and point to the picker
   const empty = !games.length;
@@ -942,3 +971,16 @@ boot();
 </style>
 <nav class="tabbar" aria-label="Pages"><a href="/" class="on" aria-current="page"><span aria-hidden="true">📊</span>Dashboard</a><a href="/recap"><span aria-hidden="true">📰</span>Recap</a><a href="/hall"><span aria-hidden="true">🏆</span>Hall</a><a href="/h2h"><span aria-hidden="true">⚔️</span>H2H</a><a href="/casino"><span aria-hidden="true">🃏</span>Casino</a></nav>
 <link rel="stylesheet" href="/lateshow.css">
+<link rel="stylesheet" href="/cosmetics.css">
+<style>
+/* Study Cards on the player card (cosmetics.css has the looks). The border art is sized for a 64px pfp, so it's zoomed up. */
+html .pcard .cbw { zoom: 1.5; flex: none; position: relative; }
+html .pcard .cbw > .pc-mono { width: 64px; height: 64px; border: 0; font-size: 31px; padding-top: 3px; }
+html .pcard .cos-ttl { font-size: 22px; margin-top: 1px; }
+html .pcard .cos-hold { position: relative; flex: none; display: block; line-height: 0; }
+/* the sticker is slapped on the pfp's bottom corner, so it never covers the name */
+html .pcard .cos-hold.has-stk { margin-right: 12px; }
+html .pcard .cos-stk { right: -20px; bottom: -14px; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; }
+html .pcard .cbw .cos-stk { right: -14px; bottom: -10px; width: 34px; height: 34px; }
+@media (max-width: 640px) { html .pcard .cbw { zoom: 1.2; } }
+</style>

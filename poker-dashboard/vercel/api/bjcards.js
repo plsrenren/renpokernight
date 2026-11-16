@@ -7,11 +7,13 @@
 //   m=uth&d=XX.XX&b=7H.6C.KH.__.__&p=9H.8H&n=Renato&ph=Flush&dh=Pair of kings&r=win   the /uth table instead (__ = card not out yet)
 //   m=bac&p=9S.KD&b=4H.2C.7S&w=player&n=Renato&s=banker   the /baccarat picture: Player and Banker hands, winner tagged
 //   m=duel&c=QS.9H&n=Dong|JP&w=1   the /duel high card picture instead: two cards, names, winner (0 or 1) ringed
+//   m=pack&d=allin / m=cards&c=…&f=110   Study Cards: the pack and the three cards (see _shopimg.js)
 // Card codes: rank A 2-9 T J Q K + suit S H D C.
 import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
 import { readFileSync } from 'node:fs';
 import { total } from './_blackjack.js';
+import { shopImage } from './_shopimg.js';
 
 const asset = name => readFileSync(new URL(`./_assets/${name}`, import.meta.url));
 let FONTS;
@@ -95,6 +97,7 @@ export function duel(cards, names, w) {
 }
 
 export async function render(q) {
+  if (q.get('m') === 'pack' || q.get('m') === 'cards') return shopImage(q); // Study Cards pictures (see _shopimg.js)
   if (q.get('m') === 'bac') {
     const cs = k => String(q.get(k) || '').split('.').filter(Boolean).slice(0, 3);
     const svg = await satori(baccarat({ p: cs('p'), b: cs('b'), w: q.get('w') || '', name: (q.get('n') || 'You').slice(0, 24), side: q.get('s') || '' }), { width: W * S, fonts: fonts() });

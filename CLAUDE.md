@@ -32,7 +32,12 @@ poker-dashboard/
                        by inlining the logo where __LOGO__ appears) and the parts of recap-core.js:
                        cat core.part.js stories.part.js members.part.js hof.part.js card.part.js > ../vercel/recap-core.js
   vercel/              What Vercel deploys (project root dir). cleanUrls on, so /recap serves recap.html.
-    index.html recap.html hall.html h2h.html casino.html entry.html (entry = redirect to the Apps Script page; casino.html = copy of src/casino-src.html)
+    index.html recap.html hall.html h2h.html casino.html shop.html entry.html (entry = redirect to the Apps Script page; casino.html = copy of src/casino-src.html;
+                       shop.html = copy of src/shop-src.html, which is built from the shop mockup CSS and does NOT link lateshow.css)
+    loot.js            Study Cards items (184: titles, pfp borders, overall bars, stickers), odds 55/30/11/4, duplicate refunds, pack designs,
+                       border decorations (DECO), sticker SVGs, and LOOK (simplified looks for the Discord images). ES module used by the
+                       browser (/shop, dashboard card) and the API. Item ids are slot letter + key, e.g. t:coin-flip-merchant, b:btn, o:sunset, s:shark
+    cosmetics.css      Border/bar/sticker/title CSS for the dashboard player card (.cbw.cb-<key>, .cbar-<key>, .cos-stk, .cos-ttl); every selector starts with html
     lateshow.css       "Late Show" look (Nov 2026), linked last on every page; every selector is prefixed with html so it beats
                        the page's own <style> (which sits in <body>)
     recap-core.js      Shared logic (browser + API): parsing, recap stories, Hall of Fame, player cards, h2h, quarter wrap
@@ -52,6 +57,10 @@ poker-dashboard/
                        redirect https://renpokernight.vercel.app/api/login in the Developer Portal. Game rules stay in the _game.js files, shared)
                        rewards: _rewards.js (casino chips for real nights: RSVP/showed up/places/bad beat (on top of consolation)/consolation/PKO/Heater/cold streak/comeback/giant killer/rebuy grit/bring a friend ("brought by X" note on a first-timer)/quarter champ/most improved; listed in the casino lobby (folded bar, 3 groups) via REWARD_LIST; cas:feed (300 kept) gets bj/uth/baccarat hands, roulette spins, duels, daily claims, rewards, and the lobby rolls a player's run of hands in one game (gaps under 10 min) into one "session line" (groupFeed in _casino.js); amounts in R, only nights from REWARDS_START; run by api/roles.js after each entry-page save, then posts a plain-text "who got what" note in the #casino Discord channel (channel id cached in rw:chan; bot needs Send Messages there);
                        recomputed from the sheet and diffed against rw:paid, so re-saves pay only the difference. Not in the recap post, by request)
+                       shop: _shop.js (Study Cards: /pack $100 for 3 cosmetics, tear + flip buttons, third card Uncommon+, duplicates refund chips;
+                       /loadout (ephemeral menus) and /tip user amount note (moves bj:bal chips, atomic Lua script). Keys sh:own:<id>, sh:eq, sh:packs, sh:pk:<pack>.
+                       Site /shop talks to /api/shop = vercel.json rewrite into discord.js?web=shop (shopWeb); /api/login?to=shop returns to /shop.
+                       Pack + card images = bjcards?m=pack|cards (_shopimg.js); equipped items drawn on /player (_late.js) and the dashboard card)
                        lottery: _lottery.js (quarter lottery: 1 ticket per $10 of Cash_In in the quarter, jackpot = all buy-ins 1:1 in chips;
                        drawn by hand with /lottery draw (host only, live ticket roll in Discord, draws the last finished quarter once), Lucky Ticket role (_roles.js);
                        /lottery odds|draw, lobby prize wheel with pfps (spins to the winner once per viewer), lobby panel, card at /api/wrap?lottery=<quarter>, spinning wheel GIF at /api/wrap?lottery=<quarter>&spin=1 (_wheelgif.js; no spare function slot). Some names are shown
