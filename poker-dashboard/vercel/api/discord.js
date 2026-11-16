@@ -327,6 +327,10 @@ export async function GET(req) {
     const [bal, name, last, paid, packs, feed, dbsize, rec, ltlast] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['HGETALL', 'bj:last'], ['HGETALL', 'rw:paid'],
       ['HGETALL', 'sh:packs'], ['LRANGE', 'cas:feed', 0, -1], ['DBSIZE'], ['HGETALL', 'du:rec'], ['GET', 'lt:last']);
     const hist = {}; for (const k of keys.filter(k => k.startsWith('ro:hist:'))) { const [h] = await kv(['LRANGE', k, 0, -1]); hist[k] = h; }
+    const F = (feed || []).map(x => JSON.parse(x)), agg = {}, per = {};
+    for (const f of F) { const g = /^duel/.test(f.game) ? 'duel' : /^tip/.test(f.game) ? 'tip' : f.game; const a = agg[g] = agg[g] || { n: 0, net: 0, won: 0, lost: 0 }; a.n++; a.net += f.net; if (f.net > 0) a.won += f.net; else a.lost -= f.net;
+      const k = f.id + '|' + g; per[k] = (per[k] || 0) + f.net; }
+    return new Response(JSON.stringify({ agg, per, feedN: F.length, first: F.length ? F[F.length - 1].at : null, firstDaily: F.filter(f => f.game === 'daily').map(f => [f.id, f.at]) }), { headers: { 'content-type': 'application/json' } });
     return new Response(JSON.stringify({ keys: keys.filter(k => !/^(bj:g:|uth:g:|sh:o)/.test(k)), nkeys: keys.length, bal, name, last, paid, packs, feed, dbsize, rec, ltlast, hist }), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
   }
   const url = new URL(req.url), token = process.env.DISCORD_BOT_TOKEN;
