@@ -105,6 +105,16 @@ const webRoute = req => { const w = new URL(req.url).searchParams.get('web'); re
 
 export async function POST(req) {
   if (webRoute(req)) return casinoWeb(req, webRoute(req), sheet);
+  // TEMP (preview only, read-only): dump chip history for a house P&L back-calculation
+  if (new URL(req.url).searchParams.has('housedump') && process.env.VERCEL_ENV !== 'production') {
+    const { kv } = await import('./_blackjack.js');
+    const keys = []; let cur = '0';
+    do { const [r] = await kv(['SCAN', cur, 'COUNT', 1000]); cur = r[0]; keys.push(...r[1]); } while (cur !== '0' && keys.length < 5000);
+    const [bal, name, last, paid, packs, feed, dbsize, rec, ltlast] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['HGETALL', 'bj:last'], ['HGETALL', 'rw:paid'],
+      ['HGETALL', 'sh:packs'], ['LRANGE', 'cas:feed', 0, -1], ['DBSIZE'], ['HGETALL', 'du:rec'], ['GET', 'lt:last']);
+    const hist = {}; for (const k of keys.filter(k => k.startsWith('ro:hist:'))) { const [h] = await kv(['LRANGE', k, 0, -1]); hist[k] = h; }
+    return new Response(JSON.stringify({ keys: keys.filter(k => !/^(bj:g:|uth:g:|sh:o)/.test(k)), nkeys: keys.length, bal, name, last, paid, packs, feed, dbsize, rec, ltlast, hist }), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+  }
   const body = await req.text();
   if (!signed(req, body)) return new Response('bad signature', { status: 401 });
   const i = JSON.parse(body);
