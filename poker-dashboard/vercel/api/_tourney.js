@@ -2,7 +2,11 @@
 // The bot can't watch reactions live (it only wakes up on commands and button presses), so the card has a
 // "🔄 Update headcount" button that reads the reactions and rewrites the names and count on the card.
 // Needs the bot to be in the server (Add Reactions, Read Message History, View Channel, Mention Everyone).
+import { kv, kvUrl } from './_blackjack.js';
 const API = 'https://discord.com/api/v10';
+// Auto-refresh: the newest invite's spot is kept in Redis (tv:last, 3 days) so refreshInvite() can rewrite its card
+// without searching the channels. tv:seen = the list last drawn, tv:lock = at most one check a minute.
+const LAST = 'tv:last', SEEN = 'tv:seen', LOCK = 'tv:lock', KEEP = 3 * 86400;
 
 const inviteOptions = buyinHint => [
   { type: 3, name: 'date', description: 'e.g. Fri Nov 21', required: true, max_length: 40 },
@@ -21,7 +25,7 @@ function inviteEmbed({ date, time, buyin, host, note, min, kind = 't' }, lists, 
   const lines = [`📅 **${date}**${time ? ` · ${time}` : ''}`, `${buyin ? `💵 **${buyin}**${/buy|\//i.test(buyin) ? '' : ' buy-in'} · ` : ''}hosted by ${host}`];
   if (note) lines.push('', note);
   lines.push('');
-  if (!lists) lines.push('React with anything to say you\'re in, then press **Update headcount** to see the list.');
+  if (!lists) { if (min) lines.push(`👥 Need **${min}** players`); lines.push('React with anything to say you\'re in, then press **Update headcount** to see the list.'); }
   else if (min) lines.push(`${'🟩'.repeat(Math.min(n, min))}${'⬛'.repeat(Math.max(0, min - n))} **${n} in** of ${min} needed${n >= min ? ' · **We have enough!**' : ''}`);
   else lines.push(`**${n} in**`);
   const fields = lists ? [{ name: `In (${n})`, value: lists[0].join('\n').slice(0, 1000) || '–', inline: true }] : [];
@@ -33,6 +37,31 @@ function inviteEmbed({ date, time, buyin, host, note, min, kind = 't' }, lists, 
 const pack = o => 'tally:' + JSON.stringify([o.min || 0, o.file || '', o.kind || 't']).slice(0, 90);
 const unpack = id => { try { const [min, file, kind] = JSON.parse(id.slice(6)); return { min, file, kind: kind === 'c' ? 'c' : 't' }; } catch (e) { return { kind: 't' }; } };
 const buttons = state => [{ type: 1, components: [{ type: 2, style: 2, custom_id: pack(state), label: 'Update headcount', emoji: { name: '🔄' } }] }];
+
+// Who may post an invite: Renato (hostId / his Members ID), server admins, and anyone with the server's "pitboss" role
+// (found by name, any case, "pit boss" works too). If the role is missing or Discord can't be reached, nobody is blocked.
+let roleCache = { at: 0, guild: '', id: null };
+async function pitbossRole(guild) {
+  if (roleCache.guild === guild && Date.now() - roleCache.at < 600e3) return roleCache.id;
+  const c = new AbortController(), t = setTimeout(() => c.abort(), 1200);
+  try {
+    const r = await fetch(`${API}/guilds/${guild}/roles`, { headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` }, signal: c.signal });
+    if (!r.ok) return undefined;
+    const role = (await r.json()).find(x => /^pit ?boss(es)?$/i.test(String(x.name || '').replace(/[^a-z ]/gi, '').trim()));
+    roleCache = { at: Date.now(), guild, id: role ? role.id : null };
+    return roleCache.id;
+  } catch (e) { return undefined; } finally { clearTimeout(t); }
+}
+/** null when this person may run /tourney or /cash, otherwise the (ephemeral) answer to send back. */
+export async function inviteBlocked(i, s, hostId) {
+  const m = i.member, uid = ((m && m.user) || i.user || {}).id;
+  if (!m || !i.guild_id || uid === hostId || (uid && uid === s.ids.Renato)) return null;
+  if (m.permissions && (BigInt(m.permissions) & 8n)) return null; // server admins
+  const rid = await pitbossRole(i.guild_id);
+  if (!rid || (m.roles || []).includes(rid)) return null; // no such role (or couldn't check): don't get in the way
+  return { type: 4, data: { flags: 64, allowed_mentions: { parse: [] },
+    content: `Only <@&${rid}> can post game invites. Ask one of them to run /${i.data.name}.` } };
+}
 
 /** The /tourney command: answers "thinking…" right away, then finishes the post in the background. */
 export function startTourney(i, opts, s, waitUntil) {
@@ -65,6 +94,9 @@ async function finishTourney(i, info, att) {
   }
   const r = await fetch(hook, { method: 'PATCH', headers, body });
   if (!r.ok) { console.error('tourney post failed', r.status, await r.text()); return; }
+  const msg = await r.json().catch(() => null);
+  if (msg && msg.id && kvUrl()) await kv(['SET', LAST, JSON.stringify({ c: msg.channel_id, m: msg.id, min: info.min || 0, file: pic ? file : '', kind: info.kind }), 'EX', KEEP],
+    ['SET', SEEN, '', 'EX', KEEP]).catch(e => console.error('invite remember', e));
 }
 
 // ---------- finding the newest invite (used by /api/invite and /seats) ----------
@@ -114,17 +146,45 @@ export async function readReacts(channelId, messageId, names = {}) {
   return { lists: [list] };
 }
 
+/** Date/time/buy-in/host/note read back off an invite card (the card is the only place they're kept). */
+function infoFrom(m, state) {
+  const d = ((m.embeds && m.embeds[0]) || {}).description || '';
+  const grab = re => (d.match(re) || [])[1];
+  const p = d.split('\n\n')[1];
+  return { date: grab(/📅 \*\*(.+?)\*\*/), time: grab(/📅 \*\*.+?\*\* · (.+)/), buyin: grab(/💵 \*\*(.+?)\*\*/), host: grab(/hosted by (.+)/),
+    note: (p && !/^(React|👥|🟩|⬛|\*\*\d)/.test(p) ? p : ''), min: state.min, kind: state.kind };
+}
+
 /** The Update headcount button: reads the reactions and rewrites the card (no new message, no ping). */
 export async function tally(i, s) {
-  const m = i.message, token = process.env.DISCORD_BOT_TOKEN, state = unpack(i.data.custom_id);
+  const m = i.message, state = unpack(i.data.custom_id);
   const names = Object.fromEntries(Object.entries(s.ids).map(([n, id]) => [id, n]));
   const got = await readReacts(m.channel_id, m.id, names);
   if (got.error) return { type: 4, data: { flags: 64, content: got.status === 403 ? "I can't read reactions here. The bot needs to be in the server with Read Message History in this channel." : `Couldn't read the reactions (Discord said ${got.status}). Try again in a moment.` } };
   const lists = got.lists.map(l => l.map(u => u.name));
-  const old = (m.embeds && m.embeds[0]) || {};
-  const d = old.description || '';
-  const grab = re => (d.match(re) || [])[1];
-  const info = { date: grab(/📅 \*\*(.+?)\*\*/), time: grab(/📅 \*\*.+?\*\* · (.+)/), buyin: grab(/💵 \*\*(.+?)\*\*/), host: grab(/hosted by (.+)/),
-    note: (d.split('\n\n')[1] && !/^(React|🟩|⬛|\*\*\d)/.test(d.split('\n\n')[1]) ? d.split('\n\n')[1] : ''), min: state.min, kind: state.kind };
-  return { type: 7, data: { embeds: [inviteEmbed(info, lists, state.file ? `attachment://${state.file}` : null)], components: m.components, allowed_mentions: { parse: [] } } };
+  return { type: 7, data: { embeds: [inviteEmbed(infoFrom(m, state), lists, state.file ? `attachment://${state.file}` : null)], components: m.components, allowed_mentions: { parse: [] } } };
+}
+
+/** Rewrites the newest invite's card with the current reactions, like pressing Update headcount. Cheap to call often:
+ *  does nothing when there's no invite from the last 3 days, when someone checked in the last minute, or when the list
+ *  hasn't changed. getNames: async () => { discordId: sheetName }. Returns a short word on what happened. */
+export async function refreshInvite(getNames = async () => ({})) {
+  if (!kvUrl() || !process.env.DISCORD_BOT_TOKEN) return 'not set up';
+  const [raw, lock] = await kv(['GET', LAST], ['SET', LOCK, '1', 'NX', 'EX', 55]);
+  if (!raw) return 'no recent invite';
+  if (lock !== 'OK') return 'checked in the last minute';
+  const last = JSON.parse(raw);
+  const got = await readReacts(last.c, last.m, await getNames());
+  if (got.error) { if (got.status === 404) await kv(['DEL', LAST]); return 'discord said ' + got.status; }
+  const list = got.lists[0].map(u => u.name), key = list.join('|');
+  const [seen] = await kv(['GET', SEEN]);
+  if (seen === key) return 'no change';
+  const m = await dc(`/channels/${last.c}/messages/${last.m}`);
+  if (!m) return 'invite not found';
+  const r = await fetch(`${API}/channels/${last.c}/messages/${last.m}`, { method: 'PATCH',
+    headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ embeds: [inviteEmbed(infoFrom(m, last), [list], last.file ? `attachment://${last.file}` : null)], allowed_mentions: { parse: [] } }) });
+  if (!r.ok) return 'edit failed ' + r.status;
+  await kv(['SET', SEEN, key, 'EX', KEEP]);
+  return 'updated';
 }

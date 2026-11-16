@@ -1,7 +1,7 @@
 // /seats: random seat order for everyone who reacted to the newest /tourney or /cash invite.
 //   add:    walk-ins, comma separated (matched to sheet names when they're close)
 //   remove: no-shows, comma separated names or @mentions
-// Everyone sits at one table. One player gets the dealer button at random. Posts the table picture (/api/seats)
+// Everyone sits at one table. No dealer button (Renato asked to leave it out). Posts the table picture (/api/seats)
 // with a numbered list, plus a Reshuffle button only the person who ran it can press. No storage: the players
 // ride along in the picture's URL, so Reshuffle reads them back from the message.
 import { randomInt } from 'node:crypto';
@@ -22,15 +22,12 @@ const unpack = str => String(str || '').split('|').filter(Boolean).map(x => { co
 
 /** The message: picture, numbered list, Reshuffle button. */
 function seatsMessage(players, { title, source, owner, ownerName }) {
-  const seated = shuffle(players), button = randomInt(seated.length);
-  const n = seated.length, sb = n === 2 ? button : (button + 1) % n;
-  const blinds = n === 2 ? `🔘 **${seated[button].name}** has the button and posts the small blind.`
-    : `🔘 **${seated[button].name}** has the button, so **${seated[sb].name}** posts the small blind.`;
-  const list = seated.map((p, k) => `\`${String(k + 1).padStart(2)}\` ${p.name}${k === button ? ' 🔘' : ''}`);
+  const seated = shuffle(players);
+  const list = seated.map((p, k) => `\`${String(k + 1).padStart(2)}\` ${p.name}`);
   const half = Math.ceil(list.length / 2);
-  const q = new URLSearchParams({ p: pack(seated), d: String(button), v: Date.now().toString(36) });
+  const q = new URLSearchParams({ p: pack(seated), v: Date.now().toString(36) });
   return { allowed_mentions: { parse: [] }, embeds: [{ color: 0x2f7d5b, title,
-    description: `${source}\n${blinds}`,
+    description: source,
     fields: [{ name: '​', value: list.slice(0, half).join('\n'), inline: true }, ...(list.length > half ? [{ name: '​', value: list.slice(half).join('\n'), inline: true }] : [])],
     image: { url: `${SITE}/api/seats?${q}` },
     footer: { text: `Random draw · seat 1 is at the bottom, numbers go clockwise · only ${ownerName} can reshuffle` } }],

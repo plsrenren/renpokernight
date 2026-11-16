@@ -26,7 +26,7 @@
 // Needs Vercel env vars DISCORD_BOT_TOKEN (already there) and DISCORD_PUBLIC_KEY (from the Developer Portal).
 import { createPublicKey, verify } from 'node:crypto';
 import { waitUntil } from '@vercel/functions';
-import { TOURNEY_COMMAND, CASH_COMMAND, startTourney, tally } from './_tourney.js';
+import { TOURNEY_COMMAND, CASH_COMMAND, startTourney, tally, inviteBlocked, refreshInvite } from './_tourney.js';
 import { syncRoles } from './_roles.js';
 import { BLACKJACK_COMMANDS, blackjackCommand, blackjackButton } from './_blackjack.js';
 import { DUEL_COMMAND, duelCommand, duelButton, sweepDuels } from './_duel.js';
@@ -101,14 +101,18 @@ async function sheet() {
   return cache;
 }
 
+// names for the invite list come from the sheet copy in memory (no wait on Google); Discord names when there's none yet
+const refreshNewestInvite = () => refreshInvite(async () => Object.fromEntries(Object.entries(cache.ids || {}).map(([n, id]) => [id, n])))
+  .catch(e => console.error('invite refresh', e));
 const webRoute = req => { const w = new URL(req.url).searchParams.get('web'); return w === 'login' || w === 'casino' || w === 'shop' ? w : null; };
 
 export async function POST(req) {
-  if (webRoute(req)) return casinoWeb(req, webRoute(req), sheet);
+  if (webRoute(req)) { waitUntil(refreshNewestInvite()); return casinoWeb(req, webRoute(req), sheet); }
   const body = await req.text();
   if (!signed(req, body)) return new Response('bad signature', { status: 401 });
   const i = JSON.parse(body);
   if (i.type === 1) return json({ type: 1 }); // Discord's ping when you save the endpoint URL
+  waitUntil(refreshNewestInvite()); // any use of the bot also refreshes the newest invite's headcount (at most once a minute)
 
   const opts = Object.fromEntries((i.data && i.data.options || []).map(o => [o.name, o]));
   if (i.type === 4) return suggest(i, opts); // suggestions while typing
@@ -158,7 +162,10 @@ export async function POST(req) {
   if (i.data.name === 'uth') return uthCommand(i, opts, s);
   if (i.data.name === 'baccarat') return baccaratCommand(i, opts, s);
   if (i.data.name === 'seats') return json(startSeats(i, opts, s, waitUntil));
-  if (i.data.name === 'tourney' || i.data.name === 'cash') return json(startTourney(i, opts, s || { ids: {} }, waitUntil));
+  if (i.data.name === 'tourney' || i.data.name === 'cash') { // pitboss role only (plus Renato and admins), see inviteBlocked
+    const no = await inviteBlocked(i, s || { ids: {} }, HOST_ID);
+    return json(no || startTourney(i, opts, s || { ids: {} }, waitUntil));
+  }
   if (!s) return say("Couldn't reach the poker sheet just now. Try again in a minute.");
   if (i.data.name === 'lottery' && (i.data.options || [])[0] && i.data.options[0].name === 'draw') return lotteryDraw(i, s, waitUntil);
   if (i.data.name === 'roles') { // can take a few seconds, so answer "thinking…" and finish in the background

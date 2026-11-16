@@ -1,15 +1,24 @@
 // /api/invite            who answered the latest /tourney or /cash invite (the entry page's "Load from invite" button)
 // /api/invite?link=...   the same for a specific invite (Discord: right-click the invite > Copy Message Link)
+// /api/invite?refresh=1 rewrites the newest invite's headcount card (called every 5 minutes by a scheduler, e.g. Upstash QStash;
+//   cheap: does nothing for invites older than 3 days, more than once a minute, or when the list hasn't changed).
 // Returns JSON { kind, date, time, buyin, url, postedAt, in: [{ name, known }], maybe: [], cant: [] } (any reaction counts as in).
 // "known" means the Discord account is in the Members tab, so the name is the sheet name.
 // Uses DISCORD_BOT_TOKEN; the bot needs View Channel + Read Message History where the invite was posted.
-import { readReacts, dc, isInvite, latestInvite } from './_tourney.js';
+import { readReacts, dc, isInvite, latestInvite, refreshInvite } from './_tourney.js';
 import { MEMBERS_URL, memberIds } from '../recap-core.js';
 
 export default async function handler(req, res) {
   try {
     if (!process.env.DISCORD_BOT_TOKEN) { res.status(500).json({ error: 'DISCORD_BOT_TOKEN is not set on Vercel' }); return; }
     const q = new URL(req.url, 'http://x').searchParams;
+    if (q.has('refresh')) {
+      const done = await refreshInvite(async () => {
+        const members = await fetch(MEMBERS_URL, { cache: 'no-store' }).then(r => r.ok ? r.text() : '').catch(() => '');
+        return Object.fromEntries(Object.entries(memberIds(members)).map(([n, id]) => [id, n]));
+      });
+      res.setHeader('Cache-Control', 'no-store'); res.status(200).json({ refresh: done }); return;
+    }
     const me = await dc('/users/@me');
     if (!me) { res.status(502).json({ error: "Couldn't reach Discord. Try again in a moment." }); return; }
     let msg = null;
