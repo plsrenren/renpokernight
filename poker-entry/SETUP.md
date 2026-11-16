@@ -61,6 +61,18 @@ A phone-friendly page that adds one night's results to the **Input** tab of the 
 If you close the page before saving, your entry is kept on that phone and comes back next time.
 If the sheet already has rows for that date, it asks before adding more.
 
+## Secret key for chip rewards (once)
+
+After each save the entry page sends the sheet to the site (`/api/roles`), which moves the Discord roles and pays casino
+chip rewards. The site only trusts that sheet when it comes with a secret key; without it, it reads the sheet from Google
+itself (a minute or two behind), so nobody can post a made-up sheet to pay themselves chips.
+
+1. Vercel: project **renpokernight** → Settings → Environment Variables → add `ROLES_KEY` with a long random value
+   (all environments) → Save. It takes effect on the next deploy.
+2. Apps Script (Extensions → Apps Script): gear icon (**Project Settings**) → **Script Properties** → Add script property:
+   name `ROLES_KEY`, the same value → Save script properties.
+3. Paste the latest `Invite.gs` (it sends the key), Save, and Deploy a new version (see below). Code.gs doesn't change.
+
 ## Updating the code later
 
 Paste the new code, Save, then **Deploy → Manage deployments → edit (pencil) → Version: New version → Deploy**.
