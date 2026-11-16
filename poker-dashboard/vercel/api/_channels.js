@@ -6,7 +6,7 @@
 const API = 'https://discord.com/api/v10';
 export const HOME = {
   casino: { label: 'casino', test: n => /casino/i.test(n),
-    commands: ['daily', 'blackjack', 'chips', 'duel', 'uth', 'roulette', 'baccarat', 'lottery'] },
+    commands: ['daily', 'blackjack', 'freebet', 'chips', 'duel', 'uth', 'roulette', 'baccarat', 'lottery', 'pack', 'loadout', 'tip'] },
   table: { label: 'the-table', test: n => /table/i.test(n),
     commands: ['player', 'standings', 'recap', 'h2h', 'hall', 'wrap', 'tourney', 'cash', 'seats', 'roles'] },
 };

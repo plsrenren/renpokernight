@@ -5,6 +5,8 @@ import { Resvg } from '@resvg/resvg-js';
 import { readFileSync } from 'node:fs';
 import { WHEEL_COLORS, wheelPngUri } from './_wheelgif.js';
 import { usd, hueFor, initials, words } from '../recap-core.js';
+import { BY_ID, LOOK, TCOL } from '../loot.js';
+import { borderBox, stickerPng } from './_shopimg.js';
 
 const asset = name => readFileSync(new URL(`./_assets/${name}`, import.meta.url));
 let FONTS, LOGO;
@@ -144,27 +146,36 @@ export const recapCard = withAssets(m => {
 export const toWords = words;
 
 // ---------- player (/api/card) ----------
+const initialsUri = name => { const hue = hueFor(name); return svgUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="240" height="240"><rect width="120" height="120" fill="hsl(${hue}, 70%, 80%)"/></svg>`); };
 export const playerCardTree = withAssets((c, art = {}) => {
-  const pics = art.pics || {}, ov = c.ovr, hh = c.h2h || {};
+  const pics = art.pics || {}, ov = c.ovr, hh = c.h2h || {}, eq = art.eq || {};
+  const pick = slot => { const it = BY_ID[eq[slot]]; return it && it.slot === slot ? it : null; };
+  const title = pick('Title'), border = pick('Pfp border'), barIt = pick('Overall bar'), stkIt = pick('Sticker');
+  const stk = stkIt ? stickerPng(stkIt.name, 104, 4) : null, bar = barIt ? LOOK.bar[barIt.key] : null;
+  const barBg = bar ? (bar.bg.includes('gradient') ? { backgroundImage: bar.bg } : { backgroundColor: bar.bg }) : { backgroundColor: L.gold }, barFg = bar ? bar.fg : L.night;
   const heroBg = art.banner ? {} : { backgroundImage: art.color ? `linear-gradient(135deg, ${art.color}, ${L.panel})` : 'linear-gradient(120deg, #3a2a6e, #a23b58)' };
   const hero = h({ position: 'relative', height: 220, ...heroBg },
     art.banner ? cover(art.banner, W, 220) : null,
     art.banner ? h({ position: 'absolute', left: 0, top: 0, width: W, height: 220, backgroundImage: 'linear-gradient(90deg, rgba(21,19,42,0.6), rgba(21,19,42,0.15) 45%, rgba(21,19,42,0.35))' }) : null,
     art.banner ? h({ position: 'absolute', left: 0, top: 0, width: W, height: 220, backgroundImage: 'linear-gradient(180deg, rgba(21,19,42,0) 55%, rgba(21,19,42,0.9))' }) : null,
     ov ? h({ position: 'absolute', right: -10, top: -38, fontFamily: 'Bebas', fontSize: 250, lineHeight: 1, color: 'rgba(255,255,255,0.08)' }, String(ov.value)) : null,
-    h({ width: 190, alignItems: 'center', justifyContent: 'center', position: 'relative' }, sq(pics, c.name, 140)),
+    // Study Cards sticker (top right) and pfp border, when equipped (art.eq = {slot: item id}; see loot.js)
+    stk ? h({ position: 'absolute', right: 26, top: 14, transform: 'rotate(-10deg)' }, img(stk.src, stk.w, stk.ht)) : null,
+    h({ width: 190, alignItems: 'center', justifyContent: 'center', position: 'relative' }, border ? borderBox(border.key, 120, pics[c.name] || initialsUri(c.name)) : sq(pics, c.name, 140)),
     // darker fade behind the text side so it reads on busy banners
     art.banner ? h({ position: 'absolute', left: 0, top: 0, width: W, height: 220, backgroundImage: 'linear-gradient(90deg, rgba(21,19,42,0) 25%, rgba(21,19,42,0.78) 55%, rgba(21,19,42,0.78))' }) : null,
     h({ flex: 1, flexDirection: 'column', justifyContent: 'center', paddingRight: 12, position: 'relative' },
       B(c.name.toUpperCase(), c.name.length > 9 ? 50 : 66, '#fff'),
+      title ? B(title.name.toUpperCase(), 22, TCOL[title.tier], { letterSpacing: 1.6, marginTop: 1 }) : null,
       T(`${c.label} · played ${c.played} of ${c.nights}`, { fontSize: 13, color: 'rgba(236,233,251,0.75)', marginTop: 2 }),
       h({ gap: 6, marginTop: 8, flexWrap: 'wrap' }, (c.badges || []).map(b => h({ backgroundColor: 'rgba(0,0,0,0.35)', padding: '4px 10px' }, T(b, { fontSize: 12, fontWeight: 700, color: '#fff' }))))));
   if (c.empty) return frame(hero, pad(T(`No games in ${c.label}.`, { fontSize: 15, color: L.muted, marginTop: 24 })), foot('Poker Club @ The Study'));
-  const stat = (v, l) => h({ flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }, B(v, 30, L.night), T(l, { fontSize: 10.5, fontWeight: 700, letterSpacing: 1.5, color: L.night }));
-  const strip = h({ marginTop: -26, marginLeft: PAD, marginRight: PAD, height: 66, backgroundColor: L.gold, position: 'relative' },
-    h({ alignItems: 'center', gap: 10, paddingLeft: 18, paddingRight: 18, backgroundColor: L.night, border: `2px solid ${L.gold}` },
-      B(ov ? String(ov.value) : '–', 52, L.gold),
-      h({ flexDirection: 'column' }, B('OVERALL', 18, L.gold, { letterSpacing: 2 }), T(ov ? `${ov.rank} of ${ov.of} regulars` : `needs ${c.needs} nights`, { fontSize: 11, color: L.muted }))),
+  const stat = (v, l) => h({ flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }, B(v, 30, barFg), T(l, { fontSize: 10.5, fontWeight: 700, letterSpacing: 1.5, color: barFg }));
+  const oc = bar ? (bar.ovrBg ? L.night : bar.ovr) : L.gold;
+  const strip = h({ marginTop: -26, marginLeft: PAD, marginRight: PAD, height: 66, ...barBg, position: 'relative' },
+    h({ alignItems: 'center', gap: 10, paddingLeft: 18, paddingRight: 18, backgroundColor: bar && bar.ovrBg ? bar.ovrBg : L.night, border: `2px solid ${bar ? bar.ovr : L.gold}` },
+      B(ov ? String(ov.value) : '–', 52, oc),
+      h({ flexDirection: 'column' }, B('OVERALL', 18, oc, { letterSpacing: 2 }), T(ov ? `${ov.rank} of ${ov.of} regulars` : `needs ${c.needs} nights`, { fontSize: 11, color: bar && bar.ovrBg ? L.night : L.muted }))),
     stat(usd(Math.round(c.net), { cents: false }), 'NET'), stat(String(c.wins), 'WINS'), stat('#' + c.rank, 'OF ' + c.of));
   const attr = a => h({ width: (IN - 12) / 3, height: 58, backgroundColor: L.panel, alignItems: 'center', paddingLeft: 12, gap: 10, position: 'relative' },
     h({ position: 'absolute', left: 0, bottom: 0, height: 4, width: `${a.v}%`, backgroundColor: a.v >= 80 ? L.up : a.v >= 60 ? L.gold : L.down }),

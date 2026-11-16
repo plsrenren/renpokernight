@@ -11,7 +11,7 @@
 //   /roles                  refreshes the results roles (Quarter Leader, Heater, ...; see _roles.js)
 //   /tourney date:...       tournament invite people answer with reactions (see _tourney.js)
 //   /cash date:...          same for a cash game
-//   /daily /blackjack /chips  blackjack with chips (see _blackjack.js; needs Upstash storage)
+//   /daily /blackjack /freebet /chips  blackjack (and Free Bet Blackjack) with chips (see _blackjack.js; needs Upstash storage)
 //   /duel                   player vs player for chips: rock paper scissors or high card (see _duel.js)
 //   /uth                    Ultimate Texas Hold'em against the dealer for chips (see _uth.js)
 //   /roulette               shared roulette table, 30 seconds to bet, then it spins (see _roulette.js)
@@ -19,21 +19,23 @@
 //   /lottery odds           this quarter's lottery: jackpot, your tickets and everyone's odds (see _lottery.js)
 //   /lottery draw           the host draws last quarter's winner live in the channel (host only)
 //   /seats                  random seat order for everyone in on the latest invite (see _seats.js)
+//   /pack /loadout /tip     Study Cards (cosmetics for your player card) and giving chips to someone (see _shop.js)
 // Casino commands only run in #casino and poker commands only in #the-table; elsewhere they point there (_channels.js).
-// Also serves the site's casino: /api/login and /api/casino are rewritten here with ?web= (see _casino.js).
+// Also serves the site's casino and shop: /api/login, /api/casino and /api/shop are rewritten here with ?web= (see _casino.js).
 // One-time setup: open /api/discord?setup=1 in a browser. It registers the command and shows the "add to server" link.
 // Needs Vercel env vars DISCORD_BOT_TOKEN (already there) and DISCORD_PUBLIC_KEY (from the Developer Portal).
 import { createPublicKey, verify } from 'node:crypto';
 import { waitUntil } from '@vercel/functions';
-import { TOURNEY_COMMAND, CASH_COMMAND, startTourney, tally } from './_tourney.js';
+import { TOURNEY_COMMAND, CASH_COMMAND, startTourney, tally, inviteBlocked, refreshInvite } from './_tourney.js';
 import { syncRoles } from './_roles.js';
 import { BLACKJACK_COMMANDS, blackjackCommand, blackjackButton } from './_blackjack.js';
-import { DUEL_COMMAND, duelCommand, duelButton } from './_duel.js';
+import { DUEL_COMMAND, duelCommand, duelButton, sweepDuels } from './_duel.js';
 import { SEATS_COMMAND, startSeats, reshuffle } from './_seats.js';
 import { UTH_COMMAND, uthCommand, uthButton } from './_uth.js';
 import { ROULETTE_COMMAND, rouletteCommand, rouletteInteraction } from './_roulette.js';
 import { BACCARAT_COMMAND, baccaratCommand, baccaratButton } from './_baccarat.js';
 import { casinoWeb } from './_casino.js';
+import { SHOP_COMMANDS, shopCommand, shopInteraction } from './_shop.js';
 import { wrongChannel } from './_channels.js';
 import { board as lotteryBoard, quarterOf, shownQuarter, drawable, drawQuarter, TICKET, LUCKY_ROLE, nextQuarter } from './_lottery.js';
 import { nightRows } from './_rewards.js';
@@ -66,6 +68,7 @@ const COMMANDS = [
   ROULETTE_COMMAND,
   BACCARAT_COMMAND,
   SEATS_COMMAND,
+  ...SHOP_COMMANDS,
   { name: 'lottery', description: 'The quarter lottery', type: 1, options: [
     { type: 1, name: 'odds', description: "The jackpot, your tickets and everyone's odds" },
     { type: 1, name: 'draw', description: "Draw last quarter's winner, live (host only)" }] },
@@ -98,21 +101,18 @@ async function sheet() {
   return cache;
 }
 
-// for commands that only use the sheet for display names: the cached copy straight away (refreshed in the background
-// when it's old), and on a cold start wait at most 700ms for Google before going with Discord names
-async function namesSoon() {
-  if (cache.recs) { if (Date.now() - cache.at >= 60e3) waitUntil(sheet().catch(() => {})); return cache; }
-  return Promise.race([sheet().catch(() => null), new Promise(r => setTimeout(() => r(null), 700))]);
-}
-
-const webRoute = req => { const w = new URL(req.url).searchParams.get('web'); return w === 'login' || w === 'casino' ? w : null; };
+// names for the invite list come from the sheet copy in memory (no wait on Google); Discord names when there's none yet
+const refreshNewestInvite = () => refreshInvite(async () => Object.fromEntries(Object.entries(cache.ids || {}).map(([n, id]) => [id, n])))
+  .catch(e => console.error('invite refresh', e));
+const webRoute = req => { const w = new URL(req.url).searchParams.get('web'); return w === 'login' || w === 'casino' || w === 'shop' ? w : null; };
 
 export async function POST(req) {
-  if (webRoute(req)) return casinoWeb(req, webRoute(req), sheet);
+  if (webRoute(req)) { waitUntil(refreshNewestInvite()); return casinoWeb(req, webRoute(req), sheet); }
   const body = await req.text();
   if (!signed(req, body)) return new Response('bad signature', { status: 401 });
   const i = JSON.parse(body);
   if (i.type === 1) return json({ type: 1 }); // Discord's ping when you save the endpoint URL
+  waitUntil(refreshNewestInvite()); // any use of the bot also refreshes the newest invite's headcount (at most once a minute)
 
   const opts = Object.fromEntries((i.data && i.data.options || []).map(o => [o.name, o]));
   if (i.type === 4) return suggest(i, opts); // suggestions while typing
@@ -135,6 +135,7 @@ export async function POST(req) {
   if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('ba:')) { // baccarat play-again buttons
     try { return await baccaratButton(i, cache.recs ? cache : null); } catch (e) { console.error('baccarat', e); return say("Couldn't reach the chip storage just now. Try again in a moment."); }
   }
+  if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('sh:')) return shopInteraction(i, cache.recs ? cache : null); // Study Cards buttons and menus
   if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('seats:')) return json(reshuffle(i)); // /seats Reshuffle
   if (i.type !== 2 || !i.data) return say('Unknown command.');
   const hint = await wrongChannel(i); // casino games only in #casino, poker commands only in #the-table (see _channels.js)
@@ -146,15 +147,25 @@ export async function POST(req) {
     const lines = i.data.name === 'fish' ? FISH_LINES : DONKEY_LINES;
     return json({ type: 4, data: { content: lines[Math.floor(Math.random() * lines.length)].replace('ID', id), allowed_mentions: { users: [id] } } });
   }
-  if (i.data.name === 'duel') return duelCommand(i, opts, await namesSoon()); // only needs names, so don't wait on Google
-  const s = await sheet();
+  // chip commands answer from the sheet copy already in memory (names only) instead of waiting on Google: a slow sheet read
+  // could push the reply past Discord's 3 seconds after the bet was already taken. The copy refreshes in the background.
+  const CHIP = ['daily', 'blackjack', 'freebet', 'chips', 'pack', 'loadout', 'tip', 'duel', 'uth', 'baccarat'];
+  const chipCmd = CHIP.includes(i.data.name);
+  if (chipCmd && (i.data.name === 'daily' || i.data.name === 'duel')) waitUntil(sweepDuels().catch(e => console.error('duel sweep', e))); // refunds stuck duels
+  const s = chipCmd ? (cache.recs ? cache : null) : await sheet();
+  if (chipCmd && (!cache.recs || Date.now() - cache.at >= 60e3)) waitUntil(sheet().catch(() => {}));
   const bj = await blackjackCommand(i, opts, s);
   if (bj) return bj;
+  const shop = await shopCommand(i, opts, s); // /pack /loadout /tip
+  if (shop) return shop;
   if (i.data.name === 'duel') return duelCommand(i, opts, s);
   if (i.data.name === 'uth') return uthCommand(i, opts, s);
   if (i.data.name === 'baccarat') return baccaratCommand(i, opts, s);
   if (i.data.name === 'seats') return json(startSeats(i, opts, s, waitUntil));
-  if (i.data.name === 'tourney' || i.data.name === 'cash') return json(startTourney(i, opts, s || { ids: {} }, waitUntil));
+  if (i.data.name === 'tourney' || i.data.name === 'cash') { // pitboss role only (plus Renato and admins), see inviteBlocked
+    const no = await inviteBlocked(i, s || { ids: {} }, HOST_ID);
+    return json(no || startTourney(i, opts, s || { ids: {} }, waitUntil));
+  }
   if (!s) return say("Couldn't reach the poker sheet just now. Try again in a minute.");
   if (i.data.name === 'lottery' && (i.data.options || [])[0] && i.data.options[0].name === 'draw') return lotteryDraw(i, s, waitUntil);
   if (i.data.name === 'roles') { // can take a few seconds, so answer "thinking…" and finish in the background

@@ -2,10 +2,21 @@
 // sheet as JSON { input, members }) right after a night is saved; /roles in Discord does the same.
 // Safe to call any time: it only changes roles that don't match the results.
 // It also pays the casino chip rewards for poker nights (see _rewards.js); those pay each night only once.
+// The sheet sent in the body is only trusted with the secret key (header X-Roles-Key = Vercel env ROLES_KEY, which the
+// entry page keeps in its Script Properties). Without it the body is ignored and the sheet is read from Google itself,
+// so nobody can pay themselves chips (or take everyone's back) by posting a made-up sheet.
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { SHEET_URL, MEMBERS_URL, gameRecords, memberIds } from '../recap-core.js';
 import { syncRoles } from './_roles.js';
 import { payRewards } from './_rewards.js';
 import { kvUrl, kvToken } from './_blackjack.js';
+
+/** true when the request carries the right secret key (and one is set on Vercel). */
+export function keyOk(sent, want = process.env.ROLES_KEY) {
+  if (!want || !sent) return false;
+  const h = v => createHash('sha256').update(String(v)).digest();
+  return timingSafeEqual(h(sent), h(want.trim()));
+}
 
 async function readBody(req) {
   if (typeof req.body === 'string') return req.body;
@@ -19,7 +30,8 @@ export default async function handler(req, res) {
   try {
     if (!process.env.DISCORD_BOT_TOKEN) { res.status(500).json({ error: 'DISCORD_BOT_TOKEN is not set on Vercel' }); return; }
     let csv = '', members = null;
-    if (req.method === 'POST') { const j = JSON.parse(await readBody(req) || '{}'); csv = j.input || ''; members = j.members ?? null; }
+    const trusted = keyOk(req.headers['x-roles-key']);
+    if (req.method === 'POST' && trusted) { const j = JSON.parse(await readBody(req) || '{}'); csv = j.input || ''; members = j.members ?? null; }
     if (!csv) csv = await fetch(SHEET_URL, { cache: 'no-store' }).then(r => r.ok ? r.text() : '').catch(() => '');
     if (members == null) members = await fetch(MEMBERS_URL, { cache: 'no-store' }).then(r => r.ok ? r.text() : '').catch(() => '');
     if (!csv || csv.length > 2_000_000) { res.status(400).json({ error: 'could not read the sheet' }); return; }
@@ -31,6 +43,7 @@ export default async function handler(req, res) {
       try { report.chips = await payRewards(csv, ids); } catch (e) { console.error('rewards', e); report.errors = [...(report.errors || []), 'Chip rewards: ' + e.message]; }
     }
     res.setHeader('Cache-Control', 'no-store');
+    report.source = trusted ? 'entry page' : 'google sheet';
     res.status(200).json(report);
   } catch (e) {
     res.status(500).json({ error: 'Could not update roles: ' + e.message });

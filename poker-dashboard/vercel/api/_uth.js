@@ -8,7 +8,7 @@
 //   (royal 50, straight flush 40, quads 30, full house 8, flush 7, straight 4, three of a kind 3).
 // Keys: uth:g:<id> (the hand, 1 hour), uth:lock:<id> (stops double taps).
 import { randomBytes } from 'node:crypto';
-import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, freshDeck, feedCmds } from './_blackjack.js';
+import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, freshDeck, feedCmds, takeChips } from './_blackjack.js';
 
 const SITE = 'https://renpokernight.vercel.app';
 export const MAX_ANTE = 100, MAX_TRIPS = 100, DEFAULT_ANTE = 10;
@@ -153,14 +153,13 @@ const PAYTABLE = [
 // ---------- a hand ----------
 /** Deals a new hand and takes ante + blind (+ trips). Shared by /uth and the site: { g, bal } or { err }. */
 export async function newHand(me, ante, trips) {
-  const [balRaw] = await kv(['HGET', 'bj:bal', me.id]);
-  const need = ante * 2 + trips;
-  if (balRaw === null) return { err: "You don't have any chips yet. Use **/daily** to get some free." };
-  if (+balRaw < need) return { err: `This hand needs ${money(need)} up front (ante + blind${trips ? ' + trips' : ''}), and you have ${money(+balRaw)}.` };
+  const need = ante * 2 + trips, took = await takeChips(me.id, need);
+  if (took.short && took.had === null) return { err: "You don't have any chips yet. Use **/daily** to get some free." };
+  if (took.short) return { err: `This hand needs ${money(need)} up front (ante + blind${trips ? ' + trips' : ''}), and you have ${money(took.had)}.` };
   const deck = freshDeck(), g = { id: randomBytes(5).toString('hex'), uid: me.id, name: me.name, ante, trips, play: 0, step: 0, stage: 'pre' };
   g.me = [deck.pop(), deck.pop()]; g.dealer = [deck.pop(), deck.pop()]; g.board = [deck.pop(), deck.pop(), deck.pop(), deck.pop(), deck.pop()];
-  const res = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, -need], ['HSET', 'bj:name', me.id, me.name], ['SET', 'uth:g:' + g.id, JSON.stringify(g), 'EX', 3600]);
-  return { g, bal: +res[0] };
+  await kv(['HSET', 'bj:name', me.id, me.name], ['SET', 'uth:g:' + g.id, JSON.stringify(g), 'EX', 3600]);
+  return { g, bal: took.bal };
 }
 
 /** The /uth slash command. */
@@ -194,12 +193,13 @@ export async function uthAction(me, gid, act) {
     let spend = 0;
     if (act[0] === 'b') {
       spend = g.ante * +act[1];
-      if (bal < spend) return { err: `You need ${money(spend)} for that bet and have ${money(bal)}.` };
+      const took = await takeChips(me.id, spend); // in one step, so another game can't spend the same chips
+      if (took.short) return { err: `You need ${money(spend)} for that bet and have ${money(took.had || 0)}.` };
       g.play = spend; settle(g);
     } else if (act === 'fold') { g.folded = true; settle(g); }
     else g.stage = g.stage === 'pre' ? 'flop' : 'river';
     g.step++;
-    const done = g.stage === 'done', delta = (done ? g.payout : 0) - spend;
+    const done = g.stage === 'done', delta = done ? g.payout : 0; // the play bet is already off (takeChips)
     const res = await kv(...(delta ? [['HINCRBYFLOAT', 'bj:bal', me.id, delta]] : [['HGET', 'bj:bal', me.id]]), ['SET', 'uth:g:' + g.id, JSON.stringify(g), 'EX', 3600], ['DEL', 'uth:lock:' + gid],
       ...(done ? feedCmds(me, 'UTH', g.net) : []));
     wrote = true; bal = +res[0];

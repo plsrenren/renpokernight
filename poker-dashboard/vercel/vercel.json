@@ -8,6 +8,10 @@
     {
       "source": "/api/casino",
       "destination": "/api/discord?web=casino"
+    },
+    {
+      "source": "/api/shop",
+      "destination": "/api/discord?web=shop"
     }
   ],
   "functions": {
@@ -16,11 +20,11 @@
       "maxDuration": 20
     },
     "api/card.js": {
-      "includeFiles": "{api/_assets/**,recap-core.js}",
+      "includeFiles": "{api/_assets/**,recap-core.js,loot.js}",
       "maxDuration": 15
     },
     "api/discord.js": {
-      "includeFiles": "recap-core.js",
+      "includeFiles": "{recap-core.js,loot.js}",
       "maxDuration": 60
     },
     "api/avatar.js": {
@@ -47,7 +51,7 @@
       "maxDuration": 30
     },
     "api/bjcards.js": {
-      "includeFiles": "api/_assets/**",
+      "includeFiles": "{api/_assets/**,loot.js}",
       "maxDuration": 10
     },
     "api/seats.js": {

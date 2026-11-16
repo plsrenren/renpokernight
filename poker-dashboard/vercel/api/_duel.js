@@ -4,12 +4,15 @@
 //   game:Rock paper scissors (default)  both pick in secret, picks show once both are in, ties replay
 //   game:High card                      one card each the moment it's accepted, aces high, same rank deals again
 // Both stakes come off when the duel is accepted; the winner gets the pot. Challenges expire after 10 minutes.
-// Keys: du:<id> (the duel, 30 min), du:lock:<id> (stops double taps), du:rec (hash "<lo id>:<hi id>:<winner id>" → wins).
+// Rock paper scissors: if someone never picks, either player can tap "Call it off" after 3 minutes (both stakes go back),
+// and a duel still waiting after 30 minutes is refunded by sweepDuels (run on /duel and /daily), so chips never vanish.
+// Keys: du:<id> (the duel, 1 day), du:lock:<id> (stops double taps), du:rec (hash "<lo id>:<hi id>:<winner id>" → wins),
+//       du:live (hash duel id → {a, b, bet, at}: RPS duels with stakes taken and no winner yet).
 import { randomBytes } from 'node:crypto';
 import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, freshDeck, MAX_BET, feedCmds } from './_blackjack.js';
 
 const SITE = 'https://renpokernight.vercel.app';
-const DEFAULT_BET = 20, EXPIRES = 10 * 60e3, TTL = 1800;
+const DEFAULT_BET = 20, EXPIRES = 10 * 60e3, TTL = 86400, CALL_OFF = 3 * 60e3, STUCK = 30 * 60e3;
 const GAME = { rps: 'Rock Paper Scissors', high: 'High Card' };
 const PICK = { r: ['🪨', 'Rock'], p: ['📄', 'Paper'], s: ['✂️', 'Scissors'] };
 const BEATS = { r: 's', p: 'r', s: 'p' };
@@ -26,6 +29,11 @@ export const DUEL_COMMAND = { name: 'duel', description: 'Challenge someone for 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const save = d => ['SET', 'du:' + d.id, JSON.stringify(d), 'EX', TTL];
 const recKey = (a, b) => (a < b ? `${a}:${b}` : `${b}:${a}`);
+// takes the stake from both players in one step, or from neither: returns {'ok', a balance, b balance} or {'a'|'b', their balance}
+const TAKE2 = "local a=tonumber(redis.call('HGET',KEYS[1],ARGV[1]) or '-1') local b=tonumber(redis.call('HGET',KEYS[1],ARGV[2]) or '-1') local n=tonumber(ARGV[3]) "
+  + "if b<n then return {'b',tostring(b)} end if a<n then return {'a',tostring(a)} end "
+  + "return {'ok',redis.call('HINCRBYFLOAT',KEYS[1],ARGV[1],-n),redis.call('HINCRBYFLOAT',KEYS[1],ARGV[2],-n)}";
+const refundCmds = (aId, bId, bet, id) => [['HINCRBYFLOAT', 'bj:bal', aId, bet], ['HINCRBYFLOAT', 'bj:bal', bId, bet], ['HDEL', 'du:live', id]];
 
 function nameOf(i, s, id) {
   const sheet = s && s.ids ? Object.keys(s.ids).find(n => s.ids[n] === id) : null;
@@ -51,8 +59,8 @@ function view(d, extra = {}) {
     const line = p => d.picks[p.id] ? `✅ **${p.name}** locked in` : `⏳ **${p.name}** is thinking…`;
     const tie = d.lastTie ? `🤝 Tie! You both picked ${PICK[d.lastTie][0]} ${PICK[d.lastTie][1]}. Pick again.\n\n` : '';
     return msg({ color: 0x5865f2, title: `⚔️ ${A} vs ${B} · ${money(pot)} pot`, description: `${tie}${line(d.a)}\n${line(d.b)}`,
-      footer: { text: 'Your pick stays hidden until both are in' } },
-    row(...Object.entries(PICK).map(([k, [e, l]]) => btn(l, e, k, d.id, 2))));
+      footer: { text: 'Your pick stays hidden until both are in · either player can call it off after 3 min (both stakes go back)' } },
+    row(...Object.entries(PICK).map(([k, [e, l]]) => btn(l, e, k, d.id, 2)), btn('Call it off', null, 'off', d.id, 4)));
   }
   if (d.state === 'done') {
     const w = d.winner === d.a.id ? d.a : d.b, l = w === d.a ? d.b : d.a;
@@ -73,22 +81,17 @@ function view(d, extra = {}) {
 }
 
 // ---------- money ----------
-async function balances(...ids) {
-  const res = await kv(...ids.map(id => ['HGET', 'bj:bal', id]));
-  return res.map(v => (v === null ? null : +v));
-}
 const broke = (bal, bet) => bal === null ? `You don't have any chips yet. Use **/daily** to get some free.`
   : bal < bet ? `You only have ${money(bal)}, and this duel needs ${money(bet)}.` : null;
 
-// Pays the winner and saves the finished duel in ONE storage round trip (it used to take four, which is
-// what made the reveal feel slow). `before` = commands to run first in the same batch (the stakes coming off on
-// a high card accept); `after` = commands to run last (releasing the tap lock).
+// Pays the winner and saves the finished duel in ONE storage round trip (it used to take four, which made the
+// reveal feel slow). `before` runs first in the same batch, `after` runs last (releasing the tap lock).
 async function finish(d, before = [], after = []) {
   const loser = d.winner === d.a.id ? d.b.id : d.a.id;
   const W = d.winner === d.a.id ? d.a : d.b, L = d.winner === d.a.id ? d.b : d.a, rk = recKey(d.a.id, d.b.id);
   d.state = 'done';
   const res = await kv(...before, ['HINCRBYFLOAT', 'bj:bal', d.winner, d.bet * 2], ['HGET', 'bj:bal', loser],
-    ['HINCRBY', 'du:rec', `${rk}:${d.winner}`, 1], ['HGET', 'du:rec', `${rk}:${loser}`], save(d),
+    ['HINCRBY', 'du:rec', `${rk}:${d.winner}`, 1], ['HGET', 'du:rec', `${rk}:${loser}`], ['HDEL', 'du:live', d.id], save(d),
     ...feedCmds({ id: L.id, name: L.name }, 'duel vs ' + W.name, -d.bet), ...feedCmds({ id: W.id, name: W.name }, 'duel vs ' + L.name, d.bet), ...after);
   const [ra, lb, wr, lr] = res.slice(before.length);
   d.bal = { [d.winner]: +ra, [loser]: +lb || 0 };
@@ -104,8 +107,8 @@ function highCard(d) {
   }
 }
 
-// balance check and save go in one round trip; if the challenger turns out to be short, the saved duel is
-// never shown to anyone and just expires
+// balance check and save in one round trip; if the challenger turns out to be short, the saved duel is never
+// shown to anyone and just expires (no chips move until Accept)
 async function challenge(me, other, bet, game) {
   const d = { id: randomBytes(5).toString('hex'), a: me, b: other, bet, game, made: Date.now(), state: 'open', picks: {} };
   const [raw] = await kv(['HGET', 'bj:bal', me.id], save(d), ['HSET', 'bj:name', me.id, me.name]);
@@ -138,9 +141,9 @@ export async function duelButton(i, s, waitUntil) {
   const [, act, id] = String(i.data.custom_id).split(':');
   const me = whoIs(i, s);
   // both players can tap at the same moment, so wait for the other tap instead of dropping it.
-  // The lock and the duel are read in the same round trip, and the lock is released in the same batch as the save.
+  // The lock and the duel are read in one round trip, and the lock is released in the same batch as the save.
   const lock = 'du:lock:' + id, unlock = ['DEL', lock];
-  let got = false, raw = null, released = false;
+  let got = false, raw = null, released = false, d;
   for (let t = 0; t < 20 && !got; t++) {
     [got, raw] = await kv(['SET', lock, '1', 'NX', 'EX', 5], ['GET', 'du:' + id]);
     if (!got) await sleep(100);
@@ -148,7 +151,6 @@ export async function duelButton(i, s, waitUntil) {
   if (!got) return json({ type: 6 });
   const store = async (...cmds) => { await kv(...cmds, unlock); released = true; };
   const done = async (...pre) => { await finish(d, pre, [unlock]); released = true; };
-  let d;
   try {
     if (!raw) return quiet('This duel has expired. Start a new one with **/duel**.');
     d = JSON.parse(raw);
@@ -159,13 +161,14 @@ export async function duelButton(i, s, waitUntil) {
       if (me.id === d.a.id) return quiet("That's your own challenge. Wait for someone to accept it.");
       if (d.b && me.id !== d.b.id) return quiet(`This duel is for ${d.b.name}. Start your own with **/duel**.`);
       if (Date.now() - d.made > EXPIRES) { d.state = 'off'; await store(save(d)); return json({ type: 7, data: view(d, { note: `⌛ Nobody accepted in time, so it's off. No chips moved.` }) }); }
-      const [ba, bb] = await balances(d.a.id, me.id);
-      const why = broke(bb, d.bet);
-      if (why) return quiet(why);
-      if (ba === null || ba < d.bet) { d.state = 'off'; await store(save(d)); return json({ type: 7, data: view(d, { note: `${d.a.name} doesn't have ${money(d.bet)} anymore, so the duel is off. No chips moved.` }) }); }
+      // both stakes in one step, so neither player can spend them in another game at the same moment
+      const [r] = await kv(['EVAL', TAKE2, 1, 'bj:bal', d.a.id, me.id, d.bet]);
+      if (r[0] === 'b') return quiet(broke(+r[1] < 0 ? null : +r[1], d.bet));
+      if (r[0] === 'a') { d.state = 'off'; await store(save(d)); return json({ type: 7, data: view(d, { note: `${d.a.name} doesn't have ${money(d.bet)} anymore, so the duel is off. No chips moved.` }) }); }
       d.b = { id: me.id, name: me.name };
-      const stakes = [['HINCRBYFLOAT', 'bj:bal', d.a.id, -d.bet], ['HINCRBYFLOAT', 'bj:bal', d.b.id, -d.bet], ['HSET', 'bj:name', me.id, me.name]];
-      if (d.game === 'high') { highCard(d); await done(...stakes); } else { d.state = 'pick'; await store(...stakes, save(d)); }
+      const name = ['HSET', 'bj:name', me.id, me.name];
+      if (d.game === 'high') { highCard(d); await done(name); }
+      else { d.state = 'pick'; d.pickAt = Date.now(); await store(name, ['HSET', 'du:live', d.id, JSON.stringify({ a: d.a.id, b: d.b.id, bet: d.bet, at: d.pickAt })], save(d)); }
       return json({ type: 7, data: view(d) });
     }
 
@@ -176,6 +179,17 @@ export async function duelButton(i, s, waitUntil) {
       return quiet("That's not your duel. Just let it be.");
     }
 
+    if ((PICK[act] || act === 'off') && d.state === 'off') return json({ type: 7, data: view(d, { note: 'This duel was called off. Both stakes went back.' }) });
+    if (act === 'off') {
+      if (d.state !== 'pick') return json({ type: 6 });
+      if (!inIt) return quiet(`This is ${d.a.name} vs ${d.b.name}. Start your own with **/duel**.`);
+      const wait = (d.pickAt || d.made) + CALL_OFF - Date.now();
+      if (wait > 0) return quiet(`Give them a moment. You can call it off in ${Math.ceil(wait / 60e3)} min if they still haven't picked.`);
+      d.state = 'off';
+      await store(...refundCmds(d.a.id, d.b.id, d.bet, d.id), save(d));
+      return json({ type: 7, data: view(d, { note: `${me.name} called it off. Both stakes (${money(d.bet)} each) went back.` }) });
+    }
+
     if (PICK[act]) {
       if (d.state !== 'pick') return json({ type: 6 });
       if (!inIt) return quiet(`This is ${d.a.name} vs ${d.b.name}. Start your own with **/duel**.`);
@@ -183,7 +197,7 @@ export async function duelButton(i, s, waitUntil) {
       d.picks[me.id] = act;
       const pa = d.picks[d.a.id], pb = d.picks[d.b.id];
       if (pa && pb) {
-        if (pa === pb) { d.lastTie = pa; d.picks = {}; }
+        if (pa === pb) { d.lastTie = pa; d.picks = {}; d.pickAt = Date.now(); }
         else { d.winner = BEATS[pa] === pb ? d.a.id : d.b.id; await done(); return json({ type: 7, data: view(d) }); }
       } else {
         delete d.lastTie;
@@ -215,4 +229,26 @@ async function pickNote(i, content) {
       body: JSON.stringify({ flags: 64, content }) }).catch(() => null);
     if (r && r.ok) return;
   }
+}
+
+/** Refunds rock paper scissors duels that have waited on a pick for over 30 minutes. Safe to run any time; returns how many it refunded. */
+export async function sweepDuels(now = Date.now()) {
+  const [all] = await kv(['HGETALL', 'du:live']);
+  let n = 0;
+  for (let k = 0; k < (all || []).length; k += 2) {
+    const id = all[k]; let e; try { e = JSON.parse(all[k + 1]); } catch (x) { e = null; }
+    if (e && now - e.at < STUCK) continue;
+    const [got] = await kv(['SET', 'du:lock:' + id, '1', 'NX', 'EX', 5]);
+    if (!got) continue;
+    try {
+      const [raw] = await kv(['GET', 'du:' + id]);
+      const d = raw ? JSON.parse(raw) : null;
+      if (!e || (d && d.state !== 'pick')) { await kv(['HDEL', 'du:live', id]); continue; } // already settled or called off
+      if (d && now - (d.pickAt || 0) < STUCK) continue; // a tie restarted the clock
+      if (d) d.state = 'off';
+      await kv(...refundCmds(e.a, e.b, e.bet, id), ...(d ? [save(d)] : []));
+      n++;
+    } finally { await kv(['DEL', 'du:lock:' + id]).catch(() => {}); }
+  }
+  return n;
 }

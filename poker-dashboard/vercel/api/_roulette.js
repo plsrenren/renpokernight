@@ -4,12 +4,12 @@
 //   When time is up the bot spins (European wheel, single 0), pays everyone and edits the table into the result.
 //   Payouts: number 35:1, dozens 2:1, everything else 1:1. Even-money bets lose on 0.
 // The bot only runs when Discord calls it, so the command (or New round button) that opened the table stays awake
-// for the 30 seconds and then spins. If that ever dies, the next tap on the table, or the next /roulette in that
-// channel, spins it instead, so chips are never stuck.
-// Keys: ro:t:<id> (table, 1 hour), ro:open:<channel> (open table id), ro:lock:<id>, ro:chip (hash user → chip size),
+// for the 30 seconds and then spins. If that ever dies, the next tap on the table (bets or New round), or the next
+// /roulette in that channel, spins it instead (for up to a day), so chips are never stuck.
+// Keys: ro:t:<id> (table, 1 day), ro:open:<channel> (open table id, 1 day), ro:lock:<id>, ro:chip (hash user → chip size),
 //       ro:hist:<channel> (last spins).
 import { randomBytes, randomInt } from 'node:crypto';
-import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds } from './_blackjack.js';
+import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds, takeChips } from './_blackjack.js';
 
 const SITE = 'https://renpokernight.vercel.app', API = 'https://discord.com/api/v10';
 const OPEN_MS = 30e3, CHIPS = [5, 10, 25, 50, 100], DEFAULT_CHIP = 10, MAX_PER_SPIN = 1000;
@@ -33,7 +33,10 @@ export const colorOf = n => (n === 0 ? 'green' : REDS.has(n) ? 'red' : 'black');
 export const ROULETTE_COMMAND = { name: 'roulette', description: 'Open a roulette table: everyone has 30 seconds to bet chips, then it spins', type: 1 };
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const save = t => ['SET', 'ro:t:' + t.id, JSON.stringify(t), 'EX', 3600];
+const KEEP = 86400; // a table (and the channel's pointer to it) lives a day, so a table that never spun is still found and spun
+const save = t => ['SET', 'ro:t:' + t.id, JSON.stringify(t), 'EX', KEEP];
+// clears the channel's open table only if it is still this one (a newer table may have opened meanwhile)
+const CLEAR_OPEN = "if redis.call('GET',KEYS[1])==ARGV[1] then return redis.call('DEL',KEYS[1]) end return 0";
 async function lock(id) {
   for (let k = 0; k < 20; k++) { const [got] = await kv(['SET', 'ro:lock:' + id, '1', 'NX', 'EX', 8]); if (got) return true; await sleep(150); }
   return false;
@@ -97,7 +100,7 @@ async function spin(t) {
   // one "Just now" line per player at the table (after the reads below, so the result indexes stay put)
   const names = {}; t.bets.forEach(b => { names[b.uid] = b.name; });
   const feed = Object.entries(t.nets).flatMap(([uid, net]) => feedCmds({ id: uid, name: names[uid] }, 'roulette', net));
-  const res = await kv(...pay, ['LPUSH', 'ro:hist:' + t.channel, n], ['LTRIM', 'ro:hist:' + t.channel, 0, 4], ['LRANGE', 'ro:hist:' + t.channel, 0, 4], save(t), ['DEL', 'ro:open:' + t.channel], ...feed);
+  const res = await kv(...pay, ['LPUSH', 'ro:hist:' + t.channel, n], ['LTRIM', 'ro:hist:' + t.channel, 0, 4], ['LRANGE', 'ro:hist:' + t.channel, 0, 4], save(t), ['EVAL', CLEAR_OPEN, 1, 'ro:open:' + t.channel, t.id], ...feed);
   t.hist = (res[pay.length + 2] || []).map(Number);
   await kv(save(t));
   return t;
@@ -130,7 +133,7 @@ async function openTable(i, waitUntil) {
     if (t && !t.spun && (await lock(t.id))) { try { await spin(t); } finally { await unlock(t.id); } } // an old table that never spun
   }
   const t = { id: randomBytes(5).toString('hex'), channel, ends: Date.now() + OPEN_MS, bets: [], spun: false };
-  await kv(save(t), ['SET', 'ro:open:' + channel, t.id, 'EX', 120]);
+  await kv(save(t), ['SET', 'ro:open:' + channel, t.id, 'EX', KEEP]);
   waitUntil(spinLater(i.application_id, i.token, t.id).catch(e => console.error('roulette spin', e)));
   return json({ type: 4, data: tableView(t) });
 }
@@ -152,10 +155,12 @@ async function placeBet(i, s, id, type, num, amtWanted, waitUntil) {
     if (Date.now() >= t.ends) { await spin(t); return json({ type: 7, data: tableView(t) }); } // late tap: spin it now
     const amt = amtWanted || +chip || DEFAULT_CHIP, mine = t.bets.filter(b => b.uid === me.id).reduce((a, b) => a + b.amt, 0);
     if (balRaw === null) return quiet("You don't have any chips yet. Use **/daily** to get some free.");
-    if (+balRaw < amt) return quiet(`You only have ${money(+balRaw)} left. Pick a smaller chip size.`);
     if (mine + amt > MAX_PER_SPIN) return quiet(`That's the ${money(MAX_PER_SPIN)} limit per spin. Wait for the next round.`);
+    const took = await takeChips(me.id, amt); // check + take in one step, so other games can't spend the same chips
+    if (took.short) return quiet(`You only have ${money(took.had || 0)} left. Pick a smaller chip size.`);
     t.bets.push({ uid: me.id, name: me.name, type, ...(type === 'num' ? { num } : {}), amt });
-    const [left] = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, -amt], ['HSET', 'bj:name', me.id, me.name], save(t));
+    const left = took.bal;
+    await kv(['HSET', 'bj:name', me.id, me.name], save(t));
     if (waitUntil) waitUntil(fetch(`${API}/webhooks/${i.application_id}/${i.token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ flags: 64, content: `${money(amt)} on ${betName(t.bets.at(-1))}. You have ${money(mine + amt)} on this spin and ${money(+left)} left.` }) }).catch(() => {}));
     return json({ type: 7, data: tableView(t) });
@@ -186,7 +191,13 @@ export async function rouletteInteraction(i, s, waitUntil) {
   }
   if (act === 'new') {
     const [raw] = await kv(['GET', 'ro:t:' + id]);
-    if (raw && !JSON.parse(raw).spun) return json({ type: 6 });
+    const t = raw && JSON.parse(raw);
+    if (t && !t.spun) {
+      if (Date.now() < t.ends) return json({ type: 6 }); // still taking bets
+      // a table that never spun: spin and pay it first, then open the new round
+      if (!(await lock(id))) return json({ type: 6 });
+      try { const [r2] = await kv(['GET', 'ro:t:' + id]); const t2 = r2 && JSON.parse(r2); if (t2 && !t2.spun) await spin(t2); } finally { await unlock(id); }
+    }
     return openTable(i, waitUntil);
   }
   if (BETS[act]) return placeBet(i, s, id, act, null, 0, waitUntil);

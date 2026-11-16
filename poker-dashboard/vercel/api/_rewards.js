@@ -176,7 +176,7 @@ export function casinoText(people, nights) {
     p.lines.forEach(l => { const m = l.match(/^(.*) ([+-][\d.]+)$/); const k = m ? m[1] : l, v = m ? +m[2] : 0, x = by.get(k) || { n: 0, v: 0 }; by.set(k, { n: x.n + 1, v: r2(x.v + v) }); });
     return `<@${p.id}> **${$(p.total)}** · ${[...by].filter(([, x]) => x.v).map(([k, x]) => `${k}${x.n > 1 ? ' ×' + x.n : ''} ${$(x.v)}`).join(', ')}`;
   });
-  let text = [head, ...lines, '-# Spend them at /blackjack, /uth, /baccarat, /roulette or renpokernight.vercel.app/casino'].join('\n');
+  let text = [head, ...lines, '-# Spend them at /blackjack, /freebet, /uth, /baccarat, /roulette or renpokernight.vercel.app/casino'].join('\n');
   if (text.length > 1990) text = text.slice(0, 1985) + '…';
   return text;
 }
@@ -218,11 +218,15 @@ export async function payRewards(csv, ids) {
     const [paidRaw] = await kv(['HGETALL', 'rw:paid']);
     const paid = {}; for (let k = 0; k < (paidRaw || []).length; k += 2) paid[paidRaw[k]] = +paidRaw[k + 1];
     // what changed, per payout line (including lines that are no longer owed: a fixed typo takes the chips back)
-    const cmds = [], perPerson = {}, noId = new Set(), nightsPaid = new Set();
+    // Safety net: a night (or quarter) that is missing from the sheet altogether is never taken back. A blank or cut-off
+    // copy of the sheet would otherwise claw back every chip ever paid. Fixing a night that is still there adjusts as usual.
+    const present = new Set([...rows.map(r => r.night), ...rows.map(r => 'Q:' + r.quarter)]);
+    const cmds = [], perPerson = {}, noId = new Set(), nightsPaid = new Set(), keptMissing = new Set();
     for (const key of new Set([...Object.keys(want), ...Object.keys(paid)])) {
       const w = want[key], delta = r2((w ? w.amt : 0) - (paid[key] || 0));
       if (!delta) continue;
       const [night, why, who] = key.split('|').length === 4 ? [key.split('|').slice(0, 2).join('|'), ...key.split('|').slice(2)] : key.split('|');
+      if (!w && !present.has(night)) { keptMissing.add(night); continue; }
       const isId = /^\d{17,20}$/.test(who), id = isId ? who : ids[who];
       if (!id) { noId.add(who); continue; }   // no Discord ID on the Members tab yet: paid once it's added
       cmds.push(['HINCRBYFLOAT', 'bj:bal', id, delta], ['HSET', 'rw:paid', key, w ? w.amt : 0]);
@@ -242,6 +246,7 @@ export async function payRewards(csv, ids) {
     if (cmds.length) await kv(...cmds);
     let posted = null;
     if (Object.keys(perPerson).length) { try { posted = await postToCasino(Object.values(perPerson), [...nightsPaid]); } catch (e) { console.error('rewards post', e); posted = 'failed: ' + e.message; } }
-    return { posted, paid: Object.values(perPerson).map(p => ({ name: p.name, total: p.total, lines: p.lines })), rsvpNight, waitingForDiscordId: [...noId] };
+    return { posted, paid: Object.values(perPerson).map(p => ({ name: p.name, total: p.total, lines: p.lines })), rsvpNight, waitingForDiscordId: [...noId],
+      ...(keptMissing.size ? { notTakenBack: [...keptMissing].map(nightLabel) } : {}) };
   } finally { await kv(['DEL', 'rw:lock']).catch(() => {}); }
 }
