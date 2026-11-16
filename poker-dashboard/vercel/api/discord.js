@@ -11,7 +11,7 @@
 //   /roles                  refreshes the results roles (Quarter Leader, Heater, ...; see _roles.js)
 //   /tourney date:...       tournament invite people answer with reactions (see _tourney.js)
 //   /cash date:...          same for a cash game
-//   /daily /blackjack /chips  blackjack with chips (see _blackjack.js; needs Upstash storage)
+//   /daily /blackjack /freebet /chips  blackjack (and Free Bet Blackjack) with chips (see _blackjack.js; needs Upstash storage)
 //   /duel                   player vs player for chips: rock paper scissors or high card (see _duel.js)
 //   /uth                    Ultimate Texas Hold'em against the dealer for chips (see _uth.js)
 //   /roulette               shared roulette table, 30 seconds to bet, then it spins (see _roulette.js)
@@ -149,7 +149,7 @@ export async function POST(req) {
   }
   // chip commands answer from the sheet copy already in memory (names only) instead of waiting on Google: a slow sheet read
   // could push the reply past Discord's 3 seconds after the bet was already taken. The copy refreshes in the background.
-  const CHIP = ['daily', 'blackjack', 'chips', 'pack', 'loadout', 'tip', 'duel', 'uth', 'baccarat'];
+  const CHIP = ['daily', 'blackjack', 'freebet', 'chips', 'pack', 'loadout', 'tip', 'duel', 'uth', 'baccarat'];
   const chipCmd = CHIP.includes(i.data.name);
   if (chipCmd && (i.data.name === 'daily' || i.data.name === 'duel')) waitUntil(sweepDuels().catch(e => console.error('duel sweep', e))); // refunds stuck duels
   const s = chipCmd ? (cache.recs ? cache : null) : await sheet();

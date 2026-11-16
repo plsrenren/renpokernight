@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@500;700&family=Nunito:wght@600;700;800;900&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <style>
-/* Casino page: the Discord bot's games (blackjack, UTH, baccarat) with the same chips. Sign in with Discord.
+/* Casino page: the Discord bot's games (blackjack, Free Bet blackjack, UTH, baccarat) with the same chips. Sign in with Discord.
    Talks to /api/casino and /api/login (served by api/_casino.js). Late Show look built in; lateshow.css is linked last like every page. */
 :root {
   --page: #15132a; --panel: #1d1a37; --panel2: #2a2550; --line: #332e57;
@@ -52,7 +52,7 @@ button:disabled { cursor: default; opacity: .4; }
 .cbtn.up { background: var(--up); color: #0e2a1c; } .cbtn.gold { background: var(--gold); color: #15132a; } .cbtn.ghost { background: var(--panel2); color: var(--fg); } .cbtn.vio { background: var(--vio); }
 .cbtn.big { font-size: 22px; padding: 10px 24px 8px; }
 /* game tiles */
-.games { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.games { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .game { background: var(--panel2); padding: 12px; display: flex; flex-direction: column; gap: 6px; border-top: 4px solid var(--c); text-decoration: none; position: relative; min-height: 150px; }
 .game:hover { background: #332d60; }
 .game .ic { font-size: 30px; line-height: 1; }
@@ -118,6 +118,15 @@ button:disabled { cursor: default; opacity: .4; }
 .tag.lose, .tag.bust, .tag.fold { background: var(--down); color: #3a0d18; } .tag.push { background: var(--muted); color: #16132b; }
 .hand { display: flex; gap: 10px; margin: 8px 0 18px; flex-wrap: wrap; }
 .hands { display: flex; gap: 34px; flex-wrap: wrap; }
+/* 3 to 6 split hands: a grid of smaller cards that fan out (rank in the corner), so 6 hands fit on a phone */
+.hands.many { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 18px; }
+.hands.many .lbl { font-size: 15px; gap: 6px; flex-wrap: wrap; white-space: normal; min-height: 0; }
+.hands.many .hand { flex-wrap: nowrap; gap: 0; margin: 6px 0 12px; }
+.hands.many .card { width: 46px; height: 64px; font-size: 19px; align-items: flex-start; justify-content: flex-start; padding: 5px 0 0 6px; box-shadow: -2px 0 6px rgba(0,0,0,.3); }
+.hands.many .card i { font-size: 14px; margin-top: 1px; }
+.hands.many .card + .card { margin-left: -18px; }
+.ftag { font: 900 11px Nunito, sans-serif; letter-spacing: .08em; padding: 2px 7px; background: var(--gold); color: #2a1f00; }
+.cbtn.free { background: var(--up); color: #0e2a1c; }
 .card { width: 74px; height: 104px; background: #f6f3ea; display: flex; flex-direction: column; align-items: center; justify-content: center; font: 900 32px/1 Nunito, sans-serif; color: #1b1b1b; box-shadow: 0 4px 10px rgba(0,0,0,.35); flex: none; position: relative; }
 .card.r { color: #c2283e; } .card i { font-style: normal; font-size: 28px; margin-top: 4px; }
 .card.back { background: repeating-linear-gradient(45deg, #5a40ad 0 7px, #6e52c8 7px 14px); border: 4px solid #f6f3ea; }
@@ -192,6 +201,10 @@ details.pay summary { cursor: pointer; font: 400 17px var(--title); letter-spaci
   .hero h2 { font-size: 40px; }
   .felt { padding: 12px 12px 14px; border-width: 4px; min-height: 280px; }
   .card { width: 52px; height: 74px; font-size: 24px; } .card i { font-size: 19px; margin-top: 2px; } .hand { gap: 6px; }
+  .hands.many { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 10px; } .hands.many .lbl { font-size: 13px; gap: 4px; }
+  .hands.many .card { width: 34px; height: 48px; font-size: 15px; padding: 3px 0 0 4px; } .hands.many .card i { font-size: 11px; }
+  .hands.many .card + .card { margin-left: -12px; } .hands.many .hand { margin: 4px 0 8px; }
+  .slots .cbtn.free, .slots .cbtn.tight { font-size: 13px; letter-spacing: .02em; padding-left: 6px; padding-right: 10px; }
   .betchip { width: 56px; height: 56px; font-size: 17px; right: 10px; bottom: 10px; }
   /* the stamp gets a reserved strip at the bottom of the table, so a result never pushes the buttons down */
   .felt { padding-bottom: 92px; }
@@ -272,7 +285,7 @@ const pref = (k, d) => { try { const v = localStorage.getItem('cas.' + k); retur
 const setPref = (k, v) => { try { localStorage.setItem('cas.' + k, JSON.stringify(v)); } catch (e) {} };
 
 let S = null;                 // what /api/casino said
-let T = { bj: null, uth: null, bac: null, err: '' };  // what's on each table
+let T = { bj: null, fb: null, uth: null, bac: null, err: '' };  // what's on each table (fb = Free Bet blackjack)
 let busy = false;
 let shownBal = null;          // the balance currently on screen (it rolls to the real one)
 let pressed = null;           // the button just tapped (stays lit while the table thinks)
@@ -295,6 +308,7 @@ async function api(body) {
 async function load() {
   S = await api();
   if (S.bj) T.bj = S.bj;
+  if (S.fb) T.fb = S.fb;
   if (S.uth) T.uth = S.uth;
   render();
 }
@@ -328,8 +342,8 @@ function render() {
   $('#note').innerHTML = err && ERRS[err] ? `<div class="note">${esc(ERRS[err])}</div>` : '';
   const r = route(), v = $('#view');
   const before = onTable();
-  if (!S.me || !['blackjack', 'uth', 'baccarat'].includes(r)) v.innerHTML = lobby();
-  else v.innerHTML = r === 'blackjack' ? blackjack() : r === 'uth' ? uth() : baccarat();
+  if (!S.me || !['blackjack', 'freebet', 'uth', 'baccarat'].includes(r)) v.innerHTML = lobby();
+  else v.innerHTML = r === 'blackjack' ? blackjack(false) : r === 'freebet' ? blackjack(true) : r === 'uth' ? uth() : baccarat();
   onTable(before);
   wire();
   choreograph(before);
@@ -512,6 +526,7 @@ function lobby() {
     <div class="panel"><h2>Pick a table</h2><p class="hint">Same games, rules and limits as the Discord commands.</p>
       <div class="games">
         <a class="game" href="#blackjack" style="--c:var(--gold)"><div class="ic">🂡</div><b>Blackjack</b><span>$1 to $${S.maxBet}. Hit, stand, double, split.</span><div class="go">${T.bj && !T.bj.over ? 'Back to your hand →' : 'Play →'}</div></a>
+        <a class="game" href="#freebet" style="--c:var(--up)"><div class="ic">🎟️</div><b>Free Bet Blackjack</b><span>Free doubles on 9-11, free splits, dealer 22 pushes. Push 22 side bet.</span><div class="go">${T.fb && !T.fb.over ? 'Back to your hand →' : 'Play →'}</div></a>
         <a class="game" href="#uth" style="--c:var(--pink)"><div class="ic">🤠</div><b>Ultimate Hold'em</b><span>Ante $1 to $${S.maxAnte} + blind, optional trips.</span><div class="go">${T.uth && T.uth.stage !== 'done' ? 'Back to your hand →' : 'Play →'}</div></a>
         <a class="game" href="#baccarat" style="--c:var(--vio)"><div class="ic">🎴</div><b>Baccarat</b><span>Player, Banker or Tie.</span><div class="go">Play →</div></a>
         <div class="game soon" style="--c:var(--up)"><div class="ic">🎡</div><b>Roulette</b><span>Play it with /roulette in the Discord server.</span><div class="go">Discord only</div></div>
@@ -535,24 +550,32 @@ function chipPicker(key, values, current, label, locked) {
 const btn = (attr, label, cls, ok = true) => `<button class="cbtn ${cls}${pressed === attr ? ' pressed' : ''}" ${attr}${ok ? '' : ' disabled'}>${label}</button>`;
 const syncLine = '<div class="sync">🔗 Uses your Discord chips. Your balance and /chips on Discord update straight away.</div>';
 
-// ---------- blackjack ----------
-function blackjack() {
-  const g = T.bj, bet = pref('bj', 20), live = g && !g.over;
+// ---------- blackjack (fm = Free Bet table, #freebet; same game code with mode 'free') ----------
+function blackjack(fm) {
+  const g = fm ? T.fb : T.bj, bk = fm ? 'fb' : 'bj', bet = pref(bk, 20), p22 = pref('p22', 0), live = g && !g.over;
   let inner = '<div class="lbl">Dealer</div><div class="hand">' + card('__') + card('__') + '</div><div class="lbl">' + esc(S.me.name) + '</div><div class="hand">' + card('__') + card('__') + '</div>';
   if (g) {
-    const dTxt = g.over ? (g.dealerTotal > 21 ? `${g.dealerTotal} · bust` : g.dealerTotal) : `${g.dealerTotal} + ?`;
-    inner = `<div class="lbl">Dealer <span class="tot" data-late>${dTxt}</span></div><div class="hand">${g.dealer.map(card).join('')}</div><div class="hands">` +
-      g.hands.map((h, k) => `<div><div class="lbl${live && g.active === k && g.hands.length > 1 ? ' on' : ''}">${esc(S.me.name)}${g.hands.length > 1 ? ` · hand ${k + 1}` : ''} · ${money(h.bet)}${h.doubled ? ' (doubled)' : ''}
-        <span class="tot" data-late>${h.soft && h.total < 21 && live ? `${h.total - 10} / ${h.total}` : h.total}</span>${h.res ? `<span data-late class="tag ${h.res}">${{ win: 'WIN', bj: 'BLACKJACK', push: 'PUSH', lose: 'LOSE', bust: 'BUST' }[h.res]}</span>` : ''}</div>
+    const many = g.hands.length > 2;
+    const dTxt = g.over ? (g.d22 ? '22 · pushes' : g.dealerTotal > 21 ? `${g.dealerTotal} · bust` : g.dealerTotal) : `${g.dealerTotal} + ?`;
+    const stake = h => [h.bet ? money(h.bet) : '', h.free ? `<span class="ftag">FREE ${money(h.free)}</span>` : ''].filter(Boolean).join(' ');
+    const name = k => g.hands.length === 1 ? esc(S.me.name) : many ? `Hand ${k + 1}` : `${esc(S.me.name)} · hand ${k + 1}`;
+    inner = `<div class="lbl">Dealer <span class="tot" data-late>${dTxt}</span></div><div class="hand">${g.dealer.map(card).join('')}</div><div class="hands${many ? ' many' : ''}">` +
+      g.hands.map((h, k) => `<div><div class="lbl${live && g.active === k && g.hands.length > 1 ? ' on' : ''}">${name(k)} · ${stake(h)}${h.freeDbl ? ' (free double)' : h.doubled ? ' (doubled)' : ''}
+        <span class="tot" data-late>${h.soft && h.total < 21 && live && g.active === k ? `${h.total - 10} / ${h.total}` : h.total}</span>${h.res ? `<span data-late class="tag ${h.res}">${{ win: 'WIN', bj: 'BLACKJACK', push: 'PUSH', lose: 'LOSE', bust: 'BUST' }[h.res]}</span>` : ''}</div>
         <div class="hand">${h.cards.map(card).join('')}</div></div>`).join('') + '</div>' +
-      `<div class="betchip">${money(g.hands.reduce((a, h) => a + h.bet, 0))}</div>` + (g.over ? resultStamp(g.net) : '');
+      (g.side ? `<div class="lbl">Push 22 · ${money(g.side)}${g.over ? `<span data-late class="tag ${g.sideWin ? 'win' : 'lose'}">${g.sideWin ? 'WIN 11:1' : 'LOSE'}</span>` : ''}</div>` : '') +
+      `<div class="betchip">${money(g.hands.reduce((a, h) => a + h.bet, 0) + (g.side || 0))}</div>` + (g.over ? resultStamp(g.net) : '');
   }
-  // the same four buttons in the same places every time; the bet chips stay put underneath
-  const controls = `<div class="slots">${live ? btn('data-bj="hit"', 'Hit', 'gold') : btn('data-do="bj-deal"', `Deal ${money(bet)}`, 'gold')}
-      ${btn('data-bj="stand"', 'Stand', '', live)}${btn('data-bj="double"', 'Double', 'ghost', live && g.canDouble)}${btn('data-bj="split"', 'Split', 'ghost', live && g.canSplit)}</div>
-    <div class="acts">${chipPicker('bj', [5, 20, 50, 100, 500], bet, 'Bet', live)}</div>`;
-  return `${balBar('Blackjack', g && g.over ? g.net : 0)}${felt(g ? g.id : '', inner)}${controls}<div class="err">${esc(T.err)}</div>
-    <p class="rules">Blackjack pays 3:2 · dealer stands on all 17s · double on any first two cards · one split (split aces get one card each) · $1 to $${S.maxBet}. Same as /blackjack.</p>${syncLine}`;
+  // the same four buttons in the same places every time; the bet chips stay put underneath. Free doubles and splits turn green.
+  const dl = fm ? `Deal ${money(bet)}${p22 ? ` + ${money(p22)}` : ''}` : `Deal ${money(bet)}`;
+  const controls = `<div class="slots">${live ? btn('data-bj="hit"', 'Hit', 'gold') : btn(`data-do="${fm ? 'fb' : 'bj'}-deal"`, dl, fm && p22 ? 'gold tight' : 'gold')}
+      ${btn('data-bj="stand"', 'Stand', '', live)}${btn('data-bj="double"', live && g.freeDouble ? 'Free double' : 'Double', live && g.freeDouble ? 'free' : 'ghost', live && g.canDouble)}${btn('data-bj="split"', live && g.freeSplit ? 'Free split' : 'Split', live && g.freeSplit ? 'free' : 'ghost', live && g.canSplit)}</div>
+    <div class="acts">${chipPicker(bk, [5, 20, 50, 100, 500], bet, 'Bet', live)}${fm ? chipPicker('p22', [0, 1, 5, 10, 25], p22, 'Push 22', live) : ''}</div>`;
+  const rules = fm
+    ? `Free double on a hard 9, 10 or 11 · free split on any pair except 10s (up to 6 hands) · a free bet pays even money when its hand wins and costs nothing when it loses · dealer hits soft 17 · dealer 22 pushes every standing hand · blackjack pays 3:2 · Push 22 side bet ($0 to $${S.maxPush22 || 25}) pays 11:1 · $1 to $${S.maxBet}. Same as /freebet.`
+    : `Blackjack pays 3:2 · dealer stands on all 17s · double on any first two cards · split up to 6 hands (split aces get one card each) · $1 to $${S.maxBet}. Same as /blackjack.`;
+  return `${balBar(fm ? 'Free Bet' : 'Blackjack', g && g.over ? g.net : 0)}${felt(g ? g.id : '', inner)}${controls}<div class="err">${esc(T.err)}</div>
+    <p class="rules">${rules}</p>${syncLine}`;
 }
 
 // ---------- Ultimate Hold'em ----------
@@ -598,7 +621,7 @@ function baccarat() {
 }
 
 // ---------- buttons ----------
-const LIMIT = { bj: [1, () => S.maxBet], bac: [1, () => S.maxBet], ante: [1, () => S.maxAnte], trips: [0, () => S.maxTrips] };
+const LIMIT = { bj: [1, () => S.maxBet], fb: [1, () => S.maxBet], p22: [0, () => S.maxPush22 || 25], bac: [1, () => S.maxBet], ante: [1, () => S.maxAnte], trips: [0, () => S.maxTrips] };
 const clamp = (k, v) => Math.min(LIMIT[k][1](), Math.max(LIMIT[k][0], Math.floor(+v || 0)));
 function wire() {
   document.querySelectorAll('[data-bj],[data-uth],[data-do]').forEach(b => b.addEventListener('pointerdown', () => { b.classList.add('pressed'); }));
@@ -615,21 +638,23 @@ function wire() {
   document.querySelectorAll('[data-chip]').forEach(b => b.onclick = () => { setPref(b.dataset.chip, clamp(b.dataset.chip, b.dataset.v)); render(); });
   document.querySelectorAll('[data-amt]').forEach(i => i.onchange = () => { setPref(i.dataset.amt, clamp(i.dataset.amt, i.value)); render(); });
   document.querySelectorAll('[data-side]').forEach(b => b.onclick = () => { setPref('side', b.dataset.side); render(); });
-  document.querySelectorAll('[data-bj]').forEach(b => b.onclick = () => { pressed = `data-bj="${b.dataset.bj}"`;
-    play({ a: 'bj-act', id: T.bj.id, do: b.dataset.bj }, j => { T.bj = j.hand; }, ['hit', 'double'].includes(b.dataset.bj) ? incomingCard : null); });
+  document.querySelectorAll('[data-bj]').forEach(b => b.onclick = () => { pressed = `data-bj="${b.dataset.bj}"`; const k = bjKey();
+    play({ a: 'bj-act', id: T[k].id, do: b.dataset.bj }, j => { T[k] = j.hand; }, ['hit', 'double'].includes(b.dataset.bj) ? incomingCard : null); });
   document.querySelectorAll('[data-uth]').forEach(b => b.onclick = () => { pressed = `data-uth="${b.dataset.uth}"`; play({ a: 'uth-act', id: T.uth.id, do: b.dataset.uth }, j => { T.uth = j.hand; }); });
   document.querySelectorAll('[data-do]').forEach(b => b.onclick = () => {
     const d = b.dataset.do; pressed = `data-do="${d}"`;
     if (d === 'daily') play({ a: 'daily' }, j => { S.me.daily = j.daily; T.got = j.got; T.first = j.first; load(); });
     if (d === 'bj-deal') play({ a: 'bj', bet: pref('bj', 20) }, j => { T.bj = j.hand; });
+    if (d === 'fb-deal') play({ a: 'bj', mode: 'free', bet: pref('fb', 20), side: pref('p22', 0) }, j => { T.fb = j.hand; });
     if (d === 'uth-deal') play({ a: 'uth', ante: pref('ante', 10), trips: pref('trips', 0) }, j => { T.uth = j.hand; });
     if (d === 'bac-deal') { const bet = pref('bac', 20), side = pref('side', 'banker'); play({ a: 'bac', bet, side }, j => { T.bac = { ...j, bet, n: (T.bac ? T.bac.n : 0) + 1 }; }); }
   });
   if (busy) document.querySelectorAll('[data-bj],[data-uth],[data-do]').forEach(b => b.disabled = true);
 }
 // On Hit or Double a face-down card flies to your hand at once; it turns over when the server says what it is.
+const bjKey = () => route() === 'freebet' ? 'fb' : 'bj';
 function incomingCard() {
-  const g = T.bj, f = document.querySelector('.felt');
+  const g = T[bjKey()], f = document.querySelector('.felt');
   if (!g || !f || REDUCED) return;
   const hands = f.querySelectorAll('.hands .hand'), h = hands[g.active] || hands[0];
   if (!h) return;

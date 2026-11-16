@@ -1,7 +1,10 @@
 // Blackjack with chips: /daily, /blackjack, /chips, and the Hit / Stand / Double / Split buttons.
 //   /daily          +$100 the first time, then +$50 once a day (resets at 16:00 UTC)
 //   /blackjack bet  one hand against the dealer, $1 to $500 (default $20). Blackjack pays 3:2, dealer stands on all 17s,
-//                   double on any first two cards, one split (any two cards of the same value; split aces get one card each)
+//                   double on any first two cards, split any two cards of the same value up to 6 hands (split aces get one card each, no re-split)
+//   /freebet bet push22   Free Bet Blackjack, same chips and buttons: free double on a hard 9/10/11, free split on any pair except
+//                   10-value cards (up to 6 hands), dealer hits soft 17, a dealer 22 pushes every hand still standing (blackjack still 3:2),
+//                   optional Push 22 side bet ($0 to $25) pays 11:1. A free bet pays even money if its hand wins and costs nothing if it loses.
 //   /chips          leaderboard of everyone's chips
 // Balances live in Upstash Redis (Vercel: Storage > Upstash > connect to this project). It sets KV_REST_API_URL and
 // KV_REST_API_TOKEN (or UPSTASH_REDIS_REST_URL / _TOKEN); either pair works. Keys: bj:bal, bj:last, bj:name (hashes
@@ -10,6 +13,10 @@ import { randomInt, randomBytes } from 'node:crypto';
 
 const SITE = 'https://renpokernight.vercel.app';
 export const MAX_BET = 500;
+/** Most hands one deal can be split into (both games). */
+export const MAX_HANDS = 6;
+/** Biggest Push 22 side bet on /freebet. */
+export const MAX_PUSH22 = 25;
 const DEFAULT_BET = 20, FIRST_CLAIM = 100, DAILY = 50, DAY = 24 * 3600e3;
 /** The daily claim resets once a day at this hour (UTC), instead of 24 hours after your last claim. */
 export const DAILY_RESET_UTC = 16;
@@ -22,6 +29,9 @@ export const BLACKJACK_COMMANDS = [
   { name: 'daily', description: 'Claim free blackjack chips: $100 the first time, then $50 a day (resets 16:00 UTC)', type: 1 },
   { name: 'blackjack', description: 'Play a hand of blackjack', type: 1,
     options: [{ type: 4, name: 'bet', description: `How much to bet ($1 to $${MAX_BET}, default $${DEFAULT_BET})`, min_value: 1, max_value: MAX_BET, required: false }] },
+  { name: 'freebet', description: 'Free Bet Blackjack: free doubles on 9-11, free splits, dealer 22 pushes', type: 1,
+    options: [{ type: 4, name: 'bet', description: `How much to bet ($1 to $${MAX_BET}, default $${DEFAULT_BET})`, min_value: 1, max_value: MAX_BET, required: false },
+      { type: 4, name: 'push22', description: `Push 22 side bet, pays 11:1 if the dealer ends on 22 ($0 to $${MAX_PUSH22})`, min_value: 0, max_value: MAX_PUSH22, required: false }] },
   { name: 'chips', description: 'Blackjack chip leaderboard', type: 1 },
 ];
 
@@ -134,8 +144,22 @@ async function chips() {
 // ---------- a hand ----------
 const draw = g => g.deck.pop();
 const active = g => g.hands[g.active];
-const canDouble = (g, bal) => !g.over && active(g).cards.length === 2 && bal >= active(g).bet;
-const canSplit = (g, bal) => !g.over && g.hands.length === 1 && active(g).cards.length === 2 && cardVal(active(g).cards[0]) === cardVal(active(g).cards[1]) && bal >= active(g).bet;
+const isFree = g => g.mode === 'free';
+const GAME = g => isFree(g) ? 'free bet' : 'blackjack';       // name in the "just now" feed
+const TITLE = g => isFree(g) ? 'Free Bet Blackjack' : 'Blackjack';
+const CMD = g => isFree(g) ? 'freebet' : 'blackjack';
+/** What the hand being played may do. A paid double or split costs g.bet (the original bet); a free one costs nothing.
+ *  Free Bet: free double on a hard 9, 10 or 11 (two cards), free split on any pair except 10-value cards. */
+export function moves(g, bal) {
+  if (g.over) return { dbl: false, spl: false, dblFree: false, splFree: false };
+  const h = active(g), two = h.cards.length === 2, t = total(h.cards);
+  const dblFree = isFree(g) && two && !h.aces && !t.soft && t.t >= 9 && t.t <= 11;
+  const dbl = two && !h.aces && (dblFree || bal >= g.bet);
+  const pair = two && !h.aces && cardVal(h.cards[0]) === cardVal(h.cards[1]) && g.hands.length < MAX_HANDS;
+  const splFree = isFree(g) && pair && cardVal(h.cards[0]) !== 10;
+  const spl = pair && (splFree || bal >= g.bet);
+  return { dbl, spl, dblFree, splFree };
+}
 
 function advance(g) {
   while (g.active < g.hands.length && g.hands[g.active].done) g.active++;
@@ -144,24 +168,33 @@ function advance(g) {
 // a hand that reaches 21 or busts is finished on its own
 const autoDone = h => { if (total(h.cards).t >= 21) h.done = true; };
 
-function settle(g) {
+// Classic: dealer stands on all 17s. Free Bet: dealer hits soft 17.
+const dealerHits = g => { const t = total(g.dealer); return t.t < 17 || (isFree(g) && t.t === 17 && t.soft); };
+export function settle(g) {
   g.over = true; g.active = Math.max(0, g.hands.length - 1);
   const dealerNat = g.dealer.length === 2 && total(g.dealer).t === 21;
   const live = g.hands.some(h => total(h.cards).t <= 21 && !natural(h));
-  if (live && !dealerNat) while (total(g.dealer).t < 17) g.dealer.push(draw(g));
+  // a Push 22 side bet needs the dealer's hand played out even when every hand is done
+  if ((live || g.side) && !dealerNat) while (dealerHits(g)) g.dealer.push(draw(g));
   const d = total(g.dealer).t;
+  g.d22 = isFree(g) && d === 22;
   g.payout = 0;
   for (const h of g.hands) {
-    const p = total(h.cards).t;
+    const p = total(h.cards).t, free = h.free || 0;
+    let back = 0;
     if (p > 21) h.res = 'bust';
-    else if (natural(h) && !dealerNat) { h.res = 'bj'; g.payout += h.bet * 2.5; }
-    else if (dealerNat && natural(h)) { h.res = 'push'; g.payout += h.bet; }
+    else if (natural(h) && !dealerNat) { h.res = 'bj'; back = h.bet * 2.5; }
+    else if (dealerNat && natural(h)) { h.res = 'push'; back = h.bet; }
     else if (dealerNat) h.res = 'lose';
-    else if (d > 21 || p > d) { h.res = 'win'; g.payout += h.bet * 2; }
-    else if (p === d) { h.res = 'push'; g.payout += h.bet; }
+    else if (g.d22) { h.res = 'push'; back = h.bet; }               // Free Bet: dealer 22 pushes
+    else if (d > 21 || p > d) { h.res = 'win'; back = h.bet * 2 + free; } // a free bet is paid even money, never returned
+    else if (p === d) { h.res = 'push'; back = h.bet; }
     else h.res = 'lose';
+    h.won = back - h.bet; g.payout += back;
   }
-  g.net = g.payout - g.hands.reduce((a, h) => a + h.bet, 0);
+  g.sideWin = g.side && d === 22 && !dealerNat ? g.side * 12 : 0;   // 11:1 plus the side bet back
+  g.payout += g.sideWin;
+  g.net = g.payout - g.hands.reduce((a, h) => a + h.bet, 0) - (g.side || 0);
 }
 
 function view(g, bal) {
@@ -169,49 +202,58 @@ function view(g, bal) {
   const hide = !g.over;
   const q = new URLSearchParams({ d: hide ? g.dealer[0] + '.XX' : code(g.dealer), p: g.hands.map(h => code(h.cards)).join('-'),
     a: g.over ? '' : String(g.active), r: g.over ? g.hands.map(h => h.res).join('.') : '', b: g.hands.map(h => h.bet).join('.'), n: g.name, v: g.id + g.step });
-  const onTable = g.hands.reduce((a, h) => a + h.bet, 0);
+  if (isFree(g)) { q.set('f', g.hands.map(h => h.free || 0).join('.')); if (g.side) q.set('s', g.side); if (g.over) q.set('x', [g.d22 ? 'd22' : '', g.side ? (g.sideWin ? 'sw' : 'sl') : ''].filter(Boolean).join('.')); }
+  const onTable = g.hands.reduce((a, h) => a + h.bet, 0) + (g.side || 0), freeOn = g.hands.reduce((a, h) => a + (h.free || 0), 0);
   const RES = { win: 'won', bj: 'hit blackjack 🔥', push: 'pushed', lose: 'lost', bust: 'busted' };
   let title, description = '', color;
-  if (!g.over) { title = `🃏 Blackjack · ${g.name} bets ${money(onTable)}`; color = 0x6e52c8;
+  if (!g.over) { title = `🃏 ${TITLE(g)} · ${g.name} bets ${money(g.bet)}${g.side ? ` + ${money(g.side)} Push 22` : ''}`; color = 0x6e52c8;
     if (g.hands.length > 1) description = `Playing hand ${g.active + 1} of ${g.hands.length}`; }
   else {
     title = g.net > 0 ? `🃏 ${g.name} wins ${money(g.net)}!` : g.net < 0 ? `🃏 ${g.name} loses ${money(-g.net)}` : `🃏 ${g.name} breaks even`;
     color = g.net > 0 ? 0x8ee0b0 : g.net < 0 ? 0xf59bb0 : 0x9a94c4;
     const d = total(g.dealer).t;
-    const hands = g.hands.map((h, k) => `${g.hands.length > 1 ? `Hand ${k + 1}: ` : ''}${total(h.cards).t}${h.doubled ? ' (doubled)' : ''}, ${RES[h.res]}`).join('\n');
-    description = `Dealer ${d > 21 ? 'busted with ' + d : 'has ' + d}\n${hands}\n\nBalance **${money(bal)}**`;
+    const lines = g.hands.map((h, k) => `${g.hands.length > 1 ? `Hand ${k + 1}: ` : ''}${total(h.cards).t}${h.freeDbl ? ' (free double)' : h.doubled ? ' (doubled)' : ''}${!h.bet && h.free ? ' (free hand)' : ''}, ${RES[h.res]}${isFree(g) && h.won > 0 ? ' ' + money(h.won) : ''}`);
+    if (g.side) lines.push(g.sideWin ? `Push 22: ${money(g.side)} pays ${money(g.side * 11)} 🎯` : `Push 22: lost ${money(g.side)}`);
+    description = `${g.d22 ? 'Dealer hit 22, so standing hands push' : d > 21 ? 'Dealer busted with ' + d : 'Dealer has ' + d}\n${lines.join('\n')}\n\nBalance **${money(bal)}**`;
   }
-  const footer = g.over ? 'Blackjack pays 3:2 · dealer stands on 17'
-    : `Balance ${money(bal)} (+${money(onTable)} on the table) · only ${g.name} can press these`;
+  const footer = g.over ? (isFree(g) ? 'Free doubles on 9-11 · free splits (not 10s) · dealer 22 pushes · dealer hits soft 17' : 'Blackjack pays 3:2 · dealer stands on 17 · split up to 6 hands')
+    : `Balance ${money(bal)} (+${money(onTable)} on the table${freeOn ? `, ${money(freeOn)} free` : ''}) · only ${g.name} can press these`;
   const btn = (label, emoji, id, style, disabled = false) => ({ type: 2, style, label, emoji: { name: emoji }, custom_id: `bj:${id}:${g.id}`, disabled });
-  const row = g.over ? [btn(`Play again (${money(g.bet)})`, '🔁', 'again', 1, bal < g.bet)]
+  const m = moves(g, bal), again = g.bet + (g.side || 0);
+  const row = g.over ? [btn(`Play again (${money(g.bet)}${g.side ? ` + ${money(g.side)}` : ''})`, '🔁', 'again', 1, bal < again)]
     : [btn('Hit', '👊', 'hit', 1), btn('Stand', '✋', 'stand', 2),
-       ...(canDouble(g, bal) ? [btn('Double', '💰', 'double', 3)] : []), ...(canSplit(g, bal) ? [btn('Split', '✂️', 'split', 3)] : [])];
+       ...(m.dbl ? [m.dblFree ? btn('Free Double', '🎟️', 'double', 3) : btn('Double', '💰', 'double', 3)] : []),
+       ...(m.spl ? [m.splFree ? btn('Free Split', '🎟️', 'split', 3) : btn('Split', '✂️', 'split', 3)] : [])];
   return { allowed_mentions: { parse: [] }, embeds: [{ color, title, description: description || undefined, image: { url: `${SITE}/api/bjcards?${q}` }, footer: { text: footer } }],
     components: [{ type: 1, components: row }] };
 }
 
-/** Deals a new hand and takes the bet. Shared by /blackjack and the site: { g, bal } or { err }. */
-export async function newHand(me, bet) {
-  const took = await takeChips(me.id, bet);
+/** Deals a new hand and takes the bet (plus any Push 22 side bet) in one step. Shared by /blackjack, /freebet and the site.
+ *  mode 'free' = Free Bet Blackjack. Returns { g, bal } or { err }. */
+export async function newHand(me, bet, mode = '', side = 0) {
+  const free = mode === 'free';
+  side = free ? Math.min(MAX_PUSH22, Math.max(0, Math.floor(+side || 0))) : 0;
+  const took = await takeChips(me.id, bet + side);
   if (took.short) { const b = took.had;
     if (b === null) return { err: `You don't have any chips yet. Use **/daily** to get ${money(FIRST_CLAIM)} free.` };
-    return { err: b < 1 ? `You're out of chips 💀 Use **/daily** for more.` : `You only have ${money(b)}. Bet that or less.` }; }
-  const g = { id: randomBytes(5).toString('hex'), uid: me.id, name: me.name, bet, step: 0, deck: freshDeck(), dealer: [], hands: [{ cards: [], bet }], active: 0, over: false };
+    return { err: b < 1 ? `You're out of chips 💀 Use **/daily** for more.` : `You only have ${money(b)}. Bet that or less${side ? ' (the side bet counts too)' : ''}.` }; }
+  const g = { id: randomBytes(5).toString('hex'), uid: me.id, name: me.name, bet, step: 0, deck: freshDeck(), dealer: [], hands: [{ cards: [], bet, free: 0 }], active: 0, over: false,
+    ...(free ? { mode: 'free', side } : {}) };
   g.hands[0].cards.push(draw(g)); g.dealer.push(draw(g)); g.hands[0].cards.push(draw(g)); g.dealer.push(draw(g));
   if (natural(g.hands[0]) || total(g.dealer).t === 21) settle(g);
   // the bet is already off (takeChips); this pays a hand that settled on the deal and saves it
   const res = await kv(g.over && g.payout ? ['HINCRBYFLOAT', 'bj:bal', me.id, g.payout] : ['HGET', 'bj:bal', me.id], ['HSET', 'bj:name', me.id, me.name], ['SET', 'bj:g:' + g.id, JSON.stringify(g), 'EX', 3600],
-    ...(g.over ? feedCmds(me, 'blackjack', g.net) : []));
+    ...(g.over ? feedCmds(me, GAME(g), g.net) : []));
   return { g, bal: +res[0] };
 }
 
-async function blackjack(i, opts, s) {
+async function blackjack(i, opts, s, mode = '') {
   const bet = Math.min(MAX_BET, Math.max(1, Math.floor((opts.bet && opts.bet.value) || DEFAULT_BET)));
-  const out = await newHand(whoIs(i, s), bet);
+  const out = await newHand(whoIs(i, s), bet, mode, opts.push22 ? opts.push22.value : 0);
   if (out.err) return quiet(out.err);
   return json({ type: 4, data: view(out.g, out.bal) });
 }
+const freebet = (i, opts, s) => blackjack(i, opts, s, 'free');
 
 /** Hit / Stand / Double / Split on a hand in progress. Shared by the Discord buttons and the site.
  *  Returns { g, bal }, { err } (a message for the player), { gone } (hand expired), { notYours }, or { busy } (a tap is already being handled). */
@@ -227,18 +269,21 @@ export async function handAction(me, gid, action) {
   try {
     if (g.over) return { busy: true };
     let bal = +balRaw || 0, spend = 0;
-    const h = active(g);
+    const h = active(g), m = moves(g, bal);
     if (action === 'hit') { h.cards.push(draw(g)); autoDone(h); }
     else if (action === 'stand') h.done = true;
     else if (action === 'double') {
-      if (!canDouble(g, bal)) return { err: "You can't double here (two cards only, and you need the chips to match your bet)." };
-      spend = h.bet; h.bet *= 2; h.doubled = true; h.cards.push(draw(g)); h.done = true;
+      if (!m.dbl) return { err: "You can't double here (two cards only, and you need the chips to match your bet)." };
+      if (m.dblFree) { h.free = (h.free || 0) + g.bet; h.freeDbl = true; } else { spend = g.bet; h.bet += g.bet; }
+      h.doubled = true; h.cards.push(draw(g)); h.done = true;
     } else if (action === 'split') {
-      if (!canSplit(g, bal)) return { err: 'You can only split two cards of the same value once, with chips to match your bet.' };
-      spend = h.bet;
+      if (!m.spl) return { err: `You can only split two cards of the same value, up to ${MAX_HANDS} hands, with chips to match your bet.` };
       const [c1, c2] = h.cards, aces = c1[0] === 'A';
-      g.hands = [{ cards: [c1, draw(g)], bet: h.bet, split: true }, { cards: [c2, draw(g)], bet: h.bet, split: true }];
-      for (const x of g.hands) { if (aces) x.done = true; autoDone(x); }
+      const nh = { cards: [c2, draw(g)], bet: 0, free: 0, split: true, aces };
+      if (m.splFree) nh.free = g.bet; else { spend = g.bet; nh.bet = g.bet; }
+      h.cards = [c1, draw(g)]; h.split = true; h.aces = aces;
+      g.hands.splice(g.active + 1, 0, nh);
+      for (const x of [h, nh]) { if (aces) x.done = true; autoDone(x); }
     } else return { busy: true };
     if (spend) { // doubles and splits: take the extra bet in one step (another game may have spent the chips since we read them)
       const took = await takeChips(me.id, spend);
@@ -247,7 +292,7 @@ export async function handAction(me, gid, action) {
     advance(g); g.step++;
     const delta = g.over ? g.payout : 0;
     const res = await kv(...(delta ? [['HINCRBYFLOAT', 'bj:bal', me.id, delta]] : [['HGET', 'bj:bal', me.id]]), ['SET', 'bj:g:' + g.id, JSON.stringify(g), 'EX', 3600], ['DEL', 'bj:lock:' + gid],
-      ...(g.over ? feedCmds(me, 'blackjack', g.net) : []));
+      ...(g.over ? feedCmds(me, GAME(g), g.net) : []));
     wrote = true; bal = +res[0];
     return { g, bal };
   } finally { if (!wrote) await unlock(); }
@@ -255,10 +300,11 @@ export async function handAction(me, gid, action) {
 
 /** What the site may see of a hand: no deck, and the dealer's second card stays face down until it's over. */
 export function publicHand(g, bal) {
-  return { id: g.id, bet: g.bet, over: g.over, active: g.active, net: g.net, payout: g.payout,
+  const m = moves(g, bal);
+  return { id: g.id, bet: g.bet, over: g.over, active: g.active, net: g.net, payout: g.payout, mode: g.mode || 'classic', side: g.side || 0, sideWin: g.sideWin || 0, d22: !!g.d22,
     dealer: g.over ? g.dealer : [g.dealer[0], 'XX'], dealerTotal: total(g.over ? g.dealer : [g.dealer[0]]).t,
-    hands: g.hands.map((h, k) => ({ cards: h.cards, bet: h.bet, doubled: !!h.doubled, res: h.res || null, total: total(h.cards).t, soft: total(h.cards).soft })),
-    canDouble: canDouble(g, bal), canSplit: canSplit(g, bal) };
+    hands: g.hands.map(h => ({ cards: h.cards, bet: h.bet, free: h.free || 0, doubled: !!h.doubled, freeDbl: !!h.freeDbl, res: h.res || null, total: total(h.cards).t, soft: total(h.cards).soft })),
+    canDouble: m.dbl, canSplit: m.spl, freeDouble: m.dblFree, freeSplit: m.splFree };
 }
 
 /** The buttons under a hand (custom_id bj:<action>:<hand id>). */
@@ -269,20 +315,20 @@ export async function blackjackButton(i, s) {
   if (action === 'again') {
     const [raw, lock] = await kv(['GET', 'bj:g:' + gid], ['SET', 'bj:lock:' + gid, '1', 'NX', 'EX', 5]);
     const unlock = () => kv(['DEL', 'bj:lock:' + gid]).catch(() => {});
-    if (!raw) { if (lock) await unlock(); return quiet('This hand has expired. Start a new one with **/blackjack**.'); }
+    if (!raw) { if (lock) await unlock(); return quiet('This hand has expired. Start a new one with **/blackjack** or **/freebet**.'); }
     const g = JSON.parse(raw);
-    if (g.uid !== me.id) { if (lock) await unlock(); return quiet(`That's ${g.name}'s hand. Start your own with **/blackjack**.`); }
+    if (g.uid !== me.id) { if (lock) await unlock(); return quiet(`That's ${g.name}'s hand. Start your own with **/${CMD(g)}**.`); }
     if (!lock) return json({ type: 6 });
     try {
       if (!g.over) return json({ type: 6 });
-      const out = await newHand(me, g.bet);
+      const out = await newHand(me, g.bet, g.mode, g.side);
       if (out.err) return quiet(out.err);
       return json({ type: 4, data: view(out.g, out.bal) });
     } finally { await unlock(); }
   }
   const r = await handAction(me, gid, action);
-  if (r.gone) return quiet('This hand has expired. Start a new one with **/blackjack**.');
-  if (r.notYours) return quiet(`That's ${r.notYours}'s hand. Start your own with **/blackjack**.`);
+  if (r.gone) return quiet('This hand has expired. Start a new one with **/blackjack** or **/freebet**.');
+  if (r.notYours) return quiet(`That's ${r.notYours}'s hand. Start your own with **/blackjack** or **/freebet**.`);
   if (r.busy) return json({ type: 6 });
   if (r.err) return quiet(r.err);
   return json({ type: 7, data: view(r.g, r.bal) });
@@ -290,7 +336,7 @@ export async function blackjackButton(i, s) {
 
 /** Slash commands: returns a Response, or null when the command isn't a blackjack one. */
 export async function blackjackCommand(i, opts, s) {
-  const run = { daily, blackjack, chips }[i.data.name];
+  const run = { daily, blackjack, freebet, chips }[i.data.name];
   if (!run) return null;
   if (!kvUrl() || !kvToken()) return noStorage();
   try { return await run(i, opts, s); }
