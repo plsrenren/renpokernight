@@ -26,7 +26,7 @@
 // Needs Vercel env vars DISCORD_BOT_TOKEN (already there) and DISCORD_PUBLIC_KEY (from the Developer Portal).
 import { createPublicKey, verify } from 'node:crypto';
 import { waitUntil } from '@vercel/functions';
-import { TOURNEY_COMMAND, CASH_COMMAND, startTourney, tally } from './_tourney.js';
+import { TOURNEY_COMMAND, CASH_COMMAND, startTourney, tally, inviteBlocked } from './_tourney.js';
 import { syncRoles } from './_roles.js';
 import { BLACKJACK_COMMANDS, blackjackCommand, blackjackButton } from './_blackjack.js';
 import { DUEL_COMMAND, duelCommand, duelButton, sweepDuels } from './_duel.js';
@@ -158,7 +158,10 @@ export async function POST(req) {
   if (i.data.name === 'uth') return uthCommand(i, opts, s);
   if (i.data.name === 'baccarat') return baccaratCommand(i, opts, s);
   if (i.data.name === 'seats') return json(startSeats(i, opts, s, waitUntil));
-  if (i.data.name === 'tourney' || i.data.name === 'cash') return json(startTourney(i, opts, s || { ids: {} }, waitUntil));
+  if (i.data.name === 'tourney' || i.data.name === 'cash') { // pitboss role only (plus Renato and admins), see inviteBlocked
+    const no = await inviteBlocked(i, s || { ids: {} }, HOST_ID);
+    return json(no || startTourney(i, opts, s || { ids: {} }, waitUntil));
+  }
   if (!s) return say("Couldn't reach the poker sheet just now. Try again in a minute.");
   if (i.data.name === 'lottery' && (i.data.options || [])[0] && i.data.options[0].name === 'draw') return lotteryDraw(i, s, waitUntil);
   if (i.data.name === 'roles') { // can take a few seconds, so answer "thinking…" and finish in the background

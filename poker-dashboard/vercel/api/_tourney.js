@@ -34,6 +34,31 @@ const pack = o => 'tally:' + JSON.stringify([o.min || 0, o.file || '', o.kind ||
 const unpack = id => { try { const [min, file, kind] = JSON.parse(id.slice(6)); return { min, file, kind: kind === 'c' ? 'c' : 't' }; } catch (e) { return { kind: 't' }; } };
 const buttons = state => [{ type: 1, components: [{ type: 2, style: 2, custom_id: pack(state), label: 'Update headcount', emoji: { name: '🔄' } }] }];
 
+// Who may post an invite: Renato (hostId / his Members ID), server admins, and anyone with the server's "pitboss" role
+// (found by name, any case, "pit boss" works too). If the role is missing or Discord can't be reached, nobody is blocked.
+let roleCache = { at: 0, guild: '', id: null };
+async function pitbossRole(guild) {
+  if (roleCache.guild === guild && Date.now() - roleCache.at < 600e3) return roleCache.id;
+  const c = new AbortController(), t = setTimeout(() => c.abort(), 1200);
+  try {
+    const r = await fetch(`${API}/guilds/${guild}/roles`, { headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` }, signal: c.signal });
+    if (!r.ok) return undefined;
+    const role = (await r.json()).find(x => /^pit ?boss(es)?$/i.test(String(x.name || '').replace(/[^a-z ]/gi, '').trim()));
+    roleCache = { at: Date.now(), guild, id: role ? role.id : null };
+    return roleCache.id;
+  } catch (e) { return undefined; } finally { clearTimeout(t); }
+}
+/** null when this person may run /tourney or /cash, otherwise the (ephemeral) answer to send back. */
+export async function inviteBlocked(i, s, hostId) {
+  const m = i.member, uid = ((m && m.user) || i.user || {}).id;
+  if (!m || !i.guild_id || uid === hostId || (uid && uid === s.ids.Renato)) return null;
+  if (m.permissions && (BigInt(m.permissions) & 8n)) return null; // server admins
+  const rid = await pitbossRole(i.guild_id);
+  if (!rid || (m.roles || []).includes(rid)) return null; // no such role (or couldn't check): don't get in the way
+  return { type: 4, data: { flags: 64, allowed_mentions: { parse: [] },
+    content: `Only <@&${rid}> can post game invites. Ask one of them to run /${i.data.name}.` } };
+}
+
 /** The /tourney command: answers "thinking…" right away, then finishes the post in the background. */
 export function startTourney(i, opts, s, waitUntil) {
   const v = k => opts[k] && opts[k].value;
