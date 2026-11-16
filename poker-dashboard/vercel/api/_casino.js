@@ -5,6 +5,7 @@
 //   GET  /api/login?code=…       ← Discord sends you back here; sets the session cookie, then goes to /casino
 //   GET  /api/casino             → who you are, your chips, daily, leaderboard, "just now" feed, any unfinished hand
 //   POST /api/casino {a: …}      → daily | bj | bj-act | uth | uth-act | bac | logout
+//   GET/POST /api/shop           → the /shop page (Study Cards), handled by shopWeb in _shop.js
 //
 // Chips are the Discord bot's (bj:bal keyed by Discord user ID), so the site and Discord stay in sync both ways.
 // The game rules are the bot's own code (_blackjack.js, _uth.js, _baccarat.js); nothing is duplicated here.
@@ -16,6 +17,7 @@ import { newHand as uthStart, uthAction, publicUth, MAX_ANTE, MAX_TRIPS, UTH_PAY
 import { playHand } from './_baccarat.js';
 import { REWARD_LIST } from './_rewards.js';
 import { lotteryView } from './_lottery.js';
+import { shopWeb } from './_shop.js';
 
 const DAYS30 = 30 * 24 * 3600;
 const out = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers } });
@@ -54,19 +56,21 @@ async function appId() {
 const originOf = req => { const u = new URL(req.url); return `https://${req.headers.get('x-forwarded-host') || u.host}`; };
 
 async function login(req, sheet) {
-  const u = new URL(req.url), origin = originOf(req), redirect = origin + '/api/login';
-  const fail = why => go(`/casino?err=${encodeURIComponent(why)}`, [cookie('cas_state', '', 0)]);
+  const u = new URL(req.url), origin = originOf(req), redirect = origin + '/api/login', code = u.searchParams.get('code');
+  // ?to=shop brings you back to /shop instead of /casino (kept next to the state in the same short cookie)
+  const [wantState, to] = String(readCookie(req, 'cas_state') || '').split('.');
+  const back = (code || u.searchParams.get('error') ? to : u.searchParams.get('to')) === 'shop' ? '/shop' : '/casino';
+  const fail = why => go(`${back}?err=${encodeURIComponent(why)}`, [cookie('cas_state', '', 0)]);
   if (u.searchParams.get('error')) return fail('cancelled');
-  const code = u.searchParams.get('code');
   if (!code) { // step 1: off to Discord
     const id = await appId();
     if (!id || !process.env.DISCORD_CLIENT_SECRET) return fail('setup');
     const state = randomBytes(12).toString('hex');
     const q = new URLSearchParams({ client_id: id, response_type: 'code', redirect_uri: redirect, scope: 'identify', state, prompt: 'none' });
-    return go('https://discord.com/oauth2/authorize?' + q, [cookie('cas_state', state, 600)]);
+    return go('https://discord.com/oauth2/authorize?' + q, [cookie('cas_state', state + (back === '/shop' ? '.shop' : ''), 600)]);
   }
   // step 2: Discord sent us back
-  if (!u.searchParams.get('state') || u.searchParams.get('state') !== readCookie(req, 'cas_state')) return fail('expired');
+  if (!u.searchParams.get('state') || u.searchParams.get('state') !== wantState) return fail('expired');
   const tok = await fetch('https://discord.com/api/v10/oauth2/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ client_id: await appId(), client_secret: process.env.DISCORD_CLIENT_SECRET || '', grant_type: 'authorization_code', code, redirect_uri: redirect }) })
     .then(r => r.ok ? r.json() : null).catch(() => null);
@@ -79,20 +83,20 @@ async function login(req, sheet) {
   const sheetName = Object.keys(ids).find(n => ids[n] === user.id);
   if (!known && !sheetName) return fail('stranger');
   const name = sheetName || known || user.global_name || user.username;
-  return go('/casino', [cookie('cas', makeSession({ id: user.id, name }), DAYS30), cookie('cas_state', '', 0)]);
+  return go(back, [cookie('cas', makeSession({ id: user.id, name }), DAYS30), cookie('cas_state', '', 0)]);
 }
 
 // ---------- the page's data ----------
-const SESSION_GAP = 10 * 60e3, SOLO = new Set(['daily', 'poker night']);
+const SESSION_GAP = 10 * 60e3, SOLO = new Set(['daily', 'poker night']), solo = g => SOLO.has(g) || /^tip /.test(g);
 /** "Just now" session lines: the same person playing the same game (same place), with no gap over 10 minutes, becomes one
  *  line with the total, hand count, wins/losses and when it started. Dailies and rewards stay single. Newest first, 10 lines. */
 export function groupFeed(feed, lines = 10) {
   const out = [];
   for (const f of feed) {
-    const g = !SOLO.has(f.game) && out.find(x => x.n && x.id === f.id && x.game === f.game && x.src === f.src && x.first - f.at <= SESSION_GAP);
+    const g = !solo(f.game) && out.find(x => x.n && x.id === f.id && x.game === f.game && x.src === f.src && x.first - f.at <= SESSION_GAP);
     if (g) { g.n++; g.net = Math.round((g.net + f.net) * 100) / 100; g.first = f.at; if (f.net > 0) g.w++; else if (f.net < 0) g.l++; continue; }
     if (out.length >= lines) continue; // keep folding older hands into the lines already shown
-    out.push(SOLO.has(f.game) ? { ...f } : { ...f, n: 1, w: f.net > 0 ? 1 : 0, l: f.net < 0 ? 1 : 0, first: f.at });
+    out.push(solo(f.game) ? { ...f } : { ...f, n: 1, w: f.net > 0 ? 1 : 0, l: f.net < 0 ? 1 : 0, first: f.at });
   }
   return out;
 }
@@ -162,18 +166,20 @@ async function act(req, me) {
   return out({ err: 'Unknown action.' }, 400);
 }
 
-/** Entry point from api/discord.js. what = 'login' | 'casino'. sheet() = the cached sheet loader (for Members tab IDs). */
+/** Entry point from api/discord.js. what = 'login' | 'casino' | 'shop' (Study Cards, see _shop.js). sheet() = the cached sheet loader (for Members tab IDs). */
 export async function casinoWeb(req, what, sheet) {
   if (!kvUrl() || !kvToken()) return out({ err: "The chip storage isn't connected." }, 503);
   try {
     if (what === 'login') return await login(req, sheet);
     const me = readSession(req);
+    if (what === 'shop' && req.method === 'GET') return await shopWeb(req, me, sheet, out);
     if (req.method === 'GET') return out(await state(me, sheet));
     if (req.method !== 'POST') return out({ err: 'Method not allowed.' }, 405);
     // same-site only: the cookie is SameSite=Lax already; this also refuses posts from other sites
     const o = req.headers.get('origin');
     if (o && new URL(o).host !== (req.headers.get('x-forwarded-host') || new URL(req.url).host)) return out({ err: 'Wrong site.' }, 403);
     if (!me) return out({ err: 'Sign in first.', signedOut: true }, 401);
+    if (what === 'shop') return await shopWeb(req, me, sheet, out);
     return await act(req, me);
   } catch (e) {
     console.error('casino', e);

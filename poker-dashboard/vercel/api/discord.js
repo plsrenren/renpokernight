@@ -19,8 +19,9 @@
 //   /lottery odds           this quarter's lottery: jackpot, your tickets and everyone's odds (see _lottery.js)
 //   /lottery draw           the host draws last quarter's winner live in the channel (host only)
 //   /seats                  random seat order for everyone in on the latest invite (see _seats.js)
+//   /pack /loadout /tip     Study Cards (cosmetics for your player card) and giving chips to someone (see _shop.js)
 // Casino commands only run in #casino and poker commands only in #the-table; elsewhere they point there (_channels.js).
-// Also serves the site's casino: /api/login and /api/casino are rewritten here with ?web= (see _casino.js).
+// Also serves the site's casino and shop: /api/login, /api/casino and /api/shop are rewritten here with ?web= (see _casino.js).
 // One-time setup: open /api/discord?setup=1 in a browser. It registers the command and shows the "add to server" link.
 // Needs Vercel env vars DISCORD_BOT_TOKEN (already there) and DISCORD_PUBLIC_KEY (from the Developer Portal).
 import { createPublicKey, verify } from 'node:crypto';
@@ -34,6 +35,7 @@ import { UTH_COMMAND, uthCommand, uthButton } from './_uth.js';
 import { ROULETTE_COMMAND, rouletteCommand, rouletteInteraction } from './_roulette.js';
 import { BACCARAT_COMMAND, baccaratCommand, baccaratButton } from './_baccarat.js';
 import { casinoWeb } from './_casino.js';
+import { SHOP_COMMANDS, shopCommand, shopInteraction } from './_shop.js';
 import { wrongChannel } from './_channels.js';
 import { board as lotteryBoard, quarterOf, shownQuarter, drawable, drawQuarter, TICKET, LUCKY_ROLE, nextQuarter } from './_lottery.js';
 import { nightRows } from './_rewards.js';
@@ -66,6 +68,7 @@ const COMMANDS = [
   ROULETTE_COMMAND,
   BACCARAT_COMMAND,
   SEATS_COMMAND,
+  ...SHOP_COMMANDS,
   { name: 'lottery', description: 'The quarter lottery', type: 1, options: [
     { type: 1, name: 'odds', description: "The jackpot, your tickets and everyone's odds" },
     { type: 1, name: 'draw', description: "Draw last quarter's winner, live (host only)" }] },
@@ -98,7 +101,7 @@ async function sheet() {
   return cache;
 }
 
-const webRoute = req => { const w = new URL(req.url).searchParams.get('web'); return w === 'login' || w === 'casino' ? w : null; };
+const webRoute = req => { const w = new URL(req.url).searchParams.get('web'); return w === 'login' || w === 'casino' || w === 'shop' ? w : null; };
 
 export async function POST(req) {
   if (webRoute(req)) return casinoWeb(req, webRoute(req), sheet);
@@ -128,6 +131,7 @@ export async function POST(req) {
   if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('ba:')) { // baccarat play-again buttons
     try { return await baccaratButton(i, cache.recs ? cache : null); } catch (e) { console.error('baccarat', e); return say("Couldn't reach the chip storage just now. Try again in a moment."); }
   }
+  if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('sh:')) return shopInteraction(i, cache.recs ? cache : null); // Study Cards buttons and menus
   if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('seats:')) return json(reshuffle(i)); // /seats Reshuffle
   if (i.type !== 2 || !i.data) return say('Unknown command.');
   const hint = await wrongChannel(i); // casino games only in #casino, poker commands only in #the-table (see _channels.js)
@@ -142,6 +146,8 @@ export async function POST(req) {
   const s = await sheet();
   const bj = await blackjackCommand(i, opts, s);
   if (bj) return bj;
+  const shop = await shopCommand(i, opts, s); // /pack /loadout /tip
+  if (shop) return shop;
   if (i.data.name === 'duel') return duelCommand(i, opts, s);
   if (i.data.name === 'uth') return uthCommand(i, opts, s);
   if (i.data.name === 'baccarat') return baccaratCommand(i, opts, s);

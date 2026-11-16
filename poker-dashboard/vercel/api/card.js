@@ -1,9 +1,10 @@
 // /api/card?name=Renato             a player's ratings card as a PNG (current quarter), the same numbers as the dashboard card
 // /api/card?name=Renato&period=Y2026  their season card instead (period is "Q4 2026", "Y2026", or "all" for all-time)
-// The /player Discord command shows this image.
+// The /player Discord command shows this image, with the player's Study Cards loadout on it (see _shop.js).
 import { SHEET_URL, MEMBERS_URL, gameRecords, findPlayer, playerCard, memberIds } from '../recap-core.js';
 import { draw, playerCardTree } from './_late.js';
 import { avatarPng, bannerPng, accentColor } from './_discord.js';
+import { kv, kvUrl, kvToken } from './_blackjack.js';
 
 const pngUri = b => 'data:image/png;base64,' + Buffer.from(b).toString('base64');
 
@@ -18,7 +19,10 @@ export async function render(csv, query, period, membersCsv = '', art = {}) {
     Promise.all(people.map(async p => { const b = await safe(getPic, ids[p]); return b ? [p, pngUri(b)] : null; })).then(l => Object.fromEntries(l.filter(Boolean))),
     ids[c.name] ? safe(getBanner, ids[c.name]) : null,
     ids[c.name] ? safe(getColor, ids[c.name]) : null]);
-  const png = await draw(playerCardTree(c, { pics, banner: banner ? pngUri(banner) : null, color }));
+  // Study Cards loadout (title, pfp border, overall bar, sticker), stored by Discord ID; art.eq overrides it (tests)
+  let eq = art.eq || null;
+  if (!eq && ids[c.name] && kvUrl() && kvToken()) { try { const [raw] = await kv(['HGET', 'sh:eq', ids[c.name]]); eq = JSON.parse(raw || '{}'); } catch (e) { eq = null; } }
+  const png = await draw(playerCardTree(c, { pics, banner: banner ? pngUri(banner) : null, color, eq }));
   return { png, name: c.name, period: c.period };
 }
 

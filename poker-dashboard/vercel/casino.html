@@ -244,7 +244,7 @@ details.pay summary { cursor: pointer; font: 400 17px var(--title); letter-spaci
 <div class="wrap">
   <header class="top">
     <div class="brand"><a class="lg" href="/" aria-label="Dashboard"></a><div><h1><a href="/casino" style="text-decoration:none">The Study Casino</a></h1>
-      <nav class="links"><a class="recap-link" href="/">Dashboard</a><a class="recap-link hof-link" href="/hall">🏆 Hall of Fame</a><a class="recap-link h2h-link" href="/h2h">⚔️ Head to head</a></nav></div></div>
+      <nav class="links"><a class="recap-link" href="/">Dashboard</a><a class="recap-link hof-link" href="/hall">🏆 Hall of Fame</a><a class="recap-link h2h-link" href="/h2h">⚔️ Head to head</a><a class="recap-link casino-link" href="/shop">🃏 Study Cards</a></nav></div></div>
     <div class="me hidden" id="me"></div>
   </header>
   <div id="note"></div>
@@ -408,8 +408,8 @@ function board() {
 }
 function feed() {
   const ago = t => { const m = Math.round((Date.now() - t) / 60e3); return m < 1 ? 'now' : m < 60 ? m + 'm' : m < 1440 ? Math.round(m / 60) + 'h' : Math.round(m / 1440) + 'd'; };
-  const unit = g => g === 'roulette' ? 'spins' : g.startsWith('duel') ? 'duels' : 'hands';
-  const sess = f => f.n > 1 ? `<span class="st">${f.n} ${unit(f.game)} · ${f.w}W ${f.l}L · ${Math.max(1, Math.round((f.at - f.first) / 60e3))} min</span>` : '';
+  const unit = g => g === 'roulette' ? 'spins' : g === 'study cards' ? 'packs' : g.startsWith('duel') ? 'duels' : 'hands';
+  const sess = f => f.n > 1 ? `<span class="st">${f.n} ${unit(f.game)} · ${f.game === 'study cards' ? '' : `${f.w}W ${f.l}L · `}${Math.max(1, Math.round((f.at - f.first) / 60e3))} min</span>` : '';
   const rows = S.feed.map(f => `<div>${av(f.id, f.name)}<span class="who">${esc(f.name)} <small>${esc(f.game)} · ${ago(f.at)}</small>${sess(f)}${f.why ? `<em>${esc(f.why)}</em>` : ''}</span> <span class="src${f.src === 'site' ? '' : f.src === 'night' ? ' n' : ' d'}">${f.src === 'site' ? 'site' : f.src === 'night' ? 'reward' : 'discord'}</span><span class="amt ${f.net > 0 ? 'pos' : f.net < 0 ? 'neg' : ''}">${signed(f.net)}</span></div>`).join('');
   return `<div class="panel"><h2 class="p">Just now</h2><p class="hint">Latest play from Discord and the site, plus poker night rewards. A run of hands by one player is one line.</p><div class="feed">${rows || '<p class="hint">No hands yet.</p>'}</div></div>`;
 }
