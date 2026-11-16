@@ -4,6 +4,8 @@
 //   a=0                hand being played (empty when the hand is over)
 //   r=win.lose         result per hand when over (win, bj, push, lose, bust)
 //   b=20.20            bet per hand, n=player name
+//   f=0.20             Free Bet: free money per hand (gold FREE tag); s=5 Push 22 side bet; x=d22.sw (dealer 22 pushed, side bet won / sl lost)
+//                      Up to 6 hands: 3 or more switch to two columns of smaller cards (5+ cards fan out), same width, just taller.
 //   m=uth&d=XX.XX&b=7H.6C.KH.__.__&p=9H.8H&n=Renato&ph=Flush&dh=Pair of kings&r=win   the /uth table instead (__ = card not out yet)
 //   m=bac&p=9S.KD&b=4H.2C.7S&w=player&n=Renato&s=banker   the /baccarat picture: Player and Banker hands, winner tagged
 //   m=duel&c=QS.9H&n=Dong|JP&w=1   the /duel high card picture instead: two cards, names, winner (0 or 1) ringed
@@ -50,19 +52,38 @@ const label = (text, extra) => h('div', { alignItems: 'center', gap: 8 * S, font
 const RES = { win: ['WIN', '#8ee0b0', '#0e2a1c'], bj: ['BLACKJACK', '#f1c75b', '#2a1f00'], push: ['PUSH', '#9a94c4', '#16132b'], lose: ['LOSE', '#f59bb0', '#3a0d18'], bust: ['BUST', '#f59bb0', '#3a0d18'] };
 const tag = r => RES[r] ? h('div', { backgroundColor: RES[r][1], color: RES[r][2], fontFamily: 'Nunito', fontWeight: 900, fontSize: 11 * S, letterSpacing: 1 * S, padding: `${2 * S}px ${7 * S}px`, borderRadius: 5 * S }, RES[r][0]) : null;
 
-export function table({ dealer, hands, activeIdx, results, bets, name }) {
+export function table({ dealer, hands, activeIdx, results, bets, frees = [], side = 0, flags = [], name }) {
   const shown = dealer.filter(c => c !== 'XX');
   const dTot = total(shown).t, hidden = shown.length < dealer.length;
-  const row = (cards, tot, dim) => h('div', { alignItems: 'center', gap: 8 * S, opacity: dim ? 0.5 : 1 }, cards.map(card), h('div', { marginLeft: 6 * S }, pill(tot, '#1e1f22', '#f2f3f5')));
+  const many = hands.length > 2;
+  const row = (cards, tot, dim, small) => h('div', { alignItems: 'center', gap: (small ? 5 : 8) * S, opacity: dim ? 0.5 : 1 },
+    small ? smallCards(cards) : cards.map(card), h('div', { marginLeft: (small ? 2 : 6) * S }, pill(tot, '#1e1f22', '#f2f3f5')));
   const handTot = (cs, k) => { const t = total(cs); return t.soft && t.t < 21 && activeIdx === k ? `${t.t - 10} / ${t.t}` : String(t.t); };
+  const handBox = (cs, k) => h('div', { flexDirection: 'column', gap: 6 * S, width: many ? 236 * S : undefined },
+    label(hands.length > 1 ? (many ? `Hand ${k + 1}` : `${name} · hand ${k + 1}`) : name,
+      [+bets[k] ? h('div', { color: '#949ba4', fontWeight: 800, textTransform: 'none', letterSpacing: 0 }, `$${bets[k]}`) : null,
+       +frees[k] ? tagText(`FREE $${frees[k]}`, '#f1c75b', '#2a1f00') : null,
+       activeIdx === k && hands.length > 1 ? h('div', { color: '#a9b4f6' }, '· PLAYING') : null, tag(results[k])]),
+    row(cs, handTot(cs, k), activeIdx !== null && hands.length > 1 && activeIdx !== k, many));
+  const d22 = flags.includes('d22'), sw = flags.includes('sw'), sl = flags.includes('sl');
   return h('div', { width: W * S, flexDirection: 'column', gap: 12 * S, padding: `${14 * S}px ${16 * S}px`, backgroundColor: '#2b2d31', boxSizing: 'border-box' },
-    h('div', { flexDirection: 'column', gap: 6 * S }, label('Dealer'), row(dealer, hidden ? `${dTot} + ?` : String(dTot), false)),
-    hands.map((cs, k) => h('div', { flexDirection: 'column', gap: 6 * S },
-      label(hands.length > 1 ? `${name} · hand ${k + 1}` : name,
-        [bets[k] ? h('div', { color: '#949ba4', fontWeight: 800, textTransform: 'none', letterSpacing: 0 }, `$${bets[k]}`) : null,
-         activeIdx === k && hands.length > 1 ? h('div', { color: '#a9b4f6' }, '· PLAYING') : null, tag(results[k])]),
-      row(cs, handTot(cs, k), activeIdx !== null && hands.length > 1 && activeIdx !== k))));
+    h('div', { flexDirection: 'column', gap: 6 * S }, label('Dealer', d22 ? tagText('22 PUSHES', '#9a94c4', '#16132b') : null), row(dealer, hidden ? `${dTot} + ?` : String(dTot), false, false)),
+    many ? h('div', { flexWrap: 'wrap', columnGap: 16 * S, rowGap: 10 * S }, hands.map(handBox)) : hands.map(handBox),
+    side ? label(`Push 22 side bet · $${side}`, sw ? tagText('WIN 11:1', '#8ee0b0', '#0e2a1c') : sl ? tag('lose') : null) : null);
 }
+const tagText = (t, bg, fg) => h('div', { backgroundColor: bg, color: fg, fontFamily: 'Nunito', fontWeight: 900, fontSize: 11 * S, letterSpacing: 1 * S, padding: `${2 * S}px ${7 * S}px`, borderRadius: 5 * S }, t);
+
+// small cards for 3+ hands; with 5+ cards they fan out with the rank in the top-left corner, so overlapping cards still read
+const SW = 38, SH = 54;
+function smallCard(code, k, fan) {
+  const base = { width: SW * S, height: SH * S, borderRadius: 5 * S, flexShrink: 0, marginLeft: k && fan ? -16 * S : 0, boxShadow: `${-1 * S}px 0 ${2 * S}px rgba(0,0,0,.35)` };
+  if (!/^[A2-9TJQK][SHDC]$/.test(code)) return h('div', { ...base, backgroundColor: '#f6f3ea', padding: 2 * S, boxSizing: 'border-box' }, h('div', { width: (SW - 4) * S, height: (SH - 4) * S, borderRadius: 4 * S, overflow: 'hidden' }, img(BACK, (SW - 4) * S, (SH - 4) * S)));
+  const color = 'HD'.includes(code[1]) ? RED : INK, rank = code[0] === 'T' ? '10' : code[0];
+  return h('div', { ...base, backgroundColor: '#f6f3ea', flexDirection: 'column', alignItems: fan ? 'flex-start' : 'center', justifyContent: fan ? 'flex-start' : 'center', padding: fan ? `${4 * S}px 0 0 ${4 * S}px` : 0, gap: 2 * S, boxSizing: 'border-box' },
+    h('div', { fontFamily: 'Nunito', fontWeight: 900, fontSize: (fan ? 15 : 18) * S, lineHeight: 1, color, letterSpacing: rank === '10' ? -1.5 * S : 0 }, rank),
+    suitImg(code[1], fan ? 11 : 14, color));
+}
+const smallCards = cs => { const fan = cs.length >= 5; return h('div', { alignItems: 'center', gap: fan ? 0 : 5 * S }, cs.map((c, k) => smallCard(c, k, fan))); };
 
 const slot = () => h('div', { width: CW * S, height: CH * S, borderRadius: 7 * S, border: `${2 * S}px dashed #4e5058`, boxSizing: 'border-box', flexShrink: 0 });
 const UTH_RES = { ...RES, fold: ['FOLD', '#9a94c4', '#16132b'] };
@@ -114,9 +135,10 @@ export async function render(q) {
   }
   const split = (v, sep) => String(v || '').split(sep).filter(Boolean);
   const dealer = split(q.get('d'), '.').slice(0, 12);
-  const hands = split(q.get('p'), '-').slice(0, 2).map(x => split(x, '.').slice(0, 12));
+  const hands = split(q.get('p'), '-').slice(0, 6).map(x => split(x, '.').slice(0, 12));
   const a = q.get('a'), activeIdx = a === null || a === '' ? null : +a;
-  const svg = await satori(table({ dealer, hands, activeIdx, results: split(q.get('r'), '.'), bets: split(q.get('b'), '.'), name: (q.get('n') || 'You').slice(0, 24) }),
+  const svg = await satori(table({ dealer, hands, activeIdx, results: split(q.get('r'), '.'), bets: split(q.get('b'), '.'), frees: split(q.get('f'), '.'),
+    side: Math.min(25, Math.max(0, Math.floor(+q.get('s') || 0))), flags: split(q.get('x'), '.'), name: (q.get('n') || 'You').slice(0, 24) }),
     { width: W * S, fonts: fonts() });
   return new Resvg(svg, { fitTo: { mode: 'width', value: W * S } }).render().asPng();
 }

@@ -4,7 +4,7 @@
 //   GET  /api/login              → sends you to Discord to sign in (scope "identify": name, pfp, ID only)
 //   GET  /api/login?code=…       ← Discord sends you back here; sets the session cookie, then goes to /casino
 //   GET  /api/casino             → who you are, your chips, daily, leaderboard, "just now" feed, any unfinished hand
-//   POST /api/casino {a: …}      → daily | bj | bj-act | uth | uth-act | bac | logout
+//   POST /api/casino {a: …}      → daily | bj (mode 'free' = Free Bet, side = Push 22) | bj-act | uth | uth-act | bac | logout
 //   GET/POST /api/shop           → the /shop page (Study Cards), handled by shopWeb in _shop.js
 //
 // Chips are the Discord bot's (bj:bal keyed by Discord user ID), so the site and Discord stay in sync both ways.
@@ -12,7 +12,7 @@
 // Needs Vercel env var DISCORD_CLIENT_SECRET (Developer Portal > OAuth2) and the redirect
 // https://renpokernight.vercel.app/api/login added there. The app's client ID is looked up with DISCORD_BOT_TOKEN.
 import { createHmac, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { kv, kvUrl, kvToken, MAX_BET, FEED_KEEP, claimDaily, dailyStatus, boardFrom, dailyFrom, newHand as bjStart, handAction, publicHand } from './_blackjack.js';
+import { kv, kvUrl, kvToken, MAX_BET, FEED_KEEP, claimDaily, dailyStatus, boardFrom, dailyFrom, newHand as bjStart, handAction, publicHand, MAX_PUSH22 } from './_blackjack.js';
 import { newHand as uthStart, uthAction, publicUth, MAX_ANTE, MAX_TRIPS, UTH_PAYTABLE } from './_uth.js';
 import { playHand } from './_baccarat.js';
 import { REWARD_LIST } from './_rewards.js';
@@ -24,7 +24,7 @@ const DAYS30 = 30 * 24 * 3600;
 const out = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers } });
 const go = (url, cookies = []) => { const h = new Headers({ Location: url, 'Cache-Control': 'no-store' }); cookies.forEach(c => h.append('Set-Cookie', c)); return new Response(null, { status: 302, headers: h }); };
 // messages from the shared game code are written for Discord; tidy them for the page
-const plain = m => String(m).replace(/\*\*/g, '').replace(/Use \/daily/g, 'Claim your daily chips').replace(/with \/(blackjack|uth)/g, 'from the lobby');
+const plain = m => String(m).replace(/\*\*/g, '').replace(/Use \/daily/g, 'Claim your daily chips').replace(/with \/(blackjack|freebet|uth)/g, 'from the lobby');
 
 // ---------- session cookie: base64url(JSON).hmac ----------
 const secret = () => process.env.SESSION_SECRET || process.env.DISCORD_CLIENT_SECRET || process.env.DISCORD_BOT_TOKEN || '';
@@ -108,7 +108,7 @@ async function state(me, sheet) {
     ['HGET', 'bj:last', me ? me.id : '-'], ['HGETALL', 'cas:cur:' + (me ? me.id : '-')]);
   const board = boardFrom(bal, names);
   const feed = groupFeed((feedRaw || []).map(x => { try { return JSON.parse(x); } catch (e) { return null; } }).filter(Boolean));
-  const body = { me: null, board: board.slice(0, 15), players: board.length, feed, maxBet: MAX_BET, maxAnte: MAX_ANTE, maxTrips: MAX_TRIPS, uthPaytable: plain(UTH_PAYTABLE), rewards: REWARD_LIST };
+  const body = { me: null, board: board.slice(0, 15), players: board.length, feed, maxBet: MAX_BET, maxPush22: MAX_PUSH22, maxAnte: MAX_ANTE, maxTrips: MAX_TRIPS, uthPaytable: plain(UTH_PAYTABLE), rewards: REWARD_LIST };
   // the quarter lottery panel (needs the sheet; left out if it can't be read)
   try { const sh = sheet && await sheet(); if (sh && sh.csv) { const v = await lotteryView(sh.csv, null, sh.ids || {}); v.holders = v.holders.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); if (v.lastBoard) v.lastBoard = v.lastBoard.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); body.lottery = v; } } catch (e) { console.error('lottery view', e); }
   if (!me) return body;
@@ -116,10 +116,11 @@ async function state(me, sheet) {
   body.me = { id: me.id, name: me.name, bal: mine ? mine.bal : null, rank: mine ? board.indexOf(mine) + 1 : null, daily: dailyFrom(last) };
   // an unfinished hand started on the site comes back after a reload
   const c = {}; for (let k = 0; k < (cur || []).length; k += 2) c[cur[k]] = cur[k + 1];
-  if (!c.bj && !c.uth) return body;
-  const [bjRaw, uthRaw] = await kv(['GET', 'bj:g:' + (c.bj || 'none')], ['GET', 'uth:g:' + (c.uth || 'none')]);
+  if (!c.bj && !c.fb && !c.uth) return body;
+  const [bjRaw, fbRaw, uthRaw] = await kv(['GET', 'bj:g:' + (c.bj || 'none')], ['GET', 'bj:g:' + (c.fb || 'none')], ['GET', 'uth:g:' + (c.uth || 'none')]);
   const b = body.me.bal || 0;
   if (bjRaw) { const g = JSON.parse(bjRaw); if (!g.over && g.uid === me.id) body.bj = publicHand(g, b); }
+  if (fbRaw) { const g = JSON.parse(fbRaw); if (!g.over && g.uid === me.id) body.fb = publicHand(g, b); }
   if (uthRaw) { const g = JSON.parse(uthRaw); if (g.stage !== 'done' && g.uid === me.id) body.uth = publicUth(g, b); }
   return body;
 }
@@ -142,9 +143,10 @@ async function act(req, me) {
       return out({ bal: r.bal, got: r.amt, first: r.first, daily: await dailyStatus(me.id) });
     }
     case 'bj': {
-      const r = await bjStart(who, int(b.bet, 1, MAX_BET, 20));
+      const free = b.mode === 'free';
+      const r = await bjStart(who, int(b.bet, 1, MAX_BET, 20), free ? 'free' : '', free ? int(b.side, 0, MAX_PUSH22, 0) : 0);
       if (r.err) return out({ err: plain(r.err) });
-      if (!r.g.over) await remember(me, 'bj', r.g.id);
+      if (!r.g.over) await remember(me, free ? 'fb' : 'bj', r.g.id);
       return out({ bal: r.bal, hand: publicHand(r.g, r.bal) });
     }
     case 'bj-act': return actResult(await handAction(who, String(b.id || '').replace(/[^0-9a-f]/g, ''), String(b.do)), publicHand);

@@ -45,7 +45,9 @@ poker-dashboard/
                        discord (slash commands endpoint; ?setup=1 registers commands), invite (who reacted to /tourney or /cash),
                        roles (results roles + chip rewards; trusts a POSTed sheet only with header X-Roles-Key = env ROLES_KEY, which Invite.gs reads from
                        Script Properties; otherwise reads Google's copy), _tourney.js/_roles.js/_discord.js helpers, _assets/ fonts + logo
-                       blackjack: _blackjack.js (/daily /blackjack /chips, play chips in Upstash Redis via KV_REST_API_URL/TOKEN; daily resets once a day at 16:00 UTC, not 24h after the last claim),
+                       blackjack: _blackjack.js (/daily /blackjack /freebet /chips; splits up to 6 hands (MAX_HANDS) in both games; /freebet = mode 'free' on the same hand code:
+                       free double hard 9-11, free split any pair but 10s, dealer hits soft 17, dealer 22 pushes, Push 22 side bet 11:1 (g.side, max 25), hand.free = house money;
+                       site table #freebet (cas:cur fb), feed game name "free bet"; play chips in Upstash Redis via KV_REST_API_URL/TOKEN; daily resets once a day at 16:00 UTC, not 24h after the last claim),
                        bjcards (table picture under each hand)
                        duel: _duel.js (/duel rock paper scissors or high card for the same chips; high card picture = bjcards?m=duel; both stakes taken in one Lua step;
                        RPS: "Call it off" refunds both after 3 min, sweepDuels refunds duels stuck 30+ min (run on /duel and /daily, du:live hash))
