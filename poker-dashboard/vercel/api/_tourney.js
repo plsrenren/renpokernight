@@ -21,7 +21,7 @@ function inviteEmbed({ date, time, buyin, host, note, min, kind = 't' }, lists, 
   const lines = [`📅 **${date}**${time ? ` · ${time}` : ''}`, `${buyin ? `💵 **${buyin}**${/buy|\//i.test(buyin) ? '' : ' buy-in'} · ` : ''}hosted by ${host}`];
   if (note) lines.push('', note);
   lines.push('');
-  if (!lists) lines.push('React with anything to say you\'re in, then press **Update headcount** to see the list.');
+  if (!lists) { if (min) lines.push(`👥 Need **${min}** players`); lines.push('React with anything to say you\'re in, then press **Update headcount** to see the list.'); }
   else if (min) lines.push(`${'🟩'.repeat(Math.min(n, min))}${'⬛'.repeat(Math.max(0, min - n))} **${n} in** of ${min} needed${n >= min ? ' · **We have enough!**' : ''}`);
   else lines.push(`**${n} in**`);
   const fields = lists ? [{ name: `In (${n})`, value: lists[0].join('\n').slice(0, 1000) || '–', inline: true }] : [];
@@ -150,6 +150,6 @@ export async function tally(i, s) {
   const d = old.description || '';
   const grab = re => (d.match(re) || [])[1];
   const info = { date: grab(/📅 \*\*(.+?)\*\*/), time: grab(/📅 \*\*.+?\*\* · (.+)/), buyin: grab(/💵 \*\*(.+?)\*\*/), host: grab(/hosted by (.+)/),
-    note: (d.split('\n\n')[1] && !/^(React|🟩|⬛|\*\*\d)/.test(d.split('\n\n')[1]) ? d.split('\n\n')[1] : ''), min: state.min, kind: state.kind };
+    note: (d.split('\n\n')[1] && !/^(React|👥|🟩|⬛|\*\*\d)/.test(d.split('\n\n')[1]) ? d.split('\n\n')[1] : ''), min: state.min, kind: state.kind };
   return { type: 7, data: { embeds: [inviteEmbed(info, lists, state.file ? `attachment://${state.file}` : null)], components: m.components, allowed_mentions: { parse: [] } } };
 }
