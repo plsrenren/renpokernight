@@ -98,8 +98,8 @@ async function spin(t) {
   }
   const pay = Object.entries(back).map(([uid, amt]) => ['HINCRBYFLOAT', 'bj:bal', uid, amt]);
   // one "Just now" line per player at the table (after the reads below, so the result indexes stay put)
-  const names = {}; t.bets.forEach(b => { names[b.uid] = b.name; });
-  const feed = Object.entries(t.nets).flatMap(([uid, net]) => feedCmds({ id: uid, name: names[uid] }, 'roulette', net));
+  const names = {}, staked = {}; t.bets.forEach(b => { names[b.uid] = b.name; staked[b.uid] = (staked[b.uid] || 0) + b.amt; });
+  const feed = Object.entries(t.nets).flatMap(([uid, net]) => feedCmds({ id: uid, name: names[uid] }, 'roulette', net, staked[uid]));
   const res = await kv(...pay, ['LPUSH', 'ro:hist:' + t.channel, n], ['LTRIM', 'ro:hist:' + t.channel, 0, 4], ['LRANGE', 'ro:hist:' + t.channel, 0, 4], save(t), ['EVAL', CLEAR_OPEN, 1, 'ro:open:' + t.channel, t.id], ...feed);
   t.hist = (res[pay.length + 2] || []).map(Number);
   await kv(save(t));

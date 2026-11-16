@@ -2,6 +2,7 @@
 // sheet as JSON { input, members }) right after a night is saved; /roles in Discord does the same.
 // Safe to call any time: it only changes roles that don't match the results.
 // It also pays the casino chip rewards for poker nights (see _rewards.js); those pay each night only once.
+// /api/roles?rakeback=1 (GET, the Monday cron) pays last week's casino rakeback instead (see _rakeback.js).
 // The sheet sent in the body is only trusted with the secret key (header X-Roles-Key = Vercel env ROLES_KEY, which the
 // entry page keeps in its Script Properties). Without it the body is ignored and the sheet is read from Google itself,
 // so nobody can pay themselves chips (or take everyone's back) by posting a made-up sheet.
@@ -10,6 +11,7 @@ import { SHEET_URL, MEMBERS_URL, gameRecords, memberIds } from '../recap-core.js
 import { syncRoles } from './_roles.js';
 import { payRewards } from './_rewards.js';
 import { kvUrl, kvToken } from './_blackjack.js';
+import { payRakeback } from './_rakeback.js';
 
 /** true when the request carries the right secret key (and one is set on Vercel). */
 export function keyOk(sent, want = process.env.ROLES_KEY) {
@@ -28,6 +30,11 @@ async function readBody(req) {
 
 export default async function handler(req, res) {
   try {
+    // Monday's weekly casino rakeback (Vercel cron, see vercel.json). Pays only last week, only once, so any caller is harmless.
+    if (new URL(req.url, 'http://x').searchParams.has('rakeback')) {
+      if (!kvUrl() || !kvToken()) { res.status(500).json({ error: 'chip storage not set up' }); return; }
+      res.setHeader('Cache-Control', 'no-store'); res.status(200).json(await payRakeback()); return;
+    }
     if (!process.env.DISCORD_BOT_TOKEN) { res.status(500).json({ error: 'DISCORD_BOT_TOKEN is not set on Vercel' }); return; }
     let csv = '', members = null;
     const trusted = keyOk(req.headers['x-roles-key']);
