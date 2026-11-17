@@ -118,7 +118,7 @@ export async function POST(req) {
 
   const opts = Object.fromEntries((i.data && i.data.options || []).map(o => [o.name, o]));
   if (i.type === 4) return suggest(i, opts); // suggestions while typing
-  if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('tally:')) { // the invite's Update headcount button
+  if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('tally:')) { // old invites' Update headcount button (new ones have none)
     const s = await sheet();
     return json(await tally(i, s || { ids: {} }));
   }
