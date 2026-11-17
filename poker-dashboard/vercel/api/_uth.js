@@ -2,6 +2,8 @@
 //   /uth ante:10 trips:5   ante + an equal blind go up (plus the optional Trips side bet)
 //   Pre-flop: bet 4x the ante, or check.  Flop: bet 2x, or check.  River: bet 1x, or fold (lose ante + blind).
 //   One bet per hand; after it the rest of the cards come out and it's showdown.
+//   The deal also holds back 1x the ante (g.held) so the river bet is always covered, even if the chips get spent
+//   in another game mid-hand. A bet uses the held chips first; a fold hands them back.
 //   Dealer needs a pair to qualify; if not, the ante pushes. Play pays 1:1. Blind pays only when you win with a
 //   straight or better (royal 500:1, straight flush 50:1, quads 10:1, full house 3:1, flush 3:2, straight 1:1),
 //   otherwise it pushes on a win. Trips pays on your own hand whatever the dealer has, even after a fold
@@ -107,6 +109,7 @@ export function settle(g) {
 
 // ---------- the message ----------
 const onTable = g => g.ante * 2 + g.trips + g.play;
+const held = g => g.held || 0; // hands dealt before the hold existed have none
 const shown = g => g.stage === 'pre' ? 0 : g.stage === 'flop' ? 3 : 5;
 const holeName = cs => { const [a, b] = cs.map(val).sort((x, y) => y - x); return a === b ? `Pocket ${PLURAL(a)}` : `${NAME[a][0].toUpperCase() + NAME[a].slice(1)} high`; };
 
@@ -122,14 +125,14 @@ function view(g, bal) {
   let row;
   if (!done) {
     title = `♠️ Ultimate Hold'em · ${g.name}`; color = 0x6e52c8;
-    const can = m => bal >= g.ante * m;
+    const can = m => bal + held(g) >= g.ante * m;
     if (g.stage === 'pre') { footer = 'Pre-flop: bet 4x your ante now, or check and decide later';
       row = [btn(`Bet 4x (${money(g.ante * 4)})`, '💰', 'b4', 3, !can(4)), btn('Check', '✋', 'chk', 2)]; }
     else if (g.stage === 'flop') { footer = 'Flop: bet 2x your ante, or check';
       row = [btn(`Bet 2x (${money(g.ante * 2)})`, '💰', 'b2', 3, !can(2)), btn('Check', '✋', 'chk', 2)]; }
     else { footer = 'River: bet 1x your ante, or fold and lose the ante and blind';
       row = [btn(`Bet 1x (${money(g.ante)})`, '💰', 'b1', 3, !can(1)), btn('Fold', null, 'fold', 4)]; }
-    footer += ` · balance ${money(bal)} (+${money(onTable(g))} on the table) · only ${g.name} can press these`;
+    footer += ` · balance ${money(bal)} (+${money(onTable(g))} on the table${held(g) ? `, ${money(held(g))} held for the river bet` : ''}) · only ${g.name} can press these`;
   } else {
     title = g.res === 'fold' ? `♠️ ${g.name} folds${g.net ? `, ${g.net > 0 ? 'up' : 'down'} ${money(Math.abs(g.net))}` : ''}`
       : g.net > 0 ? `♠️ ${g.name} wins ${money(g.net)}!` : g.net < 0 ? `♠️ ${g.name} loses ${money(-g.net)}` : `♠️ ${g.name} breaks even`;
@@ -137,7 +140,7 @@ function view(g, bal) {
     const fmt = a => (a > 0 ? `+${money(a)}` : a < 0 ? `−${money(-a)}` : '$0');
     description = `${bets}\n\n${g.lines.map(([b, why, a]) => `**${b}** · ${why} · \`${fmt(a)}\``).join('\n')}\n\nBalance **${money(bal)}**`;
     footer = 'Dealer needs a pair to qualify · Blind pays on a straight or better';
-    row = [btn(`Play again (${money(g.ante)}${g.trips ? ` + ${money(g.trips)} trips` : ''})`, '🔁', 'again', 1, bal < g.ante * 2 + g.trips), btn('Payouts', '📜', 'pay', 2)];
+    row = [btn(`Play again (${money(g.ante)}${g.trips ? ` + ${money(g.trips)} trips` : ''})`, '🔁', 'again', 1, bal < g.ante * 3 + g.trips), btn('Payouts', '📜', 'pay', 2)];
   }
   return { allowed_mentions: { parse: [] }, embeds: [{ color, title, description, image: { url: `${SITE}/api/bjcards?${q}` }, footer: { text: footer } }],
     components: [{ type: 1, components: row }] };
@@ -148,15 +151,17 @@ const PAYTABLE = [
   '**Play** pays 1:1 when you beat the dealer. **Ante** pays 1:1 if the dealer qualifies (a pair or better), otherwise it pushes.',
   '**Blind** (only when you win): royal flush 500:1 · straight flush 50:1 · four of a kind 10:1 · full house 3:1 · flush 3:2 · straight 1:1 · anything less pushes.',
   '**Trips** (your hand, win or lose, even after a fold): royal flush 50:1 · straight flush 40:1 · four of a kind 30:1 · full house 8:1 · flush 7:1 · straight 4:1 · three of a kind 3:1.',
-  'Ties push everything except Trips. Folding on the river loses the ante and blind.'].join('\n');
+  'Ties push everything except Trips. Folding on the river loses the ante and blind.',
+  'The deal holds back 1x your ante so you can always make the river bet. Any bet uses it first; folding gives it back.'].join('\n');
 
 // ---------- a hand ----------
-/** Deals a new hand and takes ante + blind (+ trips). Shared by /uth and the site: { g, bal } or { err }. */
+/** Deals a new hand and takes ante + blind (+ trips), plus 1x the ante held for the river bet.
+ *  Shared by /uth and the site: { g, bal } or { err }. */
 export async function newHand(me, ante, trips) {
-  const need = ante * 2 + trips, took = await takeChips(me.id, need);
+  const need = ante * 3 + trips, took = await takeChips(me.id, need);
   if (took.short && took.had === null) return { err: "You don't have any chips yet. Use **/daily** to get some free." };
-  if (took.short) return { err: `This hand needs ${money(need)} up front (ante + blind${trips ? ' + trips' : ''}), and you have ${money(took.had)}.` };
-  const deck = freshDeck(), g = { id: randomBytes(5).toString('hex'), uid: me.id, name: me.name, ante, trips, play: 0, step: 0, stage: 'pre' };
+  if (took.short) return { err: `This hand needs ${money(need)} to start: ante + blind${trips ? ' + trips' : ''}, plus ${money(ante)} held so you can always make the river bet (you get it back if you fold). You have ${money(took.had)}.` };
+  const deck = freshDeck(), g = { id: randomBytes(5).toString('hex'), uid: me.id, name: me.name, ante, trips, play: 0, held: ante, step: 0, stage: 'pre' };
   g.me = [deck.pop(), deck.pop()]; g.dealer = [deck.pop(), deck.pop()]; g.board = [deck.pop(), deck.pop(), deck.pop(), deck.pop(), deck.pop()];
   await kv(['HSET', 'bj:name', me.id, me.name], ['SET', 'uth:g:' + g.id, JSON.stringify(g), 'EX', 3600]);
   return { g, bal: took.bal };
@@ -190,16 +195,19 @@ export async function uthAction(me, gid, act) {
     let bal = +balRaw || 0;
     const ok = { pre: ['b4', 'chk'], flop: ['b2', 'chk'], river: ['b1', 'fold'] }[g.stage];
     if (!ok.includes(act)) return { busy: true };
-    let spend = 0;
+    let refund = 0;
     if (act[0] === 'b') {
-      spend = g.ante * +act[1];
-      const took = await takeChips(me.id, spend); // in one step, so another game can't spend the same chips
-      if (took.short) return { err: `You need ${money(spend)} for that bet and have ${money(took.had || 0)}.` };
-      g.play = spend; settle(g);
-    } else if (act === 'fold') { g.folded = true; settle(g); }
+      const spend = g.ante * +act[1], extra = spend - held(g); // the held chips go in first
+      if (extra > 0) {
+        const took = await takeChips(me.id, extra); // in one step, so another game can't spend the same chips
+        if (took.short) return { err: `You need ${money(extra)} more for that bet (${money(held(g))} is already held for it) and have ${money(took.had || 0)}.` };
+      }
+      g.held = 0; g.play = spend; settle(g);
+    } else if (act === 'fold') { refund = held(g); g.held = 0; g.folded = true; settle(g); }
     else g.stage = g.stage === 'pre' ? 'flop' : 'river';
     g.step++;
-    const done = g.stage === 'done', delta = done ? g.payout : 0; // the play bet is already off (takeChips)
+    // the play bet is already off (takeChips + the hold); a fold gets the held chips back on top of the payout
+    const done = g.stage === 'done', delta = done ? g.payout + refund : 0;
     const res = await kv(...(delta ? [['HINCRBYFLOAT', 'bj:bal', me.id, delta]] : [['HGET', 'bj:bal', me.id]]), ['SET', 'uth:g:' + g.id, JSON.stringify(g), 'EX', 3600], ['DEL', 'uth:lock:' + gid],
       ...(done ? feedCmds(me, 'UTH', g.net, onTable(g)) : []));
     wrote = true; bal = +res[0];
@@ -215,7 +223,7 @@ export function publicUth(g, bal) {
     board: [...g.board.slice(0, n), ...Array(5 - n).fill('XX')], dealer: done ? g.dealer : ['XX', 'XX'], myHand: mine,
     dlHand: done ? g.dlHand : null, qualifies: done ? g.qualifies : null, res: done ? g.res : null,
     lines: done ? g.lines : null, net: done ? g.net : null, onTable: onTable(g),
-    afford: { 4: bal >= g.ante * 4, 2: bal >= g.ante * 2, 1: bal >= g.ante } };
+    held: held(g), afford: { 4: bal + held(g) >= g.ante * 4, 2: bal + held(g) >= g.ante * 2, 1: bal + held(g) >= g.ante } };
 }
 export { PAYTABLE as UTH_PAYTABLE };
 
