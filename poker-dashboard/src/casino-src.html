@@ -590,11 +590,11 @@ function uth() {
   // two buttons that never move: the bet (or Deal) and check/fold, right under the table; results and chips go below them
   const live = g && !done, st = live ? g.stage : '', a = live ? g.ante : ante;
   const b = (m, cls) => btn(`data-uth="b${m}"`, `Bet ${m}x ${money(a * m)}`, cls, live && g.afford[m]);
-  const slots = `<div class="slots" style="--n:2">${!live ? btn('data-do="uth-deal"', `Deal ${money(ante * 2 + trips)}`, 'gold') : st === 'pre' ? b(4, 'gold') : st === 'flop' ? b(2, 'gold') : b(1, 'gold')}
+  const slots = `<div class="slots" style="--n:2">${!live ? btn('data-do="uth-deal"', `Deal ${money(ante * 3 + trips)}`, 'gold') : st === 'pre' ? b(4, 'gold') : st === 'flop' ? b(2, 'gold') : b(1, 'gold')}
       ${st === 'river' ? btn('data-uth="fold"', 'Fold', 'ghost') : btn('data-uth="chk"', 'Check', 'ghost', st === 'pre' || st === 'flop')}</div>`;
-  const controls = `<p class="rules stage">${!live ? `Ante + equal blind up front${trips ? ', plus trips' : ''}. Then bet 4x before the flop, 2x on the flop, or 1x on the river.`
+  const controls = `<p class="rules stage">${!live ? `Ante + equal blind up front${trips ? ', plus trips' : ''}, and 1x your ante held so the river bet is always covered (back if you fold). Then bet 4x before the flop, 2x on the flop, or 1x on the river.`
       : st === 'pre' ? 'Pre-flop: bet 4x your ante now, or check and decide after the flop.' : st === 'flop' ? 'Flop: bet 2x your ante, or check.' : 'River: bet 1x your ante, or fold and lose the ante and blind.'}
-      ${live ? `Ante ${money(g.ante)} · Blind ${money(g.ante)}${g.trips ? ` · Trips ${money(g.trips)}` : ''}` : ''}</p>
+      ${live ? `Ante ${money(g.ante)} · Blind ${money(g.ante)}${g.trips ? ` · Trips ${money(g.trips)}` : ''}${g.held ? ` · ${money(g.held)} held for the river bet` : ''}` : ''}</p>
     <div class="acts">${chipPicker('ante', [5, 10, 25, 50, 100], ante, 'Ante', live)}</div><div class="acts">${chipPicker('trips', [0, 5, 10, 25], trips, 'Trips', live)}</div>`;
   const lines = done ? `<div class="lines" data-late>${g.lines.map(([b, why, amt]) => `<div><b>${esc(b)}</b><span>${esc(why)}</span><span class="${amt > 0 ? 'pos' : amt < 0 ? 'neg' : ''}">${amt ? signed(amt) : '$0'}</span></div>`).join('')}</div>` : '';
   return `${balBar("Ultimate Hold'em", done ? g.net : 0)}${felt(g ? g.id : '', inner)}${slots}<div class="err">${esc(T.err)}</div>${lines}${controls}
