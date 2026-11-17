@@ -70,7 +70,7 @@ poker-dashboard/
                        house books + rakeback: every house-game hand (blackjack, free bet, UTH, baccarat, roulette) goes through feedCmds(me, game, net, wager), which also
                        counts hs:all / hs:wk:<week> (house win per game) and rb:wk:<week> (player net) + rb:vol:<week> (player total bet). <week> = Monday's date, weeks start Monday 16:00 UTC.
                        _rakeback.js pays last week once (rb:done:<week>): 10% of net loss + 0.25% of all bets, max $250 (RAKE in _blackjack.js), then posts amounts only in #casino
-                       (never show anyone's losses, by request). Run by the Vercel cron Mondays 16:00 UTC -> /api/roles?rakeback=1. Lobby + /chips show "rakeback so far". /earn = ephemeral "how to earn chips" (amounts from REWARD_LIST, FIRST_CLAIM/DAILY, RAKE.cap, TICKET). /house = ephemeral
+                       (never show anyone's losses, by request). Run by the Vercel cron Mondays 16:00 UTC -> /api/roles?rakeback=1. Lobby + /chips show "rakeback so far". /earn = public "how to earn chips" (amounts from REWARD_LIST, FIRST_CLAIM/DAILY, RAKE.cap, TICKET). /house = ephemeral
                        house books (pitbosses, Renato, admins only; inviteBlocked(..., strict)). New house games must pass the wager to feedCmds
                        lottery: _lottery.js (quarter lottery: 1 ticket per $10 of Cash_In in the quarter, jackpot = all buy-ins 1:1 in chips;
                        drawn by hand with /lottery draw (host only, live ticket roll in Discord, draws the last finished quarter once), Lucky Ticket role (_roles.js);

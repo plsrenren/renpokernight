@@ -171,7 +171,7 @@ export async function POST(req) {
     const no = await inviteBlocked(i, s || { ids: {} }, HOST_ID);
     return json(no || startTourney(i, opts, s || { ids: {} }, waitUntil));
   }
-  if (i.data.name === 'earn') return json({ type: 4, data: { flags: 64, allowed_mentions: { parse: [] }, embeds: [earnEmbed()] } });
+  if (i.data.name === 'earn') return json({ type: 4, data: { allowed_mentions: { parse: [] }, embeds: [earnEmbed()] } });
   if (i.data.name === 'house') { // pitbosses only (plus Renato and admins), and only they see the answer
     const no = await inviteBlocked(i, s || { ids: {} }, HOST_ID, true);
     if (no) return json(no);
@@ -194,7 +194,7 @@ export async function POST(req) {
   return run ? run(i, opts, s) : say('Unknown command.');
 }
 
-// /earn (only the person who runs it sees it): every way to get chips. Poker night amounts come from REWARD_LIST, so they never go stale.
+// /earn (posted for everyone in the channel): every way to get chips. Poker night amounts come from REWARD_LIST, so they never go stale.
 function earnEmbed() {
   const nights = REWARD_LIST.map(g => `__${g.group}__\n` + g.items.map(x => `${x.what} **${x.amt}**`).join(' · ')).join('\n');
   return { color: 0xf1c75b, title: '💰 How to earn chips', url: `${SITE}/casino`,
