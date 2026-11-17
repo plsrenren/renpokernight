@@ -8,6 +8,7 @@
 // /roulette in that channel, spins it instead (for up to a day), so chips are never stuck.
 // Keys: ro:t:<id> (table, 1 day), ro:open:<channel> (open table id, 1 day), ro:lock:<id>, ro:chip (hash user → chip size),
 //       ro:hist:<channel> (last spins).
+import { attachPicture, discordBody } from './_attach.js';
 import { randomBytes, randomInt } from 'node:crypto';
 import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds, takeChips } from './_blackjack.js';
 
@@ -117,7 +118,8 @@ async function spinLater(appId, token, id) {
     const t = JSON.parse(r2);
     if (t.spun) return;
     await spin(t);
-    const r = await fetch(`${API}/webhooks/${appId}/${token}/messages/@original`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tableView(t)) });
+    const view = (await attachPicture(tableView(t), 5000)) || { data: tableView(t), png: null }; // wheel uploaded with the edit (see _attach.js)
+    const r = await fetch(`${API}/webhooks/${appId}/${token}/messages/@original`, { method: 'PATCH', ...discordBody(view.data, view.png) });
     if (!r.ok) console.error('roulette edit failed', r.status, await r.text());
   } finally { await unlock(id); }
 }

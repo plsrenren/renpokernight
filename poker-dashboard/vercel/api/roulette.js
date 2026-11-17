@@ -50,7 +50,7 @@ export default async function handler(req, res) {
     if (!Number.isInteger(n) || n < 0 || n > 36) { res.status(400).send('n must be 0 to 36'); return; }
     const png = await render(n);
     res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable'); // s-maxage: Vercel's CDN keeps it too
     res.status(200).send(png);
   } catch (e) { res.status(500).send('Could not draw the wheel: ' + e.message); }
 }

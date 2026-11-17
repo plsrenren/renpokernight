@@ -40,6 +40,7 @@ import { REWARD_LIST } from './_rewards.js';
 import { FIRST_CLAIM, DAILY, DAILY_RESET_UTC, RAKE } from './_blackjack.js';
 import { SHOP_COMMANDS, shopCommand, shopInteraction } from './_shop.js';
 import { wrongChannel } from './_channels.js';
+import { withPicture, warmPictures } from './_attach.js';
 import { board as lotteryBoard, quarterOf, shownQuarter, drawable, drawQuarter, TICKET, LUCKY_ROLE, nextQuarter } from './_lottery.js';
 import { nightRows } from './_rewards.js';
 import { SHEET_URL, MEMBERS_URL, gameRecords, findPlayer, latestQuarter, memberIds, toNights, hallOfFame, usd, wrapDefault, quartersWithGames } from '../recap-core.js';
@@ -111,12 +112,22 @@ const refreshNewestInvite = () => refreshInvite(async () => Object.fromEntries(O
   .catch(e => console.error('invite refresh', e));
 const webRoute = req => { const w = new URL(req.url).searchParams.get('web'); return w === 'login' || w === 'casino' || w === 'shop' ? w : null; };
 
+// casino replies carry their table picture as an upload (see _attach.js), so it shows with the message instead of loading after it
+const PIC_BUTTONS = /^(bj|du|uth|ro|ba|sh):/, PIC_COMMANDS = ['blackjack', 'freebet', 'duel', 'uth', 'baccarat', 'roulette', 'pack'];
 export async function POST(req) {
   if (webRoute(req)) { waitUntil(refreshNewestInvite()); return casinoWeb(req, webRoute(req), sheet); }
+  const startedAt = Date.now();
   const body = await req.text();
   if (!signed(req, body)) return new Response('bad signature', { status: 401 });
   const i = JSON.parse(body);
   if (i.type === 1) return json({ type: 1 }); // Discord's ping when you save the endpoint URL
+  const pic = (i.type === 3 && i.data && PIC_BUTTONS.test(String(i.data.custom_id))) || (i.type === 2 && i.data && PIC_COMMANDS.includes(i.data.name));
+  if (!pic) return answer(i);
+  warmPictures().catch(e => console.error('picture code', e)); // loads while the game talks to chip storage
+  return withPicture(await answer(i), startedAt);
+}
+
+async function answer(i) {
   waitUntil(refreshNewestInvite()); // any use of the bot also refreshes the newest invite's headcount (at most once a minute)
 
   const opts = Object.fromEntries((i.data && i.data.options || []).map(o => [o.name, o]));
