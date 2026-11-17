@@ -24,7 +24,7 @@
       "maxDuration": 15
     },
     "api/discord.js": {
-      "includeFiles": "{recap-core.js,loot.js}",
+      "includeFiles": "{api/_assets/**,recap-core.js,loot.js}",
       "maxDuration": 60
     },
     "api/avatar.js": {

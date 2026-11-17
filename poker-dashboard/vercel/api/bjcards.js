@@ -147,7 +147,7 @@ export default async function handler(req, res) {
   try {
     const png = await render(new URL(req.url, 'http://x').searchParams);
     res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); // each picture's URL is unique to one moment of one hand
+    res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable'); // each picture's URL is unique to one moment of one hand; s-maxage lets Vercel's CDN keep it too
     res.status(200).send(png);
   } catch (e) { res.status(500).send('Could not draw the table: ' + e.message); }
 }

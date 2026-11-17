@@ -49,6 +49,9 @@ poker-dashboard/
                        free double hard 9-11, free split any pair but 10s, dealer hits soft 17, dealer 22 pushes, Push 22 side bet 11:1 (g.side, max 25), hand.free = house money;
                        site table #freebet (cas:cur fb), feed game name "free bet"; play chips in Upstash Redis via KV_REST_API_URL/TOKEN; daily resets once a day at 16:00 UTC, not 24h after the last claim),
                        bjcards (table picture under each hand)
+                       pictures: _attach.js draws the bjcards/roulette picture inside the discord.js reply and uploads it as attachment://table.png
+                       (multipart), so Discord doesn't fetch it afterwards; falls back to the /api/bjcards link if drawing runs past ~1.8s. Game code keeps
+                       building the link URLs as before; discord.js POST wraps casino replies with withPicture(), roulette's spin edit uses attachPicture()
                        duel: _duel.js (/duel rock paper scissors or high card for the same chips; high card picture = bjcards?m=duel; both stakes taken in one Lua step;
                        RPS: "Call it off" refunds both after 3 min, sweepDuels refunds duels stuck 30+ min (run on /duel and /daily, du:live hash))
                        uth: _uth.js (/uth Ultimate Texas Hold'em vs the dealer for the same chips; no 3x pre-flop bet (only 4x or check), by request; table picture = bjcards?m=uth)
