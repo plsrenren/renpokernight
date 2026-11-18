@@ -81,8 +81,8 @@ poker-dashboard/
                        drawn by hand with /lottery draw (host only, live ticket roll in Discord, draws the last finished quarter once), Lucky Ticket role (_roles.js);
                        /lottery odds|draw, lobby prize wheel with pfps (spins to the winner once per viewer), lobby panel, card at /api/wrap?lottery=<quarter>, spinning wheel GIF at /api/wrap?lottery=<quarter>&spin=1 (_wheelgif.js; no spare function slot). Some names are shown
                        with tickets but never drawn (SKIP in _lottery.js), by request: don't mention it anywhere user-facing)
-                       accolades: _accolades.js + ACC in loot.js (42 earned items, ids a:<k>, tier 'Earned', never in packs): 25 casino (6 borders, 18 titles, 1 sticker)
-                       + 17 home poker (poker: 1; 4 borders, 13 titles) worked out from the sheet by pokerFrom(), checkPoker() in roles.js after each night + Monday cron, notes in #the-table.
+                       accolades: _accolades.js + ACC in loot.js (43 earned items, ids a:<k>, tier 'Earned', never in packs): 25 casino (6 borders, 18 titles, 1 sticker)
+                       + 18 home poker (poker: 1; 4 borders, 14 titles; Got the Milk only counts nights from MILK_FROM 2026-09-19, not retroactive) worked out from the sheet by pokerFrom(), checkPoker() in roles.js after each night + Monday cron, notes in #the-table.
                        First run of each set (ac:init / ac:pinit) hands out already-earned ones SILENTLY, by request; only later unlocks post.
                        Hand counter (invisible to players): feedCmds() also bumps ac:n:<id> (hands per game, daily, tips received, naturals, royal, believer)
                        and adds the player to ac:dirty; discord.js runs checkAccolades() after each answer (waitUntil), roles.js after each night and

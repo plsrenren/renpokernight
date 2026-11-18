@@ -216,6 +216,7 @@ export const ACC = [
   { k: 'wiretowire', slot: 'Title', name: 'Wire to Wire', why: 'Won on one buy-in', need: 'win a tournament without rebuying', poker: 1 },
   { k: 'monster', slot: 'Title', name: 'Monster Night', why: 'Up $300 in one night', need: 'finish a night up $300 or more', poker: 1 },
   { k: 'switchhitter', slot: 'Title', name: 'Switch Hitter', why: 'Won cash and a tourney', need: 'win at least one cash night and one tournament', poker: 1 },
+  { k: 'gotmilk', slot: 'Title', name: 'Got the Milk', why: 'Back from the store', need: 'play again after missing 5+ nights in a row (only nights from Sep 19, 2026 count, so nobody gets it for the past)', poker: 1 },
   { k: 'doubleup', slot: 'Title', name: 'Double Up', why: 'Doubled up at cash', need: 'cash out at least double your Cash_In on a cash night', poker: 1 },
 ];
 const ACC_BY = Object.fromEntries(ACC.map(a => [a.k, a]));

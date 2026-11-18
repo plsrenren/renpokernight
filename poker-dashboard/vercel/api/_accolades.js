@@ -19,9 +19,11 @@ import { postCasino, postChannel, nightRows } from './_rewards.js';
 import { ACC, ITEMS, accItem } from '../loot.js';
 
 /** how much of each thing unlocks what */
-export const NEED = { wins3: 3, tourWins: 5, cashWins: 5, seconds: 5, nights25: 25, nights100: 100, bounty: 100, boughtIn: 1000, monster: 300,
+export const NEED = { wins3: 3, tourWins: 5, cashWins: 5, seconds: 5, nights25: 25, nights100: 100, bounty: 100, boughtIn: 1000, monster: 300, missed: 5,
   duelist: 10, gun: 50, nemesis: 10, whale: 10000, stacked: 5000, bigstack: 10000, mountain: 25000,
   packrat: 25, epic: 10, coll: 50, clockedin: 30, hands: 250, cardshark: 1000, natural: 25, regular: 4 };
+/** Got the Milk only counts nights from here on (Renato: not for the past; the count started 4 nights before launch) */
+export const MILK_FROM = '2026-09-19';
 /** the first casino week with weekly totals (the house books started then) */
 export const FIRST_WEEK = Date.UTC(2026, 10, 16, 16);
 const WEEK = 7 * 864e5, DAY_KEEP = 400 * 86400;
@@ -183,6 +185,7 @@ export function pokerFrom(rows) {
   const nights = {}, byPlayer = {}, out = {};
   rows.forEach(r => { (nights[r.night] ||= []).push(r); (byPlayer[r.player] ||= []).push(r); });
   const place = {}; for (const [night, list] of Object.entries(nights)) place[night] = placesOf(list);
+  const order = Object.keys(nights).sort();
   const add = (p, k) => (out[p] ||= new Set()).add(k);
   // Perfect Attendance: finished quarters only (a later quarter has a night), every night of it
   const qNights = {}; Object.keys(nights).forEach(n => (qNights[nights[n][0].quarter] ||= new Set()).add(n));
@@ -212,6 +215,9 @@ export function pokerFrom(rows) {
     if (g.reduce((t, r) => t + (r.cin || 0), 0) >= NEED.boughtIn) add(p, 'sponsor');
     if (g.some(r => r.net >= NEED.monster)) add(p, 'monster');
     if (g.some(r => r.type !== 'Tournament' && r.cin > 0 && r.cout >= 2 * r.cin)) add(p, 'doubleup');
+    // Got the Milk: back after missing 5+ nights in a row, counting only nights from MILK_FROM (and only after they'd played once)
+    let gone = -1;
+    for (const n of order) { if (played.has(n)) { if (gone >= NEED.missed && n >= MILK_FROM) add(p, 'gotmilk'); gone = 0; } else if (gone >= 0 && n >= MILK_FROM) gone++; }
   }
   return out;
 }
