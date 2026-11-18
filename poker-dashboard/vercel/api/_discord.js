@@ -22,7 +22,7 @@ export async function discordUser(id) {
     try {
       const r = await get(`https://discord.com/api/v10/users/${id}`, { headers: { Authorization: `Bot ${token}` } }, 3000);
       if (r.status === 429 && tries === 0) {
-        const wait = Math.min(2000, 1000 * (+(await r.json().catch(() => ({}))).retry_after || +r.headers.get('retry-after') || 1));
+        const wait = Math.min(1500, 1000 * (+(await r.json().catch(() => ({}))).retry_after || +r.headers.get('retry-after') || 1));
         await new Promise(ok => setTimeout(ok, wait)); continue;
       }
       if (r.ok || r.status === 404) { const user = r.ok ? await r.json() : null; users.set(id, { at: Date.now(), user }); failed.delete(id); return user; }
