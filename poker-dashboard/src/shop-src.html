@@ -826,7 +826,7 @@ function card(eq) {
   const name = ME.name, id = ME.id;
   const pf = itemFor(eq['Pfp border']), ov = BY_ID[eq['Overall bar']], tt = BY_ID[eq['Title']], sk = BY_ID[eq['Sticker']];
   const pc = RECS.length && RECS.some(r => r.player === name) ? playerCard(RECS, name) : null;
-  const img = pic(id, name).replace('/api/avatar?id=', '/api/avatar?anim=1&id='); // animated Discord pfp, when they have one
+  const img = pic(id, name).replace('/api/avatar?id=', '/api/avatar?anim=2&id='); // animated Discord pfp, when they have one
   const has = pc && !pc.empty;
   const big = has && pc.ovr ? pc.ovr.value : '–';
   let h = `<div class="mini fc"><div class="fhero"><img class="ban" alt="" data-src="/api/avatar?id=${esc(id)}&kind=banner" onerror="this.removeAttribute('src')"><div class="big">${big}</div>${sk ? `<div class="fstk">${STICKERS[sk.name] || ''}</div>` : ''}
