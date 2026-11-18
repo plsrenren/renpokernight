@@ -60,6 +60,12 @@ button:disabled { cursor: default; opacity: .4; }
 .game span { font-size: 12px; color: var(--muted); line-height: 1.35; }
 .game .go { margin-top: auto; font: 400 15px var(--title); letter-spacing: .1em; color: var(--c); }
 .game.soon { opacity: .55; pointer-events: none; }
+.shopln { display: flex; align-items: center; gap: 12px; margin: 14px 0; padding: 12px 14px; background: var(--panel2); border-left: 4px solid var(--gold); text-decoration: none; color: inherit; }
+.shopln:hover { background: #332d60; }
+.shopln .ic { font-size: 28px; line-height: 1; }
+.shopln b { display: block; font: 400 24px/1 var(--title); letter-spacing: .04em; }
+.shopln span { font-size: 12px; color: var(--muted); }
+.shopln .go { margin-left: auto; font: 400 15px var(--title); letter-spacing: .1em; color: var(--gold); white-space: nowrap; }
 /* leaderboard + feed */
 .cols { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
 .lb { width: 100%; border-collapse: collapse; }
@@ -510,11 +516,12 @@ function lottery() {
         <li>Tickets start over every quarter. /lottery odds shows this in Discord too.</li></ul>
         ${past ? `<div class="sub">Past winners</div>${past}` : ''}</div></div></div>`;
 }
+const SHOP_LINK = `<a class="shopln" href="/shop"><div class="ic">🃏</div><div><b>Study Cards</b><span>Open packs, equip titles, borders and stickers.</span></div><div class="go">Shop →</div></a>`;
 function lobby() {
   if (!S.me) return `<section class="hero"><div><h2>Same chips as Discord</h2>
       <p>Play blackjack, Ultimate Hold'em and baccarat with your Discord chips. Win here and /chips on Discord shows it, and the other way round. Sign in once so the site knows whose chips they are.</p></div>
       <div><a class="dbtn" href="/api/login">${DISCORD_SVG}Sign in with Discord</a><div class="fine">The site only gets your Discord name, pfp and ID. No password, no email, no messages.</div></div></section>
-    ${lottery()}<div class="cols">${board()}${feed()}</div>`;
+    ${SHOP_LINK}${lottery()}<div class="cols">${board()}${feed()}</div>`;
   const me = S.me, top = S.board[0];
   const msg = T.got ? `<div class="note ok">+${money(T.got)} added${T.first ? ' (welcome bonus)' : ''}. Good luck.</div>` : '';
   return `${msg}<div class="strip">
@@ -532,6 +539,7 @@ function lobby() {
         <div class="game soon" style="--c:var(--up)"><div class="ic">🎡</div><b>Roulette</b><span>Play it with /roulette in the Discord server.</span><div class="go">Discord only</div></div>
         <div class="game soon" style="--c:#7fb6ff"><div class="ic">⚔️</div><b>Duel</b><span>Challenge someone with /duel in the Discord server.</span><div class="go">Discord only</div></div>
       </div></div>
+    ${SHOP_LINK}
     ${lottery()}
     <div class="cols">${board()}${feed()}</div>
     ${rewards()}`;
