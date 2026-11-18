@@ -68,12 +68,12 @@ export async function drawQuarter(csv, ids, q, rnd = randomInt) {
     const b = board(rows, q, ids), pick = pickTicket(b, rnd);
     if (!pick) return { err: `Nobody has tickets for ${q}.` };
     const id = ids[pick.name];
-    const d = { quarter: q, name: pick.name, ticket: pick.ticket, total: b.total, tickets: b.holders.find(h => h.name === pick.name).t, jackpot: b.jackpot, at: Date.now(), paid: b.jackpot };
+    const d = { quarter: q, name: pick.name, id, ticket: pick.ticket, total: b.total, tickets: b.holders.find(h => h.name === pick.name).t, jackpot: b.jackpot, at: Date.now(), paid: b.jackpot };
     const [ok] = await kv(['SET', 'lt:draw:' + q, JSON.stringify(d), 'NX']);
     if (!ok) return { err: `${q} was already drawn.` };
     await kv(['SET', 'lt:last', q], ['HINCRBYFLOAT', 'bj:bal', id, d.jackpot], ['HSETNX', 'bj:name', id, d.name],
       ['LPUSH', 'cas:feed', JSON.stringify({ id, name: d.name, game: 'lottery', why: `${q} lottery jackpot`, net: d.jackpot, src: 'night', at: Date.now() })],
-      ['LTRIM', 'cas:feed', 0, FEED_KEEP - 1]);
+      ['LTRIM', 'cas:feed', 0, FEED_KEEP - 1], ['SADD', 'ac:dirty', id]); // ac:dirty: the next request gives them the Lucky Ticket sticker
     return { d, id, board: b };
   } finally { await kv(['DEL', 'lt:lock']).catch(() => {}); }
 }

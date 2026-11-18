@@ -28,6 +28,8 @@ const BETS = {
 };
 const betName = b => (b.type === 'num' ? `#${b.num}` : `${BETS[b.type].emoji ? BETS[b.type].emoji + ' ' : ''}${BETS[b.type].label}`);
 const wins = (b, n) => (b.type === 'num' ? b.num === n : BETS[b.type].wins(n));
+/** 1 when every chip uid put on this spin sits on one single number and that number hit (True Believer accolade). */
+export const loneHit = (bets, uid, n) => { const mine = bets.filter(b => b.uid === uid); return mine.length && mine.every(b => b.type === 'num' && b.num === n) ? 1 : 0; };
 const pays = b => (b.type === 'num' ? 35 : BETS[b.type].pays);
 export const colorOf = n => (n === 0 ? 'green' : REDS.has(n) ? 'red' : 'black');
 
@@ -100,7 +102,7 @@ async function spin(t) {
   const pay = Object.entries(back).map(([uid, amt]) => ['HINCRBYFLOAT', 'bj:bal', uid, amt]);
   // one "Just now" line per player at the table (after the reads below, so the result indexes stay put)
   const names = {}, staked = {}; t.bets.forEach(b => { names[b.uid] = b.name; staked[b.uid] = (staked[b.uid] || 0) + b.amt; });
-  const feed = Object.entries(t.nets).flatMap(([uid, net]) => feedCmds({ id: uid, name: names[uid] }, 'roulette', net, staked[uid]));
+  const feed = Object.entries(t.nets).flatMap(([uid, net]) => feedCmds({ id: uid, name: names[uid] }, 'roulette', net, staked[uid], { believer: loneHit(t.bets, uid, n) }));
   const res = await kv(...pay, ['LPUSH', 'ro:hist:' + t.channel, n], ['LTRIM', 'ro:hist:' + t.channel, 0, 4], ['LRANGE', 'ro:hist:' + t.channel, 0, 4], save(t), ['EVAL', CLEAR_OPEN, 1, 'ro:open:' + t.channel, t.id], ...feed);
   t.hist = (res[pay.length + 2] || []).map(Number);
   await kv(save(t));

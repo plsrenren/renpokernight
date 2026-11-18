@@ -183,24 +183,41 @@ export function casinoText(people, nights) {
 /** Finds the #casino text channel (remembered in rw:chan) and posts the note there. Returns where it went, or why not. */
 const postToCasino = (people, nights) => postCasino({ content: casinoText(people, nights), allowed_mentions: { parse: [] } });
 /** Posts a Discord message body ({ content, embeds, allowed_mentions }) in #casino. Also used by the lottery draw. */
-export async function postCasino(payload) {
+export const postCasino = payload => postChannel(payload, 'casino');
+const CHANS = { casino: { name: 'casino', key: 'rw:chan', test: n => /^casino$/i.test(n) },
+  table: { name: 'the-table', key: 'rw:tchan', test: n => /^the-table$/i.test(n) } };
+/** Which of these Discord ids are in the server right now (the bot's first servers; a lookup that fails counts as not in it).
+ *  Used so nobody outside the Discord shows up in a note. */
+export async function inServer(uids) {
   const token = process.env.DISCORD_BOT_TOKEN;
+  if (!token || !uids.length) return new Set();
+  const H = { Authorization: `Bot ${token}` };
+  const get = path => fetch(API + path, { headers: H }).then(r => r.ok ? r.json() : null).catch(() => null);
+  const guilds = ((await get('/users/@me/guilds')) || []).slice(0, 3).map(g => g.id), out = new Set();
+  await Promise.all([...new Set(uids)].slice(0, 50).map(async id => {
+    for (const g of guilds) if (await get(`/guilds/${g}/members/${id}`)) { out.add(id); return; }
+  }));
+  return out;
+}
+/** Posts in #casino (which = 'casino') or #the-table ('table'); the channel id is found by name and remembered a day. Returns where it went, or why not. */
+export async function postChannel(payload, which = 'casino') {
+  const token = process.env.DISCORD_BOT_TOKEN, ch = CHANS[which];
   if (!token) return 'no bot token';
   const H = { Authorization: `Bot ${token}`, 'Content-Type': 'application/json' };
   const get = path => fetch(API + path, { headers: H }).then(r => r.ok ? r.json() : null);
-  let [chan] = await kv(['GET', 'rw:chan']);
+  let [chan] = await kv(['GET', ch.key]);
   if (!chan) {
     for (const g of ((await get('/users/@me/guilds')) || []).slice(0, 3)) {
-      const c = ((await get(`/guilds/${g.id}/channels`)) || []).find(x => (x.type === 0 || x.type === 5) && /^casino$/i.test(x.name));
+      const c = ((await get(`/guilds/${g.id}/channels`)) || []).find(x => (x.type === 0 || x.type === 5) && ch.test(x.name));
       if (c) { chan = c.id; break; }
     }
-    if (!chan) return 'no #casino channel found';
-    await kv(['SET', 'rw:chan', chan, 'EX', 86400]);
+    if (!chan) return `no #${ch.name} channel found`;
+    await kv(['SET', ch.key, chan, 'EX', 86400]);
   }
   const r = await fetch(`${API}/channels/${chan}/messages`, { method: 'POST', headers: H,
     body: JSON.stringify(payload) });
-  if (!r.ok) { await kv(['DEL', 'rw:chan']); return `Discord said ${r.status} (does the bot have Send Messages in #casino?)`; }
-  return 'posted in #casino';
+  if (!r.ok) { await kv(['DEL', ch.key]); return `Discord said ${r.status} (does the bot have Send Messages in #${ch.name}?)`; }
+  return `posted in #${ch.name}`;
 }
 
 /** Pays what's owed minus what was paid. csv = Input tab CSV, ids = { sheetName: discordId }. Returns a short report. */

@@ -2,7 +2,9 @@
 // sheet as JSON { input, members }) right after a night is saved; /roles in Discord does the same.
 // Safe to call any time: it only changes roles that don't match the results.
 // It also pays the casino chip rewards for poker nights (see _rewards.js); those pay each night only once.
-// /api/roles?rakeback=1 (GET, the Monday cron) pays last week's casino rakeback instead (see _rakeback.js).
+// /api/roles?rakeback=1 (GET, the Monday cron) pays last week's casino rakeback instead (see _rakeback.js), then hands out the
+// weekly casino accolades and checks everyone for new ones (see _accolades.js). After a night, chip rewards can unlock the chip titles too,
+// and the poker accolades (from the sheet, checkPoker) are checked then and on the cron.
 // The sheet sent in the body is only trusted with the secret key (header X-Roles-Key = Vercel env ROLES_KEY, which the
 // entry page keeps in its Script Properties). Without it the body is ignored and the sheet is read from Google itself,
 // so nobody can pay themselves chips (or take everyone's back) by posting a made-up sheet.
@@ -12,6 +14,7 @@ import { syncRoles } from './_roles.js';
 import { payRewards } from './_rewards.js';
 import { kvUrl, kvToken } from './_blackjack.js';
 import { payRakeback } from './_rakeback.js';
+import { checkAccolades, weeklyAccolades, checkPoker } from './_accolades.js';
 
 /** true when the request carries the right secret key (and one is set on Vercel). */
 export function keyOk(sent, want = process.env.ROLES_KEY) {
@@ -33,7 +36,14 @@ export default async function handler(req, res) {
     // Monday's weekly casino rakeback (Vercel cron, see vercel.json). Pays only last week, only once, so any caller is harmless.
     if (new URL(req.url, 'http://x').searchParams.has('rakeback')) {
       if (!kvUrl() || !kvToken()) { res.status(500).json({ error: 'chip storage not set up' }); return; }
-      res.setHeader('Cache-Control', 'no-store'); res.status(200).json(await payRakeback()); return;
+      const out = await payRakeback();
+      try { out.accolades = { weekly: await weeklyAccolades(), everyone: await checkAccolades({ all: true }) }; } catch (e) { console.error('accolades', e); out.accolades = { error: e.message }; }
+      // poker accolades too, in case nobody saved a night since they shipped (reads Google's copy of the sheet)
+      try {
+        const [csv, members] = await Promise.all([SHEET_URL, MEMBERS_URL].map(u => fetch(u, { cache: 'no-store' }).then(r => r.ok ? r.text() : '').catch(() => '')));
+        if (csv) out.poker = await checkPoker(csv, memberIds(members));
+      } catch (e) { console.error('poker accolades', e); out.poker = { error: e.message }; }
+      res.setHeader('Cache-Control', 'no-store'); res.status(200).json(out); return;
     }
     if (!process.env.DISCORD_BOT_TOKEN) { res.status(500).json({ error: 'DISCORD_BOT_TOKEN is not set on Vercel' }); return; }
     let csv = '', members = null;
@@ -48,6 +58,8 @@ export default async function handler(req, res) {
     try { report = await syncRoles(gameRecords(csv), ids); } catch (e) { report = { changes: [], errors: ['Roles: ' + e.message], holders: {} }; }
     if (hasKv) {
       try { report.chips = await payRewards(csv, ids); } catch (e) { console.error('rewards', e); report.errors = [...(report.errors || []), 'Chip rewards: ' + e.message]; }
+      try { report.accolades = await checkAccolades({ all: true, ids }); } catch (e) { console.error('accolades', e); }
+      try { report.poker = await checkPoker(csv, ids); } catch (e) { console.error('poker accolades', e); }
     }
     res.setHeader('Cache-Control', 'no-store');
     report.source = trusted ? 'entry page' : 'google sheet';

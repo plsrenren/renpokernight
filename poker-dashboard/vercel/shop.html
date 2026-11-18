@@ -649,6 +649,10 @@ h1{font-family:'Bebas Neue',Impact,sans-serif;font-weight:400;font-size:clamp(44
 .sw .stsw{width:64px;height:64px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(0 3px 3px rgba(0,0,0,.45))}
 .sw .stsw svg{max-width:100%;max-height:100%;width:auto;height:auto;overflow:visible}
 .ti .nm2{white-space:nowrap;overflow:hidden;overflow-wrap:normal;height:19px;display:flex;align-items:center;padding-right:2px}.ti .ttlsw{overflow-wrap:normal}
+/* the line under the name: rarity for pack items, how it was earned for champion borders and casino accolades. Always two lines
+   tall so every tile is the same size (notes are kept to about 24 characters so they never need a third) */
+.ti .rr{height:30px;line-height:1.15;margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.ti .rr.w{font-family:'Space Grotesk',system-ui,sans-serif;font-weight:500;font-size:11.5px;line-height:1.3;letter-spacing:0;color:var(--muted)}
 
 .p-utg,.p-co,.p-btn,.p-sb,.p-bb,.p-str{position:relative;font-size:10px;line-height:0}
 .pfsw.p-utg,.pfsw.p-co,.pfsw.p-btn,.pfsw.p-sb,.pfsw.p-bb,.pfsw.p-str{font-size:7.2px}
@@ -789,7 +793,7 @@ a { color: inherit; }
 </div>
 
 <script type="module">
-import { ITEMS, BY_ID, PRICE, TIERS, ODDS, REFUND, TCOL, SLOT_NAMES, DECO, STICKERS, itemFor, tierRank, champDeco } from '/loot.js';
+import { ITEMS, BY_ID, PRICE, TIERS, ODDS, REFUND, TCOL, SLOT_NAMES, DECO, STICKERS, itemFor, tierRank, decoFor } from '/loot.js';
 import { SHEET_URL, MEMBERS_URL, gameRecords, playerCard, memberIds, hueFor, initials } from '/recap-core.js';
 
 const $ = id => document.getElementById(id);
@@ -807,9 +811,11 @@ let IDS = {}, RECS = [];  // Members tab IDs, game rows
 let tab = 'Title', shownBal = null;
 // champion borders are earned from the Hall of Fame (ME.champs, worked out by the server), never bought
 const champs = () => ME ? (ME.champs || []).map(itemFor).filter(Boolean) : [];
-const owned = s => [...(s === 'Pfp border' ? champs() : []), ...ITEMS.filter(i => i.slot === s && ME && ME.owned[i.id])];
-// a pfp inside its border: pack borders use the shop look (.pw), champion borders the shared cosmetics.css look (.cbw)
-const framed = (it, img, cls = '') => it.tier === 'Champion' ? `<span class="cbw ${cls} cb-${it.key}${it.year ? ' cb-champ-y' : ''}">${img}${champDeco(it)}</span>` : `<span class="pw ${cls} p-${it.key}">${img}${DECO[it.key] || ''}</span>`;
+// casino accolades (titles, borders, a sticker) are earned by playing (ME.earned, from the server), never bought
+const earned = s => ME ? (ME.earned || []).map(itemFor).filter(it => it && it.slot === s) : [];
+const owned = s => [...(s === 'Pfp border' ? champs() : []), ...earned(s), ...ITEMS.filter(i => i.slot === s && ME && ME.owned[i.id])];
+// a pfp inside its border: pack borders use the shop look (.pw), champion and accolade borders the shared cosmetics.css look (.cbw)
+const framed = (it, img, cls = '') => it.tier === 'Champion' || it.tier === 'Earned' ? `<span class="cbw ${cls} cb-${it.key}${it.year ? ' cb-champ-y' : ''}">${img}${decoFor(it)}</span>` : `<span class="pw ${cls} p-${it.key}">${img}${DECO[it.key] || ''}</span>`;
 
 async function api(body) {
   const r = await fetch('/api/shop', body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' } : { credentials: 'same-origin', cache: 'no-store' });
@@ -824,7 +830,7 @@ const pic = (id, name, cls = 'pfp') => id ? `<img class="${cls}" src="/api/avata
 const rcol = v => v >= 75 ? '#8fe0b0' : v >= 55 ? '#f0c75e' : '#f0889f';
 function card(eq) {
   const name = ME.name, id = ME.id;
-  const pf = itemFor(eq['Pfp border']), ov = BY_ID[eq['Overall bar']], tt = BY_ID[eq['Title']], sk = BY_ID[eq['Sticker']];
+  const pf = itemFor(eq['Pfp border']), ov = itemFor(eq['Overall bar']), tt = itemFor(eq['Title']), sk = itemFor(eq['Sticker']);
   const pc = RECS.length && RECS.some(r => r.player === name) ? playerCard(RECS, name) : null;
   const img = pic(id, name).replace('/api/avatar?id=', '/api/avatar?anim=2&id='); // animated Discord pfp, when they have one
   const has = pc && !pc.empty;
@@ -886,13 +892,13 @@ async function setEq(slot, id) {
 function renderLoadout() {
   if (!ME) { $('lo').classList.add('hidden'); return; }
   $('lo').classList.remove('hidden');
-  $('slots').innerHTML = SLOT_NAMES.map(s => `<button aria-pressed="${s === tab}" data-s="${s}">${s}<small>${owned(s).filter(i => i.tier !== 'Champion').length}/${ITEMS.filter(i => i.slot === s).length}</small></button>`).join('');
+  $('slots').innerHTML = SLOT_NAMES.map(s => `<button aria-pressed="${s === tab}" data-s="${s}">${s}<small>${owned(s).filter(i => i.tier !== 'Champion' && i.tier !== 'Earned').length}/${ITEMS.filter(i => i.slot === s).length}</small></button>`).join('');
   $('slots').querySelectorAll('button').forEach(b => b.onclick = () => { tab = b.dataset.s; renderLoadout(); });
   const list = owned(tab).sort((a, b) => tierRank(b.tier) - tierRank(a.tier) || a.name.localeCompare(b.name));
   if (!list.length) { $('items').innerHTML = `<p class="empty">No ${tab === 'Title' ? 'titles' : tab.toLowerCase() + 's'} yet. Open a pack.</p>`; return; }
-  const none = `<button class="ti ${!ME.eq[tab] ? 'eq' : ''}" style="--c:#6f6996" data-n="" aria-pressed="${!ME.eq[tab]}"><div class="sw" style="color:var(--muted);font-size:13px">Default</div><div class="nm2">None</div></button>`;
+  const none = `<button class="ti ${!ME.eq[tab] ? 'eq' : ''}" style="--c:#6f6996" data-n="" aria-pressed="${!ME.eq[tab]}"><div class="sw" style="color:var(--muted);font-size:13px">Default</div><div class="nm2">None</div><div class="rr w">Default look</div></button>`;
   $('items').innerHTML = none + list.map(it => { const c = ME.owned[it.id], on = ME.eq[tab] === it.id;
-    return `<button class="ti ${on ? 'eq' : ''}" style="--c:${TCOL[it.tier]}" data-n="${esc(it.id)}" aria-pressed="${on}" title="${esc(it.tier === 'Champion' ? 'Champion border, earned in the Hall of Fame' : it.tier + ' ' + it.slot.toLowerCase())}">${c > 1 ? `<span class="cnt">x${c}</span>` : ''}<div class="sw">${swatch(it)}</div><div class="nm2">${esc(it.name)}</div></button>`; }).join('');
+    return `<button class="ti ${on ? 'eq' : ''}" style="--c:${TCOL[it.tier]}" data-n="${esc(it.id)}" aria-pressed="${on}" title="${esc(it.why ? it.name + ': ' + it.why : it.tier + ' ' + it.slot.toLowerCase())}">${c > 1 ? `<span class="cnt">x${c}</span>` : ''}<div class="sw">${swatch(it)}</div><div class="nm2">${esc(it.name)}</div><div class="rr${it.why ? ' w' : ''}">${esc(it.why || it.tier)}</div></button>`; }).join('');
   $('items').querySelectorAll('button.ti').forEach(b => b.onclick = () => setEq(tab, b.dataset.n || null));
   fitText('#items .nm2,#items .ttlsw');
 }

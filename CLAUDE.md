@@ -34,7 +34,7 @@ poker-dashboard/
   vercel/              What Vercel deploys (project root dir). cleanUrls on, so /recap serves recap.html.
     index.html recap.html hall.html h2h.html casino.html shop.html entry.html (entry = redirect to the Apps Script page; casino.html = copy of src/casino-src.html;
                        shop.html = copy of src/shop-src.html, which is built from the shop mockup CSS and does NOT link lateshow.css)
-    loot.js            Study Cards items (183 in play: titles, pfp borders, overall bars, stickers; RETIRED ids stay in BY_ID but leave packs/loadout/cards, owners get the dupe refund once via loadout()), odds 55/30/11/4, duplicate refunds, pack designs,
+    loot.js            Study Cards items (182 in play; t:bubble-boy retired Nov 2026 for the earned poker title: titles, pfp borders, overall bars, stickers; RETIRED ids stay in BY_ID but leave packs/loadout/cards, owners get the dupe refund once via loadout()), odds 55/30/11/4, duplicate refunds, pack designs,
                        Champion borders (CHAMP, champItem, championsFrom: ids c:<ovr|cash|tour>:<Q4-2026|2026>, earned from the sheet for every finished quarter/year,
                        never stored or sold; equip checks champsFor() in _shop.js; slanted date tab + icon, year versions get a foil sheen on the site),
                        border decorations (DECO), sticker SVGs, and LOOK (simplified looks for the Discord images). ES module used by the
@@ -81,6 +81,14 @@ poker-dashboard/
                        drawn by hand with /lottery draw (host only, live ticket roll in Discord, draws the last finished quarter once), Lucky Ticket role (_roles.js);
                        /lottery odds|draw, lobby prize wheel with pfps (spins to the winner once per viewer), lobby panel, card at /api/wrap?lottery=<quarter>, spinning wheel GIF at /api/wrap?lottery=<quarter>&spin=1 (_wheelgif.js; no spare function slot). Some names are shown
                        with tickets but never drawn (SKIP in _lottery.js), by request: don't mention it anywhere user-facing)
+                       accolades: _accolades.js + ACC in loot.js (42 earned items, ids a:<k>, tier 'Earned', never in packs, all kept forever): 24 casino (5 borders, 16 titles, 3 stickers: Whale, Natural, Lucky Ticket)
+                       + 18 home poker (poker: 1; 4 borders, 13 titles, 1 sticker (Monster Night); Got the Milk only counts nights from MILK_FROM 2026-09-19, not retroactive) worked out from the sheet by pokerFrom(), checkPoker() in roles.js after each night + Monday cron, notes in #the-table.
+                       First run of each set (ac:init / ac:pinit) hands out already-earned ones SILENTLY, by request; only later unlocks post.
+                       Hand counter (invisible to players): feedCmds() also bumps ac:n:<id> (hands per game, daily, tips received, naturals, royal, believer)
+                       and adds the player to ac:dirty; discord.js runs checkAccolades() after each answer (waitUntil), roles.js after each night and
+                       the Monday cron (plus weeklyAccolades() for High Roller/Beat the House/Whale/Regular, each week once via ac:wk:<week>).
+                       Stamped in ac:own:<id> (kept forever). Chip Leader (live #1 border) was REMOVED by request: accolades are only things people keep forever.
+                       Unlocks post a short note in #casino. No accolades page, by request: the note (why, 24 chars max) replaces the rarity line in /loadout + /shop tiles
     vercel.json        Function durations + included files. Env vars on Vercel: DISCORD_BOT_TOKEN, DISCORD_PUBLIC_KEY
 poker-entry/
   Code.gs              Apps Script server: doGet, getSetup(), saveNight(payload), Discord recap post. The live copy has the

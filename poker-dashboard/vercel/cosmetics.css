@@ -154,3 +154,18 @@ html .cbw .cti svg{display:block;width:100%;height:100%}
 @keyframes cbshine{0%,40%{background-position:-150% 0}100%{background-position:250% 0}}
 @keyframes cbfoil{to{background-position:300% 0}}
 @media (prefers-reduced-motion:reduce){html .cbw[class*="cb-champ-"]::after,html .cbw.cb-champ-y::before{animation:none}}
+/* Casino accolade borders (earned by playing, see ACC in loot.js): the champion border structure with their own colours.
+   The slanted tab (.cdt from accDeco) uses the same rules as the champion tab above. */
+html .cb-acc-gun{--cf:linear-gradient(135deg,#2c2f3a,#6b7183 30%,#b8bfd0 46%,#4a4f5e 62%,#23252e);--cr:#e0507f;--cg:rgba(224,80,127,.45);--cp:#e0507f;--cfg:#fff}
+html .cb-acc-high{--cf:linear-gradient(135deg,#3b1450,#7b2a8e 35%,#d24f9a 55%,#5a1d6e);--cr:#f0c75e;--cg:rgba(210,79,154,.6);--cp:#f0c75e;--cfg:#15132a}
+html .cb-acc-house{--cf:linear-gradient(135deg,#0f4d31,#2f9a63 40%,#8fe0b0 55%,#13583a);--cr:#15132a;--cg:rgba(143,224,176,.55);--cp:#15132a;--cfg:#8fe0b0}
+html .cb-acc-coll{--cf:linear-gradient(135deg,#1e6f8a,#5fd6f0 35%,#8f78f0 65%,#3b2a7a);--cr:#15132a;--cg:rgba(95,214,240,.55);--cp:#5fd6f0;--cfg:#15132a}
+html .cb-acc-royal{--cf:linear-gradient(135deg,#1b2a6b,#3c5ad8 40%,#f0c75e 58%,#1b2a6b);--cr:#f0c75e;--cg:rgba(60,90,216,.6);--cp:#f0c75e;--cfg:#15132a}
+html .cb-acc-hattrick{--cf:linear-gradient(135deg,#7a1f2e,#c2364f 35%,#f0c75e 55%,#8a2436);--cr:#15132a;--cg:rgba(240,199,94,.55);--cp:#f0c75e;--cfg:#15132a}
+html .cb-acc-backtoback{--cf:linear-gradient(135deg,#3b1d78,#8f78f0 35%,#e0507f 60%,#4a1f6e);--cr:#15132a;--cg:rgba(143,120,240,.6);--cp:#e0507f;--cfg:#fff}
+html .cb-acc-perfect{--cf:linear-gradient(135deg,#0f4d31,#1f7a4c 35%,#c9a24a 55%,#13583a);--cr:#15132a;--cg:rgba(201,162,74,.5);--cp:#15132a;--cfg:#e9d28a}
+html .cb-acc-headhunter{--cf:linear-gradient(135deg,#2a0f14,#8a1c2c 35%,#e0507f 52%,#1d0b10);--cr:#e8ecf5;--cg:rgba(224,80,127,.55);--cp:#e8ecf5;--cfg:#15132a}
+html .cbw[class*="cb-acc-"]{padding:4px;background:var(--cf);box-shadow:0 0 0 1.5px var(--cr),0 0 14px var(--cg)}
+html .cbw[class*="cb-acc-"] > :first-child{position:relative;z-index:1}
+html .cbw[class*="cb-acc-"]::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;mix-blend-mode:overlay;background:linear-gradient(115deg,rgba(255,255,255,0) 30%,rgba(255,255,255,.55) 45%,rgba(255,255,255,0) 60%) -150% 0/250% 100% no-repeat;animation:cbshine 3.6s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){html .cbw[class*="cb-acc-"]::after{animation:none}}

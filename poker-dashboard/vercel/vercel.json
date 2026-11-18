@@ -47,7 +47,7 @@
       "maxDuration": 15
     },
     "api/roles.js": {
-      "includeFiles": "recap-core.js",
+      "includeFiles": "{recap-core.js,loot.js}",
       "maxDuration": 30
     },
     "api/bjcards.js": {

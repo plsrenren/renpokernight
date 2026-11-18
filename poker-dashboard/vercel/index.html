@@ -785,11 +785,11 @@ function applyCosmetics(name) {
   if (mono.parentElement.classList.contains('cos-hold')) mono.parentElement.replaceWith(mono);
   strip.className = 'ls-strip';
   const eq = COS && COS[name]; if (!eq || !LOOT) return;
-  const { itemFor, champDeco, DECO, STICKERS, TCOL } = LOOT, it = s => itemFor(eq[s]);
+  const { itemFor, decoFor, STICKERS, TCOL } = LOOT, it = s => itemFor(eq[s]);
   const b = it('Pfp border'), sk = it('Sticker') && STICKERS[it('Sticker').name];
   if (b || sk) { // wrap the pfp: the border goes around it, the sticker sits on its corner
     const w = document.createElement('span'); w.className = 'cos-hold' + (b ? ' cbw cb-' + b.key + (b.year ? ' cb-champ-y' : '') : '') + (sk ? ' has-stk' : ''); mono.replaceWith(w); w.appendChild(mono);
-    if (b) w.insertAdjacentHTML('beforeend', b.tier === 'Champion' ? champDeco(b) : DECO[b.key] || '');
+    if (b) w.insertAdjacentHTML('beforeend', decoFor(b)); // champion tab, casino accolade tab or the pack border's extras
     if (sk) w.insertAdjacentHTML('beforeend', `<span class="cos-stk" aria-hidden="true">${sk}</span>`);
   }
   if (it('Overall bar')) strip.classList.add('cbar-' + it('Overall bar').key);
