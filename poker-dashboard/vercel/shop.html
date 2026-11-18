@@ -769,6 +769,8 @@ a { color: inherit; }
 .shop.out { display: block; } .shop.out .cardcol { display: none; }
 .loading { color: var(--muted); padding: 30px 0; }
 @media (max-width: 860px) { .hside { width: 100%; flex-direction: row; align-items: center; justify-content: space-between; margin-left: 0; } }
+/* phones: the chips box gets its own full-width row so it never pushes past the screen edge */
+@media (max-width: 520px) { .hside { flex-wrap: wrap; } .hside .bal { width: 100%; min-width: 0; } .hside .bal span { flex: 1; min-width: 0; } .hside .bal b { font-size: 34px; } }
 @media (max-width: 640px) { .brand .lg { width: 74px; height: 64px; background-size: 46px, auto; } }
 </style>
 <link rel="stylesheet" href="/cosmetics.css">

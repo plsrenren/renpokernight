@@ -118,6 +118,7 @@ button:disabled { cursor: default; opacity: .4; }
 .felt .lbl { font: 400 17px var(--title); letter-spacing: .14em; color: #cfe9da; display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; min-height: 30px; white-space: nowrap; }
 .felt .lbl .tot { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .felt .lbl.on { color: var(--gold); }
+.felt .lbl.sum { white-space: normal; line-height: 1.25; } /* baccarat result line wraps on small phones instead of running off the felt */
 .tot { font: 600 14px var(--mono); background: #0e1f17; color: #fff; padding: 3px 9px; letter-spacing: 0; }
 .tag { font: 900 11px Nunito, sans-serif; letter-spacing: .08em; padding: 2px 7px; }
 .tag.win, .tag.bj { background: var(--up); color: #0e2a1c; } .tag.bj { background: var(--gold); color: #2a1f00; }
@@ -618,7 +619,7 @@ function baccarat() {
     const c = r.coup, w = c.winner;
     inner = `<div class="bacrow"><div><div class="lbl">Player <span class="tot" data-late>${c.ps}</span>${w === 'player' ? '<span data-late class="tag win">WINS</span>' : ''}</div><div class="hand">${c.p.map(card).join('')}</div></div>
       <div><div class="lbl">Banker <span class="tot" data-late>${c.bs}</span>${w === 'banker' ? '<span data-late class="tag win">WINS</span>' : ''}</div><div class="hand">${c.b.map(card).join('')}</div></div></div>
-      <div class="lbl" data-late style="margin-top:6px">${w === 'tie' ? `Tie ${c.ps}–${c.bs}` : `${SIDES[w][0]} wins ${Math.max(c.ps, c.bs)}–${Math.min(c.ps, c.bs)}`}${c.natural ? ' · natural' : ''} · you bet ${money(r.bet)} on ${SIDES[r.side][0]}</div>
+      <div class="lbl sum" data-late style="margin-top:6px">${w === 'tie' ? `Tie ${c.ps}–${c.bs}` : `${SIDES[w][0]} wins ${Math.max(c.ps, c.bs)}–${Math.min(c.ps, c.bs)}`}${c.natural ? ' · natural' : ''} · you bet ${money(r.bet)} on ${SIDES[r.side][0]}</div>
       ${resultStamp(r.net)}`;
   }
   return `${balBar('Baccarat', r ? r.net : 0)}${felt(r ? r.n : '', inner, ' bac')}

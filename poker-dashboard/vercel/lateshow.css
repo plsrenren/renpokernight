@@ -77,3 +77,29 @@ html .seg button[aria-pressed="true"] { background: var(--gold); }
   html .tile .k { font-size: 15px; }
   html .band h1 { font-size: 44px; }
   }
+/* Phones: keep long names, amounts and the Net column inside the screen (site audit, Nov 2026) */
+@media (max-width: 480px) {
+  /* Top/Recent winner tiles: the name drops under the pfp instead of running off the tile */
+  html .tile .v .who { flex-wrap: wrap; row-gap: 4px; max-width: 100%; }
+  html .tile .v .who .link { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Last 4 nights on the player card: 2 x 2 boxes so a $1,000+ night still fits */
+  html .ls-nights { display: grid; grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 560px) {
+  /* Tables: Net stays on screen. Standings drop Buy-ins/Cash-outs, the game log hides its Won tag
+     (the full numbers are still on desktop), Cash vs tournament drops its empty spacer column; tighter padding */
+  html table:has(#standings) th:nth-child(5), html table:has(#standings) th:nth-child(6),
+  html #standings td:nth-child(5), html #standings td:nth-child(6),
+  html table:has(#pFormats) th:nth-child(2), html #pFormats td:nth-child(2), html #pLog .chip { display: none; }
+  html :is(table:has(#standings), table:has(#pLog), table:has(#pFormats)) :is(th, td:not(.rank)) { padding-left: 5px; padding-right: 5px; }
+  html :is(table:has(#standings), table:has(#pLog), table:has(#pFormats)) th { font-size: 14px; letter-spacing: .06em; }
+  html :is(#standings, #pLog, #pFormats) td:not(.rank) { font-size: 13px; }
+  html #pLog td:first-child { white-space: normal; }
+  /* long names shrink with … instead of pushing Net off screen */
+  html #standings td:nth-child(2) { max-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; }
+}
+@media (max-width: 700px) {
+  /* the game log is the widest table, so it drops Buy-ins/Cash in/Cash out a bit earlier (small tablets too) */
+  html table:has(#pLog) th:nth-child(3), html table:has(#pLog) th:nth-child(4), html table:has(#pLog) th:nth-child(5),
+  html #pLog td:nth-child(3), html #pLog td:nth-child(4), html #pLog td:nth-child(5) { display: none; }
+}
