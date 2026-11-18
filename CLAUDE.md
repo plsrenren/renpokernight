@@ -34,7 +34,7 @@ poker-dashboard/
   vercel/              What Vercel deploys (project root dir). cleanUrls on, so /recap serves recap.html.
     index.html recap.html hall.html h2h.html casino.html shop.html entry.html (entry = redirect to the Apps Script page; casino.html = copy of src/casino-src.html;
                        shop.html = copy of src/shop-src.html, which is built from the shop mockup CSS and does NOT link lateshow.css)
-    loot.js            Study Cards items (184: titles, pfp borders, overall bars, stickers), odds 55/30/11/4, duplicate refunds, pack designs,
+    loot.js            Study Cards items (183 in play: titles, pfp borders, overall bars, stickers; RETIRED ids stay in BY_ID but leave packs/loadout/cards, owners get the dupe refund once via loadout()), odds 55/30/11/4, duplicate refunds, pack designs,
                        Champion borders (CHAMP, champItem, championsFrom: ids c:<ovr|cash|tour>:<Q4-2026|2026>, earned from the sheet for every finished quarter/year,
                        never stored or sold; equip checks champsFor() in _shop.js; slanted date tab + icon, year versions get a foil sheen on the site),
                        border decorations (DECO), sticker SVGs, and LOOK (simplified looks for the Discord images). ES module used by the

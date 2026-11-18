@@ -9,7 +9,7 @@
 // Chips come off with one storage script (DEBIT) so two taps can never spend chips you don't have.
 import { randomBytes, randomInt } from 'node:crypto';
 import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds, DEBIT } from './_blackjack.js';
-import { ITEMS, BY_ID, PRICE, REFUND, ODDS, TIERS, SLOT_NAMES, PACKS, rollPack, itemFor, tierRank, championsFrom } from '../loot.js';
+import { ITEMS, BY_ID, PRICE, REFUND, ODDS, TIERS, SLOT_NAMES, PACKS, rollPack, itemFor, tierRank, championsFrom, RETIRED } from '../loot.js';
 
 const SITE = 'https://renpokernight.vercel.app';
 const MAX_TIP = 100000;
@@ -32,8 +32,13 @@ const parseEq = raw => { try { const e = JSON.parse(raw || '{}'); return e && ty
 const hashObj = arr => { const o = {}; for (let k = 0; k < (arr || []).length; k += 2) o[arr[k]] = +arr[k + 1]; return o; };
 
 /** everything one person has: { owned: {id: n}, eq: {slot: id}, bal, packs } */
+// pays back a retired item once: removes it from sh:own and adds its refund per copy to bj:bal, in one step
+const RETIRE = "local n=tonumber(redis.call('HGET',KEYS[1],ARGV[1]) or '0') if n<=0 then return 0 end redis.call('HDEL',KEYS[1],ARGV[1]) redis.call('HINCRBYFLOAT',KEYS[2],ARGV[3],n*tonumber(ARGV[2])) return n";
 export async function loadout(uid) {
-  const [own, eq, bal, packs] = await kv(['HGETALL', 'sh:own:' + uid], ['HGET', 'sh:eq', uid], ['HGET', 'bj:bal', uid], ['HGET', 'sh:packs', uid]);
+  // same pipeline, refunds first, so the balance read below already includes them
+  const res = await kv(...RETIRED.map(id => ['EVAL', RETIRE, 2, 'sh:own:' + uid, 'bj:bal', id, REFUND[BY_ID[id].tier], uid]),
+    ['HGETALL', 'sh:own:' + uid], ['HGET', 'sh:eq', uid], ['HGET', 'bj:bal', uid], ['HGET', 'sh:packs', uid]);
+  const [own, eq, bal, packs] = res.slice(RETIRED.length);
   return { owned: hashObj(own), eq: parseEq(eq), bal: bal === null ? null : +bal, packs: +packs || 0 };
 }
 /** equipped items for many people at once: { userId: {slot: item} } (for the player cards) */
