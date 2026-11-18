@@ -44,8 +44,8 @@ export async function loadout(uid) {
   const earned = earnedIds(uid, acc, all);
   return { owned: hashObj(own), eq: wearable(parseEq(eq), earned), bal: bal === null ? null : +bal, packs: +packs || 0, earned };
 }
-/** an equipped set without accolades they can't wear any more (Chip Leader after someone passes them). earned = earnedIds */
-export const wearable = (eq, earned) => Object.fromEntries(Object.entries(eq || {}).filter(([, id]) => !String(id).startsWith('a:') || earned.includes(id)));
+/** an equipped set without retired items or accolades they can't wear any more (Chip Leader after someone passes them). earned = earnedIds */
+export const wearable = (eq, earned) => Object.fromEntries(Object.entries(eq || {}).filter(([, id]) => !RETIRED.includes(id) && (!String(id).startsWith('a:') || earned.includes(id))));
 /** the same for anyone, when only the Chip Leader matters (kept accolades never go away): drops a:leader unless uid is #1 */
 export const leaderCheck = (eq, uid, leader) => Object.fromEntries(Object.entries(eq || {}).filter(([, id]) => id !== 'a:leader' || uid === leader));
 /** equipped items for many people at once: { userId: {slot: item} } (for the player cards) */

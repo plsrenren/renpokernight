@@ -27,7 +27,7 @@ const ALL = [];
 for (const slot of SLOT_NAMES) for (const tier of TIERS) for (const [name, key] of SLOTS[slot][tier]) ALL.push({ id: CODE[slot] + ':' + (key || slug(name)), slot, tier, name, key: key || slug(name) });
 /** items taken out of the game: no longer in packs, the loadout or on cards. Whoever owned one gets its duplicate refund
  *  (once, see loadout() in _shop.js). b:dealer = Dealer Button border, removed 2026-11-18 (The Button already has the D) */
-export const RETIRED = ['b:dealer'];
+export const RETIRED = ['b:dealer', 't:bubble-boy']; // t:bubble-boy became the earned poker title Bubble Boy (a:bubble)
 /** the items in play (packs, loadout, collection counts) */
 export const ITEMS = ALL.filter(i => !RETIRED.includes(i.id));
 /** every item by id, retired ones too, so old pack messages still read */
@@ -156,6 +156,10 @@ export const ACC_ICON = {
   chip: SVG + '<circle cx="12" cy="12" r="10" fill="#f0c75e" stroke="#15132a" stroke-width="1.4"/><circle cx="12" cy="12" r="6" fill="#15132a"/><g stroke="#15132a" stroke-width="2.4"><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></g><path d="M9 13.5 8.2 9l2.2 1.6L12 8l1.6 2.6L15.8 9 15 13.5z" fill="#f0c75e"/></svg>',
   cards: SVG + '<g stroke="#15132a" stroke-width="1.3"><rect x="3" y="6" width="10" height="14" fill="#8f78f0" transform="rotate(-14 8 13)"/><rect x="7" y="4" width="10" height="14" fill="#5fd6f0"/><rect x="11" y="6" width="10" height="14" fill="#fff" transform="rotate(14 16 13)"/></g></svg>',
   crownspade: SVG + '<path d="M3 10 2 3l5 3 5-4 5 4 5-3-1 7z" fill="#f0c75e" stroke="#15132a" stroke-width="1.3" stroke-linejoin="round"/><path d="M12 11c-3 3-4.5 4.2-4.5 6a2.2 2.2 0 0 0 4 1.2L11 21h2l-.5-2.8a2.2 2.2 0 0 0 4-1.2c0-1.8-1.5-3-4.5-6z" fill="#3c5ad8" stroke="#15132a" stroke-width="1"/></svg>',
+  hat: SVG + '<path d="M3 18h18l-2-3H5z" fill="#15132a"/><path d="M7 15V7a5 2.2 0 0 1 10 0v8z" fill="#15132a"/><path d="M7 11.5h10" stroke="#f0c75e" stroke-width="2.2"/></svg>',
+  twocrown: SVG + '<path d="M2 14 1.5 6l3.5 2.6L8 4l3 4.6L14.5 6 14 14z" fill="#fff3c4" stroke="#15132a" stroke-width="1.2" stroke-linejoin="round"/><path d="M10 21l-.5-8 3.5 2.6L16 11l3 4.6 3.5-2.6-.5 8z" fill="#ffffff" stroke="#15132a" stroke-width="1.2" stroke-linejoin="round"/></svg>',
+  calcheck: SVG + '<rect x="3" y="5" width="18" height="16" fill="#ffffff" stroke="#15132a" stroke-width="1.4"/><rect x="3" y="5" width="18" height="5" fill="#2f9a63" stroke="#15132a" stroke-width="1.4"/><path d="M7 15l3 3 7-7" fill="none" stroke="#2f9a63" stroke-width="2.4"/></svg>',
+  scope: SVG + '<circle cx="12" cy="12" r="9" fill="#e8ecf5" stroke="#15132a" stroke-width="1.4"/><circle cx="12" cy="12" r="5.5" fill="#e0507f" stroke="#15132a" stroke-width="1.2"/><circle cx="12" cy="12" r="2" fill="#e8ecf5"/><path d="M12 1v6M12 17v6M1 12h6M17 12h6" stroke="#15132a" stroke-width="1.6"/></svg>',
 };
 /** every accolade: k = key (id a:<k>), why = the loadout note, need = what unlocks it (for people reading the code).
  *  Borders also have: tab (text in the slanted tab), icon (ACC_ICON), frame/ring/glow/plate/fg (colours, same idea as CHAMP). */
@@ -191,6 +195,28 @@ export const ACC = [
   { k: 'natural', slot: 'Title', name: 'Natural', why: '25 blackjacks', need: '25 dealt blackjacks (blackjack or free bet)' },
   { k: 'royal', slot: 'Pfp border', name: 'Royal', why: 'UTH royal flush', need: 'a royal flush at UTH', tab: 'ROYAL', icon: 'crownspade',
     frame: 'linear-gradient(135deg, #1b2a6b, #3c5ad8 40%, #f0c75e 58%, #1b2a6b)', ring: '#f0c75e', glow: 'rgba(60,90,216,0.6)', plate: '#f0c75e', fg: '#15132a' },
+  // home poker night: worked out from the sheet after each saved night (pokerFrom in api/_accolades.js), past nights included
+  { k: 'firstblood', slot: 'Title', name: 'First Blood', why: 'First night win', need: 'win a night (1st place)', poker: 1 },
+  { k: 'hattrick', slot: 'Pfp border', name: 'Hat Trick', why: 'Won 3 nights', need: 'win 3 nights', tab: '3 WINS', icon: 'hat', poker: 1,
+    frame: 'linear-gradient(135deg, #7a1f2e, #c2364f 35%, #f0c75e 55%, #8a2436)', ring: '#15132a', glow: 'rgba(240,199,94,0.55)', plate: '#f0c75e', fg: '#15132a' },
+  { k: 'backtoback', slot: 'Pfp border', name: 'Back to Back', why: 'Won 2 nights in a row', need: 'win two nights you play in a row', tab: 'BACK TO BACK', icon: 'twocrown', poker: 1,
+    frame: 'linear-gradient(135deg, #3b1d78, #8f78f0 35%, #e0507f 60%, #4a1f6e)', ring: '#15132a', glow: 'rgba(143,120,240,0.6)', plate: '#e0507f', fg: '#ffffff' },
+  { k: 'laststanding', slot: 'Title', name: 'Last One Standing', why: 'Won 5 tournaments', need: 'win 5 tournaments', poker: 1 },
+  { k: 'payday', slot: 'Title', name: 'Payday', why: 'Won 5 cash nights', need: 'win 5 cash nights', poker: 1 },
+  { k: 'comebackkid', slot: 'Title', name: 'Comeback Kid', why: 'Rebought and won', need: 'rebuy and still win the night', poker: 1 },
+  { k: 'bubble', slot: 'Title', name: 'Bubble Boy', why: 'Finished 2nd five times', need: 'finish 2nd five times', poker: 1 },
+  { k: 'usualsuspect', slot: 'Title', name: 'Usual Suspect', why: 'Played 25 nights', need: 'play 25 nights', poker: 1 },
+  { k: 'centurion', slot: 'Title', name: 'Centurion', why: 'Played 100 nights', need: 'play 100 nights', poker: 1 },
+  { k: 'perfect', slot: 'Pfp border', name: 'Perfect Attendance', why: 'Every night of a quarter', need: 'play every night of a finished quarter', tab: 'EVERY NIGHT', icon: 'calcheck', poker: 1,
+    frame: 'linear-gradient(135deg, #0f4d31, #1f7a4c 35%, #c9a24a 55%, #13583a)', ring: '#15132a', glow: 'rgba(201,162,74,0.5)', plate: '#15132a', fg: '#e9d28a' },
+  { k: 'mlm', slot: 'Title', name: 'MLM Manager', why: 'Brought a new player', need: 'a first-time player whose note says "brought by" you', poker: 1 },
+  { k: 'headhunter', slot: 'Pfp border', name: 'Headhunter', why: '$100 in PKO bounties', need: '$100 of PKO bounty money (notes "PKO bounties $X")', tab: 'HEADHUNTER', icon: 'scope', poker: 1,
+    frame: 'linear-gradient(135deg, #2a0f14, #8a1c2c 35%, #e0507f 52%, #1d0b10)', ring: '#e8ecf5', glow: 'rgba(224,80,127,0.55)', plate: '#e8ecf5', fg: '#15132a' },
+  { k: 'sponsor', slot: 'Title', name: 'Sponsor', why: '$1,000 bought in', need: '$1,000 of Cash_In in total (buy-ins, rebuys, top-ups)', poker: 1 },
+  { k: 'wiretowire', slot: 'Title', name: 'Wire to Wire', why: 'Won on one buy-in', need: 'win a tournament without rebuying', poker: 1 },
+  { k: 'monster', slot: 'Title', name: 'Monster Night', why: 'Up $300 in one night', need: 'finish a night up $300 or more', poker: 1 },
+  { k: 'switchhitter', slot: 'Title', name: 'Switch Hitter', why: 'Won cash and a tourney', need: 'win at least one cash night and one tournament', poker: 1 },
+  { k: 'doubleup', slot: 'Title', name: 'Double Up', why: 'Doubled up at cash', need: 'cash out at least double your Cash_In on a cash night', poker: 1 },
 ];
 const ACC_BY = Object.fromEntries(ACC.map(a => [a.k, a]));
 TCOL.Earned = '#5fd6f0';

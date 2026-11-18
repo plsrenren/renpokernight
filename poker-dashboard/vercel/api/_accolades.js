@@ -8,16 +8,19 @@
 //   sh:packs, sh:own:<id>   packs opened and the collection (_shop.js)
 //   rb:vol:<week>, rb:wk:<week>   what each player bet / won at the house games per casino week (_blackjack.js houseCmds)
 //   lt:draw:<quarter>   lottery winners (_lottery.js)
+// The home poker ones (poker: 1 in ACC) come from the sheet instead: pokerFrom() below, run by checkPoker() after each saved
+// night and on the Monday cron (api/roles.js), past nights included; their notes go in #the-table.
 // Unlocked ones are kept in ac:own:<id> (hash accolade key -> when), so they stay even if a number drops later.
 // checkAccolades() runs after every bot and site request (waitUntil, after the answer is sent) for the players in ac:dirty,
-// which every finished hand, claim, tip, duel and pack adds to. The very first run checks everyone and posts one launch note.
+// which every finished hand, claim, tip, duel and pack adds to. The very first run checks everyone and posts nothing (already-earned ones arrive quietly).
 // weeklyAccolades() runs from the Monday cron (after rakeback) for High Roller, Beat the House, Whale and Regular.
 import { kv, boardFrom, weekStart, HOUSE_GAMES } from './_blackjack.js';
-import { postCasino } from './_rewards.js';
+import { postCasino, postChannel, nightRows } from './_rewards.js';
 import { ACC, ITEMS, accItem } from '../loot.js';
 
 /** how much of each thing unlocks what */
-export const NEED = { duelist: 10, gun: 50, nemesis: 10, whale: 10000, stacked: 5000, bigstack: 10000, mountain: 25000,
+export const NEED = { wins3: 3, tourWins: 5, cashWins: 5, seconds: 5, nights25: 25, nights100: 100, bounty: 100, boughtIn: 1000, monster: 300,
+  duelist: 10, gun: 50, nemesis: 10, whale: 10000, stacked: 5000, bigstack: 10000, mountain: 25000,
   packrat: 25, epic: 10, coll: 50, clockedin: 30, hands: 250, cardshark: 1000, natural: 25, regular: 4 };
 /** the first casino week with weekly totals (the house books started then) */
 export const FIRST_WEEK = Date.UTC(2026, 10, 16, 16);
@@ -100,9 +103,6 @@ export function unlockText(news, head = '') {
     : `🏅 <@${id}> unlocked ${keys.map(k => `**${nameOf(k)}**`).join(', ')}`);
   return clip([head, ...lines, FOOT].filter(Boolean).join('\n'));
 }
-/** the one-time note when accolades go live: everyone's already-earned ones, one line each */
-export const launchText = news => clip([LAUNCH_HEAD, ...news.map(({ id, keys }) => `<@${id}> ${keys.map(k => `**${nameOf(k)}**`).join(', ')}`), FOOT].join('\n'));
-export const LAUNCH_HEAD = '🏅 **Casino accolades are here.** Titles, pfp borders and a sticker you earn by playing. They show up in /loadout and the site shop with how you earned them. Already earned:';
 const post = async text => { try { return await postCasino({ content: text, allowed_mentions: { parse: [] } }); } catch (e) { console.error('accolade post', e); return 'failed: ' + e.message; } };
 
 /** Checks players for new accolades, keeps them and posts the note. all = everyone with chips (the cron). ids = { sheet name: Discord id }
@@ -138,7 +138,8 @@ export async function checkAccolades({ all = false, ids = null, now = Date.now()
   });
   const news = await stamp(got, now);
   let posted = null;
-  if (news.length && !quiet) posted = await post(launch ? launchText(news) : unlockText(news));
+  // the first run hands out what people already earned before launch without posting anything (by request); only later unlocks post
+  if (news.length && !quiet && !launch) posted = await post(unlockText(news));
   return { checked: uids.length, launch, unlocked: news, posted };
 }
 
@@ -160,4 +161,73 @@ export async function weeklyAccolades(now = Date.now(), quiet = false) {
   const news = await stamp(got, now);
   const posted = news.length && !quiet ? await post(unlockText(news)) : null;
   return { weeks: go.map(key), unlocked: news, posted };
+}
+
+// ---------- home poker night (from the sheet) ----------
+/** Places for one night's rows (same order as the chip rewards: tournaments by cash out, cash by net; only people who
+ *  finished up, or cashed in a tournament): { player: place } with 1 = won, ties share a place. */
+export function placesOf(list) {
+  const tourney = list[0].type === 'Tournament', out = {};
+  const ranked = list.filter(r => r.net > 0 || (tourney && r.cout > 0)).sort((a, b) => tourney ? (b.cout - a.cout) || (b.net - a.net) : b.net - a.net);
+  let place = 0;
+  ranked.forEach((r, k) => {
+    const prev = ranked[k - 1], tied = prev && (tourney ? prev.cout === r.cout && prev.net === r.net : prev.net === r.net);
+    if (!tied) place = k;
+    out[r.player] = place + 1;
+  });
+  return out;
+}
+
+/** The poker accolade keys each player has earned from the Input rows (nightRows): { player name: Set(keys) }. */
+export function pokerFrom(rows) {
+  const nights = {}, byPlayer = {}, out = {};
+  rows.forEach(r => { (nights[r.night] ||= []).push(r); (byPlayer[r.player] ||= []).push(r); });
+  const place = {}; for (const [night, list] of Object.entries(nights)) place[night] = placesOf(list);
+  const add = (p, k) => (out[p] ||= new Set()).add(k);
+  // Perfect Attendance: finished quarters only (a later quarter has a night), every night of it
+  const qNights = {}; Object.keys(nights).forEach(n => (qNights[nights[n][0].quarter] ||= new Set()).add(n));
+  const qKey = q => { const [n, y] = q.split(' '); return +y * 10 + +String(n).slice(1); };
+  const lastQ = Math.max(...Object.keys(qNights).map(qKey));
+  const finished = Object.keys(qNights).filter(q => qKey(q) < lastQ);
+  // MLM Manager: a first-time player whose note says "brought by <name>" (same rule as the chip reward)
+  const firstNight = {}, nameOf = {};
+  rows.forEach(r => { const l = r.player.toLowerCase(); if (!(l in firstNight)) firstNight[l] = r.night; nameOf[l] = r.player; });
+  rows.forEach(r => { const host = nameOf[(r.broughtBy || '').toLowerCase()]; if (r.broughtBy && firstNight[r.player.toLowerCase()] === r.night && host && host !== r.player) add(host, 'mlm'); });
+  for (const [p, g] of Object.entries(byPlayer)) {
+    const won = g.filter(r => place[r.night][p] === 1), tw = won.filter(r => r.type === 'Tournament').length, cw = won.length - tw;
+    if (won.length >= 1) add(p, 'firstblood');
+    if (won.length >= NEED.wins3) add(p, 'hattrick');
+    if (g.some((r, k) => k && place[r.night][p] === 1 && place[g[k - 1].night][p] === 1)) add(p, 'backtoback');
+    if (tw >= NEED.tourWins) add(p, 'laststanding');
+    if (cw >= NEED.cashWins) add(p, 'payday');
+    if (tw && cw) add(p, 'switchhitter');
+    if (won.some(r => r.buys >= 2)) add(p, 'comebackkid');
+    if (won.some(r => r.type === 'Tournament' && r.buys <= 1)) add(p, 'wiretowire');
+    if (g.filter(r => place[r.night][p] === 2).length >= NEED.seconds) add(p, 'bubble');
+    const played = new Set(g.map(r => r.night));
+    if (played.size >= NEED.nights25) add(p, 'usualsuspect');
+    if (played.size >= NEED.nights100) add(p, 'centurion');
+    if (finished.some(q => [...qNights[q]].every(n => played.has(n)))) add(p, 'perfect');
+    if (g.reduce((t, r) => t + (r.pko || 0), 0) >= NEED.bounty) add(p, 'headhunter');
+    if (g.reduce((t, r) => t + (r.cin || 0), 0) >= NEED.boughtIn) add(p, 'sponsor');
+    if (g.some(r => r.net >= NEED.monster)) add(p, 'monster');
+    if (g.some(r => r.type !== 'Tournament' && r.cin > 0 && r.cout >= 2 * r.cin)) add(p, 'doubleup');
+  }
+  return out;
+}
+
+/** After a night is saved (and on the Monday cron): keeps any new poker accolades for players with a Discord ID and posts
+ *  the note in #the-table. The first run is silent: past nights are handed out without a note. ids = { sheet name: Discord id } */
+export async function checkPoker(csv, ids, { now = Date.now(), quiet = false } = {}) {
+  const byName = {}; for (const [name, id] of Object.entries(ids || {})) if (/^\d{5,25}$/.test(String(id))) byName[name.toLowerCase()] = String(id);
+  const got = {};
+  for (const [p, keys] of Object.entries(pokerFrom(nightRows(csv)))) { const id = byName[p.toLowerCase()]; if (id) (got[id] ||= []).push(...keys); }
+  const [init] = await kv(['SET', 'ac:pinit', String(now), 'NX']);
+  const news = await stamp(got, now);
+  let posted = null;
+  // the first run quietly hands out everything earned on past nights (by request); only later unlocks post
+  if (news.length && !quiet && !init) {
+    try { posted = await postChannel({ content: unlockText(news), allowed_mentions: { parse: [] } }, 'table'); } catch (e) { console.error('poker accolade post', e); posted = 'failed: ' + e.message; }
+  }
+  return { players: Object.keys(got).length, launch: !!init, unlocked: news, posted };
 }
