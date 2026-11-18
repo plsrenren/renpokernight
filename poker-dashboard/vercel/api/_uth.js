@@ -74,6 +74,7 @@ export function settle(g) {
   g.stage = 'done';
   const me = best([...g.me, ...g.board]), dl = best([...g.dealer, ...g.board]);
   g.myHand = me.name; g.dlHand = dl.name;
+  g.royal = me.cat === 9 ? 1 : 0; // for the Royal accolade
   const qualifies = dl.cat >= 1, cmp = g.folded ? -1 : compare(me, dl);
   g.qualifies = qualifies;
   const lines = [];
@@ -209,7 +210,7 @@ export async function uthAction(me, gid, act) {
     // the play bet is already off (takeChips + the hold); a fold gets the held chips back on top of the payout
     const done = g.stage === 'done', delta = done ? g.payout + refund : 0;
     const res = await kv(...(delta ? [['HINCRBYFLOAT', 'bj:bal', me.id, delta]] : [['HGET', 'bj:bal', me.id]]), ['SET', 'uth:g:' + g.id, JSON.stringify(g), 'EX', 3600], ['DEL', 'uth:lock:' + gid],
-      ...(done ? feedCmds(me, 'UTH', g.net, onTable(g)) : []));
+      ...(done ? feedCmds(me, 'UTH', g.net, onTable(g), { royal: g.royal }) : []));
     wrote = true; bal = +res[0];
     return { g, bal };
   } finally { if (!wrote) await unlock(); }

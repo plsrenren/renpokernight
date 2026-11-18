@@ -5,6 +5,8 @@ import { SHEET_URL, MEMBERS_URL, gameRecords, findPlayer, playerCard, memberIds 
 import { draw, playerCardTree } from './_late.js';
 import { avatarPng, bannerPng, accentColor } from './_discord.js';
 import { kv, kvUrl, kvToken } from './_blackjack.js';
+import { leaderCheck } from './_shop.js';
+import { leaderFrom } from './_accolades.js';
 
 const pngUri = b => 'data:image/png;base64,' + Buffer.from(b).toString('base64');
 
@@ -21,7 +23,8 @@ export async function render(csv, query, period, membersCsv = '', art = {}) {
     ids[c.name] ? safe(getColor, ids[c.name]) : null]);
   // Study Cards loadout (title, pfp border, overall bar, sticker), stored by Discord ID; art.eq overrides it (tests)
   let eq = art.eq || null;
-  if (!eq && ids[c.name] && kvUrl() && kvToken()) { try { const [raw] = await kv(['HGET', 'sh:eq', ids[c.name]]); eq = JSON.parse(raw || '{}'); } catch (e) { eq = null; } }
+  // (Chip Leader only shows while they're still #1 on /chips)
+  if (!eq && ids[c.name] && kvUrl() && kvToken()) { try { const [raw, bal] = await kv(['HGET', 'sh:eq', ids[c.name]], ['HGETALL', 'bj:bal']); eq = leaderCheck(JSON.parse(raw || '{}'), ids[c.name], leaderFrom(bal)); } catch (e) { eq = null; } }
   const png = await draw(playerCardTree(c, { pics, banner: banner ? pngUri(banner) : null, color, eq }));
   return { png, name: c.name, period: c.period };
 }

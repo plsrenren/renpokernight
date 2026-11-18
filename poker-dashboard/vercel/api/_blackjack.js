@@ -81,9 +81,27 @@ export const noStorage = () => quiet("Blackjack isn't set up yet: the site needs
 
 // "Just now" feed on the site's /casino page: the last 300 finished hands, spins, duels and daily claims from Discord and the site.
 // me.src is 'site' for the website; Discord players have no src.
-export const feedCmds = (me, game, net, wager = 0) => [
+// stats = extra counts for the casino accolades, e.g. { naturals: 1 } (see statCmds).
+export const feedCmds = (me, game, net, wager = 0, stats = {}) => [
   ['LPUSH', 'cas:feed', JSON.stringify({ id: me.id, name: me.name, game, net: Math.round(net * 100) / 100, src: me.src || 'discord', at: Date.now() })],
-  ['LTRIM', 'cas:feed', 0, FEED_KEEP - 1], ...houseCmds(me.id, game, net, wager)];
+  ['LTRIM', 'cas:feed', 0, FEED_KEEP - 1], ...houseCmds(me.id, game, net, wager), ...statCmds(me.id, game, net, stats)];
+
+// ---------- counts for the casino accolades (see _accolades.js and ACC in loot.js) ----------
+// Nobody sees these numbers; they only unlock titles and borders. One hash per player, ac:n:<id>:
+//   blackjack / free bet / UTH / baccarat / roulette   hands (spins) finished at that game
+//   daily      /daily claims          tips   chips received from tips minus chips tipped away (chip titles ignore these)
+//   naturals   dealt blackjacks       royal  UTH royal flushes      believer  roulette spins won with every chip on one number
+// Every change also drops the player in ac:dirty, so the next bot or site request checks them for new accolades.
+function statCmds(id, game, net, stats) {
+  if (!id) return [];
+  const k = 'ac:n:' + id, out = [];
+  if (HOUSE_GAMES.has(game)) out.push(['HINCRBY', k, game, 1]);
+  else if (game === 'daily') out.push(['HINCRBY', k, 'daily', 1]);
+  else if (/^tip (to|from) /.test(game)) out.push(['HINCRBYFLOAT', k, 'tips', Math.round(net * 100) / 100]);
+  for (const [f, n] of Object.entries(stats || {})) if (+n) out.push(['HINCRBY', k, f, Math.round(+n)]);
+  out.push(['SADD', 'ac:dirty', id]);
+  return out;
+}
 
 // ---------- the house's books + weekly rakeback ----------
 // Every finished hand at a house game goes through feedCmds, so it is counted here too:
@@ -273,10 +291,11 @@ export async function newHand(me, bet, mode = '', side = 0) {
   const g = { id: randomBytes(5).toString('hex'), uid: me.id, name: me.name, bet, step: 0, deck: freshDeck(), dealer: [], hands: [{ cards: [], bet, free: 0 }], active: 0, over: false,
     ...(free ? { mode: 'free', side } : {}) };
   g.hands[0].cards.push(draw(g)); g.dealer.push(draw(g)); g.hands[0].cards.push(draw(g)); g.dealer.push(draw(g));
+  g.nat = natural(g.hands[0]) ? 1 : 0; // a dealt blackjack, for the Natural accolade
   if (natural(g.hands[0]) || total(g.dealer).t === 21) settle(g);
   // the bet is already off (takeChips); this pays a hand that settled on the deal and saves it
   const res = await kv(g.over && g.payout ? ['HINCRBYFLOAT', 'bj:bal', me.id, g.payout] : ['HGET', 'bj:bal', me.id], ['HSET', 'bj:name', me.id, me.name], ['SET', 'bj:g:' + g.id, JSON.stringify(g), 'EX', 3600],
-    ...(g.over ? feedCmds(me, GAME(g), g.net, staked(g)) : []));
+    ...(g.over ? feedCmds(me, GAME(g), g.net, staked(g), { naturals: g.nat }) : []));
   return { g, bal: +res[0] };
 }
 
@@ -325,7 +344,7 @@ export async function handAction(me, gid, action) {
     advance(g); g.step++;
     const delta = g.over ? g.payout : 0;
     const res = await kv(...(delta ? [['HINCRBYFLOAT', 'bj:bal', me.id, delta]] : [['HGET', 'bj:bal', me.id]]), ['SET', 'bj:g:' + g.id, JSON.stringify(g), 'EX', 3600], ['DEL', 'bj:lock:' + gid],
-      ...(g.over ? feedCmds(me, GAME(g), g.net, staked(g)) : []));
+      ...(g.over ? feedCmds(me, GAME(g), g.net, staked(g), { naturals: g.nat }) : []));
     wrote = true; bal = +res[0];
     return { g, bal };
   } finally { if (!wrote) await unlock(); }

@@ -35,9 +35,10 @@ import { UTH_COMMAND, uthCommand, uthButton } from './_uth.js';
 import { ROULETTE_COMMAND, rouletteCommand, rouletteInteraction } from './_roulette.js';
 import { BACCARAT_COMMAND, baccaratCommand, baccaratButton } from './_baccarat.js';
 import { casinoWeb } from './_casino.js';
+import { checkAccolades } from './_accolades.js';
 import { houseEmbed } from './_rakeback.js';
 import { REWARD_LIST } from './_rewards.js';
-import { FIRST_CLAIM, DAILY, DAILY_RESET_UTC, RAKE } from './_blackjack.js';
+import { FIRST_CLAIM, DAILY, DAILY_RESET_UTC, RAKE, kvUrl, kvToken } from './_blackjack.js';
 import { SHOP_COMMANDS, shopCommand, shopInteraction } from './_shop.js';
 import { wrongChannel } from './_channels.js';
 import { withPicture, warmPictures } from './_attach.js';
@@ -114,17 +115,21 @@ const webRoute = req => { const w = new URL(req.url).searchParams.get('web'); re
 
 // casino replies carry their table picture as an upload (see _attach.js), so it shows with the message instead of loading after it
 const PIC_BUTTONS = /^(bj|du|uth|ro|ba|sh):/, PIC_COMMANDS = ['blackjack', 'freebet', 'duel', 'uth', 'baccarat', 'roulette', 'pack'];
+// after an answer is sent: checks the players whose casino numbers just changed for new accolades (see _accolades.js)
+const accoladesLater = () => { if (kvUrl() && kvToken()) waitUntil(checkAccolades({ ids: cache.ids }).catch(e => console.error('accolades', e))); };
 export async function POST(req) {
-  if (webRoute(req)) { waitUntil(refreshNewestInvite()); return casinoWeb(req, webRoute(req), sheet); }
+  if (webRoute(req)) { waitUntil(refreshNewestInvite()); const out = await casinoWeb(req, webRoute(req), sheet); accoladesLater(); return out; }
   const startedAt = Date.now();
   const body = await req.text();
   if (!signed(req, body)) return new Response('bad signature', { status: 401 });
   const i = JSON.parse(body);
   if (i.type === 1) return json({ type: 1 }); // Discord's ping when you save the endpoint URL
   const pic = (i.type === 3 && i.data && PIC_BUTTONS.test(String(i.data.custom_id))) || (i.type === 2 && i.data && PIC_COMMANDS.includes(i.data.name));
-  if (!pic) return answer(i);
+  if (!pic) { const out = await answer(i); accoladesLater(); return out; }
   warmPictures().catch(e => console.error('picture code', e)); // loads while the game talks to chip storage
-  return withPicture(await answer(i), startedAt);
+  const out = withPicture(await answer(i), startedAt);
+  accoladesLater();
+  return out;
 }
 
 async function answer(i) {

@@ -4,12 +4,14 @@
 //   /loadout           (only you see it) what you have equipped per slot, change it with the menus
 //   /tip user amount   give some of your chips to another player, with an optional note
 // The site's /shop page uses the same code through /api/shop (rewritten to api/discord.js?web=shop, see shopWeb).
+// Casino accolades (a:<key> items, earned by playing, see _accolades.js) sit in the same slots; ac:own:<user id> holds them.
 // Keys: sh:own:<user id> (hash item id → how many), sh:eq (hash user id → JSON {slot: item id}), sh:packs (hash user id → packs
 // bought), sh:pk:<pack id> (an opened pack and which cards are flipped, 1 day), sh:lock:<user id> (stops double taps).
 // Chips come off with one storage script (DEBIT) so two taps can never spend chips you don't have.
 import { randomBytes, randomInt } from 'node:crypto';
 import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds, DEBIT } from './_blackjack.js';
 import { ITEMS, BY_ID, PRICE, REFUND, ODDS, TIERS, SLOT_NAMES, PACKS, rollPack, itemFor, tierRank, championsFrom, RETIRED } from '../loot.js';
+import { earnedIds, leaderFrom } from './_accolades.js';
 
 const SITE = 'https://renpokernight.vercel.app';
 const MAX_TIP = 100000;
@@ -31,20 +33,26 @@ const unlock = uid => kv(['DEL', 'sh:lock:' + uid]).catch(() => {});
 const parseEq = raw => { try { const e = JSON.parse(raw || '{}'); return e && typeof e === 'object' ? e : {}; } catch (e) { return {}; } };
 const hashObj = arr => { const o = {}; for (let k = 0; k < (arr || []).length; k += 2) o[arr[k]] = +arr[k + 1]; return o; };
 
-/** everything one person has: { owned: {id: n}, eq: {slot: id}, bal, packs } */
+/** everything one person has: { owned: {id: n}, eq: {slot: id}, bal, packs, earned: [accolade ids they can wear] } */
 // pays back a retired item once: removes it from sh:own and adds its refund per copy to bj:bal, in one step
 const RETIRE = "local n=tonumber(redis.call('HGET',KEYS[1],ARGV[1]) or '0') if n<=0 then return 0 end redis.call('HDEL',KEYS[1],ARGV[1]) redis.call('HINCRBYFLOAT',KEYS[2],ARGV[3],n*tonumber(ARGV[2])) return n";
 export async function loadout(uid) {
   // same pipeline, refunds first, so the balance read below already includes them
   const res = await kv(...RETIRED.map(id => ['EVAL', RETIRE, 2, 'sh:own:' + uid, 'bj:bal', id, REFUND[BY_ID[id].tier], uid]),
-    ['HGETALL', 'sh:own:' + uid], ['HGET', 'sh:eq', uid], ['HGET', 'bj:bal', uid], ['HGET', 'sh:packs', uid]);
-  const [own, eq, bal, packs] = res.slice(RETIRED.length);
-  return { owned: hashObj(own), eq: parseEq(eq), bal: bal === null ? null : +bal, packs: +packs || 0 };
+    ['HGETALL', 'sh:own:' + uid], ['HGET', 'sh:eq', uid], ['HGET', 'bj:bal', uid], ['HGET', 'sh:packs', uid], ['HGETALL', 'ac:own:' + uid], ['HGETALL', 'bj:bal']);
+  const [own, eq, bal, packs, acc, all] = res.slice(RETIRED.length);
+  const earned = earnedIds(uid, acc, all);
+  return { owned: hashObj(own), eq: wearable(parseEq(eq), earned), bal: bal === null ? null : +bal, packs: +packs || 0, earned };
 }
+/** an equipped set without accolades they can't wear any more (Chip Leader after someone passes them). earned = earnedIds */
+export const wearable = (eq, earned) => Object.fromEntries(Object.entries(eq || {}).filter(([, id]) => !String(id).startsWith('a:') || earned.includes(id)));
+/** the same for anyone, when only the Chip Leader matters (kept accolades never go away): drops a:leader unless uid is #1 */
+export const leaderCheck = (eq, uid, leader) => Object.fromEntries(Object.entries(eq || {}).filter(([, id]) => id !== 'a:leader' || uid === leader));
 /** equipped items for many people at once: { userId: {slot: item} } (for the player cards) */
 export async function equippedAll() {
-  const [all] = await kv(['HGETALL', 'sh:eq']);
-  const o = {}; for (let k = 0; k < (all || []).length; k += 2) { const e = parseEq(all[k + 1]), v = {}; for (const s of SLOT_NAMES) if (itemFor(e[s])) v[s] = e[s]; o[all[k]] = v; }
+  const [all, bal] = await kv(['HGETALL', 'sh:eq'], ['HGETALL', 'bj:bal']);
+  const leader = leaderFrom(bal);
+  const o = {}; for (let k = 0; k < (all || []).length; k += 2) { const e = leaderCheck(parseEq(all[k + 1]), all[k], leader), v = {}; for (const s of SLOT_NAMES) if (itemFor(e[s])) v[s] = e[s]; o[all[k]] = v; }
   return o;
 }
 
@@ -88,6 +96,9 @@ export async function equip(uid, slot, id, champs = null) {
     if (it.tier === 'Champion') {
       if (!champs) return { err: "Couldn't check the Hall of Fame just now. Try again in a moment." };
       if (!champs.includes(id)) return { err: `${it.name} goes to whoever won it.` };
+    } else if (it.tier === 'Earned') {
+      const [acc, bal] = await kv(['HGETALL', 'ac:own:' + uid], ['HGETALL', 'bj:bal']);
+      if (!earnedIds(uid, acc, bal).includes(id)) return { err: it.k === 'leader' ? 'Chip Leader is only for whoever is #1 on /chips right now.' : `You haven't earned ${it.name} yet.` };
     } else {
       const [n] = await kv(['HGET', 'sh:own:' + uid, id]);
       if (!(+n > 0)) return { err: `You don't have ${it.name} yet.` };
@@ -159,12 +170,14 @@ async function loadoutView(me, s, slot = 'Title', note = '') {
   const total = ITEMS.filter(it => L.owned[it.id]).length;
   const player = s && s.ids ? Object.keys(s.ids).find(n => s.ids[n] === me.id) : null;
   const v = Object.values(L.eq).join('.').replace(/[^a-zA-Z0-9.:-]/g, '').slice(0, 60) || 'none';
-  const embed = { color: 0xf0c75e, title: `${me.name}'s loadout`, fields, description: note || (total ? 'Pick a slot, then pick what to wear. It shows on /player and the site card right away.' : `Nothing yet. Open a pack with **/pack** (${money(PRICE)}).`),
-    footer: { text: `${total} of ${ITEMS.length} collected · ${L.packs} pack${L.packs === 1 ? '' : 's'} opened` } };
+  const earned = L.earned.map(itemFor).filter(Boolean);
+  const embed = { color: 0xf0c75e, title: `${me.name}'s loadout`, fields, description: note || (total || earned.length || champs.length ? 'Pick a slot, then pick what to wear. It shows on /player and the site card right away.' : `Nothing yet. Open a pack with **/pack** (${money(PRICE)}).`),
+    footer: { text: `${total} of ${ITEMS.length} collected · ${L.packs} pack${L.packs === 1 ? '' : 's'} opened${earned.length ? ` · ${earned.length} earned` : ''}` } };
   if (player) embed.image = { url: `${SITE}/api/card?name=${encodeURIComponent(player)}&eq=${encodeURIComponent(v)}&v=${Math.floor(Date.now() / 60e3)}` };
-  // owned items in this slot, rarest first (a menu holds 25, so the shop page has the full list)
-  const mine = [...(slot === 'Pfp border' ? champs : []), ...ITEMS.filter(it => it.slot === slot && L.owned[it.id])].sort((a, b) => tierRank(b.tier) - tierRank(a.tier) || a.name.localeCompare(b.name));
-  const items = [{ label: 'None (default look)', value: 'none', default: !L.eq[slot] }, ...mine.slice(0, 24).map(it => ({ label: it.name, value: it.id, description: `${it.tier === 'Champion' ? 'Champion · earned' : it.tier}${L.owned[it.id] > 1 ? ` · x${L.owned[it.id]}` : ''}`, default: L.eq[slot] === it.id }))];
+  // owned items in this slot, rarest first (a menu holds 25, so the shop page has the full list). Champion borders and
+  // accolades show how they were earned (it.why) where pack items show their rarity.
+  const mine = [...(slot === 'Pfp border' ? champs : []), ...earned.filter(it => it.slot === slot), ...ITEMS.filter(it => it.slot === slot && L.owned[it.id])].sort((a, b) => tierRank(b.tier) - tierRank(a.tier) || a.name.localeCompare(b.name));
+  const items = [{ label: 'None (default look)', value: 'none', default: !L.eq[slot] }, ...mine.slice(0, 24).map(it => ({ label: it.name, value: it.id, description: it.why || `${it.tier}${L.owned[it.id] > 1 ? ` · x${L.owned[it.id]}` : ''}`, default: L.eq[slot] === it.id }))];
   const components = [
     row({ type: 3, custom_id: 'sh:ls', placeholder: 'Slot', options: SLOT_NAMES.map(sl => ({ label: `Slot: ${sl}`, value: sl, default: sl === slot })) }),
     row({ type: 3, custom_id: 'sh:li:' + SLOT_NAMES.indexOf(slot), placeholder: `Choose a ${slotWord(slot)}`, options: items }),
@@ -216,7 +229,8 @@ export async function shopInteraction(i, s) {
     if (act === 'li') {
       const slot = SLOT_NAMES[+pid] || 'Title', v = i.data.values[0];
       const r = await equip(me.id, slot, v === 'none' ? null : v, champsFor(me.id, s));
-      return json({ type: 7, data: await loadoutView(me, s, slot, r.err ? '⚠️ ' + r.err : v === 'none' ? `Back to the default ${slotWord(slot)}.` : `Equipped **${itemFor(v).name}**.`) });
+      const it = v === 'none' ? null : itemFor(v);
+      return json({ type: 7, data: await loadoutView(me, s, slot, r.err ? '⚠️ ' + r.err : !it ? `Back to the default ${slotWord(slot)}.` : `Equipped **${it.name}**.${it.why ? `\n*${it.why}*` : ''}`) });
     }
     // pack buttons: only the person who bought it
     const [raw] = await kv(['GET', 'sh:pk:' + pid]);

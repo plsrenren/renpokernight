@@ -81,6 +81,12 @@ poker-dashboard/
                        drawn by hand with /lottery draw (host only, live ticket roll in Discord, draws the last finished quarter once), Lucky Ticket role (_roles.js);
                        /lottery odds|draw, lobby prize wheel with pfps (spins to the winner once per viewer), lobby panel, card at /api/wrap?lottery=<quarter>, spinning wheel GIF at /api/wrap?lottery=<quarter>&spin=1 (_wheelgif.js; no spare function slot). Some names are shown
                        with tickets but never drawn (SKIP in _lottery.js), by request: don't mention it anywhere user-facing)
+                       accolades: _accolades.js + ACC in loot.js (25 earned casino items: 6 pfp borders, 18 titles, 1 sticker; ids a:<k>, tier 'Earned', never in packs).
+                       Hand counter (invisible to players): feedCmds() also bumps ac:n:<id> (hands per game, daily, tips received, naturals, royal, believer)
+                       and adds the player to ac:dirty; discord.js runs checkAccolades() after each answer (waitUntil), roles.js after each night and
+                       the Monday cron (plus weeklyAccolades() for High Roller/Beat the House/Whale/Regular, each week once via ac:wk:<week>).
+                       Stamped in ac:own:<id> (kept forever); Chip Leader is live (#1 on bj:bal, never stamped, hidden once passed: leaderCheck in _shop.js).
+                       Unlocks post a short note in #casino. No accolades page, by request: the note (why, 24 chars max) replaces the rarity line in /loadout + /shop tiles
     vercel.json        Function durations + included files. Env vars on Vercel: DISCORD_BOT_TOKEN, DISCORD_PUBLIC_KEY
 poker-entry/
   Code.gs              Apps Script server: doGet, getSetup(), saveNight(payload), Discord recap post. The live copy has the

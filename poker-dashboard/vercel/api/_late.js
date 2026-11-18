@@ -5,7 +5,7 @@ import { Resvg } from '@resvg/resvg-js';
 import { readFileSync } from 'node:fs';
 import { WHEEL_COLORS, wheelPngUri } from './_wheelgif.js';
 import { usd, hueFor, initials, words } from '../recap-core.js';
-import { itemFor, champLook, LOOK, TCOL } from '../loot.js';
+import { itemFor, lookFor, LOOK, TCOL } from '../loot.js';
 import { borderBox, stickerPng } from './_shopimg.js';
 
 const asset = name => readFileSync(new URL(`./_assets/${name}`, import.meta.url));
@@ -161,7 +161,7 @@ export const playerCardTree = withAssets((c, art = {}) => {
     ov ? h({ position: 'absolute', right: -10, top: -38, fontFamily: 'Bebas', fontSize: 250, lineHeight: 1, color: 'rgba(255,255,255,0.08)' }, String(ov.value)) : null,
     // Study Cards sticker (top right) and pfp border, when equipped (art.eq = {slot: item id}; see loot.js)
     stk ? h({ position: 'absolute', right: 26, top: 14, transform: 'rotate(-10deg)' }, img(stk.src, stk.w, stk.ht)) : null,
-    h({ width: 190, alignItems: 'center', justifyContent: 'center', position: 'relative' }, border ? borderBox(border.key, 120, pics[c.name] || initialsUri(c.name), border.tier === 'Champion' ? champLook(border) : null) : sq(pics, c.name, 140)),
+    h({ width: 190, alignItems: 'center', justifyContent: 'center', position: 'relative' }, border ? borderBox(border.key, 120, pics[c.name] || initialsUri(c.name), lookFor(border)) : sq(pics, c.name, 140)),
     // darker fade behind the text side so it reads on busy banners
     art.banner ? h({ position: 'absolute', left: 0, top: 0, width: W, height: 220, backgroundImage: 'linear-gradient(90deg, rgba(21,19,42,0) 25%, rgba(21,19,42,0.78) 55%, rgba(21,19,42,0.78))' }) : null,
     h({ flex: 1, flexDirection: 'column', justifyContent: 'center', paddingRight: 12, position: 'relative' },
