@@ -1,16 +1,24 @@
 // /api/avatar?id=<discord user id>              the player's current Discord pfp as a PNG
-// /api/avatar?id=<discord user id>&anim=1       the animated pfp (GIF) when they have one, else the PNG (player cards only)
+// /api/avatar?id=<discord user id>&anim=2       the animated pfp (GIF) when they have one, else the PNG (player cards only)
 // /api/avatar?id=<discord user id>&kind=banner  their profile banner (Nitro only)
-// A miss is a 404 (the page falls back to initials / the default card glow). Banner misses also send the
+// A 503 means Discord was slow or busy (never cached; the pages retry once). No pfp is a 404 (the page falls back to initials / the default card glow). Banner misses also send the
 // player's Discord profile colour, when they've picked one, in the X-Accent-Color header.
-import { avatarPng, avatarGif, bannerPng, accentColor } from './_discord.js';
+import { avatarPng, avatarGif, bannerPng, accentColor, lookupFailed, discordUser } from './_discord.js';
 
 export default async function handler(req, res) {
   const q = new URL(req.url, 'http://x').searchParams;
   const id = q.get('id') || '', banner = q.get('kind') === 'banner';
   if (!/^\d{17,20}$/.test(id)) { res.status(400).send('id must be a Discord user ID'); return; }
-  const gif = !banner && q.get('anim') === '1' ? await avatarGif(id) : null;
+  const anim = !banner && !!q.get('anim');
+  const gif = anim ? await avatarGif(id) : null;
   const png = gif || (banner ? await bannerPng(id) : await avatarPng(id));
+  const busy = !png && (lookupFailed(id) || (!banner && !!((await discordUser(id)) || {}).avatar));
+  if (busy) {
+    // Discord was slow or busy (or the picture didn't download in time): don't let the CDN or the browser remember this miss
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(503).send('try again');
+    return;
+  }
   if (!png) {
     if (banner) { const c = await accentColor(id); if (c) res.setHeader('X-Accent-Color', c); }
     res.setHeader('Cache-Control', 'public, s-maxage=600');
@@ -18,6 +26,9 @@ export default async function handler(req, res) {
     return;
   }
   res.setHeader('Content-Type', gif ? 'image/gif' : 'image/png');
-  res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800');
+  // asked for the animated pfp but sent the still one: only remember it if they really don't have a GIF pfp
+  const u = anim && !gif ? await discordUser(id) : null;
+  const stillInstead = !!(u && u.avatar && u.avatar.startsWith('a_'));
+  res.setHeader('Cache-Control', stillInstead ? 'no-store' : 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800');
   res.status(200).send(png);
 }

@@ -404,14 +404,16 @@ const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const nameBtn = n => `<button type="button" class="link" data-player="${esc(n)}">${esc(n)}</button>`;
 const nameHue = n => [...n].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7);
+// a pfp that didn't load gets one more try a moment later (Discord can be busy when a page asks for many at once), then initials show
+function retryPic(im) { if (im.dataset.r) return im.remove(); im.dataset.r = 1; setTimeout(() => { im.src = im.src + '&r=1'; }, 1200); }
 // a player's Discord pfp (initials on their colour when there's none) in front of their name
-const pfp = (n, ring) => `<span class="pfp${ring ? ' ring' : ''}" style="--h:${nameHue(n)}${ring ? ';--ring:' + ring : ''}" aria-hidden="true">${esc(n[0].toUpperCase())}${IDS[n] ? `<img src="/api/avatar?id=${IDS[n]}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
+const pfp = (n, ring) => `<span class="pfp${ring ? ' ring' : ''}" style="--h:${nameHue(n)}${ring ? ';--ring:' + ring : ''}" aria-hidden="true">${esc(n[0].toUpperCase())}${IDS[n] ? `<img src="/api/avatar?id=${IDS[n]}" alt="" loading="lazy" onerror="retryPic(this)">` : ''}</span>`;
 const whoBtn = n => `<span class="who">${pfp(n)}${nameBtn(n)}</span>`;
 // pfps drawn under the bar chart instead of names (hover or tap a bar to see the name)
 const faceImgs = {};
 function faceImg(n) {
   if (!IDS[n]) return null;
-  if (!faceImgs[n]) { const im = new Image(); im.onload = () => charts.bar?.draw(); im.src = '/api/avatar?id=' + IDS[n]; faceImgs[n] = im; }
+  if (!faceImgs[n]) { const im = new Image(); im.onload = () => charts.bar?.draw(); im.onerror = () => { if (!im.dataset.r) { im.dataset.r = 1; setTimeout(() => { im.src += '&r=1'; }, 1200); } }; im.src = '/api/avatar?id=' + IDS[n]; faceImgs[n] = im; }
   return faceImgs[n].complete && faceImgs[n].naturalWidth ? faceImgs[n] : null;
 }
 const faceSize = ch => Math.max(16, Math.min(28, ch.scales.x.width / ch.data.labels.length - 6));
@@ -810,7 +812,7 @@ function renderPlayer(name) {
   card.dataset.red = suit.red ? '1' : '0';
   const mono = document.getElementById('cMono');
   mono.textContent = name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || name.slice(0, 2).toUpperCase();
-  if (IDS[name]) { const im = new Image(); im.alt = ''; im.onerror = () => im.remove(); im.src = '/api/avatar?anim=1&id=' + IDS[name]; mono.appendChild(im); }
+  if (IDS[name]) { const im = new Image(); im.alt = ''; im.onerror = () => retryPic(im); im.src = '/api/avatar?anim=2&id=' + IDS[name]; mono.appendChild(im); }
   loadBanner(name);
   document.getElementById('pName').textContent = name;
   renderCard(name, allGames);

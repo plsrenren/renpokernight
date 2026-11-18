@@ -28,7 +28,7 @@
       "maxDuration": 60
     },
     "api/avatar.js": {
-      "maxDuration": 10
+      "maxDuration": 20
     },
     "api/hall.js": {
       "includeFiles": "{api/_assets/**,recap-core.js}",
