@@ -15,7 +15,7 @@
 // which every finished hand, claim, tip, duel and pack adds to. The very first run checks everyone and posts nothing (already-earned ones arrive quietly).
 // weeklyAccolades() runs from the Monday cron (after rakeback) for High Roller, Beat the House, Whale and Regular.
 import { kv, boardFrom, weekStart, HOUSE_GAMES } from './_blackjack.js';
-import { postCasino, postChannel, nightRows } from './_rewards.js';
+import { postCasino, postChannel, nightRows, inServer } from './_rewards.js';
 import { ACC, ITEMS, accItem } from '../loot.js';
 
 /** how much of each thing unlocks what */
@@ -105,6 +105,8 @@ export function unlockText(news, head = '') {
     : `🏅 <@${id}> unlocked ${keys.map(k => `**${nameOf(k)}**`).join(', ')}`);
   return clip([head, ...lines, FOOT].filter(Boolean).join('\n'));
 }
+/** only the unlocks of people who are in the Discord server right now (they still keep the accolade either way) */
+const onlyMembers = async news => { const ok = await inServer(news.map(x => x.id)); return news.filter(x => ok.has(x.id)); };
 const post = async text => { try { return await postCasino({ content: text, allowed_mentions: { parse: [] } }); } catch (e) { console.error('accolade post', e); return 'failed: ' + e.message; } };
 
 /** Checks players for new accolades, keeps them and posts the note. all = everyone with chips (the cron). ids = { sheet name: Discord id }
@@ -141,7 +143,7 @@ export async function checkAccolades({ all = false, ids = null, now = Date.now()
   const news = await stamp(got, now);
   let posted = null;
   // the first run hands out what people already earned before launch without posting anything (by request); only later unlocks post
-  if (news.length && !quiet && !launch) posted = await post(unlockText(news));
+  if (news.length && !quiet && !launch) { const shown = await onlyMembers(news); posted = shown.length ? await post(unlockText(shown)) : 'nobody in the server'; }
   return { checked: uids.length, launch, unlocked: news, posted };
 }
 
@@ -161,7 +163,8 @@ export async function weeklyAccolades(now = Date.now(), quiet = false) {
   const got = {};
   for (const t of go) { const i = weeks.findIndex(w => w.t === t); for (const [id, keys] of Object.entries(weeklyFrom(weeks, i))) (got[id] ||= []).push(...keys); }
   const news = await stamp(got, now);
-  const posted = news.length && !quiet ? await post(unlockText(news)) : null;
+  const shown = news.length && !quiet ? await onlyMembers(news) : [];
+  const posted = shown.length ? await post(unlockText(shown)) : null;
   return { weeks: go.map(key), unlocked: news, posted };
 }
 
@@ -233,7 +236,7 @@ export async function checkPoker(csv, ids, { now = Date.now(), quiet = false } =
   let posted = null;
   // the first run quietly hands out everything earned on past nights (by request); only later unlocks post
   if (news.length && !quiet && !init) {
-    try { posted = await postChannel({ content: unlockText(news), allowed_mentions: { parse: [] } }, 'table'); } catch (e) { console.error('poker accolade post', e); posted = 'failed: ' + e.message; }
+    try { const shown = await onlyMembers(news); posted = shown.length ? await postChannel({ content: unlockText(shown), allowed_mentions: { parse: [] } }, 'table') : 'nobody in the server'; } catch (e) { console.error('poker accolade post', e); posted = 'failed: ' + e.message; }
   }
   return { players: Object.keys(got).length, launch: !!init, unlocked: news, posted };
 }

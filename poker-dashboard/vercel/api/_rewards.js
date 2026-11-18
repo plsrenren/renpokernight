@@ -186,6 +186,19 @@ const postToCasino = (people, nights) => postCasino({ content: casinoText(people
 export const postCasino = payload => postChannel(payload, 'casino');
 const CHANS = { casino: { name: 'casino', key: 'rw:chan', test: n => /^casino$/i.test(n) },
   table: { name: 'the-table', key: 'rw:tchan', test: n => /^the-table$/i.test(n) } };
+/** Which of these Discord ids are in the server right now (the bot's first servers; a lookup that fails counts as not in it).
+ *  Used so nobody outside the Discord shows up in a note. */
+export async function inServer(uids) {
+  const token = process.env.DISCORD_BOT_TOKEN;
+  if (!token || !uids.length) return new Set();
+  const H = { Authorization: `Bot ${token}` };
+  const get = path => fetch(API + path, { headers: H }).then(r => r.ok ? r.json() : null).catch(() => null);
+  const guilds = ((await get('/users/@me/guilds')) || []).slice(0, 3).map(g => g.id), out = new Set();
+  await Promise.all([...new Set(uids)].slice(0, 50).map(async id => {
+    for (const g of guilds) if (await get(`/guilds/${g}/members/${id}`)) { out.add(id); return; }
+  }));
+  return out;
+}
 /** Posts in #casino (which = 'casino') or #the-table ('table'); the channel id is found by name and remembered a day. Returns where it went, or why not. */
 export async function postChannel(payload, which = 'casino') {
   const token = process.env.DISCORD_BOT_TOKEN, ch = CHANS[which];
