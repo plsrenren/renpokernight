@@ -9,7 +9,7 @@
 // Chips come off with one storage script (DEBIT) so two taps can never spend chips you don't have.
 import { randomBytes, randomInt } from 'node:crypto';
 import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds, DEBIT } from './_blackjack.js';
-import { ITEMS, BY_ID, PRICE, REFUND, ODDS, TIERS, SLOT_NAMES, PACKS, rollPack } from '../loot.js';
+import { ITEMS, BY_ID, PRICE, REFUND, ODDS, TIERS, SLOT_NAMES, PACKS, rollPack, itemFor, tierRank, championsFrom } from '../loot.js';
 
 const SITE = 'https://renpokernight.vercel.app';
 const MAX_TIP = 100000;
@@ -39,7 +39,7 @@ export async function loadout(uid) {
 /** equipped items for many people at once: { userId: {slot: item} } (for the player cards) */
 export async function equippedAll() {
   const [all] = await kv(['HGETALL', 'sh:eq']);
-  const o = {}; for (let k = 0; k < (all || []).length; k += 2) { const e = parseEq(all[k + 1]), v = {}; for (const s of SLOT_NAMES) if (BY_ID[e[s]]) v[s] = e[s]; o[all[k]] = v; }
+  const o = {}; for (let k = 0; k < (all || []).length; k += 2) { const e = parseEq(all[k + 1]), v = {}; for (const s of SLOT_NAMES) if (itemFor(e[s])) v[s] = e[s]; o[all[k]] = v; }
   return o;
 }
 
@@ -67,13 +67,26 @@ export async function buyPack(me) {
   } finally { await unlock(me.id); }
 }
 
-/** equip an owned item (id) in its slot, or clear a slot (id = null, slot given). Returns { eq } or { err } */
-export async function equip(uid, slot, id) {
+/** champion borders someone has earned (ids), from the sheet copy s = { ids, recs }; null when the sheet isn't loaded */
+export function champsFor(uid, s) {
+  if (!s || !s.ids || !s.recs) return null;
+  const name = Object.keys(s.ids).find(n => s.ids[n] === uid);
+  return name ? championsFrom(s.recs)[name] || [] : [];
+}
+
+/** equip an owned item (id) in its slot, or clear a slot (id = null, slot given). champs = earned champion ids
+ *  (champsFor), needed to wear a champion border. Returns { eq } or { err } */
+export async function equip(uid, slot, id, champs = null) {
   if (id) {
-    const it = BY_ID[id];
+    const it = itemFor(id);
     if (!it) return { err: "That item doesn't exist." };
-    const [n] = await kv(['HGET', 'sh:own:' + uid, id]);
-    if (!(+n > 0)) return { err: `You don't have ${it.name} yet.` };
+    if (it.tier === 'Champion') {
+      if (!champs) return { err: "Couldn't check the Hall of Fame just now. Try again in a moment." };
+      if (!champs.includes(id)) return { err: `${it.name} goes to whoever won it.` };
+    } else {
+      const [n] = await kv(['HGET', 'sh:own:' + uid, id]);
+      if (!(+n > 0)) return { err: `You don't have ${it.name} yet.` };
+    }
     slot = it.slot;
   } else if (!SLOT_NAMES.includes(slot)) return { err: 'Unknown slot.' };
   const [raw] = await kv(['HGET', 'sh:eq', uid]);
@@ -135,18 +148,18 @@ const ODDS_TEXT = () => `Every pack has the same ${ITEMS.length} items: titles, 
 
 // ---------- Discord: /loadout ----------
 async function loadoutView(me, s, slot = 'Title', note = '') {
-  const L = await loadout(me.id);
-  const fields = SLOT_NAMES.map(sl => { const mine = ITEMS.filter(it => it.slot === sl && L.owned[it.id]), on = BY_ID[L.eq[sl]];
+  const L = await loadout(me.id), champs = (champsFor(me.id, s) || []).map(itemFor);
+  const fields = SLOT_NAMES.map(sl => { const mine = ITEMS.filter(it => it.slot === sl && L.owned[it.id]), on = itemFor(L.eq[sl]);
     return { name: sl, value: `${on ? on.name : 'None'} · ${mine.length}/${ITEMS.filter(it => it.slot === sl).length}`, inline: true }; });
   const total = ITEMS.filter(it => L.owned[it.id]).length;
   const player = s && s.ids ? Object.keys(s.ids).find(n => s.ids[n] === me.id) : null;
-  const v = Object.values(L.eq).join('.').replace(/[^a-z0-9.:-]/g, '').slice(0, 60) || 'none';
+  const v = Object.values(L.eq).join('.').replace(/[^a-zA-Z0-9.:-]/g, '').slice(0, 60) || 'none';
   const embed = { color: 0xf0c75e, title: `${me.name}'s loadout`, fields, description: note || (total ? 'Pick a slot, then pick what to wear. It shows on /player and the site card right away.' : `Nothing yet. Open a pack with **/pack** (${money(PRICE)}).`),
     footer: { text: `${total} of ${ITEMS.length} collected · ${L.packs} pack${L.packs === 1 ? '' : 's'} opened` } };
   if (player) embed.image = { url: `${SITE}/api/card?name=${encodeURIComponent(player)}&eq=${encodeURIComponent(v)}&v=${Math.floor(Date.now() / 60e3)}` };
   // owned items in this slot, rarest first (a menu holds 25, so the shop page has the full list)
-  const mine = ITEMS.filter(it => it.slot === slot && L.owned[it.id]).sort((a, b) => TIERS.indexOf(b.tier) - TIERS.indexOf(a.tier) || a.name.localeCompare(b.name));
-  const items = [{ label: 'None (default look)', value: 'none', default: !L.eq[slot] }, ...mine.slice(0, 24).map(it => ({ label: it.name, value: it.id, description: `${it.tier}${L.owned[it.id] > 1 ? ` · x${L.owned[it.id]}` : ''}`, default: L.eq[slot] === it.id }))];
+  const mine = [...(slot === 'Pfp border' ? champs : []), ...ITEMS.filter(it => it.slot === slot && L.owned[it.id])].sort((a, b) => tierRank(b.tier) - tierRank(a.tier) || a.name.localeCompare(b.name));
+  const items = [{ label: 'None (default look)', value: 'none', default: !L.eq[slot] }, ...mine.slice(0, 24).map(it => ({ label: it.name, value: it.id, description: `${it.tier === 'Champion' ? 'Champion · earned' : it.tier}${L.owned[it.id] > 1 ? ` · x${L.owned[it.id]}` : ''}`, default: L.eq[slot] === it.id }))];
   const components = [
     row({ type: 3, custom_id: 'sh:ls', placeholder: 'Slot', options: SLOT_NAMES.map(sl => ({ label: `Slot: ${sl}`, value: sl, default: sl === slot })) }),
     row({ type: 3, custom_id: 'sh:li:' + SLOT_NAMES.indexOf(slot), placeholder: `Choose a ${slotWord(slot)}`, options: items }),
@@ -197,8 +210,8 @@ export async function shopInteraction(i, s) {
     if (act === 'ls') return json({ type: 7, data: await loadoutView(me, s, SLOT_NAMES.includes(i.data.values[0]) ? i.data.values[0] : 'Title') });
     if (act === 'li') {
       const slot = SLOT_NAMES[+pid] || 'Title', v = i.data.values[0];
-      const r = await equip(me.id, slot, v === 'none' ? null : v);
-      return json({ type: 7, data: await loadoutView(me, s, slot, r.err ? '⚠️ ' + r.err : v === 'none' ? `Back to the default ${slotWord(slot)}.` : `Equipped **${BY_ID[v].name}**.`) });
+      const r = await equip(me.id, slot, v === 'none' ? null : v, champsFor(me.id, s));
+      return json({ type: 7, data: await loadoutView(me, s, slot, r.err ? '⚠️ ' + r.err : v === 'none' ? `Back to the default ${slotWord(slot)}.` : `Equipped **${itemFor(v).name}**.`) });
     }
     // pack buttons: only the person who bought it
     const [raw] = await kv(['GET', 'sh:pk:' + pid]);
@@ -227,7 +240,7 @@ export async function shopWeb(req, me, sheet, out) {
     const all = await equippedAll(), byName = {};
     for (const [n, id] of Object.entries(ids)) if (all[id] && Object.keys(all[id]).length) byName[n] = all[id];
     const body = { price: PRICE, byName, me: null };
-    if (me) { const L = await loadout(me.id); body.me = { id: me.id, name: me.name, ...L }; }
+    if (me) { const L = await loadout(me.id); body.me = { id: me.id, name: me.name, ...L, champs: champsFor(me.id, sh) || [] }; }
     return out(body);
   }
   if (!me) return out({ err: 'Sign in first.', signedOut: true }, 401);
@@ -240,7 +253,9 @@ export async function shopWeb(req, me, sheet, out) {
     return out({ bal: r.bal, owned: r.owned, pack: { d: r.pack.d, cards: r.pack.cards.map(([id, dup]) => ({ id, dup: !!dup })) } });
   }
   if (b.a === 'equip') {
-    const r = await equip(me.id, b.slot, b.id ? String(b.id) : null);
+    const id = b.id ? String(b.id) : null, champ = id && id.startsWith('c:');
+    const sh = champ && sheet ? await sheet().catch(() => null) : null;
+    const r = await equip(me.id, b.slot, id, champ ? champsFor(me.id, sh) : null);
     return r.err ? out({ err: r.err }) : out({ eq: r.eq });
   }
   return out({ err: 'Unknown action.' }, 400);

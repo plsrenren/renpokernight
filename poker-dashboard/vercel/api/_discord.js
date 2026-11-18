@@ -44,6 +44,11 @@ export async function avatarPng(id, size = 128) {
   const u = await discordUser(id);
   return u && u.avatar ? image(`https://cdn.discordapp.com/avatars/${id}/${u.avatar}.png?size=${size}`) : null;
 }
+/** the animated pfp as a GIF when it is one (avatar hash starts with a_), else null */
+export async function avatarGif(id, size = 128) {
+  const u = await discordUser(id);
+  return u && u.avatar && u.avatar.startsWith('a_') ? image(`https://cdn.discordapp.com/avatars/${id}/${u.avatar}.gif?size=${size}`) : null;
+}
 
 /** Profile banner (Nitro only) as PNG bytes, or null. Animated banners come back as their first frame. */
 export async function bannerPng(id, size = 600) {

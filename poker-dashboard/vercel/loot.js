@@ -85,3 +85,53 @@ export const LOOK = {
     holo: { bg: 'linear-gradient(90deg, #f0c75e, #e0507f, #8f78f0, #5fd6f0, #8fe0b0)', fg: '#15132a', ovr: '#fff' },
   },
 };
+
+// ---------- Champion borders: earned by winning, never in packs ----------
+// One pfp border per board (overall net, cash net, tournament net) for every finished quarter and year.
+// Item ids: c:<kind>:<when>, kind ovr | cash | tour, when Q4-2026 (a quarter) or 2026 (a year). Nobody owns them in storage:
+// championsFrom() works out who won what from the sheet every time. The border shows only the date, in a slanted tab with
+// the board's icon (crown / bills / trophy); year borders get a moving foil sheen on the site.
+export const CHAMP = {
+  ovr: { name: 'Champion', frame: 'linear-gradient(135deg, #7a5a12, #f0c75e 28%, #fff3c4 44%, #c99a2e 60%, #f0c75e 80%, #7a5a12)', ring: '#15132a', glow: 'rgba(240,199,94,0.75)', plate: '#15132a', fg: '#f0c75e' },
+  cash: { name: 'Cash King', frame: 'linear-gradient(135deg, #0f4d31, #2f9a63 45%, #8fe0b0 55%, #13583a)', ring: '#f0c75e', glow: 'rgba(143,224,176,0.6)', plate: '#f0c75e', fg: '#0e2a1c' },
+  tour: { name: 'Tourney King', frame: 'linear-gradient(135deg, #5a2a9e, #8f78f0 40%, #e0507f 70%, #8a1f3c)', ring: '#f0c75e', glow: 'rgba(224,80,127,0.65)', plate: '#e0507f', fg: '#ffffff' },
+};
+export const CHAMP_ICON = {
+  ovr: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 18 2 7l5.5 4L12 4l4.5 7L22 7l-1 11z" fill="#f0c75e" stroke="#15132a" stroke-width="1.6" stroke-linejoin="round"/><rect x="3" y="18.5" width="18" height="3" fill="#f0c75e" stroke="#15132a" stroke-width="1.6"/></svg>',
+  cash: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28"><g stroke="#0e2a1c" stroke-width="1.4" stroke-linejoin="round"><rect x="3" y="12" width="21" height="11" fill="#2f9a63" transform="rotate(-12 13 17)"/><rect x="4" y="9" width="21" height="11" fill="#5cc48a" transform="rotate(-4 14 14)"/><rect x="5" y="7" width="21" height="11" fill="#8fe0b0"/><ellipse cx="15.5" cy="12.5" rx="3.4" ry="3.6" fill="#c8f2d8"/><path d="M7.5 9.5h2M21 15.5h2.5" fill="none"/></g><rect x="12.2" y="6" width="6.5" height="13" fill="#f0c75e" stroke="#0e2a1c" stroke-width="1.2"/></svg>',
+  tour: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28"><g stroke="#15132a" stroke-width="1.5" stroke-linejoin="round"><path d="M8.5 7.2H4.3c0 4.6 2.2 7 5.3 7.3M19.5 7.2h4.2c0 4.6-2.2 7-5.3 7.3" fill="none" stroke-width="1.8"/><path d="M8 3.5h12v5.5c0 4.2-2.7 7-6 7s-6-2.8-6-7z" fill="#f0c75e"/><path d="M10.6 5v4c0 2 .9 3.6 2.2 4.3" fill="none" stroke="#fff3c4" stroke-width="1.3"/><path d="M12.4 16h3.2v3.6h-3.2z" fill="#c99a2e"/><path d="M9 19.6h10l1 3H8z" fill="#f0c75e"/><path d="M7 22.6h14V25H7z" fill="#e0507f"/></g></svg>',
+};
+TCOL.Champion = '#f0c75e';
+/** a champion border item from its id, or null */
+export function champItem(id) {
+  const m = /^c:(ovr|cash|tour):(Q[1-4]-\d{4}|\d{4})$/.exec(String(id || ''));
+  if (!m) return null;
+  const year = !m[2].startsWith('Q'), when = m[2].replace('-', ' '), c = CHAMP[m[1]];
+  return { id: m[0], slot: 'Pfp border', tier: 'Champion', kind: m[1], when, year, key: 'champ-' + m[1], name: year ? `${when} ${c.name}` : `${c.name} ${when}` };
+}
+/** any item: pack items and champion borders */
+export const itemFor = id => BY_ID[id] || champItem(id);
+/** sort order, rarest first: champion borders, then Epic ... Common */
+export const tierRank = t => t === 'Champion' ? 9 : TIERS.indexOf(t);
+/** the site markup that goes inside a champion border (the slanted date tab with the icon) */
+export const champDeco = it => `<span class="cdt"><span class="cti">${CHAMP_ICON[it.kind]}</span>${it.when}</span>`;
+/** the simplified look the Discord images use (same fields as LOOK.border) */
+export function champLook(it) {
+  const c = CHAMP[it.kind];
+  return { bg: c.frame, pad: it.year ? 6 : 5, ring: c.ring, glow: c.glow, badge: { t: it.when, bg: c.plate, fg: c.fg, at: 'tl', icon: 'data:image/svg+xml;base64,' + btoa(CHAMP_ICON[it.kind]) } };
+}
+/** who won what: { playerName: [champion item ids] } from the game rows (gameRecords). Only finished quarters (not the
+ *  latest one in the sheet until its last day has passed) and finished years (before this calendar year); a board's winner needs a positive net. */
+export function championsFrom(recs, now = new Date()) {
+  const out = {}, list = recs || [];
+  if (!list.length) return out;
+  const kinds = [['ovr', () => true], ['cash', r => r.type !== 'Tournament'], ['tour', r => r.type === 'Tournament']];
+  const top = rows => { const t = {}; rows.forEach(r => { t[r.player] = (t[r.player] || 0) + r.net; });
+    const w = Object.entries(t).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]; return w && w[1] > 0.004 ? w[0] : null; };
+  const award = (rows, when) => { for (const [k, pick] of kinds) { const w = top(rows.filter(pick)); if (w) (out[w] ||= []).push(`c:${k}:${when}`); } };
+  const latest = list[list.length - 1].quarter;
+  const over = q => { const m = /^Q([1-4]) (\d{4})$/.exec(q); return m && (q !== latest || new Date(+m[2], +m[1] * 3, 1) <= now); };
+  for (const q of [...new Set(list.map(r => r.quarter))]) if (over(q)) award(list.filter(r => r.quarter === q), q.replace(' ', '-'));
+  for (const y of [...new Set(list.map(r => r.y))]) if (y < now.getFullYear()) award(list.filter(r => r.y === y), String(y));
+  return out;
+}

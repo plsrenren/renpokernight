@@ -68,15 +68,16 @@ export function packTree(id) {
 const CW = 156, CH = 222;
 const silhouette = svgUri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" width="120" height="120"><rect width="60" height="60" fill="#b8e4f4"/><circle cx="30" cy="24" r="12" fill="#6d7fa6"/><path d="M8 60c2-14 12-20 22-20s20 6 22 20z" fill="#6d7fa6"/></svg>');
 /** a pfp with a border (LOOK.border), pfp size s */
-export function borderBox(key, s, pic = silhouette) {
-  const L = LOOK.border[key] || { bg: '#f1c75b', pad: 3 }, k = s / 72, pad = Math.max(2, Math.round(L.pad * k));
+export function borderBox(key, s, pic = silhouette, look = null) {
+  const L = look || LOOK.border[key] || { bg: '#f1c75b', pad: 3 }, k = s / 72, pad = Math.max(2, Math.round(L.pad * k));
   const shadow = [L.ring ? `0 0 0 ${Math.max(1, Math.round(2 * k))}px ${L.ring}` : '', L.glow ? `0 0 ${Math.round(14 * k)}px ${L.glow}` : ''].filter(Boolean).join(', ');
   const b = L.badge, bs = Math.round((b && b.big ? 26 : 20) * k);
   const badge = b ? h({ position: 'absolute', zIndex: 3, backgroundColor: b.bg, color: b.fg, alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 3px rgba(0,0,0,0.5)',
     ...(b.round ? { width: bs, height: bs, borderRadius: bs, border: `${Math.max(1, Math.round(1.5 * k))}px solid #15132a` } : { padding: `${Math.round(2 * k)}px ${Math.round(5 * k)}px 0` }),
     ...(b.at === 'tr' ? { right: -Math.round(bs * 0.35), top: -Math.round(bs * 0.35) } : b.at === 'tl' ? { left: -Math.round(4 * k), top: -Math.round(10 * k) }
       : b.at === 'tc' ? { left: 0, right: 0, top: -Math.round(10 * k), justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0)' } : { left: 0, right: 0, bottom: -Math.round(8 * k), justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0)' }) },
-    b.at === 'tc' || b.at === 'bc' ? h({ backgroundColor: b.bg, padding: `${Math.round(2 * k)}px ${Math.round(6 * k)}px 0` }, B(b.t, Math.round(11 * k), b.fg)) : B(b.t, Math.round((b.round ? 11 : 12) * k), b.fg)) : null;
+    b.at === 'tc' || b.at === 'bc' ? h({ backgroundColor: b.bg, padding: `${Math.round(2 * k)}px ${Math.round(6 * k)}px 0` }, B(b.t, Math.round(11 * k), b.fg)) : b.icon ? h({ alignItems: 'center' }, img(b.icon, Math.round(13 * k), Math.round(13 * k), { marginRight: Math.round(3 * k), marginTop: -Math.round(2 * k) }), B(b.t, Math.round(10 * k), b.fg, { letterSpacing: Math.round(1.2 * k) }))
+    : B(b.t, Math.round((b.round ? 11 : 12) * k), b.fg)) : null;
   return h({ position: 'relative', padding: pad, backgroundImage: L.bg.includes('gradient') ? L.bg : undefined, backgroundColor: L.bg.includes('gradient') ? undefined : L.bg, boxShadow: shadow || undefined },
     img(pic, s, s, { objectFit: 'cover' }), badge);
 }
