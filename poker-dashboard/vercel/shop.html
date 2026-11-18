@@ -643,8 +643,10 @@ h1{font-family:'Bebas Neue',Impact,sans-serif;font-weight:400;font-size:clamp(44
 .odds2{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--muted)}
 .odds2 span{display:inline-flex;align-items:center;gap:6px}
 .odds2 i{width:10px;height:10px;display:inline-block}
-/* sticker on the full card: open space top right */
-.fc .fstk{position:absolute;right:28px;top:16px;width:118px;height:118px;z-index:3;display:flex;align-items:center;justify-content:center;transform:rotate(-10deg);filter:drop-shadow(3px 0 0 #fff) drop-shadow(-3px 0 0 #fff) drop-shadow(0 3px 0 #fff) drop-shadow(0 -3px 0 #fff) drop-shadow(0 6px 6px rgba(0,0,0,.5))}
+/* sticker on the full card: bottom-right corner of the pfp frame, same as the Discord card and the site player card */
+.fc .fpf{position:relative}
+.fc .fpf.framed .fstk{width:40px;height:40px;right:-2px;bottom:1px}
+.fc .fstk{position:absolute;right:-11px;bottom:-4px;width:56px;height:56px;z-index:3;display:flex;align-items:center;justify-content:center;transform:rotate(-10deg);filter:drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(0 4px 5px rgba(0,0,0,.5))}
 .fc .fstk svg{max-width:100%;max-height:100%;width:auto;height:auto;overflow:visible}
 .sw .stsw{width:64px;height:64px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(0 3px 3px rgba(0,0,0,.45))}
 .sw .stsw svg{max-width:100%;max-height:100%;width:auto;height:auto;overflow:visible}
@@ -837,8 +839,8 @@ function card(eq) {
   const img = pic(id, name).replace('/api/avatar?id=', '/api/avatar?anim=2&id='); // animated Discord pfp, when they have one
   const has = pc && !pc.empty;
   const big = has && pc.ovr ? pc.ovr.value : '–';
-  let h = `<div class="mini fc"><div class="fhero"><img class="ban" alt="" data-src="/api/avatar?id=${esc(id)}&kind=banner" onerror="this.removeAttribute('src')"><div class="big">${big}</div>${sk ? `<div class="fstk">${STICKERS[sk.name] || ''}</div>` : ''}
- <div class="fwho"><div class="fpf">${pf ? framed(pf, img) : img}</div><div><div class="fnm">${esc(name.toUpperCase())}</div>${tt ? `<div class="fttl" style="color:${TCOL[tt.tier]}">${esc(tt.name.toUpperCase())}</div>` : ''}
+  let h = `<div class="mini fc"><div class="fhero"><img class="ban" alt="" data-src="/api/avatar?id=${esc(id)}&kind=banner" onerror="this.removeAttribute('src')"><div class="big">${big}</div>
+ <div class="fwho"><div class="fpf${pf ? ' framed' : ''}">${pf ? framed(pf, img) : img}${sk ? `<div class="fstk">${STICKERS[sk.name] || ''}</div>` : ''}</div><div><div class="fnm">${esc(name.toUpperCase())}</div>${tt ? `<div class="fttl" style="color:${TCOL[tt.tier]}">${esc(tt.name.toUpperCase())}</div>` : ''}
  <div class="fss">${pc ? `${esc(pc.label)} · played ${pc.played} of ${pc.nights}` : 'No games on the sheet yet'}</div>${has && pc.badges.length ? `<div class="bdg">${pc.badges.map(b => `<span>${esc(b)}</span>`).join('')}</div>` : ''}</div></div></div>
  <div class="ovr ${ov ? 'o-' + ov.key : ''}"><div class="o"><b>${big}</b><i>OVERALL<small>${has && pc.ovr ? `${pc.ovr.rank} of ${pc.ovr.of} regulars` : 'not rated yet'}</small></i></div><div class="s"><b>${has ? signed(Math.round(pc.net)) : '–'}</b><i>NET</i></div><div class="s"><b>${has ? pc.wins : '–'}</b><i>WINS</i></div><div class="s"><b>${has ? '#' + pc.rank : '–'}</b><i>${has ? 'OF ' + pc.of : 'RANK'}</i></div></div>`;
   if (!has) return h + `<div class="nogames">${pc ? `No games in ${esc(pc.label)} yet. Your stats fill in after your next night.` : 'Your stats show here once you play a night.'}</div><div class="ft"><b>POKER CLUB @ THE STUDY</b><span>renpokernight.vercel.app</span></div></div>`;
