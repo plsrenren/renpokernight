@@ -23,9 +23,15 @@ const SLOTS = {
 const slug = n => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const CODE = { 'Title': 't', 'Pfp border': 'b', 'Overall bar': 'o', 'Sticker': 's' };
 /** every item: { id: 't:coin-flip-merchant', slot, tier, name, key } (key = the CSS class part for borders and bars) */
-export const ITEMS = [];
-for (const slot of SLOT_NAMES) for (const tier of TIERS) for (const [name, key] of SLOTS[slot][tier]) ITEMS.push({ id: CODE[slot] + ':' + (key || slug(name)), slot, tier, name, key: key || slug(name) });
-export const BY_ID = Object.fromEntries(ITEMS.map(i => [i.id, i]));
+const ALL = [];
+for (const slot of SLOT_NAMES) for (const tier of TIERS) for (const [name, key] of SLOTS[slot][tier]) ALL.push({ id: CODE[slot] + ':' + (key || slug(name)), slot, tier, name, key: key || slug(name) });
+/** items taken out of the game: no longer in packs, the loadout or on cards. Whoever owned one gets its duplicate refund
+ *  (once, see loadout() in _shop.js). b:dealer = Dealer Button border, removed 2026-11-18 (The Button already has the D) */
+export const RETIRED = ['b:dealer'];
+/** the items in play (packs, loadout, collection counts) */
+export const ITEMS = ALL.filter(i => !RETIRED.includes(i.id));
+/** every item by id, retired ones too, so old pack messages still read */
+export const BY_ID = Object.fromEntries(ALL.map(i => [i.id, i]));
 export const byName = (slot, name) => ITEMS.find(i => i.slot === slot && i.name === name);
 const BY_TIER = Object.fromEntries(TIERS.map(t => [t, ITEMS.filter(i => i.tier === t)]));
 /** rand() returns [0, 1). Card 1 and 2 use ODDS, card 3 skips Common. */
@@ -110,7 +116,7 @@ export function champItem(id) {
   return { id: m[0], slot: 'Pfp border', tier: 'Champion', kind: m[1], when, year, key: 'champ-' + m[1], name: year ? `${when} ${c.name}` : `${c.name} ${when}` };
 }
 /** any item: pack items and champion borders */
-export const itemFor = id => BY_ID[id] || champItem(id);
+export const itemFor = id => RETIRED.includes(id) ? null : BY_ID[id] || champItem(id);
 /** sort order, rarest first: champion borders, then Epic ... Common */
 export const tierRank = t => t === 'Champion' ? 9 : TIERS.indexOf(t);
 /** the site markup that goes inside a champion border (the slanted date tab with the icon) */
