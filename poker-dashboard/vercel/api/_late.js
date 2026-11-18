@@ -151,7 +151,7 @@ export const playerCardTree = withAssets((c, art = {}) => {
   const pics = art.pics || {}, ov = c.ovr, hh = c.h2h || {}, eq = art.eq || {};
   const pick = slot => { const it = itemFor(eq[slot]); return it && it.slot === slot ? it : null; };
   const title = pick('Title'), border = pick('Pfp border'), barIt = pick('Overall bar'), stkIt = pick('Sticker');
-  const stk = stkIt ? stickerPng(stkIt.name, 104, 4) : null, bar = barIt ? LOOK.bar[barIt.key] : null;
+  const stk = stkIt ? stickerPng(stkIt.name, border ? 56 : 66, 4) : null, bar = barIt ? LOOK.bar[barIt.key] : null;
   const barBg = bar ? (bar.bg.includes('gradient') ? { backgroundImage: bar.bg } : { backgroundColor: bar.bg }) : { backgroundColor: L.gold }, barFg = bar ? bar.fg : L.night;
   const heroBg = art.banner ? {} : { backgroundImage: art.color ? `linear-gradient(135deg, ${art.color}, ${L.panel})` : 'linear-gradient(120deg, #3a2a6e, #a23b58)' };
   const hero = h({ position: 'relative', height: 220, ...heroBg },
@@ -159,9 +159,11 @@ export const playerCardTree = withAssets((c, art = {}) => {
     art.banner ? h({ position: 'absolute', left: 0, top: 0, width: W, height: 220, backgroundImage: 'linear-gradient(90deg, rgba(21,19,42,0.6), rgba(21,19,42,0.15) 45%, rgba(21,19,42,0.35))' }) : null,
     art.banner ? h({ position: 'absolute', left: 0, top: 0, width: W, height: 220, backgroundImage: 'linear-gradient(180deg, rgba(21,19,42,0) 55%, rgba(21,19,42,0.9))' }) : null,
     ov ? h({ position: 'absolute', right: -10, top: -38, fontFamily: 'Bebas', fontSize: 250, lineHeight: 1, color: 'rgba(255,255,255,0.08)' }, String(ov.value)) : null,
-    // Study Cards sticker (top right) and pfp border, when equipped (art.eq = {slot: item id}; see loot.js)
-    stk ? h({ position: 'absolute', right: 26, top: 14, transform: 'rotate(-10deg)' }, img(stk.src, stk.w, stk.ht)) : null,
-    h({ width: 190, alignItems: 'center', justifyContent: 'center', position: 'relative' }, border ? borderBox(border.key, 120, pics[c.name] || initialsUri(c.name), lookFor(border)) : sq(pics, c.name, 140)),
+    // Study Cards pfp border + sticker, when equipped (art.eq = {slot: item id}; see loot.js). The sticker sits on the
+    // frame's bottom-right corner, same as the site player card and the /shop preview (Renato's pick, Nov 2026)
+    h({ width: 190, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+      h({ position: 'relative' }, border ? borderBox(border.key, 120, pics[c.name] || initialsUri(c.name), lookFor(border)) : sq(pics, c.name, 140),
+        stk ? h({ position: 'absolute', right: border ? -20 : -26, bottom: border ? -14 : -18, transform: 'rotate(-10deg)' }, img(stk.src, stk.w, stk.ht)) : null)),
     // darker fade behind the text side so it reads on busy banners
     art.banner ? h({ position: 'absolute', left: 0, top: 0, width: W, height: 220, backgroundImage: 'linear-gradient(90deg, rgba(21,19,42,0) 25%, rgba(21,19,42,0.78) 55%, rgba(21,19,42,0.78))' }) : null,
     h({ flex: 1, flexDirection: 'column', justifyContent: 'center', paddingRight: 12, position: 'relative' },
