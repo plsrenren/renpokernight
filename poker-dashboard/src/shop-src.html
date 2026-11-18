@@ -409,6 +409,8 @@ h1{font-family:'Bebas Neue',Impact,sans-serif;font-weight:400;font-size:clamp(44
 .fc .fpf>.pfp{width:140px;height:140px;outline:5px solid var(--gold);outline-offset:-5px;background:#b8e4f4;object-fit:cover;display:block}
 .fc .fpf .pw{zoom:1.85}
 .fc .fpf .pw .pfp{width:72px;height:72px}
+.fc .fpf .cbw{zoom:1.85}.fc .fpf .cbw .pfp{width:68px;height:68px;display:block;object-fit:cover}
+.sw .cbw.pfsw .pfp{display:block;object-fit:cover}
 .fc .fnm{font-family:'Bebas Neue',Impact,sans-serif;font-size:62px;line-height:.85;color:#fff;margin-top:10px}
 .fc .fttl{font-family:'Bebas Neue',Impact,sans-serif;font-size:20px;letter-spacing:.08em;line-height:1;margin-top:6px}
 .fc .fss{font-size:13px;color:#c9c4e6;margin-top:8px}
@@ -765,6 +767,7 @@ a { color: inherit; }
 @media (max-width: 860px) { .hside { width: 100%; flex-direction: row; align-items: center; justify-content: space-between; margin-left: 0; } }
 @media (max-width: 640px) { .brand .lg { width: 74px; height: 64px; background-size: 46px, auto; } }
 </style>
+<link rel="stylesheet" href="/cosmetics.css">
 </head>
 <body>
 <div class="wrap">
@@ -786,7 +789,7 @@ a { color: inherit; }
 </div>
 
 <script type="module">
-import { ITEMS, BY_ID, PRICE, TIERS, ODDS, REFUND, TCOL, SLOT_NAMES, DECO, STICKERS } from '/loot.js';
+import { ITEMS, BY_ID, PRICE, TIERS, ODDS, REFUND, TCOL, SLOT_NAMES, DECO, STICKERS, itemFor, tierRank, champDeco } from '/loot.js';
 import { SHEET_URL, MEMBERS_URL, gameRecords, playerCard, memberIds, hueFor, initials } from '/recap-core.js';
 
 const $ = id => document.getElementById(id);
@@ -802,7 +805,11 @@ const ERRS = { cancelled: 'Sign-in was cancelled.', expired: 'That sign-in link 
 let ME = null;            // { id, name, owned: {itemId: n}, eq: {slot: itemId}, bal, packs } from /api/shop
 let IDS = {}, RECS = [];  // Members tab IDs, game rows
 let tab = 'Title', shownBal = null;
-const owned = s => ITEMS.filter(i => i.slot === s && ME && ME.owned[i.id]);
+// champion borders are earned from the Hall of Fame (ME.champs, worked out by the server), never bought
+const champs = () => ME ? (ME.champs || []).map(itemFor).filter(Boolean) : [];
+const owned = s => [...(s === 'Pfp border' ? champs() : []), ...ITEMS.filter(i => i.slot === s && ME && ME.owned[i.id])];
+// a pfp inside its border: pack borders use the shop look (.pw), champion borders the shared cosmetics.css look (.cbw)
+const framed = (it, img, cls = '') => it.tier === 'Champion' ? `<span class="cbw ${cls} cb-${it.key}${it.year ? ' cb-champ-y' : ''}">${img}${champDeco(it)}</span>` : `<span class="pw ${cls} p-${it.key}">${img}${DECO[it.key] || ''}</span>`;
 
 async function api(body) {
   const r = await fetch('/api/shop', body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' } : { credentials: 'same-origin', cache: 'no-store' });
@@ -817,13 +824,13 @@ const pic = (id, name, cls = 'pfp') => id ? `<img class="${cls}" src="/api/avata
 const rcol = v => v >= 75 ? '#8fe0b0' : v >= 55 ? '#f0c75e' : '#f0889f';
 function card(eq) {
   const name = ME.name, id = ME.id;
-  const pf = BY_ID[eq['Pfp border']], ov = BY_ID[eq['Overall bar']], tt = BY_ID[eq['Title']], sk = BY_ID[eq['Sticker']];
+  const pf = itemFor(eq['Pfp border']), ov = BY_ID[eq['Overall bar']], tt = BY_ID[eq['Title']], sk = BY_ID[eq['Sticker']];
   const pc = RECS.length && RECS.some(r => r.player === name) ? playerCard(RECS, name) : null;
-  const img = pic(id, name);
+  const img = pic(id, name).replace('/api/avatar?id=', '/api/avatar?anim=1&id='); // animated Discord pfp, when they have one
   const has = pc && !pc.empty;
   const big = has && pc.ovr ? pc.ovr.value : '–';
   let h = `<div class="mini fc"><div class="fhero"><img class="ban" alt="" data-src="/api/avatar?id=${esc(id)}&kind=banner" onerror="this.removeAttribute('src')"><div class="big">${big}</div>${sk ? `<div class="fstk">${STICKERS[sk.name] || ''}</div>` : ''}
- <div class="fwho"><div class="fpf">${pf ? `<span class="pw p-${pf.key}">${img}${DECO[pf.key] || ''}</span>` : img}</div><div><div class="fnm">${esc(name.toUpperCase())}</div>${tt ? `<div class="fttl" style="color:${TCOL[tt.tier]}">${esc(tt.name.toUpperCase())}</div>` : ''}
+ <div class="fwho"><div class="fpf">${pf ? framed(pf, img) : img}</div><div><div class="fnm">${esc(name.toUpperCase())}</div>${tt ? `<div class="fttl" style="color:${TCOL[tt.tier]}">${esc(tt.name.toUpperCase())}</div>` : ''}
  <div class="fss">${pc ? `${esc(pc.label)} · played ${pc.played} of ${pc.nights}` : 'No games on the sheet yet'}</div>${has && pc.badges.length ? `<div class="bdg">${pc.badges.map(b => `<span>${esc(b)}</span>`).join('')}</div>` : ''}</div></div></div>
  <div class="ovr ${ov ? 'o-' + ov.key : ''}"><div class="o"><b>${big}</b><i>OVERALL<small>${has && pc.ovr ? `${pc.ovr.rank} of ${pc.ovr.of} regulars` : 'not rated yet'}</small></i></div><div class="s"><b>${has ? signed(Math.round(pc.net)) : '–'}</b><i>NET</i></div><div class="s"><b>${has ? pc.wins : '–'}</b><i>WINS</i></div><div class="s"><b>${has ? '#' + pc.rank : '–'}</b><i>${has ? 'OF ' + pc.of : 'RANK'}</i></div></div>`;
   if (!has) return h + `<div class="nogames">${pc ? `No games in ${esc(pc.label)} yet. Your stats fill in after your next night.` : 'Your stats show here once you play a night.'}</div><div class="ft"><b>POKER CLUB @ THE STUDY</b><span>renpokernight.vercel.app</span></div></div>`;
@@ -855,7 +862,7 @@ function renderCard() {
 const PPIC = () => ME ? pic(ME.id, ME.name).replace('class="pfp"', 'class="pfp" style="width:52px;height:52px"').replace('class="pfp pfp-ini"', 'class="pfp pfp-ini" style="width:52px;height:52px;font-size:22px"') : '';
 function swatch(it) {
   if (it.slot === 'Title') return `<div class="ttlsw" style="color:${TCOL[it.tier]}">${esc(it.name.toUpperCase())}</div>`;
-  if (it.slot === 'Pfp border') return `<span class="pw pfsw p-${it.key}">${PPIC()}${DECO[it.key] || ''}</span>`;
+  if (it.slot === 'Pfp border') return framed(it, PPIC(), 'pfsw');
   if (it.slot === 'Sticker') return `<div class="stsw">${STICKERS[it.name] || ''}</div>`;
   return `<div class="ovsw"><div class="ovr o-${it.key}"><div class="o"><b style="font-size:22px">80</b></div><div class="s"><b style="font-size:15px">+$75</b></div></div></div>`;
 }
@@ -879,13 +886,13 @@ async function setEq(slot, id) {
 function renderLoadout() {
   if (!ME) { $('lo').classList.add('hidden'); return; }
   $('lo').classList.remove('hidden');
-  $('slots').innerHTML = SLOT_NAMES.map(s => `<button aria-pressed="${s === tab}" data-s="${s}">${s}<small>${owned(s).length}/${ITEMS.filter(i => i.slot === s).length}</small></button>`).join('');
+  $('slots').innerHTML = SLOT_NAMES.map(s => `<button aria-pressed="${s === tab}" data-s="${s}">${s}<small>${owned(s).filter(i => i.tier !== 'Champion').length}/${ITEMS.filter(i => i.slot === s).length}</small></button>`).join('');
   $('slots').querySelectorAll('button').forEach(b => b.onclick = () => { tab = b.dataset.s; renderLoadout(); });
-  const list = owned(tab).sort((a, b) => TIERS.indexOf(b.tier) - TIERS.indexOf(a.tier) || a.name.localeCompare(b.name));
+  const list = owned(tab).sort((a, b) => tierRank(b.tier) - tierRank(a.tier) || a.name.localeCompare(b.name));
   if (!list.length) { $('items').innerHTML = `<p class="empty">No ${tab === 'Title' ? 'titles' : tab.toLowerCase() + 's'} yet. Open a pack.</p>`; return; }
   const none = `<button class="ti ${!ME.eq[tab] ? 'eq' : ''}" style="--c:#6f6996" data-n="" aria-pressed="${!ME.eq[tab]}"><div class="sw" style="color:var(--muted);font-size:13px">Default</div><div class="nm2">None</div></button>`;
   $('items').innerHTML = none + list.map(it => { const c = ME.owned[it.id], on = ME.eq[tab] === it.id;
-    return `<button class="ti ${on ? 'eq' : ''}" style="--c:${TCOL[it.tier]}" data-n="${esc(it.id)}" aria-pressed="${on}" title="${esc(it.tier + ' ' + it.slot.toLowerCase())}">${c > 1 ? `<span class="cnt">x${c}</span>` : ''}<div class="sw">${swatch(it)}</div><div class="nm2">${esc(it.name)}</div></button>`; }).join('');
+    return `<button class="ti ${on ? 'eq' : ''}" style="--c:${TCOL[it.tier]}" data-n="${esc(it.id)}" aria-pressed="${on}" title="${esc(it.tier === 'Champion' ? 'Champion border, earned in the Hall of Fame' : it.tier + ' ' + it.slot.toLowerCase())}">${c > 1 ? `<span class="cnt">x${c}</span>` : ''}<div class="sw">${swatch(it)}</div><div class="nm2">${esc(it.name)}</div></button>`; }).join('');
   $('items').querySelectorAll('button.ti').forEach(b => b.onclick = () => setEq(tab, b.dataset.n || null));
   fitText('#items .nm2,#items .ttlsw');
 }

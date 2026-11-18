@@ -35,13 +35,15 @@ poker-dashboard/
     index.html recap.html hall.html h2h.html casino.html shop.html entry.html (entry = redirect to the Apps Script page; casino.html = copy of src/casino-src.html;
                        shop.html = copy of src/shop-src.html, which is built from the shop mockup CSS and does NOT link lateshow.css)
     loot.js            Study Cards items (184: titles, pfp borders, overall bars, stickers), odds 55/30/11/4, duplicate refunds, pack designs,
+                       Champion borders (CHAMP, champItem, championsFrom: ids c:<ovr|cash|tour>:<Q4-2026|2026>, earned from the sheet for every finished quarter/year,
+                       never stored or sold; equip checks champsFor() in _shop.js; slanted date tab + icon, year versions get a foil sheen on the site),
                        border decorations (DECO), sticker SVGs, and LOOK (simplified looks for the Discord images). ES module used by the
                        browser (/shop, dashboard card) and the API. Item ids are slot letter + key, e.g. t:coin-flip-merchant, b:btn, o:sunset, s:shark
-    cosmetics.css      Border/bar/sticker/title CSS for the dashboard player card (.cbw.cb-<key>, .cbar-<key>, .cos-stk, .cos-ttl); every selector starts with html
+    cosmetics.css      Border/bar/sticker/title CSS for the dashboard player card and /shop (champion borders .cb-champ-*) (.cbw.cb-<key>, .cbar-<key>, .cos-stk, .cos-ttl); every selector starts with html
     lateshow.css       "Late Show" look (Nov 2026), linked last on every page; every selector is prefixed with html so it beats
                        the page's own <style> (which sits in <body>)
     recap-core.js      Shared logic (browser + API): parsing, recap stories, Hall of Fame, player cards, h2h, quarter wrap
-    api/               Serverless functions: recap/card/hall/h2h/wrap (PNG cards via satori + resvg, all drawn by _late.js = Late Show design), avatar (Discord pfps/banners),
+    api/               Serverless functions: recap/card/hall/h2h/wrap (PNG cards via satori + resvg, all drawn by _late.js = Late Show design), avatar (Discord pfps/banners; &anim=1 = animated GIF pfp, used only on player cards),
                        discord (slash commands endpoint; ?setup=1 registers commands), invite (who reacted to /tourney or /cash),
                        roles (results roles + chip rewards; trusts a POSTed sheet only with header X-Roles-Key = env ROLES_KEY, which Invite.gs reads from
                        Script Properties; otherwise reads Google's copy), _tourney.js/_roles.js/_discord.js helpers, _assets/ fonts + logo

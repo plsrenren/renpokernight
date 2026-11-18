@@ -783,11 +783,11 @@ function applyCosmetics(name) {
   if (mono.parentElement.classList.contains('cos-hold')) mono.parentElement.replaceWith(mono);
   strip.className = 'ls-strip';
   const eq = COS && COS[name]; if (!eq || !LOOT) return;
-  const { BY_ID, DECO, STICKERS, TCOL } = LOOT, it = s => BY_ID[eq[s]];
+  const { itemFor, champDeco, DECO, STICKERS, TCOL } = LOOT, it = s => itemFor(eq[s]);
   const b = it('Pfp border'), sk = it('Sticker') && STICKERS[it('Sticker').name];
   if (b || sk) { // wrap the pfp: the border goes around it, the sticker sits on its corner
-    const w = document.createElement('span'); w.className = 'cos-hold' + (b ? ' cbw cb-' + b.key : '') + (sk ? ' has-stk' : ''); mono.replaceWith(w); w.appendChild(mono);
-    if (b) w.insertAdjacentHTML('beforeend', DECO[b.key] || '');
+    const w = document.createElement('span'); w.className = 'cos-hold' + (b ? ' cbw cb-' + b.key + (b.year ? ' cb-champ-y' : '') : '') + (sk ? ' has-stk' : ''); mono.replaceWith(w); w.appendChild(mono);
+    if (b) w.insertAdjacentHTML('beforeend', b.tier === 'Champion' ? champDeco(b) : DECO[b.key] || '');
     if (sk) w.insertAdjacentHTML('beforeend', `<span class="cos-stk" aria-hidden="true">${sk}</span>`);
   }
   if (it('Overall bar')) strip.classList.add('cbar-' + it('Overall bar').key);
@@ -810,7 +810,7 @@ function renderPlayer(name) {
   card.dataset.red = suit.red ? '1' : '0';
   const mono = document.getElementById('cMono');
   mono.textContent = name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || name.slice(0, 2).toUpperCase();
-  if (IDS[name]) { const im = new Image(); im.alt = ''; im.onerror = () => im.remove(); im.src = '/api/avatar?id=' + IDS[name]; mono.appendChild(im); }
+  if (IDS[name]) { const im = new Image(); im.alt = ''; im.onerror = () => im.remove(); im.src = '/api/avatar?anim=1&id=' + IDS[name]; mono.appendChild(im); }
   loadBanner(name);
   document.getElementById('pName').textContent = name;
   renderCard(name, allGames);

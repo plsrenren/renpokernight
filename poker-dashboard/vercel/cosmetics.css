@@ -137,3 +137,20 @@ html .cb-hj{padding:.45em;background:#14110d;box-shadow:0 0 0 .12em #f4efe2}
 html .cb-hj .zran{left:50%;top:-.95em;transform:translateX(-50%);display:flex;gap:.08em;z-index:3}
 html .cb-hj .zran i{font-style:normal;font-size:1.25em;line-height:1;padding:.18em .2em .1em;box-shadow:.08em .1em 0 rgba(0,0,0,.6)}
 @media (prefers-reduced-motion:reduce){html .cb-lj .zping{animation:none}}
+/* Champion borders (earned from the Hall of Fame, never in packs; see CHAMP in loot.js). Sized for a 64px pfp: the
+   gradient frame, a slanted date tab with the board's icon at the top left (.cdt, from champDeco), and on year borders
+   (.cb-champ-y) a holo foil that keeps moving across the frame. */
+html .cb-champ-ovr{--cf:linear-gradient(135deg,#7a5a12,#f0c75e 28%,#fff3c4 44%,#c99a2e 60%,#f0c75e 80%,#7a5a12);--cr:#15132a;--cg:rgba(240,199,94,.75);--cp:#15132a;--cfg:#f0c75e}
+html .cb-champ-cash{--cf:linear-gradient(135deg,#0f4d31,#2f9a63 45%,#8fe0b0 55%,#13583a);--cr:#f0c75e;--cg:rgba(143,224,176,.6);--cp:#f0c75e;--cfg:#0e2a1c}
+html .cb-champ-tour{--cf:linear-gradient(135deg,#5a2a9e,#8f78f0 40%,#e0507f 70%,#8a1f3c);--cr:#f0c75e;--cg:rgba(224,80,127,.65);--cp:#e0507f;--cfg:#fff}
+html .cbw[class*="cb-champ-"]{padding:4px;background:var(--cf);box-shadow:0 0 0 1.5px var(--cr),0 0 14px var(--cg)}
+html .cbw[class*="cb-champ-"] > :first-child{position:relative;z-index:1}
+html .cbw[class*="cb-champ-"]::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;mix-blend-mode:overlay;background:linear-gradient(115deg,rgba(255,255,255,0) 30%,rgba(255,255,255,.55) 45%,rgba(255,255,255,0) 60%) -150% 0/250% 100% no-repeat;animation:cbshine 3.6s ease-in-out infinite}
+html .cbw.cb-champ-y{box-shadow:0 0 0 1.5px var(--cr),0 0 18px 4px var(--cg)}
+html .cbw.cb-champ-y::before{content:"";position:absolute;inset:0;pointer-events:none;mix-blend-mode:overlay;background:linear-gradient(110deg,rgba(255,80,160,.55),rgba(255,220,90,.55),rgba(90,255,190,.55),rgba(90,170,255,.55),rgba(200,110,255,.55),rgba(255,80,160,.55)) 0 0/300% 100%;animation:cbfoil 4s linear infinite}
+html .cbw .cdt{position:absolute;z-index:3;left:-5px;top:-8px;display:flex;align-items:center;gap:2px;white-space:nowrap;background:var(--cp);color:var(--cfg);font:400 8px/1 'Bebas Neue',Impact,sans-serif;letter-spacing:.14em;padding:3px 9px 2px 4px;clip-path:polygon(0 0,100% 0,calc(100% - 6px) 100%,0 100%);box-shadow:0 2px 3px rgba(0,0,0,.45)}
+html .cbw .cti{display:block;width:10px;height:10px;margin:-1px 0 -1px}
+html .cbw .cti svg{display:block;width:100%;height:100%}
+@keyframes cbshine{0%,40%{background-position:-150% 0}100%{background-position:250% 0}}
+@keyframes cbfoil{to{background-position:300% 0}}
+@media (prefers-reduced-motion:reduce){html .cbw[class*="cb-champ-"]::after,html .cbw.cb-champ-y::before{animation:none}}
