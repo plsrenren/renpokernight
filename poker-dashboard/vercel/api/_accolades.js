@@ -231,12 +231,17 @@ export async function checkPoker(csv, ids, { now = Date.now(), quiet = false } =
   const byName = {}; for (const [name, id] of Object.entries(ids || {})) if (/^\d{5,25}$/.test(String(id))) byName[name.toLowerCase()] = String(id);
   const got = {};
   for (const [p, keys] of Object.entries(pokerFrom(nightRows(csv)))) { const id = byName[p.toLowerCase()]; if (id) (got[id] ||= []).push(...keys); }
-  const [init] = await kv(['SET', 'ac:pinit', String(now), 'NX']);
+  // ac:pseen = Discord ids already checked once. Someone whose ID is added to the Members tab later gets their past ones quietly
+  // too (no catch-up note), same as everyone at launch; only unlocks after that post.
+  const linked = Object.values(byName);
+  const [init, ...fresh] = await kv(['SET', 'ac:pinit', String(now), 'NX'], ...linked.map(id => ['SADD', 'ac:pseen', id]));
+  const firstLook = new Set(linked.filter((id, j) => +fresh[j] === 1));
   const news = await stamp(got, now);
+  const loud = init ? [] : news.filter(x => !firstLook.has(x.id));
   let posted = null;
   // the first run quietly hands out everything earned on past nights (by request); only later unlocks post
-  if (news.length && !quiet && !init) {
-    try { const shown = await onlyMembers(news); posted = shown.length ? await postChannel({ content: unlockText(shown), allowed_mentions: { parse: [] } }, 'table') : 'nobody in the server'; } catch (e) { console.error('poker accolade post', e); posted = 'failed: ' + e.message; }
+  if (loud.length && !quiet) {
+    try { const shown = await onlyMembers(loud); posted = shown.length ? await postChannel({ content: unlockText(shown), allowed_mentions: { parse: [] } }, 'table') : 'nobody in the server'; } catch (e) { console.error('poker accolade post', e); posted = 'failed: ' + e.message; }
   }
   return { players: Object.keys(got).length, launch: !!init, unlocked: news, posted };
 }
