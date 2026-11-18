@@ -4,7 +4,7 @@
 // Where the numbers come from:
 //   ac:n:<id>      hands per house game, /daily claims, tips, blackjacks, royals, lone-number roulette wins (statCmds in _blackjack.js)
 //   du:rec         duel wins per pair of players (_duel.js)
-//   bj:bal         chips (minus tips received) and who is #1 right now (Chip Leader, the only one that isn't kept)
+//   bj:bal         chips (minus tips received)
 //   sh:packs, sh:own:<id>   packs opened and the collection (_shop.js)
 //   rb:vol:<week>, rb:wk:<week>   what each player bet / won at the house games per casino week (_blackjack.js houseCmds)
 //   lt:draw:<quarter>   lottery winners (_lottery.js)
@@ -43,10 +43,8 @@ export function duelStats(raw) {
   return out;
 }
 
-/** who is #1 on /chips right now (same order as the leaderboard), or null */
-export function leaderFrom(balRaw) { const top = boardFrom(balRaw, [])[0]; return top && top.bal > 0 ? top.id : null; }
 
-/** the accolade keys someone has earned from their numbers (not the weekly ones and not Chip Leader).
+/** the accolade keys someone has earned from their numbers (not the weekly ones).
  *  st = { n: ac:n numbers, bal, packs, owned: {item id: copies}, duel: {wins, best}, weekVol, lucky } */
 export function earnedFrom(st) {
   const n = st.n || {}, out = new Set(), d = st.duel || { wins: 0, best: 0 }, add = (k, ok) => { if (ok) out.add(k); };
@@ -79,16 +77,15 @@ export function weeklyFrom(weeks, i) {
   return out;
 }
 
-/** the earned item ids someone can wear now: their kept accolades plus Chip Leader while they're #1. ownRaw = HGETALL ac:own:<id> */
+/** the earned item ids someone can wear: their kept accolades (kept forever). ownRaw = HGETALL ac:own:<id> */
 export function earnedIds(uid, ownRaw, balRaw) {
-  const ids = Object.keys(pairs(ownRaw)).filter(k => KEYS.has(k) && k !== 'leader').map(k => 'a:' + k);
-  if (uid && leaderFrom(balRaw) === uid) ids.push('a:leader');
+  const ids = Object.keys(pairs(ownRaw)).filter(k => KEYS.has(k)).map(k => 'a:' + k);
   return ids;
 }
 
 /** keeps (HSETNX) the new ones and returns what was really new: [{ id, keys }]. got = { id: [keys] } */
 async function stamp(got, now) {
-  const list = Object.entries(got).flatMap(([id, keys]) => [...new Set(keys)].filter(k => KEYS.has(k) && k !== 'leader').map(k => [id, k]));
+  const list = Object.entries(got).flatMap(([id, keys]) => [...new Set(keys)].filter(k => KEYS.has(k)).map(k => [id, k]));
   if (!list.length) return [];
   const res = await kv(...list.map(([id, k]) => ['HSETNX', 'ac:own:' + id, k, String(now)]));
   const out = {};

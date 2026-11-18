@@ -174,8 +174,6 @@ export const ACC = [
   { k: 'house', slot: 'Pfp border', name: 'Beat the House', why: 'Finished a week up', need: 'a finished casino week up at the house games', tab: 'UP A WEEK', icon: 'up',
     frame: 'linear-gradient(135deg, #0f4d31, #2f9a63 40%, #8fe0b0 55%, #13583a)', ring: '#15132a', glow: 'rgba(143,224,176,0.55)', plate: '#15132a', fg: '#8fe0b0' },
   { k: 'regular', slot: 'Title', name: 'Regular', why: 'Played 4 weeks in a row', need: 'house games in 4 casino weeks in a row' },
-  { k: 'leader', slot: 'Pfp border', name: 'Chip Leader', why: '#1 on /chips', need: '#1 on /chips right now (moves to whoever passes you, never stamped)', tab: '#1 NOW', icon: 'chip',
-    frame: 'linear-gradient(135deg, #8c8aa3, #f4f1ff 30%, #c9c6dd 48%, #ffffff 62%, #9895b3)', ring: '#15132a', glow: 'rgba(244,241,255,0.7)', plate: '#15132a', fg: '#f4f1ff' },
   { k: 'stacked', slot: 'Title', name: 'Stacked', why: 'Hit $5k in chips', need: '$5,000 in chips (tips received don\'t count)' },
   { k: 'bigstack', slot: 'Title', name: 'Big Stack', why: 'Hit $10k in chips', need: '$10,000 in chips (tips received don\'t count)' },
   { k: 'mountain', slot: 'Title', name: 'Chip Mountain', why: 'Hit $25k in chips', need: '$25,000 in chips (tips received don\'t count)' },

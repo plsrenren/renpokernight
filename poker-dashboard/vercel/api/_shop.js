@@ -11,7 +11,7 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds, DEBIT } from './_blackjack.js';
 import { ITEMS, BY_ID, PRICE, REFUND, ODDS, TIERS, SLOT_NAMES, PACKS, rollPack, itemFor, tierRank, championsFrom, RETIRED } from '../loot.js';
-import { earnedIds, leaderFrom } from './_accolades.js';
+import { earnedIds } from './_accolades.js';
 
 const SITE = 'https://renpokernight.vercel.app';
 const MAX_TIP = 100000;
@@ -44,15 +44,12 @@ export async function loadout(uid) {
   const earned = earnedIds(uid, acc, all);
   return { owned: hashObj(own), eq: wearable(parseEq(eq), earned), bal: bal === null ? null : +bal, packs: +packs || 0, earned };
 }
-/** an equipped set without retired items or accolades they can't wear any more (Chip Leader after someone passes them). earned = earnedIds */
+/** an equipped set without retired items or accolades they haven't earned. earned = earnedIds */
 export const wearable = (eq, earned) => Object.fromEntries(Object.entries(eq || {}).filter(([, id]) => !RETIRED.includes(id) && (!String(id).startsWith('a:') || earned.includes(id))));
-/** the same for anyone, when only the Chip Leader matters (kept accolades never go away): drops a:leader unless uid is #1 */
-export const leaderCheck = (eq, uid, leader) => Object.fromEntries(Object.entries(eq || {}).filter(([, id]) => id !== 'a:leader' || uid === leader));
 /** equipped items for many people at once: { userId: {slot: item} } (for the player cards) */
 export async function equippedAll() {
-  const [all, bal] = await kv(['HGETALL', 'sh:eq'], ['HGETALL', 'bj:bal']);
-  const leader = leaderFrom(bal);
-  const o = {}; for (let k = 0; k < (all || []).length; k += 2) { const e = leaderCheck(parseEq(all[k + 1]), all[k], leader), v = {}; for (const s of SLOT_NAMES) if (itemFor(e[s])) v[s] = e[s]; o[all[k]] = v; }
+  const [all] = await kv(['HGETALL', 'sh:eq']);
+  const o = {}; for (let k = 0; k < (all || []).length; k += 2) { const e = parseEq(all[k + 1]), v = {}; for (const s of SLOT_NAMES) if (itemFor(e[s])) v[s] = e[s]; o[all[k]] = v; }
   return o;
 }
 
@@ -98,7 +95,7 @@ export async function equip(uid, slot, id, champs = null) {
       if (!champs.includes(id)) return { err: `${it.name} goes to whoever won it.` };
     } else if (it.tier === 'Earned') {
       const [acc, bal] = await kv(['HGETALL', 'ac:own:' + uid], ['HGETALL', 'bj:bal']);
-      if (!earnedIds(uid, acc, bal).includes(id)) return { err: it.k === 'leader' ? 'Chip Leader is only for whoever is #1 on /chips right now.' : `You haven't earned ${it.name} yet.` };
+      if (!earnedIds(uid, acc, bal).includes(id)) return { err: `You haven't earned ${it.name} yet.` };
     } else {
       const [n] = await kv(['HGET', 'sh:own:' + uid, id]);
       if (!(+n > 0)) return { err: `You don't have ${it.name} yet.` };

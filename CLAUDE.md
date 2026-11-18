@@ -81,13 +81,13 @@ poker-dashboard/
                        drawn by hand with /lottery draw (host only, live ticket roll in Discord, draws the last finished quarter once), Lucky Ticket role (_roles.js);
                        /lottery odds|draw, lobby prize wheel with pfps (spins to the winner once per viewer), lobby panel, card at /api/wrap?lottery=<quarter>, spinning wheel GIF at /api/wrap?lottery=<quarter>&spin=1 (_wheelgif.js; no spare function slot). Some names are shown
                        with tickets but never drawn (SKIP in _lottery.js), by request: don't mention it anywhere user-facing)
-                       accolades: _accolades.js + ACC in loot.js (43 earned items, ids a:<k>, tier 'Earned', never in packs): 25 casino (6 borders, 16 titles, 3 stickers: Whale, Natural, Lucky Ticket)
+                       accolades: _accolades.js + ACC in loot.js (42 earned items, ids a:<k>, tier 'Earned', never in packs, all kept forever): 24 casino (5 borders, 16 titles, 3 stickers: Whale, Natural, Lucky Ticket)
                        + 18 home poker (poker: 1; 4 borders, 13 titles, 1 sticker (Monster Night); Got the Milk only counts nights from MILK_FROM 2026-09-19, not retroactive) worked out from the sheet by pokerFrom(), checkPoker() in roles.js after each night + Monday cron, notes in #the-table.
                        First run of each set (ac:init / ac:pinit) hands out already-earned ones SILENTLY, by request; only later unlocks post.
                        Hand counter (invisible to players): feedCmds() also bumps ac:n:<id> (hands per game, daily, tips received, naturals, royal, believer)
                        and adds the player to ac:dirty; discord.js runs checkAccolades() after each answer (waitUntil), roles.js after each night and
                        the Monday cron (plus weeklyAccolades() for High Roller/Beat the House/Whale/Regular, each week once via ac:wk:<week>).
-                       Stamped in ac:own:<id> (kept forever); Chip Leader is live (#1 on bj:bal, never stamped, hidden once passed: leaderCheck in _shop.js).
+                       Stamped in ac:own:<id> (kept forever). Chip Leader (live #1 border) was REMOVED by request: accolades are only things people keep forever.
                        Unlocks post a short note in #casino. No accolades page, by request: the note (why, 24 chars max) replaces the rarity line in /loadout + /shop tiles
     vercel.json        Function durations + included files. Env vars on Vercel: DISCORD_BOT_TOKEN, DISCORD_PUBLIC_KEY
 poker-entry/
