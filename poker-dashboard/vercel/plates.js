@@ -8,7 +8,17 @@ export function loadouts() {
   return P ||= Promise.all([
     import('/loot.js'),
     fetch('/api/shop', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null),
-  ]).then(([L, j]) => ({ L, byName: (j && j.byName) || {}, byId: (j && j.byId) || {} })).catch(() => ({ L: null, byName: {}, byId: {} }));
+  ]).then(([L, j]) => demo(L, { L, byName: (j && j.byName) || {}, byId: (j && j.byId) || {} })).catch(() => ({ L: null, byName: {}, byId: {} }));
+}
+// PREVIEW ONLY: on a Vercel preview link (or with ?demo=1) everyone without an overall bar gets a random one (same one
+// every time for the same player), to see how full lists look. Never on renpokernight.vercel.app. Remove before merging.
+function demo(L, lo) {
+  const on = /-git-/.test(location.hostname) || new URLSearchParams(location.search).has('demo');
+  if (!on || !L || location.hostname === 'renpokernight.vercel.app') return lo;
+  const bars = L.ITEMS.filter(i => i.slot === 'Overall bar');
+  const pick = k => bars[[...String(k)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7) % bars.length].id;
+  const fill = m => new Proxy(m, { get: (t, k) => typeof k !== 'string' ? t[k] : (t[k] && t[k]['Overall bar']) ? t[k] : { ...(t[k] || {}), 'Overall bar': pick(k) } });
+  return { ...lo, byName: fill(lo.byName), byId: fill(lo.byId) };
 }
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 /** the pieces of one player's loadout for the page to place. eq = { 'Title': id, 'Pfp border': id, ... } */
