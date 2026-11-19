@@ -1,9 +1,9 @@
 // /duel: player vs player for blackjack chips. Uses the same balances as /blackjack (bj:bal).
 //   /duel bet:50                        open challenge, the first person to tap Accept plays
 //   /duel opponent:@Kurt bet:50         only Kurt can accept (he can also Decline)
-//   game:Rock paper scissors (default)  both pick in secret, picks show once both are in, ties replay
+//   game:Rock paper scissors            both pick in secret, picks show once both are in, ties replay
 //   game:High card                      one card each the moment it's accepted, aces high, same rank deals again
-//   game:Coin flip                      challenger is heads, whoever accepts is tails, the coin flips the moment it's accepted
+//   game:Coin flip (default)            challenger is heads, whoever accepts is tails, the coin flips the moment it's accepted
 // Both stakes come off when the duel is accepted; the winner gets the pot. Challenges expire after 10 minutes.
 // Rock paper scissors: if someone never picks, either player can tap "Call it off" after 3 minutes (both stakes go back),
 // and a duel still waiting after 30 minutes is refunded by sweepDuels (run on /duel and /daily), so chips never vanish.
@@ -20,12 +20,12 @@ const BEATS = { r: 's', p: 'r', s: 'p' };
 const VERB = { r: 'Rock smashes scissors.', p: 'Paper covers rock.', s: 'Scissors cut paper.' };
 const RANK = '23456789TJQKA';
 
-export const DUEL_COMMAND = { name: 'duel', description: 'Challenge someone for blackjack chips: rock paper scissors, high card or coin flip', type: 1,
+export const DUEL_COMMAND = { name: 'duel', description: 'Challenge someone for blackjack chips: coin flip, rock paper scissors or high card', type: 1,
   options: [
     { type: 4, name: 'bet', description: `Chips each player puts up ($1 to $${MAX_BET}, default $${DEFAULT_BET})`, min_value: 1, max_value: MAX_BET, required: false },
     { type: 6, name: 'opponent', description: 'Who you are challenging (leave empty and anyone can accept)', required: false },
-    { type: 3, name: 'game', description: 'Rock paper scissors (default), high card or coin flip', required: false,
-      choices: [{ name: 'Rock paper scissors', value: 'rps' }, { name: 'High card', value: 'high' }, { name: 'Coin flip', value: 'coin' }] }] };
+    { type: 3, name: 'game', description: 'Coin flip (default), rock paper scissors or high card', required: false,
+      choices: [{ name: 'Coin flip', value: 'coin' }, { name: 'Rock paper scissors', value: 'rps' }, { name: 'High card', value: 'high' }] }] };
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const save = d => ['SET', 'du:' + d.id, JSON.stringify(d), 'EX', TTL];
@@ -130,7 +130,7 @@ async function challenge(me, other, bet, game) {
 export async function duelCommand(i, opts, s) {
   if (!kvUrl() || !kvToken()) return noStorage();
   const me = whoIs(i, s), bet = Math.min(MAX_BET, Math.max(1, Math.floor((opts.bet && opts.bet.value) || DEFAULT_BET)));
-  const game = opts.game && GAME[opts.game.value] ? opts.game.value : 'rps';
+  const game = opts.game && GAME[opts.game.value] ? opts.game.value : 'coin';
   let other = null;
   if (opts.opponent) {
     const id = opts.opponent.value, u = ((i.data.resolved || {}).users || {})[id] || {};
