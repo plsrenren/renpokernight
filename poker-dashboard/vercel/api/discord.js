@@ -12,7 +12,7 @@
 //   /tourney date:...       tournament invite people answer with reactions (see _tourney.js)
 //   /cash date:...          same for a cash game
 //   /daily /blackjack /freebet /chips  blackjack (and Free Bet Blackjack) with chips (see _blackjack.js; needs Upstash storage)
-//   /duel                   player vs player for chips: rock paper scissors or high card (see _duel.js)
+//   /duel                   player vs player for chips: rock paper scissors, high card or coin flip (see _duel.js)
 //   /uth                    Ultimate Texas Hold'em against the dealer for chips (see _uth.js)
 //   /roulette               shared roulette table, 30 seconds to bet, then it spins (see _roulette.js)
 //   /baccarat               bet Player, Banker or Tie (see _baccarat.js)
