@@ -2,6 +2,16 @@
 // A list row gets the player's overall bar as a soft wash, their pfp wears their border, the title sits under the name and the
 // sticker rides on the plate. Used by the dashboard (standings + top 3 podium), /h2h (the two slots) and /casino (chip leaders).
 // Looks are in plates.css (+ cosmetics.css for the borders, bars and stickers). Players with nothing equipped stay plain.
+// Smooth sticker outlines: the white die-cut edge drawn by an SVG filter (grow the shape, soften the edge) instead of
+// stacked CSS drop-shadows, which leave a lumpy, octagon-ish outline. Injected once per page; cosmetics.css uses it
+// when html has .stk-smooth and keeps the old outline otherwise.
+if (typeof document !== 'undefined' && !document.getElementById('stkline')) {
+  const add = () => {
+    document.body.insertAdjacentHTML('afterbegin', '<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><filter id="stkline" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB"><feMorphology in="SourceAlpha" operator="dilate" radius="1.6" result="d"/><feGaussianBlur in="d" stdDeviation=".35" result="b"/><feComponentTransfer in="b" result="m"><feFuncA type="linear" slope="3"/></feComponentTransfer><feFlood flood-color="#fff"/><feComposite in2="m" operator="in" result="o"/><feMerge><feMergeNode in="o"/><feMergeNode in="SourceGraphic"/></feMerge></filter></svg>');
+    document.documentElement.classList.add('stk-smooth');
+  };
+  document.body ? add() : document.addEventListener('DOMContentLoaded', add);
+}
 let P = null;
 /** loot.js + everyone's equipped items, fetched once per page: { L, byName, byId } (empty when /api/shop can't be reached) */
 export function loadouts() {
