@@ -4,23 +4,25 @@
 // Looks are in plates.css (+ cosmetics.css for the borders, bars and stickers). Players with nothing equipped stay plain.
 // Smooth sticker outlines: a white die-cut edge drawn by an SVG filter (grow the shape, soften the edge) instead of stacked
 // CSS drop-shadows, which leave a lumpy, octagon-ish outline. The filter goes on a <g> INSIDE each sticker's own svg (Safari
-// ignores CSS filter:url() on page elements), sized per sticker so the edge stays ~1.6px whatever size the sticker shows at.
+// ignores CSS filter:url() on page elements), sized per sticker so the edge stays 1.1-1.6px whatever size the sticker shows at.
 // cosmetics.css drops the old drop-shadow outline when html has .stk-smooth.
 if (typeof document !== 'undefined' && !document.getElementById('stkdefs')) {
   const NS = 'http://www.w3.org/2000/svg';
   // the shared <defs> holder (put back if a page ever rebuilds its whole body)
   const defs = () => document.querySelector('#stkdefs defs') || (document.body.insertAdjacentHTML('afterbegin', '<svg id="stkdefs" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs></defs></svg>'), document.querySelector('#stkdefs defs'));
-  const filt = k => { // k = svg user units per css px, rounded
-    const id = 'stkline' + String(k).replace('.', '_');
+  const filt = (k, r) => { // k = svg user units per css px, r = outline width in css px (both rounded)
+    const id = ('stkline' + k + 'w' + r).replace(/\./g, '_');
     if (!document.getElementById(id)) {
-      defs().insertAdjacentHTML('beforeend', `<filter id="${id}" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB"><feMorphology in="SourceAlpha" operator="dilate" radius="${(1.6 * k).toFixed(2)}" result="d"/><feGaussianBlur in="d" stdDeviation="${(.35 * k).toFixed(2)}" result="b"/><feComponentTransfer in="b" result="m"><feFuncA type="linear" slope="3"/></feComponentTransfer><feFlood flood-color="#fff"/><feComposite in2="m" operator="in" result="o"/><feMerge><feMergeNode in="o"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`); }
+      defs().insertAdjacentHTML('beforeend', `<filter id="${id}" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB"><feMorphology in="SourceAlpha" operator="dilate" radius="${(r * k).toFixed(2)}" result="d"/><feGaussianBlur in="d" stdDeviation="${(.35 * k).toFixed(2)}" result="b"/><feComponentTransfer in="b" result="m"><feFuncA type="linear" slope="3"/></feComponentTransfer><feFlood flood-color="#fff"/><feComposite in2="m" operator="in" result="o"/><feMerge><feMergeNode in="o"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`); }
     return id;
   };
   const ro = new ResizeObserver(es => { for (const e of es) {
     const s = e.target, w = e.contentRect.width, vb = s.viewBox && s.viewBox.baseVal;
     if (!w || !s.__g) continue;
     const k = Math.max(.1, Math.round(((vb && vb.width) || w) / w * 10) / 10);
-    s.__g.setAttribute('filter', `url(#${filt(k)})`);
+    // thinner edge on small stickers (1.1px at ~30px, 1.6px from ~45px up) so it doesn't swallow small details
+    const r = Math.round(Math.min(1.6, Math.max(1.1, w / 28)) * 10) / 10;
+    s.__g.setAttribute('filter', `url(#${filt(k, r)})`);
   } });
   // give each copy of a sticker its own gradient/pattern ids: the same sticker often sits twice on a page (plate + pfp corner,
   // one of them hidden), and url(#id) points at the first copy, so a hidden first copy left the visible one unpainted

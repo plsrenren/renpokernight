@@ -9,7 +9,7 @@ html .champ, html .brow { grid-template-columns: auto minmax(0, 1fr) auto; }
 html .brow { grid-template-columns: 24px auto minmax(0, 1fr) auto; }
 html .plf .cbw > :first-child { width: 64px !important; height: 64px !important; font-size: 28px !important; box-shadow: none !important; outline: 0 !important; margin: 0 !important; }
 html .pl-cstk { position: absolute; z-index: 4; right: calc(var(--s) * -.22); bottom: calc(var(--s) * -.18); width: max(22px, calc(var(--s) * .5)); height: max(22px, calc(var(--s) * .5)); line-height: 0; }
-html .pl-cstk .cos-stk, html .pl-stk .cos-stk { position: static; display: block; width: 100%; height: 100%; }
+html .pl-cstk .cos-stk, html .pl-stk .cos-stk { position: static; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; } /* wide stickers sit in the middle, not at the top */
 /* on the lists the sticker rides on the plate next to the name; on phones (no room) it moves to the pfp's corner */
 html table.pl-t .pl-cstk { display: none; }
 html .pl-stk { flex: none; display: inline-block; width: 32px; height: 32px; line-height: 0; margin-left: 4px; }
@@ -72,3 +72,6 @@ html .brow .pl-nm { flex: 1; min-width: 0; }
 html .brow .pl-nm .pl-ttl { font-size: 11px; margin-top: 2px; }
 /* light bars (Dealer Button, Paper Card, Mint, Ice...) under white names: a soft shadow keeps names and titles readable */
 html .pl-wash .pl-nm > .link, html .pl-wash .pl-nm > b, html .pl-wash .pl-ttl, html .pl-wash .pl-nm .link { text-shadow: 0 1px 2px rgba(0,0,0,.75), 0 0 6px rgba(0,0,0,.35); }
+/* stickers on the list plates line up in one column at the right of the player cell, whatever the name/title length */
+html table.pl-t td > .who { display: flex; width: 100%; }
+html table.pl-t .pl-stk { margin-left: auto; margin-right: 6px; }
