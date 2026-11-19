@@ -7,12 +7,13 @@
 // ignores CSS filter:url() on page elements), sized per sticker so the edge stays ~1.6px whatever size the sticker shows at.
 // cosmetics.css drops the old drop-shadow outline when html has .stk-smooth.
 if (typeof document !== 'undefined' && !document.getElementById('stkdefs')) {
-  const NS = 'http://www.w3.org/2000/svg', made = new Set();
-  let defs;
+  const NS = 'http://www.w3.org/2000/svg';
+  // the shared <defs> holder (put back if a page ever rebuilds its whole body)
+  const defs = () => document.querySelector('#stkdefs defs') || (document.body.insertAdjacentHTML('afterbegin', '<svg id="stkdefs" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs></defs></svg>'), document.querySelector('#stkdefs defs'));
   const filt = k => { // k = svg user units per css px, rounded
     const id = 'stkline' + String(k).replace('.', '_');
-    if (!made.has(id)) { made.add(id);
-      defs.insertAdjacentHTML('beforeend', `<filter id="${id}" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB"><feMorphology in="SourceAlpha" operator="dilate" radius="${(1.6 * k).toFixed(2)}" result="d"/><feGaussianBlur in="d" stdDeviation="${(.35 * k).toFixed(2)}" result="b"/><feComponentTransfer in="b" result="m"><feFuncA type="linear" slope="3"/></feComponentTransfer><feFlood flood-color="#fff"/><feComposite in2="m" operator="in" result="o"/><feMerge><feMergeNode in="o"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`); }
+    if (!document.getElementById(id)) {
+      defs().insertAdjacentHTML('beforeend', `<filter id="${id}" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB"><feMorphology in="SourceAlpha" operator="dilate" radius="${(1.6 * k).toFixed(2)}" result="d"/><feGaussianBlur in="d" stdDeviation="${(.35 * k).toFixed(2)}" result="b"/><feComponentTransfer in="b" result="m"><feFuncA type="linear" slope="3"/></feComponentTransfer><feFlood flood-color="#fff"/><feComposite in2="m" operator="in" result="o"/><feMerge><feMergeNode in="o"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`); }
     return id;
   };
   const ro = new ResizeObserver(es => { for (const e of es) {
@@ -23,13 +24,14 @@ if (typeof document !== 'undefined' && !document.getElementById('stkdefs')) {
   } });
   const wrap = root => root.querySelectorAll && root.querySelectorAll('.cos-stk svg').forEach(s => {
     if (s.__g) return;
-    const g = document.createElementNS(NS, 'g');
-    while (s.firstChild) g.appendChild(s.firstChild);
-    s.appendChild(g); s.__g = g; ro.observe(s);
+    // outer <g> = outline, inner <g> = the sticker's tilt (drawn as vectors, so the outline isn't rotated as a picture and stays crisp)
+    const g = document.createElementNS(NS, 'g'), t = document.createElementNS(NS, 'g'), vb = s.viewBox && s.viewBox.baseVal;
+    if (vb && vb.width) t.setAttribute('transform', `rotate(-10 ${vb.x + vb.width / 2} ${vb.y + vb.height / 2})`);
+    while (s.firstChild) t.appendChild(s.firstChild);
+    g.appendChild(t); s.appendChild(g); s.__g = g; ro.observe(s);
   });
   const add = () => {
-    document.body.insertAdjacentHTML('afterbegin', '<svg id="stkdefs" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs></defs></svg>');
-    defs = document.querySelector('#stkdefs defs');
+    defs();
     document.documentElement.classList.add('stk-smooth');
     wrap(document);
     new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) if (n.nodeType === 1) n.matches && n.matches('.cos-stk svg') ? wrap(n.parentNode) : wrap(n); })
