@@ -65,7 +65,12 @@ html .pl-wash.from-top .pl-bg { -webkit-mask: linear-gradient(180deg, #000, tran
 @media (max-width: 520px) { /* phones stack the h2h pfp over the name: fade from the top instead */
   html .slot .pl-bg, html .slot.b .pl-bg { -webkit-mask: linear-gradient(180deg, #000, transparent 80%); mask: linear-gradient(180deg, #000, transparent 80%); }
 }
+/* dashboard standings: the wash spans the whole row (the bg sits in the rank cell but is placed against the row) */
+html #standings tr.pl-wash { position: relative; }
+html #standings tr.pl-wash .pl-bg { opacity: .6; }
+html .pl-card.pl-wash .pl-bg { opacity: .55; }
 /* Hall of Fame: titles under names */
+html .trophy .face .tot { z-index: 6; } /* title count badge always in front of frames, their tabs and glows */
 html .rec .pl-nm .pl-ttl { font-size: 14px; }
 html .brow .pl-nm { flex: 1; min-width: 0; }
 html .brow .pl-nm .pl-ttl { font-size: 11px; margin-top: 2px; }

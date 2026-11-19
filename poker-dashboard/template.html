@@ -589,7 +589,7 @@ function render() {
   if (!PLATES) loadPlates().then(drawStandings);
 }
 
-// "Nameplates": standings rows painted in each player's equipped overall bar, with their border, title and sticker,
+// "Nameplates": standings rows get each player's equipped overall bar as a soft wash, plus their border, title and sticker,
 // and a top 3 podium of loadout cards (plates.js / plates.css). Plain rows until the loadouts arrive or when nothing's equipped.
 let lastStandings = [], PLATES = null, platesLoading = null;
 function loadPlates() {
@@ -604,16 +604,16 @@ function drawStandings() {
   const standings = lastStandings, netCls = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
   document.getElementById('standings').innerHTML = standings.map((p, i) => {
     const pl = plateFor(p.player);
-    return `<tr class="${pl.bar ? 'pl-row ' + pl.bar : ''}">
-    <td class="rank">${i + 1}</td><td><span class="who">${pl.face(pfp(p.player), 32, true)}<span class="pl-nm">${nameBtn(p.player)}${pl.title}</span>${pl.sticker}</span></td><td class="num">${p.games}</td><td class="num">${p.wins}</td>
+    return `<tr class="${pl.bar ? 'pl-wash' : ''}">
+    <td class="rank">${pl.bar ? `<span class="pl-bg ${pl.bar}" aria-hidden="true"></span>` : ''}${i + 1}</td><td><span class="who">${pl.face(pfp(p.player), 32, true)}<span class="pl-nm">${nameBtn(p.player)}${pl.title}</span>${pl.sticker}</span></td><td class="num">${p.games}</td><td class="num">${p.wins}</td>
     <td class="num">${fmt(p.cin)}</td><td class="num">${fmt(p.cout)}</td>
-    <td class="num ${pl.bar ? '' : netCls(p.net)}">${pl.bar ? `<span class="pl-net ${netCls(p.net)}">${fmtSigned(p.net)}</span>` : fmtSigned(p.net)}</td></tr>`; }).join('');
+    <td class="num ${netCls(p.net)}">${fmtSigned(p.net)}</td></tr>`; }).join('');
   // podium: 2nd, 1st, 3rd (1st in the middle, a bit taller)
   const top = standings.slice(0, 3);
   document.getElementById('podium').innerHTML = top.length < 3 ? '' : [1, 0, 2].map(k => { const p = top[k], pl = plateFor(p.player);
-    return `<div class="pl-card p${k + 1}"><span class="pl-plc">${['1st', '2nd', '3rd'][k]}</span>${pl.face(pfp(p.player), k ? 60 : 76, true)}
+    return `<div class="pl-card p${k + 1}${pl.bar ? ' pl-wash from-top' : ''}">${pl.bar ? `<span class="pl-bg ${pl.bar}" aria-hidden="true"></span>` : ''}<span class="pl-plc">${['1st', '2nd', '3rd'][k]}</span>${pl.face(pfp(p.player), k ? 60 : 76, true)}
       <span class="pl-nm">${nameBtn(p.player)}${pl.title}</span>
-      <div class="pl-strip ${pl.bar}"><b>${fmtSigned(p.net)}</b><span>${p.wins} win${p.wins === 1 ? '' : 's'} · ${p.games} night${p.games === 1 ? '' : 's'}</span></div></div>`; }).join('');
+      <div class="pl-strip"><b>${fmtSigned(p.net)}</b><span>${p.wins} win${p.wins === 1 ? '' : 's'} · ${p.games} night${p.games === 1 ? '' : 's'}</span></div></div>`; }).join('');
 }
 
 // If any name in a legend would run into its amount, that legend shows just the pfps, so the list stays even
