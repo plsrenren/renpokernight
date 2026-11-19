@@ -22,8 +22,22 @@ if (typeof document !== 'undefined' && !document.getElementById('stkdefs')) {
     const k = Math.max(.1, Math.round(((vb && vb.width) || w) / w * 10) / 10);
     s.__g.setAttribute('filter', `url(#${filt(k)})`);
   } });
+  // give each copy of a sticker its own gradient/pattern ids: the same sticker often sits twice on a page (plate + pfp corner,
+  // one of them hidden), and url(#id) points at the first copy, so a hidden first copy left the visible one unpainted
+  let seq = 0;
+  const uniq = s => {
+    const ids = [...s.querySelectorAll('[id]')].map(e => e.id);
+    if (!ids.length) return;
+    const n = '-k' + (++seq), re = new RegExp('#(' + ids.map(i => i.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')(?![\\w-])', 'g');
+    for (const e of s.querySelectorAll('*')) {
+      if (e.id) e.id += n;
+      for (const a of [...e.attributes]) if (a.name !== 'id' && a.value.includes('#')) e.setAttribute(a.name, a.value.replace(re, '#$1' + n));
+      if (e.tagName.toLowerCase() === 'style') e.textContent = e.textContent.replace(re, '#$1' + n);
+    }
+  };
   const wrap = root => root.querySelectorAll && root.querySelectorAll('.cos-stk svg').forEach(s => {
     if (s.__g) return;
+    uniq(s);
     // outer <g> = outline, inner <g> = the sticker's tilt (drawn as vectors, so the outline isn't rotated as a picture and stays crisp)
     const g = document.createElementNS(NS, 'g'), t = document.createElementNS(NS, 'g'), vb = s.viewBox && s.viewBox.baseVal;
     if (vb && vb.width) t.setAttribute('transform', `rotate(-10 ${vb.x + vb.width / 2} ${vb.y + vb.height / 2})`);

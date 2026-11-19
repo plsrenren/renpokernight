@@ -70,3 +70,5 @@ html .trophy .face .tot { z-index: 6; } /* title count badge always in front of 
 html .rec .pl-nm .pl-ttl { font-size: 14px; }
 html .brow .pl-nm { flex: 1; min-width: 0; }
 html .brow .pl-nm .pl-ttl { font-size: 11px; margin-top: 2px; }
+/* light bars (Dealer Button, Paper Card, Mint, Ice...) under white names: a soft shadow keeps names and titles readable */
+html .pl-wash .pl-nm > .link, html .pl-wash .pl-nm > b, html .pl-wash .pl-ttl, html .pl-wash .pl-nm .link { text-shadow: 0 1px 2px rgba(0,0,0,.75), 0 0 6px rgba(0,0,0,.35); }
