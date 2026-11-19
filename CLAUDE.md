@@ -126,7 +126,8 @@ Plain HTML + Chart.js 4.4.1 (cdnjs). Fonts: Bricolage Grotesque (display), IBM P
 Felt-green accent, light + dark themes via CSS tokens. Mobile-friendly.
 - Homepage: Year + Quarter dropdowns (separate), **defaults to the current quarter** (latest quarter in the data).
   Tiles (total buy-ins, top winner, recent winner, cash/tournament count), buy-ins vs cash-outs bar chart,
-  last-game cash in/out donuts, standings table. Mirrors the sheet's old "Dashboard" tab.
+  last-game cash in/out donuts, standings table.
+  The buy-ins vs cash-outs chart has an **All / Reg Only** toggle (Reg Only = Members-tab status "Member"; remembered per browser). Mirrors the sheet's old "Dashboard" tab.
 - Player page (`#player-Name` hash): playing-card style **player card** (corner = period rank as A/2..10/J/Q/K + suit,
   initials, status from Members, badges, net, 6 stats), profit-over-time line with **All / Cash / Tournament** toggle
   (toggle sits in a fixed spot on the title row), Net by night (quarter view) / Net by quarter (year/all),
