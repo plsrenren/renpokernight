@@ -32,7 +32,9 @@ html tr.pl-row > td:last-child { clip-path: polygon(0 0, 100% 0, calc(100% - 10p
 html tr.pl-row .who, html tr.pl-row td.n { gap: 10px; }
 
 /* ---- dashboard: top 3 podium above the standings ---- */
-html .pl-pod { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 6px 0 14px; align-items: end; }
+/* all three cards stretch to the same height (2nd and 3rd always match); 1st starts higher so it stands taller */
+html .pl-pod { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 6px 0 14px; align-items: stretch; }
+html .pl-card.p2, html .pl-card.p3 { margin-top: 18px; }
 html .pl-pod:empty { display: none; }
 html .pl-card { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; background: #26224a; padding: 14px 8px 0; text-align: center; overflow: hidden; }
 html .pl-card.p1 { padding-top: 22px; background: linear-gradient(180deg, #3a2a6e, #26224a); }
