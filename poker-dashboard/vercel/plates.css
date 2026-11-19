@@ -3,6 +3,10 @@
    A painted row takes its background + text colour from the player's .cbar-<key> class (cosmetics.css). */
 html .plf { position: relative; display: inline-block; line-height: 0; flex: none; vertical-align: middle; }
 html .plf > :first-child:not(.cbw) { width: var(--s); height: var(--s); }
+/* never squeezed by a narrow grid column (the frame would slide under the pfp) */
+html .plf, html .plf .cbw { width: max-content; min-width: max-content; }
+html .champ, html .brow { grid-template-columns: auto minmax(0, 1fr) auto; }
+html .brow { grid-template-columns: 24px auto minmax(0, 1fr) auto; }
 html .plf .cbw > :first-child { width: 64px !important; height: 64px !important; font-size: 28px !important; box-shadow: none !important; outline: 0 !important; margin: 0 !important; }
 html .pl-cstk { position: absolute; z-index: 4; right: calc(var(--s) * -.22); bottom: calc(var(--s) * -.18); width: max(22px, calc(var(--s) * .5)); height: max(22px, calc(var(--s) * .5)); line-height: 0; }
 html .pl-cstk .cos-stk, html .pl-stk .cos-stk { position: static; display: block; width: 100%; height: 100%; }
