@@ -412,7 +412,9 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const nameBtn = n => `<button type="button" class="link" data-player="${esc(n)}">${esc(n)}</button>`;
 const nameHue = n => [...n].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7);
 // a pfp that didn't load gets one more try a moment later (Discord can be busy when a page asks for many at once), then initials show
-function retryPic(im) { if (im.dataset.r) return im.remove(); im.dataset.r = 1; setTimeout(() => { im.src = im.src + '&r=1'; }, 1200); }
+// a pfp that didn't load: hide it (no broken-image icon over the initials) and try once more after a moment
+function retryPic(im) { if (im.dataset.r) return im.remove(); im.dataset.r = 1; im.style.visibility = 'hidden';
+  im.addEventListener('load', () => { im.style.visibility = ''; }, { once: true }); setTimeout(() => { im.src = im.src + '&r=1'; }, 1200); }
 // a player's Discord pfp (initials on their colour when there's none) in front of their name
 const pfp = (n, ring) => `<span class="pfp${ring ? ' ring' : ''}" style="--h:${nameHue(n)}${ring ? ';--ring:' + ring : ''}" aria-hidden="true">${esc(n[0].toUpperCase())}${IDS[n] ? `<img src="/api/avatar?id=${IDS[n]}" alt="" loading="lazy" onerror="retryPic(this)">` : ''}</span>`;
 const whoBtn = n => `<span class="who">${pfp(n)}${nameBtn(n)}</span>`;
