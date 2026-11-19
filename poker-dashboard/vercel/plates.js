@@ -1,5 +1,5 @@
 // "Nameplates" (Nov 2026): players' equipped Study Cards on the site's lists, not just the player card.
-// A list row is painted in the player's overall bar, their pfp wears their border, the title sits under the name and the
+// A list row gets the player's overall bar as a soft wash, their pfp wears their border, the title sits under the name and the
 // sticker rides on the plate. Used by the dashboard (standings + top 3 podium), /h2h (the two slots) and /casino (chip leaders).
 // Looks are in plates.css (+ cosmetics.css for the borders, bars and stickers). Players with nothing equipped stay plain.
 let P = null;
