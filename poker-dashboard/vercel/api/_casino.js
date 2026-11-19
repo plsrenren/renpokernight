@@ -141,7 +141,7 @@ async function act(req, me) {
       const r = await claimDaily(who);
       if (r.busy) return out({ busy: true });
       if (r.wait !== undefined) return out({ err: 'Already claimed today.', daily: { wait: r.wait, amt: r.amt } });
-      return out({ bal: r.bal, got: r.amt, first: r.first, daily: await dailyStatus(me.id) });
+      return out({ bal: r.bal, got: r.amt, weekly: r.weekly, daily: await dailyStatus(me.id) });
     }
     case 'bj': {
       const free = b.mode === 'free';

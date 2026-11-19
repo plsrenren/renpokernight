@@ -524,7 +524,7 @@ function lobby() {
       <div><a class="dbtn" href="/api/login">${DISCORD_SVG}Sign in with Discord</a><div class="fine">The site only gets your Discord name, pfp and ID. No password, no email, no messages.</div></div></section>
     ${SHOP_LINK}${lottery()}<div class="cols">${board()}${feed()}</div>`;
   const me = S.me, top = S.board[0];
-  const msg = T.got ? `<div class="note ok">+${money(T.got)} added${T.first ? ' (welcome bonus)' : ''}. Good luck.</div>` : '';
+  const msg = T.got ? `<div class="note ok">+${money(T.got)} added${T.weekly ? ' (weekly bonus)' : ''}. Good luck.</div>` : '';
   return `${msg}<div class="strip">
       <div class="tl"><div class="k">Your chips</div><div class="v">${me.bal === null ? '$0' : money(me.bal)}</div><div class="s">${me.rank ? `#${me.rank} of ${S.players} · same balance as /chips on Discord` : 'Claim your daily chips to get started'}</div>${me.rake >= 0.01 ? `<div class="s rk">💸 ${money(me.rake)} rakeback so far · paid Monday</div>` : ''}</div>
       ${dailyTile()}
@@ -652,7 +652,7 @@ function wire() {
   document.querySelectorAll('[data-uth]').forEach(b => b.onclick = () => { pressed = `data-uth="${b.dataset.uth}"`; play({ a: 'uth-act', id: T.uth.id, do: b.dataset.uth }, j => { T.uth = j.hand; }); });
   document.querySelectorAll('[data-do]').forEach(b => b.onclick = () => {
     const d = b.dataset.do; pressed = `data-do="${d}"`;
-    if (d === 'daily') play({ a: 'daily' }, j => { S.me.daily = j.daily; T.got = j.got; T.first = j.first; load(); });
+    if (d === 'daily') play({ a: 'daily' }, j => { S.me.daily = j.daily; T.got = j.got; T.weekly = j.weekly; load(); });
     if (d === 'bj-deal') play({ a: 'bj', bet: pref('bj', 20) }, j => { T.bj = j.hand; });
     if (d === 'fb-deal') play({ a: 'bj', mode: 'free', bet: pref('fb', 20), side: pref('p22', 0) }, j => { T.fb = j.hand; });
     if (d === 'uth-deal') play({ a: 'uth', ante: pref('ante', 10), trips: pref('trips', 0) }, j => { T.uth = j.hand; });

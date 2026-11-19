@@ -38,7 +38,7 @@ import { casinoWeb } from './_casino.js';
 import { checkAccolades } from './_accolades.js';
 import { houseEmbed } from './_rakeback.js';
 import { REWARD_LIST } from './_rewards.js';
-import { FIRST_CLAIM, DAILY, DAILY_RESET_UTC, RAKE, kvUrl, kvToken } from './_blackjack.js';
+import { WEEKLY_CLAIM, DAILY, DAILY_RESET_UTC, RAKE, kvUrl, kvToken } from './_blackjack.js';
 import { SHOP_COMMANDS, shopCommand, shopInteraction } from './_shop.js';
 import { wrongChannel } from './_channels.js';
 import { withPicture, warmPictures } from './_attach.js';
@@ -215,7 +215,7 @@ function earnEmbed() {
   const nights = REWARD_LIST.map(g => `__${g.group}__\n` + g.items.map(x => `${x.what} **${x.amt}**`).join(' · ')).join('\n');
   return { color: 0xf1c75b, title: '💰 How to earn chips', url: `${SITE}/casino`,
     fields: [
-      { name: '🎁 /daily', value: `$${FIRST_CLAIM} your first time, then $${DAILY} every day (resets ${DAILY_RESET_UTC}:00 UTC)` },
+      { name: '🎁 /daily', value: `$${WEEKLY_CLAIM} your first claim each week, $${DAILY} the other days (resets ${DAILY_RESET_UTC}:00 UTC, weeks start Monday)` },
       { name: '🃏 Poker night', value: 'Paid automatically after every saved night:\n' + nights },
       { name: '💸 Weekly rakeback', value: `Every Monday you get a cut back on everything you played at the tables, up to $${RAKE.cap}. Paid straight into your balance; /chips shows yours so far.` },
       { name: '🎟️ Quarter lottery', value: `Every $${TICKET} you buy in at poker night is a free ticket. One winner takes the whole quarter's buy-ins in chips. See /lottery odds.` },
