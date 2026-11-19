@@ -25,8 +25,8 @@ html #standings tr.pl-row:first-child > td.rank, html .lb tr.pl-row:first-child 
 html tr.pl-row .link { color: inherit !important; text-decoration-color: currentColor; }
 html tr.pl-row .pl-ttl { color: inherit; opacity: .8; }
 html tr.pl-row .pfp, html tr.pl-row .av { box-shadow: none; outline: 0; }
-html .pl-net { display: block; text-align: right; background: rgba(10,8,24,.82); color: #fff; padding: 3px 8px 2px; font-weight: 600; }
-html .pl-net.pos { color: var(--up, #8fe0b0); } html .pl-net.neg { color: var(--down, #ff7a8a); }
+/* the amount on a painted row: no box, in the bar's own text colour (green/red would vanish on some bars) */
+html .pl-net { font-weight: 700; color: inherit; }
 /* the slanted right end, like the section bars */
 html tr.pl-row > td:last-child { clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); padding-right: 16px; }
 html tr.pl-row .who, html tr.pl-row td.n { gap: 10px; }
