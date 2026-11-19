@@ -117,7 +117,8 @@ function face(el, name) {
   el.style.setProperty('--h', hueFor(name));
   el.innerHTML = esc(initials(name)) + (IDS[name] ? `<img src="${avatarUrl(IDS[name])}" alt="" onerror="this.remove()">` : '');
 }
-// "Nameplates": each slot is painted in that player's equipped overall bar, with their border, title and sticker (plates.js)
+// "Nameplates": each slot gets that player's equipped overall bar as a wash fading out from the pfp, plus their border,
+// title and sticker (plates.js)
 let PL = null;
 import('/plates.js').then(m => m.loadouts().then(lo => { PL = { ...lo, bits: m.bits }; if (state.a) { dressSlot('a', state.a); dressSlot('b', state.b); } })).catch(() => {});
 function dressSlot(k, name) {
@@ -125,10 +126,10 @@ function dressSlot(k, name) {
   // undo the last player's look
   slot.className = 'slot ' + k;
   const old = slot.querySelector('.plf'); if (old) old.replaceWith(av);
-  slot.querySelectorAll('.pl-ttl').forEach(e => e.remove());
+  slot.querySelectorAll('.pl-ttl, .pl-bg').forEach(e => e.remove());
   if (!PL || !PL.L) return;
   const b = PL.bits(PL.L, PL.byName[name]); if (!b.any) return;
-  if (b.bar) slot.classList.add('pl-row', b.bar);
+  if (b.bar) { slot.classList.add('pl-wash'); slot.insertAdjacentHTML('afterbegin', `<span class="pl-bg ${b.bar}" aria-hidden="true"></span>`); }
   const tmp = document.createElement('span');
   tmp.innerHTML = b.face('<i></i>', matchMedia('(max-width: 520px)').matches ? 64 : 58, true);
   const w = tmp.firstElementChild; av.replaceWith(w); w.querySelector('i').replaceWith(av);

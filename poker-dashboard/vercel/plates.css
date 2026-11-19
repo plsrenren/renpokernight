@@ -55,8 +55,12 @@ html .pl-strip b { font-weight: 400; }
   html table.pl-t .pl-cstk { display: block; }
 }
 
-/* ---- /h2h: the two matchup slots ---- */
-html .slot.pl-row { border-bottom-color: rgba(0,0,0,.35); }
-html .slot.pl-row .t b, html .slot.pl-row .t small { color: inherit !important; }
-html .slot.pl-row .pl-ttl { color: inherit; opacity: .85; }
-html .slot.pl-row:hover { filter: brightness(1.08); }
+/* ---- /h2h: the two matchup slots: the bar as a wash behind the pfp, fading out toward the score ---- */
+html .slot.pl-wash { position: relative; overflow: hidden; }
+html .slot.pl-wash > :not(.pl-bg) { position: relative; z-index: 1; }
+html .slot .pl-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .75;
+  -webkit-mask: linear-gradient(90deg, #000, transparent 75%); mask: linear-gradient(90deg, #000, transparent 75%); }
+html .slot.b .pl-bg { -webkit-mask: linear-gradient(270deg, #000, transparent 75%); mask: linear-gradient(270deg, #000, transparent 75%); }
+@media (max-width: 520px) { /* phones stack pfp over name: fade from the top instead */
+  html .slot .pl-bg, html .slot.b .pl-bg { -webkit-mask: linear-gradient(180deg, #000, transparent 80%); mask: linear-gradient(180deg, #000, transparent 80%); }
+}
