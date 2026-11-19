@@ -422,10 +422,20 @@ function rollBal(delay) {
 window.addEventListener('hashchange', () => { T.err = ''; T.got = 0; if (!route()) load(); else render(); window.scrollTo(0, 0); });
 
 // ---------- lobby ----------
+// "Nameplates": chip leader rows painted in each player's equipped overall bar, with border, title and sticker (plates.js).
+// Loaded once; the lobby redraws when it arrives.
+let PL = null;
+import('/plates.js').then(m => m.loadouts().then(lo => { PL = { ...lo, bits: m.bits }; if (S && !onGame()) render(); })).catch(() => {});
+const onGame = () => S && S.me && ['blackjack', 'freebet', 'uth', 'baccarat'].includes(route());
+function plateOf(id) {
+  const b = PL && PL.L && PL.bits(PL.L, PL.byId[id]);
+  return b || { any: false, bar: '', title: '', sticker: '', face: h => h };
+}
 function board() {
-  const rows = S.board.map((r, k) => `<tr class="${S.me && r.id === S.me.id ? 'you' : ''}"><td class="rk">${k + 1}</td><td class="n">${av(r.id, r.name)}${esc(r.name)}${S.me && r.id === S.me.id ? ' <span class="youtag">you</span>' : ''}</td><td class="m">${money(r.bal)}</td></tr>`).join('');
+  const rows = S.board.map((r, k) => { const b = plateOf(r.id), you = S.me && r.id === S.me.id;
+    return `<tr class="${you ? 'you' : ''}${b.bar ? ' pl-row ' + b.bar : ''}"><td class="rk">${k + 1}</td><td class="n">${b.face(av(r.id, r.name), 30, true)}<span class="pl-nm"><b>${esc(r.name)}</b>${b.title}</span>${b.sticker}${you ? ' <span class="youtag">you</span>' : ''}</td><td class="m">${b.bar ? `<span class="pl-net">${money(r.bal)}</span>` : money(r.bal)}</td></tr>`; }).join('');
   return `<div class="panel"><h2 class="g">Chip leaders</h2><p class="hint">Everyone's chips, Discord and site together.</p>
-    ${rows ? `<table class="lb">${rows}</table>` : '<p class="hint">Nobody has chips yet.</p>'}</div>`;
+    ${rows ? `<table class="lb pl-t">${rows}</table>` : '<p class="hint">Nobody has chips yet.</p>'}</div>`;
 }
 function feed() {
   const ago = t => { const m = Math.round((Date.now() - t) / 60e3); return m < 1 ? 'now' : m < 60 ? m + 'm' : m < 1440 ? Math.round(m / 60) + 'h' : Math.round(m / 1440) + 'd'; };
@@ -690,5 +700,7 @@ load();
 </style>
 <nav class="tabbar" aria-label="Pages"><a href="/"><span aria-hidden="true">📊</span>Dashboard</a><a href="/recap"><span aria-hidden="true">📰</span>Recap</a><a href="/hall"><span aria-hidden="true">🏆</span>Hall</a><a href="/h2h"><span aria-hidden="true">⚔️</span>H2H</a><a href="/casino" class="on" aria-current="page"><span aria-hidden="true">🃏</span>Casino</a></nav>
 <link rel="stylesheet" href="/lateshow.css">
+<link rel="stylesheet" href="/cosmetics.css">
+<link rel="stylesheet" href="/plates.css">
 </body>
 </html>

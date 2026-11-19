@@ -280,7 +280,8 @@ a.rc-mu { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; b
     <h2>Standings</h2>
     <p class="hint">Net profit for the selected period. Wins count nights finished first. Click a name for that player's stats.</p>
     <div class="table-scroll">
-      <table>
+      <div class="pl-pod" id="podium"></div>
+      <table class="pl-t">
         <thead><tr><th>#</th><th>Player</th><th>Games</th><th>Wins</th><th>Buy-ins</th><th>Cash-outs</th><th>Net</th></tr></thead>
         <tbody id="standings"></tbody>
       </table>
@@ -580,11 +581,37 @@ function render() {
   pie('pieIn', 'legIn', [...last].sort((a, b) => b.cin - a.cin).map(r => [r.player, r.cin]));
   pie('pieOut', 'legOut', [...last].sort((a, b) => b.cout - a.cout).map(r => [r.player, r.cout]).filter(x => x[1] > 0));
 
-  // Standings table
-  document.getElementById('standings').innerHTML = standings.map((p, i) => `<tr>
-    <td class="rank">${i + 1}</td><td>${whoBtn(p.player)}</td><td class="num">${p.games}</td><td class="num">${p.wins}</td>
+  // Standings table (+ top 3 podium); repainted with everyone's loadout once /api/shop answers
+  lastStandings = standings;
+  drawStandings();
+  if (!PLATES) loadPlates().then(drawStandings);
+}
+
+// "Nameplates": standings rows painted in each player's equipped overall bar, with their border, title and sticker,
+// and a top 3 podium of loadout cards (plates.js / plates.css). Plain rows until the loadouts arrive or when nothing's equipped.
+let lastStandings = [], PLATES = null, platesLoading = null;
+function loadPlates() {
+  return platesLoading ||= import('/plates.js').then(m => m.loadouts().then(lo => { PLATES = { ...lo, bits: m.bits }; }))
+    .catch(() => { PLATES = { L: null, byName: {}, byId: {}, bits: () => null }; });
+}
+function plateFor(n) {
+  const b = PLATES && PLATES.L && PLATES.bits(PLATES.L, PLATES.byName[n]);
+  return b || { any: false, bar: '', title: '', sticker: '', face: (h, size) => `<span class="plf" style="--s:${size}px">${h}</span>` };
+}
+function drawStandings() {
+  const standings = lastStandings, netCls = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
+  document.getElementById('standings').innerHTML = standings.map((p, i) => {
+    const pl = plateFor(p.player);
+    return `<tr class="${pl.bar ? 'pl-row ' + pl.bar : ''}">
+    <td class="rank">${i + 1}</td><td><span class="who">${pl.face(pfp(p.player), 32, true)}<span class="pl-nm">${nameBtn(p.player)}${pl.title}</span>${pl.sticker}</span></td><td class="num">${p.games}</td><td class="num">${p.wins}</td>
     <td class="num">${fmt(p.cin)}</td><td class="num">${fmt(p.cout)}</td>
-    <td class="num ${p.net > 0 ? 'pos' : p.net < 0 ? 'neg' : ''}">${fmtSigned(p.net)}</td></tr>`).join('');
+    <td class="num ${pl.bar ? '' : netCls(p.net)}">${pl.bar ? `<span class="pl-net ${netCls(p.net)}">${fmtSigned(p.net)}</span>` : fmtSigned(p.net)}</td></tr>`; }).join('');
+  // podium: 2nd, 1st, 3rd (1st in the middle, a bit taller)
+  const top = standings.slice(0, 3);
+  document.getElementById('podium').innerHTML = top.length < 3 ? '' : [1, 0, 2].map(k => { const p = top[k], pl = plateFor(p.player);
+    return `<div class="pl-card p${k + 1}"><span class="pl-plc">${['1st', '2nd', '3rd'][k]}</span>${pl.face(pfp(p.player), k ? 60 : 76, true)}
+      <span class="pl-nm">${nameBtn(p.player)}${pl.title}</span>
+      <div class="pl-strip ${pl.bar}"><b>${fmtSigned(p.net)}</b><span>${p.wins} win${p.wins === 1 ? '' : 's'} · ${p.games} night${p.games === 1 ? '' : 's'}</span></div></div>`; }).join('');
 }
 
 // If any name in a legend would run into its amount, that legend shows just the pfps, so the list stays even
@@ -793,8 +820,8 @@ function loadBanner(name) {
 let COS = null, LOOT = null, cosLoading = null;
 function loadCosmetics() {
   if (COS) return Promise.resolve();
-  return cosLoading ||= Promise.all([import('/loot.js'), fetch('/api/shop', { cache: 'no-store' }).then(r => r.ok ? r.json() : null)])
-    .then(([m, j]) => { LOOT = m; COS = (j && j.byName) || {}; }).catch(() => { COS = {}; });
+  // same single /api/shop read as the standings nameplates
+  return cosLoading ||= loadPlates().then(() => { LOOT = PLATES.L; COS = PLATES.byName || {}; }).catch(() => { COS = {}; });
 }
 function applyCosmetics(name) {
   const card = document.getElementById('pCard'), hero = card.querySelector('.ls-hero'), strip = card.querySelector('.ls-strip');
@@ -994,6 +1021,7 @@ boot();
 <nav class="tabbar" aria-label="Pages"><a href="/" class="on" aria-current="page"><span aria-hidden="true">📊</span>Dashboard</a><a href="/recap"><span aria-hidden="true">📰</span>Recap</a><a href="/hall"><span aria-hidden="true">🏆</span>Hall</a><a href="/h2h"><span aria-hidden="true">⚔️</span>H2H</a><a href="/casino"><span aria-hidden="true">🃏</span>Casino</a></nav>
 <link rel="stylesheet" href="/lateshow.css">
 <link rel="stylesheet" href="/cosmetics.css">
+<link rel="stylesheet" href="/plates.css">
 <style>
 /* Study Cards on the player card (cosmetics.css has the looks). The border art is sized for a 64px pfp, so it's zoomed up. */
 html .pcard .cbw { zoom: 1.5; flex: none; position: relative; }

@@ -253,9 +253,11 @@ export async function shopInteraction(i, s) {
 export async function shopWeb(req, me, sheet, out) {
   if (req.method === 'GET') {
     const sh = sheet ? await sheet().catch(() => null) : null, ids = (sh && sh.ids) || {};
-    const all = await equippedAll(), byName = {};
+    const all = await equippedAll(), byName = {}, byId = {};
     for (const [n, id] of Object.entries(ids)) if (all[id] && Object.keys(all[id]).length) byName[n] = all[id];
-    const body = { price: PRICE, byName, me: null };
+    // by Discord id too, for lists keyed by id (the casino chip leaders, which include people not on the sheet)
+    for (const [id, eq] of Object.entries(all)) if (eq && Object.keys(eq).length) byId[id] = eq;
+    const body = { price: PRICE, byName, byId, me: null };
     if (me) { const L = await loadout(me.id); body.me = { id: me.id, name: me.name, ...L, champs: champsFor(me.id, sh) || [] }; }
     return out(body);
   }
