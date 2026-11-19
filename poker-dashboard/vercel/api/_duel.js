@@ -1,8 +1,9 @@
 // /duel: player vs player for blackjack chips. Uses the same balances as /blackjack (bj:bal).
 //   /duel bet:50                        open challenge, the first person to tap Accept plays
 //   /duel opponent:@Kurt bet:50         only Kurt can accept (he can also Decline)
-//   game:Rock paper scissors (default)  both pick in secret, picks show once both are in, ties replay
+//   game:Rock paper scissors            both pick in secret, picks show once both are in, ties replay
 //   game:High card                      one card each the moment it's accepted, aces high, same rank deals again
+//   game:Coin flip (default)            challenger is heads, whoever accepts is tails, the coin flips the moment it's accepted
 // Both stakes come off when the duel is accepted; the winner gets the pot. Challenges expire after 10 minutes.
 // Rock paper scissors: if someone never picks, either player can tap "Call it off" after 3 minutes (both stakes go back),
 // and a duel still waiting after 30 minutes is refunded by sweepDuels (run on /duel and /daily), so chips never vanish.
@@ -13,18 +14,18 @@ import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, freshDeck, MA
 
 const SITE = 'https://renpokernight.vercel.app';
 const DEFAULT_BET = 20, EXPIRES = 10 * 60e3, TTL = 86400, CALL_OFF = 3 * 60e3, STUCK = 30 * 60e3;
-const GAME = { rps: 'Rock Paper Scissors', high: 'High Card' };
+const GAME = { rps: 'Rock Paper Scissors', high: 'High Card', coin: 'Coin Flip' };
 const PICK = { r: ['🪨', 'Rock'], p: ['📄', 'Paper'], s: ['✂️', 'Scissors'] };
 const BEATS = { r: 's', p: 'r', s: 'p' };
 const VERB = { r: 'Rock smashes scissors.', p: 'Paper covers rock.', s: 'Scissors cut paper.' };
 const RANK = '23456789TJQKA';
 
-export const DUEL_COMMAND = { name: 'duel', description: 'Challenge someone for blackjack chips: rock paper scissors or high card', type: 1,
+export const DUEL_COMMAND = { name: 'duel', description: 'Challenge someone for blackjack chips: coin flip, rock paper scissors or high card', type: 1,
   options: [
     { type: 4, name: 'bet', description: `Chips each player puts up ($1 to $${MAX_BET}, default $${DEFAULT_BET})`, min_value: 1, max_value: MAX_BET, required: false },
     { type: 6, name: 'opponent', description: 'Who you are challenging (leave empty and anyone can accept)', required: false },
-    { type: 3, name: 'game', description: 'Rock paper scissors (default) or high card', required: false,
-      choices: [{ name: 'Rock paper scissors', value: 'rps' }, { name: 'High card', value: 'high' }] }] };
+    { type: 3, name: 'game', description: 'Coin flip (default), rock paper scissors or high card', required: false,
+      choices: [{ name: 'Coin flip', value: 'coin' }, { name: 'Rock paper scissors', value: 'rps' }, { name: 'High card', value: 'high' }] }] };
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const save = d => ['SET', 'du:' + d.id, JSON.stringify(d), 'EX', TTL];
@@ -50,7 +51,7 @@ function view(d, extra = {}) {
   const pot = d.bet * 2, A = d.a.name, B = d.b ? d.b.name : 'anyone';
   if (d.state === 'open') {
     return msg({ color: 0xf1c75b, title: `⚔️ ${A} challenges ${B} to ${GAME[d.game]}`,
-      description: `Stakes **${money(d.bet)}** each · winner takes the **${money(pot)}** pot`,
+      description: `Stakes **${money(d.bet)}** each · winner takes the **${money(pot)}** pot${d.game === 'coin' ? `\n🪙 ${A} is **heads**, ${d.b ? B : 'whoever accepts'} is **tails**` : ''}`,
       footer: { text: `${d.b ? `Only ${B} can accept` : 'First person to tap Accept plays'} · expires in 10 min` } },
     row(btn('Accept', '✅', 'acc', d.id, 3), btn(d.b ? 'Decline' : 'Cancel', null, 'dec', d.id, 4)),
     d.b ? { content: `<@${d.b.id}>`, allowed_mentions: { users: [d.b.id] } } : {});
@@ -67,6 +68,9 @@ function view(d, extra = {}) {
     let description;
     if (d.game === 'rps') {
       description = `${PICK[d.picks[d.a.id]][0]} **${A}**  vs  ${PICK[d.picks[d.b.id]][0]} **${B}**\n${VERB[d.picks[w.id]]}`;
+    } else if (d.game === 'coin') {
+      const side = d.flip === 'h' ? 'Heads' : 'Tails';
+      description = `🪙 The coin lands on **${side}**!\n${A} had heads · ${B} had tails`;
     } else {
       description = `One card each, high card wins (aces high).${d.redraws ? ` Same rank ${d.redraws === 1 ? 'once' : d.redraws === 2 ? 'twice' : d.redraws + ' times'}, so it dealt again.` : ''}`;
     }
@@ -98,6 +102,12 @@ async function finish(d, before = [], after = []) {
   d.rec = { [d.winner]: +wr || 0, [loser]: +lr || 0 };
 }
 
+// challenger (a) is heads, the one who accepted (b) is tails
+function coinFlip(d) {
+  d.flip = randomBytes(1)[0] & 1 ? 'h' : 't';
+  d.winner = d.flip === 'h' ? d.a.id : d.b.id;
+}
+
 function highCard(d) {
   d.redraws = 0;
   for (;;) {
@@ -120,7 +130,7 @@ async function challenge(me, other, bet, game) {
 export async function duelCommand(i, opts, s) {
   if (!kvUrl() || !kvToken()) return noStorage();
   const me = whoIs(i, s), bet = Math.min(MAX_BET, Math.max(1, Math.floor((opts.bet && opts.bet.value) || DEFAULT_BET)));
-  const game = opts.game && opts.game.value === 'high' ? 'high' : 'rps';
+  const game = opts.game && GAME[opts.game.value] ? opts.game.value : 'coin';
   let other = null;
   if (opts.opponent) {
     const id = opts.opponent.value, u = ((i.data.resolved || {}).users || {})[id] || {};
@@ -167,7 +177,7 @@ export async function duelButton(i, s, waitUntil) {
       if (r[0] === 'a') { d.state = 'off'; await store(save(d)); return json({ type: 7, data: view(d, { note: `${d.a.name} doesn't have ${money(d.bet)} anymore, so the duel is off. No chips moved.` }) }); }
       d.b = { id: me.id, name: me.name };
       const name = ['HSET', 'bj:name', me.id, me.name];
-      if (d.game === 'high') { highCard(d); await done(name); }
+      if (d.game === 'high' || d.game === 'coin') { (d.game === 'high' ? highCard : coinFlip)(d); await done(name); }
       else { d.state = 'pick'; d.pickAt = Date.now(); await store(name, ['HSET', 'du:live', d.id, JSON.stringify({ a: d.a.id, b: d.b.id, bet: d.bet, at: d.pickAt })], save(d)); }
       return json({ type: 7, data: view(d) });
     }
