@@ -252,8 +252,14 @@ a.rc-mu { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; b
   </section>
 
   <section class="panel">
-    <h2>Buy-ins and cash-outs</h2>
-    <p class="hint" id="barHint">Per player for the selected period.</p>
+    <div class="panel-head">
+      <h2>Buy-ins and cash-outs</h2>
+      <p class="hint" id="barHint">Per player for the selected period.</p>
+      <div class="seg" role="group" aria-label="Players shown" id="barSeg">
+        <button type="button" data-f="all" aria-pressed="true">All</button>
+        <button type="button" data-f="reg" aria-pressed="false">Reg Only</button>
+      </div>
+    </div>
     <div class="chart-box"><canvas id="bar" aria-label="Buy-ins and cash-outs by player"></canvas></div>
   </section>
 
@@ -453,6 +459,15 @@ function toMembers(text) {
   return out;
 }
 
+// Buy-ins and cash-outs chart: "all" players or "reg" (members only); remembered in this browser
+let barFilter = (() => { try { return localStorage.getItem('study-bar-filter') === 'reg' ? 'reg' : 'all'; } catch (e) { return 'all'; } })();
+const isReg = name => /^member$/i.test(MEMBERS[name] || '');
+document.getElementById('barSeg').addEventListener('click', e => {
+  const b = e.target.closest('button[data-f]'); if (!b || b.dataset.f === barFilter) return;
+  barFilter = b.dataset.f; try { localStorage.setItem('study-bar-filter', barFilter); } catch (err) {}
+  render();
+});
+
 function quarterSort(a, b) { const [qa, ya] = a.split(' '), [qb, yb] = b.split(' '); return (yb - ya) || (qb.slice(1) - qa.slice(1)); }
 
 // ---------- Period pickers (Year + Quarter) ----------
@@ -536,22 +551,27 @@ function render() {
   Chart.defaults.font.family = css('--body');
   Chart.defaults.font.weight = 600;
   Chart.defaults.color = muted;
-  const names = standings.map(p => p.player);
+  // "Reg Only" keeps players whose Members-tab status is Member (Sometimes / Guest / not listed drop out)
+  document.querySelectorAll('#barSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.f === barFilter)));
+  const barRows = barFilter === 'reg' ? standings.filter(p => isReg(p.player)) : standings;
+  const names = barRows.map(p => p.player);
   charts.bar?.destroy();
   charts.bar = new Chart(document.getElementById('bar'), {
     type: 'bar',
     data: { labels: names, datasets: [
-      { label: 'Buy-ins', data: standings.map(p => p.cin), backgroundColor: css('--chip-red'), borderRadius: 3, maxBarThickness: 26 },
-      { label: 'Cash-outs', data: standings.map(p => p.cout), backgroundColor: css('--chip-green'), borderRadius: 3, maxBarThickness: 26 } ] },
+      { label: 'Buy-ins', data: barRows.map(p => p.cin), backgroundColor: css('--chip-red'), borderRadius: 3, maxBarThickness: 26 },
+      { label: 'Cash-outs', data: barRows.map(p => p.cout), backgroundColor: css('--chip-green'), borderRadius: 3, maxBarThickness: 26 } ] },
     options: { maintainAspectRatio: false, animation: { duration: 250 },
       onClick: (e, els, ch) => { const i = els.length ? els[0].index : barFaceAt(ch, e); if (i != null) openPlayer(names[i]); },
       onHover: (e, els, ch) => { e.native.target.style.cursor = els.length || barFaceAt(ch, e) != null ? 'pointer' : 'default'; },
       plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, color: ink } },
-        tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt(c.raw)}`, afterBody: items => `Net: ${fmtSigned(standings[items[0].dataIndex].net)}` } } },
+        tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt(c.raw)}`, afterBody: items => `Net: ${fmtSigned(barRows[items[0].dataIndex].net)}` } } },
       scales: { x: { grid: { display: false }, ticks: { display: false }, afterFit: sc => { sc.height = 40; } },
         y: { grid: { color: grid }, border: { display: false }, ticks: { callback: v => '$' + v } } } },
     plugins: [barFaces] });
-  document.getElementById('barHint').textContent = `Per player for ${label}, ordered by net profit. Hover a bar for the name, click a bar or face to see that player.`;
+  document.getElementById('barHint').textContent = barFilter === 'reg' && !barRows.length
+    ? `No members played in ${label}.`
+    : `Per ${barFilter === 'reg' ? 'member' : 'player'} for ${label}, ordered by net profit. Hover a bar for the name, click a bar or face to see that player.`;
 
   // Last game pies
   const hint = lastKey ? `${last[0].type} night · ${fmtDate(last[0].date)} · ${last.length} players` : 'No games in this period.';
@@ -986,3 +1006,4 @@ html .pcard .cos-stk { right: -20px; bottom: -14px; width: 50px; height: 50px; d
 html .pcard .cbw .cos-stk { right: -14px; bottom: -10px; width: 34px; height: 34px; }
 @media (max-width: 640px) { html .pcard .cbw { zoom: 1.2; } }
 </style>
+</body></html>
