@@ -1,5 +1,5 @@
 // Blackjack with chips: /daily, /blackjack, /chips, and the Hit / Stand / Double / Split buttons.
-//   /daily          +$100 the first time, then +$50 once a day (resets at 16:00 UTC)
+//   /daily          +$100 for your first claim each week (weeks start Monday 16:00 UTC), +$50 for the other days (resets at 16:00 UTC)
 //   /blackjack bet  one hand against the dealer, $1 to $500 (default $20). Blackjack pays 3:2, dealer stands on all 17s,
 //                   double on any first two cards, split any two cards of the same value up to 6 hands (split aces get one card each, no re-split)
 //   /freebet bet push22   Free Bet Blackjack, same chips and buttons: free double on a hard 9/10/11, free split on any pair except
@@ -18,7 +18,8 @@ export const MAX_HANDS = 6;
 /** Biggest Push 22 side bet on /freebet. */
 export const MAX_PUSH22 = 25;
 const DEFAULT_BET = 20, DAY = 24 * 3600e3;
-export const FIRST_CLAIM = 100, DAILY = 50;
+/** The first claim of each week (Monday 16:00 UTC on) pays WEEKLY_CLAIM instead of DAILY. A brand-new player's first claim is just that weekly one. */
+export const WEEKLY_CLAIM = 100, DAILY = 50;
 /** The daily claim resets once a day at this hour (UTC), instead of 24 hours after your last claim. */
 export const DAILY_RESET_UTC = 16;
 /** The most recent reset time (ms) at or before now. */
@@ -27,7 +28,7 @@ export const lastReset = (now = Date.now()) => { const d = new Date(now), r = Da
 const dailyWait = (last, now = Date.now()) => !last || +last < lastReset(now) ? 0 : lastReset(now) + DAY - now;
 
 export const BLACKJACK_COMMANDS = [
-  { name: 'daily', description: 'Claim free blackjack chips: $100 the first time, then $50 a day (resets 16:00 UTC)', type: 1 },
+  { name: 'daily', description: 'Claim free chips: $100 your first claim each week, $50 the other days (resets 16:00 UTC)', type: 1 },
   { name: 'blackjack', description: 'Play a hand of blackjack', type: 1,
     options: [{ type: 4, name: 'bet', description: `How much to bet ($1 to $${MAX_BET}, default $${DEFAULT_BET})`, min_value: 1, max_value: MAX_BET, required: false }] },
   { name: 'freebet', description: 'Free Bet Blackjack: free doubles on 9-11, free splits, dealer 22 pushes', type: 1,
@@ -141,14 +142,16 @@ export async function claimDaily(me) {
   // a short lock so two taps (or Discord and the site at once) can't both claim
   const [last, got] = await kv(['HGET', 'bj:last', me.id], ['SET', 'bj:dlock:' + me.id, '1', 'NX', 'PX', 3000]);
   const wait = dailyWait(last, now);
-  if (wait) return { wait, amt: DAILY };
-  if (!got) return { wait: 0, busy: true, amt: DAILY };
-  const amt = last ? DAILY : FIRST_CLAIM;
+  if (wait) return { wait, amt: claimAmt(last, now + wait) };
+  if (!got) return { wait: 0, busy: true, amt: claimAmt(last, now) };
+  const amt = claimAmt(last, now);
   const [bal] = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, amt], ['HSET', 'bj:last', me.id, now], ['HSET', 'bj:name', me.id, me.name], ...feedCmds(me, 'daily', amt));
-  return { amt, bal: +bal, first: !last };
+  return { amt, bal: +bal, weekly: amt === WEEKLY_CLAIM, next: claimAmt(now, lastReset(now) + DAY) };
 }
+/** What a claim at `at` pays: WEEKLY_CLAIM if it's the first since this week started (or ever), else DAILY. */
+export const claimAmt = (last, at = Date.now()) => !last || +last < weekStart(at) ? WEEKLY_CLAIM : DAILY;
 /** When the next daily is ready (ms from now, 0 = ready) and how much it gives. */
-export const dailyFrom = last => ({ wait: dailyWait(last), amt: last ? DAILY : FIRST_CLAIM });
+export const dailyFrom = (last, now = Date.now()) => { const wait = dailyWait(last, now); return { wait, amt: claimAmt(last, now + wait) }; };
 export async function dailyStatus(id) {
   const [last] = await kv(['HGET', 'bj:last', id]);
   return dailyFrom(last);
@@ -160,13 +163,13 @@ async function daily(i, s) {
   if (r.busy) return quiet('One moment, that claim is already going through.');
   if (r.wait !== undefined) {
     const left = Math.ceil(r.wait / 60e3), hrs = Math.floor(left / 60), mins = left % 60;
-    return quiet(`⏳ Already claimed. Next **+${money(DAILY)}** in ${hrs}h ${mins}m.`);
+    return quiet(`⏳ Already claimed. Next **+${money(r.amt)}** in ${hrs}h ${mins}m.`);
   }
-  const { amt, bal } = r, last = !r.first;
+  const { amt, bal } = r;
   return json({ type: 4, data: { allowed_mentions: { parse: [] }, embeds: [{ color: 0x8ee0b0,
-    title: last ? `🎁 ${me.name} claimed ${money(amt)}` : '🎁 Welcome bonus!',
-    description: `${last ? '' : 'First claim gets double. '}**+${money(amt)}** in chips\n\nBalance **${money(+bal)}**`,
-    footer: { text: `Next +${money(DAILY)} after ${DAILY_RESET_UTC}:00 UTC` } }] } });
+    title: r.weekly ? `🎁 ${me.name} claimed the weekly ${money(amt)}` : `🎁 ${me.name} claimed ${money(amt)}`,
+    description: `${r.weekly ? 'First claim of the week gets double. ' : ''}**+${money(amt)}** in chips\n\nBalance **${money(+bal)}**`,
+    footer: { text: `Next +${money(r.next)} after ${DAILY_RESET_UTC}:00 UTC` } }] } });
 }
 
 // ---------- /chips ----------
@@ -286,7 +289,7 @@ export async function newHand(me, bet, mode = '', side = 0) {
   side = free ? Math.min(MAX_PUSH22, Math.max(0, Math.floor(+side || 0))) : 0;
   const took = await takeChips(me.id, bet + side);
   if (took.short) { const b = took.had;
-    if (b === null) return { err: `You don't have any chips yet. Use **/daily** to get ${money(FIRST_CLAIM)} free.` };
+    if (b === null) return { err: `You don't have any chips yet. Use **/daily** to get ${money(WEEKLY_CLAIM)} free.` };
     return { err: b < 1 ? `You're out of chips 💀 Use **/daily** for more.` : `You only have ${money(b)}. Bet that or less${side ? ' (the side bet counts too)' : ''}.` }; }
   const g = { id: randomBytes(5).toString('hex'), uid: me.id, name: me.name, bet, step: 0, deck: freshDeck(), dealer: [], hands: [{ cards: [], bet, free: 0 }], active: 0, over: false,
     ...(free ? { mode: 'free', side } : {}) };
