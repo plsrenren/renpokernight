@@ -55,12 +55,17 @@ html .pl-strip b { font-weight: 400; }
   html table.pl-t .pl-cstk { display: block; }
 }
 
-/* ---- /h2h: the two matchup slots: the bar as a wash behind the pfp, fading out toward the score ---- */
-html .slot.pl-wash { position: relative; overflow: hidden; }
-html .slot.pl-wash > :not(.pl-bg) { position: relative; z-index: 1; }
-html .slot .pl-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .75;
-  -webkit-mask: linear-gradient(90deg, #000, transparent 75%); mask: linear-gradient(90deg, #000, transparent 75%); }
+/* ---- the bar as a soft wash (/h2h slots, Hall of Fame cards and rows): strongest at the pfp side, fading out ---- */
+html .pl-wash { position: relative; overflow: hidden; isolation: isolate; }
+html .pl-bg { position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: .75;
+  -webkit-mask: linear-gradient(90deg, #000, transparent 75%); mask: linear-gradient(90deg, #000, transparent 75%);
+  outline: 0 !important; box-shadow: none !important; border: 0 !important; } /* some bars draw an outline (Neon Sign): just the colour here */
 html .slot.b .pl-bg { -webkit-mask: linear-gradient(270deg, #000, transparent 75%); mask: linear-gradient(270deg, #000, transparent 75%); }
-@media (max-width: 520px) { /* phones stack pfp over name: fade from the top instead */
+html .pl-wash.from-top .pl-bg { -webkit-mask: linear-gradient(180deg, #000, transparent 80%); mask: linear-gradient(180deg, #000, transparent 80%); }
+@media (max-width: 520px) { /* phones stack the h2h pfp over the name: fade from the top instead */
   html .slot .pl-bg, html .slot.b .pl-bg { -webkit-mask: linear-gradient(180deg, #000, transparent 80%); mask: linear-gradient(180deg, #000, transparent 80%); }
 }
+/* Hall of Fame: titles under names */
+html .rec .pl-nm .pl-ttl { font-size: 14px; }
+html .brow .pl-nm { flex: 1; min-width: 0; }
+html .brow .pl-nm .pl-ttl { font-size: 11px; margin-top: 2px; }
