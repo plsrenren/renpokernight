@@ -829,17 +829,18 @@ async function api(body) {
 }
 
 // ---------- the player card preview (same layout as the site card, with your real numbers) ----------
-const pic = (id, name, cls = 'pfp') => id ? `<img class="${cls}" src="/api/avatar?id=${esc(id)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'${cls} pfp-ini',textContent:'${esc(initials(name)).replace(/'/g, '')}',style:'background:hsl(${hueFor(name)} 75% 82%);color:hsl(${hueFor(name)} 45% 25%)'}))">`
+const BADPFP = window.BADPFP = new Set(); // pfps that failed once: draw initials from then on, so redraws don't keep asking for them
+const pic = (id, name, cls = 'pfp') => id && !BADPFP.has(id) ? `<img class="${cls}" src="/api/avatar?id=${esc(id)}" alt="" onerror="BADPFP.add('${esc(id)}');this.replaceWith(Object.assign(document.createElement('span'),{className:'${cls} pfp-ini',textContent:'${esc(initials(name)).replace(/'/g, '')}',style:'background:hsl(${hueFor(name)} 75% 82%);color:hsl(${hueFor(name)} 45% 25%)'}))">`
   : `<span class="${cls} pfp-ini" style="background:hsl(${hueFor(name)} 75% 82%);color:hsl(${hueFor(name)} 45% 25%)">${esc(initials(name))}</span>`;
 const rcol = v => v >= 75 ? '#8fe0b0' : v >= 55 ? '#f0c75e' : '#f0889f';
 function card(eq) {
   const name = ME.name, id = ME.id;
   const pf = itemFor(eq['Pfp border']), ov = itemFor(eq['Overall bar']), tt = itemFor(eq['Title']), sk = itemFor(eq['Sticker']);
   const pc = RECS.length && RECS.some(r => r.player === name) ? playerCard(RECS, name) : null;
-  const img = pic(id, name).replace('/api/avatar?id=', '/api/avatar?anim=2&id='); // animated Discord pfp, when they have one
+  const img = pic(id, name).replace('/api/avatar?id=', '/api/avatar?anim=2&id=').replace('<img ', '<img data-k="pf" '); // animated Discord pfp, when they have one
   const has = pc && !pc.empty;
   const big = has && pc.ovr ? pc.ovr.value : '–';
-  let h = `<div class="mini fc"><div class="fhero"><img class="ban" alt="" data-src="/api/avatar?id=${esc(id)}&kind=banner" onerror="this.removeAttribute('src')"><div class="big">${big}</div>
+  let h = `<div class="mini fc"><div class="fhero"><img class="ban" alt=""${banOk ? ` src="/api/avatar?id=${esc(id)}&kind=banner"` : ''} data-src="/api/avatar?id=${esc(id)}&kind=banner" onerror="this.removeAttribute('src')"><div class="big">${big}</div>
  <div class="fwho"><div class="fpf${pf ? ' framed' : ''}">${pf ? framed(pf, img) : img}${sk ? `<div class="fstk">${STICKERS[sk.name] || ''}</div>` : ''}</div><div><div class="fnm">${esc(name.toUpperCase())}</div>${tt ? `<div class="fttl" style="color:${TCOL[tt.tier]}">${esc(tt.name.toUpperCase())}</div>` : ''}
  <div class="fss">${pc ? `${esc(pc.label)} · played ${pc.played} of ${pc.nights}` : 'No games on the sheet yet'}</div>${has && pc.badges.length ? `<div class="bdg">${pc.badges.map(b => `<span>${esc(b)}</span>`).join('')}</div>` : ''}</div></div></div>
  <div class="ovr ${ov ? 'o-' + ov.key : ''}"><div class="o"><b>${big}</b><i>OVERALL<small>${has && pc.ovr ? `${pc.ovr.rank} of ${pc.ovr.of} regulars` : 'not rated yet'}</small></i></div><div class="s"><b>${has ? signed(Math.round(pc.net)) : '–'}</b><i>NET</i></div><div class="s"><b>${has ? pc.wins : '–'}</b><i>WINS</i></div><div class="s"><b>${has ? '#' + pc.rank : '–'}</b><i>${has ? 'OF ' + pc.of : 'RANK'}</i></div></div>`;
@@ -858,13 +859,37 @@ function card(eq) {
   if (mu.length) h += `<div class="mu">${mu.map(([l, x, c, cl]) => `<div style="border-color:${c}">${IDS[x.p] ? `<img src="/api/avatar?id=${esc(IDS[x.p])}" alt="" onerror="this.remove()">` : `<span class="ini">${esc(initials(x.p))}</span>`}<span><small class="${cl}">${l}</small><b>${esc(x.p)} ${x.ahead}–${x.n - x.ahead}</b></span></div>`).join('')}</div>`;
   return h + `<div class="ft"><b>POKER CLUB @ THE STUDY</b><span>renpokernight.vercel.app</span></div></div>`;
 }
+// Redraw by patching the page in place instead of replacing it: nodes that didn't change (the pfp GIF, the banner, a border
+// that's still the same) stay as they are, so picking a title doesn't blank and restart the frame and the animated pfp.
+function morph(el, html) {
+  const t = document.createElement(el.tagName); t.innerHTML = html;
+  // keyed nodes (data-k) move across instead of being rebuilt, so the pfp survives going from no border to a border and back
+  const keep = new Map([...el.querySelectorAll('[data-k]')].map(x => [x.dataset.k + ' ' + x.getAttribute('src'), x]));
+  const adopt = n => { if (n.nodeType !== 1) return n; [n, ...n.querySelectorAll('[data-k]')].forEach(x => { const o = x.dataset && x.dataset.k && keep.get(x.dataset.k + ' ' + x.getAttribute('src'));
+    if (!o || o === x) return; if (x === n) n = o; else x.replaceWith(o); }); return n; };
+  const same = (a, b) => a.nodeType === b.nodeType && a.nodeName === b.nodeName;
+  const walk = (o, n) => {
+    const nc = [...n.childNodes];
+    nc.forEach((b, i) => {
+      const a = o.childNodes[i];
+      if (!a) { o.appendChild(adopt(b)); return; }
+      if (!same(a, b)) { const ref = a.nextSibling, c = adopt(b); // adopt may have moved a itself into c
+        if (a.parentNode === o) o.replaceChild(c, a); else o.insertBefore(c, ref && ref.parentNode === o ? ref : null); return; }
+      if (a.nodeType !== 1) { if (a.nodeValue !== b.nodeValue) a.nodeValue = b.nodeValue; return; }
+      for (const { name } of [...a.attributes]) if (!b.hasAttribute(name)) a.removeAttribute(name);
+      for (const { name, value } of [...b.attributes]) if (a.getAttribute(name) !== value) a.setAttribute(name, value);
+      walk(a, b);
+    });
+    while (o.childNodes.length > nc.length) o.lastChild.remove();
+  };
+  walk(el, t);
+}
 let banOk = null; // the banner is looked up once; most people don't have one
 function renderCard() {
   if (!ME) { $('pv').innerHTML = ''; return; }
-  $('pv').innerHTML = `<div class="fr">${card(ME.eq)}</div>`;
+  morph($('pv'), `<div class="fr">${card(ME.eq)}</div>`);
   const b = $('pv').querySelector('.ban');
-  if (banOk === false) return;
-  if (banOk) { b.src = b.dataset.src; return; }
+  if (banOk !== null) return;
   const t = new Image(); t.onload = () => { banOk = true; const x = $('pv').querySelector('.ban'); if (x) x.src = x.dataset.src; }; t.onerror = () => { banOk = false; }; t.src = b.dataset.src;
 }
 
@@ -901,8 +926,8 @@ function renderLoadout() {
   const list = owned(tab).sort((a, b) => tierRank(b.tier) - tierRank(a.tier) || a.name.localeCompare(b.name));
   if (!list.length) { $('items').innerHTML = `<p class="empty">No ${tab === 'Title' ? 'titles' : tab.toLowerCase() + 's'} yet. Open a pack.</p>`; return; }
   const none = `<button class="ti ${!ME.eq[tab] ? 'eq' : ''}" style="--c:#6f6996" data-n="" aria-pressed="${!ME.eq[tab]}"><div class="sw" style="color:var(--muted);font-size:13px">Default</div><div class="nm2">None</div><div class="rr w">Default look</div></button>`;
-  $('items').innerHTML = none + list.map(it => { const c = ME.owned[it.id], on = ME.eq[tab] === it.id;
-    return `<button class="ti ${on ? 'eq' : ''}" style="--c:${TCOL[it.tier]}" data-n="${esc(it.id)}" aria-pressed="${on}" title="${esc(it.why ? it.name + ': ' + it.why : it.tier + ' ' + it.slot.toLowerCase())}">${c > 1 ? `<span class="cnt">x${c}</span>` : ''}<div class="sw">${swatch(it)}</div><div class="nm2">${esc(it.name)}</div><div class="rr${it.why ? ' w' : ''}">${esc(it.why || it.tier)}</div></button>`; }).join('');
+  morph($('items'), none + list.map(it => { const c = ME.owned[it.id], on = ME.eq[tab] === it.id;
+    return `<button class="ti ${on ? 'eq' : ''}" style="--c:${TCOL[it.tier]}" data-n="${esc(it.id)}" aria-pressed="${on}" title="${esc(it.why ? it.name + ': ' + it.why : it.tier + ' ' + it.slot.toLowerCase())}">${c > 1 ? `<span class="cnt">x${c}</span>` : ''}<div class="sw">${swatch(it)}</div><div class="nm2">${esc(it.name)}</div><div class="rr${it.why ? ' w' : ''}">${esc(it.why || it.tier)}</div></button>`; }).join(''));
   $('items').querySelectorAll('button.ti').forEach(b => b.onclick = () => setEq(tab, b.dataset.n || null));
   fitText('#items .nm2,#items .ttlsw');
 }
