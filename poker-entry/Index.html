@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@600;700;800;900&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
 /* Layout: one narrow column for a phone, with a totals bar pinned to the bottom.
-   Look: the site's "Late Show" (Cozy night colours, slanted broadcast bars, Bebas titles, square faces, no rounded corners). */
+   Look: the site's "Late Show" (Cozy night colours, slanted broadcast bars, Bebas titles, square edges, no rounded corners). */
 :root {
   --bg: #100e20; --surface: #221e3d; --panel2: #2a2549; --field: #15132a; --hover: #352f5c;
   --fg: #ece9fb; --soft: #cfcaf0; --muted: #9a94c4; --line: #332e57;
@@ -57,24 +57,21 @@ input:focus-visible, button:focus-visible, select:focus-visible { outline: 2px s
 .invite details { font-size: 13px; color: var(--muted); }
 .invite details .newp { margin-top: 6px; }
 .invite .found { font-size: 13px; color: var(--soft); }
-/* face picker (same look as the head to head picker) */
-.grp { display: flex; justify-content: space-between; font: 400 15px/1 var(--title); letter-spacing: .12em; color: var(--muted); }
-.faces { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 12px 6px; margin: 8px 0 6px; }
-.face { position: relative; display: grid; justify-items: center; border: 0; background: transparent; color: var(--soft); cursor: pointer; padding: 4px 0; min-width: 0; }
-.av { --s: 56px; --h: 260; position: relative; flex: none; width: var(--s); height: var(--s); overflow: hidden; display: grid; place-items: center; font: 400 calc(var(--s) * .42) var(--title); letter-spacing: .03em; background: hsl(var(--h) 70% 82%); color: hsl(var(--h) 45% 26%); }
-.av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.face .nm { font: 400 15px/1 var(--title); letter-spacing: .06em; margin-top: 6px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.face .gt { font: 500 10.5px var(--mono); color: var(--muted); }
-.face.hit .gt { color: var(--gold); }
-.face[aria-pressed="true"] .av { outline: 3px solid var(--gold); outline-offset: 2px; }
-.face[aria-pressed="true"] .nm { color: #fff; }
-.face[aria-pressed="true"]::after { content: "✓"; position: absolute; top: 0; right: calc(50% - 34px); width: 20px; height: 20px; display: grid; place-items: center; background: var(--gold); color: var(--field); font: 900 13px/1 var(--body); }
-.face:hover .nm { color: #fff; }
+/* who played: checklist rows */
+.grp { display: flex; justify-content: space-between; font: 400 15px/1 var(--title); letter-spacing: .12em; color: var(--muted); padding-top: 4px; }
+.rows { display: grid; gap: 4px; margin: 6px 0 8px; }
+.rowb { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 46px; padding: 6px 10px; background: var(--field); border: 0; border-left: 4px solid transparent; cursor: pointer; text-align: left; }
+.rowb .box { width: 22px; height: 22px; border: 2px solid var(--line); display: grid; place-items: center; font: 900 14px/1 var(--body); color: var(--field); }
+.rowb .nm { font: 400 22px/1 var(--title); letter-spacing: .04em; color: var(--soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rowb .when { font: 500 11px var(--mono); color: var(--muted); }
+.rowb.hit .when { color: var(--gold); }
+.rowb[aria-pressed="true"] { border-left-color: var(--gold); background: #1f1b3a; }
+.rowb[aria-pressed="true"] .box { background: var(--gold); border-color: var(--gold); }
+.rowb[aria-pressed="true"] .box::after { content: "✓"; }
+.rowb[aria-pressed="true"] .nm { color: #fff; }
+.chip[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--field); }
 .link { border: 0; background: transparent; color: var(--peri); font-weight: 800; cursor: pointer; padding: 4px 0; justify-self: start; text-align: left; }
 .friend { display: grid; gap: 4px; background: #1b1834; padding: 10px; }
-.friend .faces { grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 8px 4px; margin: 4px 0 0; }
-.friend .av { --s: 40px; } .friend .nm { font-size: 13px; }
-.friend .face[aria-pressed="true"]::after { right: calc(50% - 26px); }
 .btn { border: 0; background: var(--panel2); color: var(--soft); padding: 10px 14px; cursor: pointer; min-height: 44px; font-weight: 800; }
 .btn:hover { background: var(--hover); color: #fff; }
 .btn.primary { background: var(--gold); color: var(--field); font: 400 24px/1 var(--title); letter-spacing: .08em; min-height: 48px; }
@@ -82,7 +79,6 @@ input:focus-visible, button:focus-visible, select:focus-visible { outline: 2px s
 .players { display: grid; gap: 10px; }
 .p { border-left: 4px solid var(--vio); padding: 12px; display: grid; gap: 10px; background: var(--surface); }
 .p-top { display: flex; align-items: center; gap: 10px; }
-.p-top .av { --s: 40px; }
 .p-name { flex: 1; min-width: 0; font: 400 26px/1 var(--title); letter-spacing: .03em; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .p-name small { display: block; font: 700 12px/1.3 var(--body); letter-spacing: 0; color: var(--gold); }
 .p-net { font: 600 16px var(--mono); }
@@ -136,7 +132,7 @@ body:not(.tour) .tour-only, body:not(.pko) .pko-only { display: none !important;
 <div class="wrap" id="form">
   <header class="brand">
     <div class="lg" id="logo" aria-hidden="true"></div>
-    <div><h1>Game Night Entry</h1><div class="sub" id="lastNight">Loading players…</div></div>
+    <div><h1>Game Night Entry</h1><div class="sub" id="lastNight">Loading players…</div><div class="sub" id="diag" style="font-family:var(--mono);font-size:11px;color:var(--down)" hidden></div></div>
   </header>
 
   <section class="card" aria-label="Game details">
@@ -171,7 +167,7 @@ body:not(.tour) .tour-only, body:not(.pko) .pko-only { display: none !important;
       <div class="found" id="invExtra" hidden></div>
     </div>
     <input type="search" id="find" placeholder="Search members" autocomplete="off" aria-label="Search members">
-    <div id="faces"></div>
+    <div id="roster"></div>
     <button type="button" class="link" id="showNew">+ Someone new? Add a first-timer</button>
     <div id="newWrap" hidden>
       <label for="newName">Not in Members</label>
@@ -183,7 +179,7 @@ body:not(.tour) .tour-only, body:not(.pko) .pko-only { display: none !important;
   </section>
 
   <section class="players" id="players" aria-label="Players"></section>
-  <p class="empty" id="noPlayers">Tap faces above, or load the invite.</p>
+  <p class="empty" id="noPlayers">Tick names above, or load the invite.</p>
 
   <section class="card pink pko-only" id="koCard" aria-label="Knockouts">
     <h2>Knockouts</h2>
@@ -247,6 +243,17 @@ body:not(.tour) .tour-only, body:not(.pko) .pko-only { display: none !important;
 </div>
 
 <script>
+// A separate tiny script so errors in the main script (even a syntax error) still show on the Problem line.
+// NOTE: never build image tags or inline on*= handlers inside JS strings: the Apps Script page server rewrites them into a syntax error.
+(function () {
+  var t0 = Date.now();
+  function put(m) { var el = document.getElementById('diag'); if (el) { el.textContent = 'Problem: ' + m; el.hidden = false; } }
+  window.addEventListener('error', function (e) { put('ERROR ' + (e.message || '') + ' line ' + (e.lineno || '?') + ':' + (e.colno || '?')); });
+  setTimeout(function () { if (!window.__started) put('no answer from Google after ' + Math.round((Date.now() - t0) / 1000) + 's (main script ' + (window.__mainOk ? 'ok' : 'NOT running') + ')'); }, 15000);
+})();
+</script>
+<script>
+window.__mainOk = true;
 const $ = id => document.getElementById(id);
 const fmt = n => (n < 0 ? '-$' : '$') + Math.abs(n).toFixed(2);
 const fmtNet = n => (n > 0 ? '+' : '') + fmt(n);
@@ -264,42 +271,18 @@ const saveDraft = () => { try { localStorage.setItem(DRAFT, JSON.stringify(state
 const loadDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT) || 'null'); } catch (e) { return null; } };
 const clearDraft = () => { try { localStorage.removeItem(DRAFT); } catch (e) {} };
 
-// ---- Faces: only people on the Members tab, grouped by their status, most recent first (like the head to head picker) ----
-// Tap a face to add them, tap again to take them off. Pfps come from the Members tab's Discord ID column (memberFaces in Invite.gs).
-// Defaults so pfps and the logo still work if memberFaces() isn't there or fails (both are public: the site and the sheet's Members CSV)
-const SITE = 'https://renpokernight.vercel.app', SHEET_ID = '1YxoWSWgeTRrEiPlm1Ys85s4UsHKxSzpPHEssynXEytM';
-let FACES = { site: SITE, ids: {} }, showGuests = false;
-// A pfp that fails (Discord busy = 503) gets one retry a moment later, then falls back to initials
-function pfpFail(img) { if (img.dataset.r) { img.remove(); return; } img.dataset.r = '1'; setTimeout(() => { img.src = img.src + '&r=1'; }, 1500); }
-function csvRows(text) {
-  const rows = []; let row = [], cell = '', q = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (q) { if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; } else if (c === '"') q = false; else cell += c; }
-    else if (c === '"') q = true; else if (c === ',') { row.push(cell); cell = ''; }
-    else if (c === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; } else if (c !== '\r') cell += c;
-  }
-  if (cell || row.length) { row.push(cell); rows.push(row); }
-  return rows;
-}
-// Fallback: read the Discord IDs straight from the sheet's public Members CSV (same source the site uses)
-function idsFromSheet() {
-  return fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Members`).then(r => r.ok ? r.text() : '').then(t => {
-    const rows = csvRows(t.trim()), ids = {};
-    if (rows.length < 2) return ids;
-    const col = rows[0].findIndex(h => /discord/i.test(h));
-    if (col < 0) return ids;
-    rows.slice(1).forEach(r => { const n = (r[0] || '').trim(), id = String(r[col] || '').replace(/[^\d]/g, ''); if (n && /^\d{17,20}$/.test(id)) ids[n] = id; });
-    return ids;
-  }).catch(() => ({}));
-}
+// ---- Who played: a checklist of the people on the Members tab, grouped by status, most recent first ----
+// Tap a row to tick them in, tap again to take them off.
+// NOTE (Nov 20 2026): Google's page server strips "//" comments naively, including inside `template strings`, which
+// cut a URL in half and broke the whole script. Never put "//" inside a template string; build URLs with + instead.
+const SITE = 'https:' + '/' + '/renpokernight.vercel.app';
+let showGuests = false;
+// Problem line: hidden unless something breaks (page error, swallowed start/tap error), so a phone user can report it
+const DIAG = { err: '' };
+function diag() { const el = $('diag'); if (!el || !DIAG.err) return; el.hidden = false; el.textContent = 'Problem: ' + DIAG.err; }
+window.addEventListener('error', e => { DIAG.err = (e.message || 'unknown') + (e.lineno ? ' @' + e.lineno : ''); diag(); });
+window.addEventListener('unhandledrejection', e => { DIAG.err = 'promise: ' + String(e.reason && e.reason.message || e.reason); diag(); });
 const GROUPS = [['Member', 'Regulars'], ['Sometimes', 'Sometimes'], ['Guest', 'Guests']];
-const hue = n => [...n].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
-const initials = n => n.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
-function av(name) {
-  const id = FACES.ids[name];
-  return `<span class="av" style="--h:${hue(name)}" aria-hidden="true">${esc(initials(name))}${id && FACES.site ? `<img src="${esc(FACES.site)}/api/avatar?id=${esc(id)}" alt="" onerror="pfpFail(this)">` : ''}</span>`;
-}
 function ago(d) {
   if (!d) return 'new';
   const days = Math.round((new Date((state.date || today()) + 'T12:00:00') - new Date(d + 'T12:00:00')) / 864e5);
@@ -317,14 +300,15 @@ function renderChips() {
       .sort((a, b) => (b.lastPlayed > a.lastPlayed) - (b.lastPlayed < a.lastPlayed) || b.games - a.games || a.name.localeCompare(b.name));
     if (!list.length) return;
     const n = list.filter(p => taken.has(p.name.toLowerCase())).length;
-    html += `<div class="grp"><span>${label}</span><span>${n ? n + ' in' : ''}</span></div><div class="faces">`
+    html += '<div class="grp"><span>' + label + '</span><span>' + (n ? n + ' in' : '') + '</span></div><div class="rows">'
       + list.map(p => { const hit = hits.has(p.name.toLowerCase());
-        return `<button type="button" class="face${hit ? ' hit' : ''}" data-add="${esc(p.name)}" aria-pressed="${taken.has(p.name.toLowerCase())}">${av(p.name)}<span class="nm">${esc(p.name)}</span><span class="gt">${hit ? 'reacted' : ago(p.lastPlayed)}</span></button>`; }).join('')
+        return '<button type="button" class="rowb' + (hit ? ' hit' : '') + '" data-add="' + esc(p.name) + '" aria-pressed="' + taken.has(p.name.toLowerCase()) + '">'
+          + '<span class="box" aria-hidden="true"></span><span class="nm">' + esc(p.name) + '</span><span class="when">' + (hit ? 'reacted' : ago(p.lastPlayed)) + '</span></button>'; }).join('')
       + '</div>';
   });
   const guests = members.filter(p => groupOf(p.status) === 'Guest').length;
   if (!showGuests && !q && guests) html += `<button type="button" class="link" data-guests>Show guests (${guests})</button>`;
-  $('faces').innerHTML = html || (q ? `<p class="empty">No member called “${esc(q)}”. Add them as a first-timer below.</p>`
+  $('roster').innerHTML = html || (q ? `<p class="empty">No member called “${esc(q)}”. Add them as a first-timer below.</p>`
     : '<p class="empty">Nobody on the Members tab yet. Add players below.</p>');
 }
 function togglePlayer(name) {
@@ -336,7 +320,7 @@ function togglePlayer(name) {
 
 function rowHtml(r) {
   return `<article class="p" data-id="${r.id}">
-    <div class="p-top">${av(r.name)}<span class="p-name">${esc(r.name)}${r.isNew ? `<small>First night${r.by ? ' · brought by ' + esc(r.by) : ''}</small>` : ''}</span>
+    <div class="p-top"><span class="p-name">${esc(r.name)}${r.isNew ? `<small>First night${r.by ? ' · brought by ' + esc(r.by) : ''}</small>` : ''}</span>
       <span class="p-net" data-f="net"></span><button type="button" class="x" data-del aria-label="Remove ${esc(r.name)}">✕</button></div>
     <div class="p-bounty pko-only" data-f="bounty"></div>
     <div class="row2">
@@ -358,7 +342,7 @@ function rowHtml(r) {
 function friendHtml(r) {
   const hosts = state.rows.filter(x => !x.isNew).map(x => x.name);
   return `<div class="friend"><span class="lbl" style="margin:0">Who brought ${esc(r.name)}?</span>
-    ${hosts.length ? `<div class="faces">${hosts.map(h => `<button type="button" class="face" data-by="${esc(h)}" aria-pressed="${r.by === h}">${av(h)}<span class="nm">${esc(h)}</span></button>`).join('')}</div>`
+    ${hosts.length ? '<div class="chips">' + hosts.map(h => '<button type="button" class="chip" data-by="' + esc(h) + '" aria-pressed="' + (r.by === h) + '">' + esc(h) + '</button>').join('') + '</div>'
       : '<span class="pool">Add the regulars first, then pick who brought them.</span>'}</div>`;
 }
 
@@ -568,10 +552,11 @@ function syncPayoutInputs() {
 }
 
 // ---- Events ----
-$('faces').addEventListener('click', e => {
+$('roster').addEventListener('click', e => { try { rosterClick(e); } catch (err) { DIAG.err = 'tap: ' + (err && err.message) + ' | ' + String(err && err.stack || '').split('\n').slice(0, 3).join(' / '); diag(); } });
+function rosterClick(e) {
   if (e.target.closest('[data-guests]')) { showGuests = true; renderChips(); return; }
   const b = e.target.closest('[data-add]'); if (b) { $('status').hidden = true; togglePlayer(b.dataset.add); }
-});
+}
 $('find').addEventListener('input', renderChips);
 $('showNew').addEventListener('click', () => { $('newWrap').hidden = false; $('showNew').hidden = true; $('newName').focus(); });
 // ---- Load players from a Discord invite (✅ reactions). Only adds names: you can still remove or add anyone before saving. ----
@@ -713,6 +698,7 @@ $('again').addEventListener('click', () => {
 
 // ---- Start ----
 function start(setup) {
+  window.__started = true;
   SETUP = setup;
   const draft = loadDraft();
   if (draft && draft.rows && draft.rows.length) { state = draft; nextId = Math.max(0, ...draft.rows.map(r => r.id)) + 1; }
@@ -727,23 +713,11 @@ function start(setup) {
   $('lastNight').textContent = (draft && draft.rows && draft.rows.length ? 'Picked up your unsaved entry. ' : '')
     + (ln ? `Last saved night: ${ln.type}, ${ln.date}, ${ln.players} players.` : '');
   renderRows();
-  // pfps + logo from the site (Members tab Discord IDs); the faces show initials until these arrive
-  google.script.run
-    .withSuccessHandler(f => {
-      FACES = { site: (f && f.site) || SITE, ids: (f && f.ids) || {} };
-      $('logo').style.backgroundImage = `url("${FACES.site}/icon-192.png")`;
-      if (Object.keys(FACES.ids).length) renderRows();
-      else idsFromSheet().then(ids => { FACES.ids = ids; renderRows(); });
-    })
-    .withFailureHandler(err => {
-      console.warn('Faces: ' + (err && err.message || err));
-      idsFromSheet().then(ids => { FACES.ids = ids; renderRows(); });
-    })
-    .memberFaces();
-  $('logo').style.backgroundImage = `url("${SITE}/icon-192.png")`;
+  // logo from the site (plain image URL, built with + so there's no "//" inside a template string)
+  $('logo').style.backgroundImage = 'url("' + SITE + '/icon-192.png")';
 }
 google.script.run
-  .withSuccessHandler(start)
+  .withSuccessHandler(s => { try { start(s); } catch (e) { if (loadDraft()) { clearDraft(); try { state = { date: today(), type: 'Cash', buyIn: 40, rows: [], invite: [], payout: null, pko: { on: false, pct: 50, kos: [] } }; start(s); DIAG.err = 'old draft cleared: ' + (e && e.message); diag(); return; } catch (e2) { e = e2; } } DIAG.err = 'start: ' + (e && e.message) + ' | ' + String(e && e.stack || '').split('\n').slice(0, 3).join(' / '); diag(); } })
   .withFailureHandler(err => showStatus('err', 'Could not load the player list: ' + (err && err.message || err)))
   .getSetup();
 </script>
