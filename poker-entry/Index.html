@@ -136,7 +136,7 @@ body:not(.tour) .tour-only, body:not(.pko) .pko-only { display: none !important;
 <div class="wrap" id="form">
   <header class="brand">
     <div class="lg" id="logo" aria-hidden="true"></div>
-    <div><h1>Game Night Entry</h1><div class="sub" id="lastNight">Loading players…</div></div>
+    <div><h1>Game Night Entry</h1><div class="sub" id="lastNight">Loading players…</div><div class="sub" id="diag" style="font-family:var(--mono);font-size:11px">Check: starting</div></div>
   </header>
 
   <section class="card" aria-label="Game details">
@@ -270,7 +270,13 @@ const clearDraft = () => { try { localStorage.removeItem(DRAFT); } catch (e) {} 
 const SITE = 'https://renpokernight.vercel.app', SHEET_ID = '1YxoWSWgeTRrEiPlm1Ys85s4UsHKxSzpPHEssynXEytM';
 let FACES = { site: SITE, ids: {} }, showGuests = false;
 // A pfp that fails (Discord busy = 503) gets one retry a moment later, then falls back to initials
-function pfpFail(img) { if (img.dataset.r) { img.remove(); return; } img.dataset.r = '1'; setTimeout(() => { img.src = img.src + '&r=1'; }, 1500); }
+// TEMP diagnostics (Nov 20 2026): show page errors and how the pfps did, so we can see what breaks on the phone
+const DIAG = { src: 'waiting', ids: 0, ok: 0, fail: 0, err: '' };
+function diag() { const el = $('diag'); if (el) el.textContent = `Check: pfp IDs ${DIAG.ids} (${DIAG.src}) · loaded ${DIAG.ok} · failed ${DIAG.fail}${DIAG.tap ? ` · taps ${DIAG.tap}, rows ${state.rows.length}` : ''}${DIAG.err ? ' · error: ' + DIAG.err : ''}`; }
+window.addEventListener('error', e => { DIAG.err = (e.message || 'unknown') + (e.lineno ? ' @' + e.lineno : ''); diag(); });
+window.addEventListener('unhandledrejection', e => { DIAG.err = 'promise: ' + String(e.reason && e.reason.message || e.reason); diag(); });
+document.addEventListener('load', e => { if (e.target.tagName === 'IMG' && e.target.closest('.av')) { DIAG.ok++; diag(); } }, true);
+function pfpFail(img) { DIAG.fail++; diag(); if (img.dataset.r) { img.remove(); return; } img.dataset.r = '1'; setTimeout(() => { img.src = img.src + '&r=1'; }, 1500); }
 function csvRows(text) {
   const rows = []; let row = [], cell = '', q = false;
   for (let i = 0; i < text.length; i++) {
@@ -570,7 +576,7 @@ function syncPayoutInputs() {
 // ---- Events ----
 $('faces').addEventListener('click', e => {
   if (e.target.closest('[data-guests]')) { showGuests = true; renderChips(); return; }
-  const b = e.target.closest('[data-add]'); if (b) { $('status').hidden = true; togglePlayer(b.dataset.add); }
+  const b = e.target.closest('[data-add]'); if (b) { $('status').hidden = true; togglePlayer(b.dataset.add); DIAG.tap = (DIAG.tap || 0) + 1; diag(); }
 });
 $('find').addEventListener('input', renderChips);
 $('showNew').addEventListener('click', () => { $('newWrap').hidden = false; $('showNew').hidden = true; $('newName').focus(); });
@@ -731,13 +737,15 @@ function start(setup) {
   google.script.run
     .withSuccessHandler(f => {
       FACES = { site: (f && f.site) || SITE, ids: (f && f.ids) || {} };
+      DIAG.ids = Object.keys(FACES.ids).length; DIAG.src = f ? 'Apps Script, site ' + (f.site || 'none') : 'Apps Script sent nothing'; diag();
       $('logo').style.backgroundImage = `url("${FACES.site}/icon-192.png")`;
       if (Object.keys(FACES.ids).length) renderRows();
-      else idsFromSheet().then(ids => { FACES.ids = ids; renderRows(); });
+      else idsFromSheet().then(ids => { FACES.ids = ids; DIAG.ids = Object.keys(ids).length; DIAG.src = 'sheet CSV'; diag(); renderRows(); });
     })
     .withFailureHandler(err => {
       console.warn('Faces: ' + (err && err.message || err));
-      idsFromSheet().then(ids => { FACES.ids = ids; renderRows(); });
+      DIAG.src = 'Apps Script failed: ' + String(err && err.message || err).slice(0, 80); diag();
+      idsFromSheet().then(ids => { FACES.ids = ids; DIAG.ids = Object.keys(ids).length; DIAG.src += ' → sheet CSV'; diag(); renderRows(); });
     })
     .memberFaces();
   $('logo').style.backgroundImage = `url("${SITE}/icon-192.png")`;
