@@ -63,6 +63,8 @@ export function loadouts() {
     fetch('/api/shop', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null),
   ]).then(([L, j]) => ({ L, byName: (j && j.byName) || {}, byId: (j && j.byId) || {} })).catch(() => ({ L: null, byName: {}, byId: {} }));
 }
+const jitter = eq => { const h = [...Object.values(eq).join('|')].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+  return `--rx:${h % 15}px;--ry:${(h >> 4) % 7 - 3}px;--rt:${(h >> 8) % 17 - 8}deg`; };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 /** the pieces of one player's loadout for the page to place. eq = { 'Title': id, 'Pfp border': id, ... } */
 export function bits(L, eq) {
@@ -74,7 +76,8 @@ export function bits(L, eq) {
     any: !!(b || o || t || svg),
     bar: o ? 'cbar-' + o.key : '',
     title: t ? `<span class="pl-ttl" style="--tc:${L.TCOL[t.tier]}">${esc(t.name)}</span>` : '',
-    sticker: svg ? `<span class="pl-stk" aria-hidden="true"><span class="cos-stk">${svg}</span></span>` : '',
+    // sticker next to the name, slapped on: each loadout gets its own small nudge and tilt (same every visit)
+    sticker: svg ? `<span class="pl-stk" style="${jitter(eq)}" aria-hidden="true"><span class="cos-stk">${svg}</span></span>` : '',
     // the pfp in its border; the border art is drawn around a 64px pfp, so it's zoomed down to `size`.
     // corner: also slap the sticker on the pfp's bottom right corner (podium, h2h) instead of on the plate
     face: (pfp, size, corner) => `<span class="plf" style="--s:${size}px">${b
