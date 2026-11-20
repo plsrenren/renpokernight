@@ -79,3 +79,5 @@ html table.pl-t .pl-stk { margin-left: auto; margin-right: 6px; }
 html .plf .cb-match { position: relative; top: 2.5px; }
 /* basic frame on the top 3 podium for players with no pfp border equipped, so the card doesn't look empty */
 html .pl-card .plf > .pfp:first-child { margin: 4px; box-shadow: 0 0 0 4px #4a4380, 0 0 0 5px rgba(255,255,255,.18); }
+/* same plain frame on the /h2h player slots when that player has no border */
+html .slot.pl-basic .av { box-shadow: 0 0 0 4px #4a4380, 0 0 0 5px rgba(255,255,255,.18) !important; outline: 0 !important; margin: 4px; }

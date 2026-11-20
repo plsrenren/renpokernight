@@ -124,7 +124,7 @@ import('/plates.js').then(m => m.loadouts().then(lo => { PL = { ...lo, bits: m.b
 function dressSlot(k, name) {
   const K = k.toUpperCase(), slot = $('slot' + K), av = $('av' + K);
   // undo the last player's look
-  slot.className = 'slot ' + k;
+  slot.className = 'slot ' + k + ' pl-basic'; // pl-basic = plain frame, dropped below when the player has a border
   const old = slot.querySelector('.plf'); if (old) old.replaceWith(av);
   slot.querySelectorAll('.pl-ttl, .pl-bg').forEach(e => e.remove());
   if (!PL || !PL.L) return;
@@ -133,6 +133,7 @@ function dressSlot(k, name) {
   const tmp = document.createElement('span');
   tmp.innerHTML = b.face('<i></i>', matchMedia('(max-width: 520px)').matches ? 64 : 58, true);
   const w = tmp.firstElementChild; av.replaceWith(w); w.querySelector('i').replaceWith(av);
+  if (w.querySelector('.cbw')) slot.classList.remove('pl-basic');
   if (b.title) slot.querySelector('.t small').insertAdjacentHTML('beforebegin', b.title);
 }
 function cardUrl() { return `/api/h2h?a=${encodeURIComponent(state.a)}&b=${encodeURIComponent(state.b)}&period=${encodeURIComponent(periodOf(state.p))}`; }
