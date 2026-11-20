@@ -662,6 +662,24 @@ h1{font-family:'Bebas Neue',Impact,sans-serif;font-weight:400;font-size:clamp(44
 .pw .zt{position:absolute;z-index:3;font:400 1.3em/1 'Bebas Neue',Impact,sans-serif;letter-spacing:.08em;padding:.28em .45em .12em;white-space:nowrap;color:#fff}
 .pw b{font-weight:400}
 @media (prefers-reduced-motion:reduce){.p-btn .zsh{animation:none}}
+/* Gemini set (Nov 20 2026): overlays sit above the pfp (z-index 2); finder/rain/frost/censored art = FX svgs in loot.js (DECO .zfx) */
+@keyframes cbmatrix{0%{background-position:0 0}100%{background-position:0 40px}}
+.p-brass{padding:4px;background:linear-gradient(135deg,#f0c75e,#9e7b2b 50%,#f0c75e)}
+.p-checker{padding:4px;background:repeating-conic-gradient(#8f78f0 0 25%,#1d1a37 0 50%) 0 0/8px 8px}
+.p-graph{padding:4px;background:#ece9fb}
+.p-graph:after{content:"";position:absolute;inset:4px;z-index:2;pointer-events:none;background-image:linear-gradient(to right,rgba(143,120,240,.4) 1px,rgba(0,0,0,0) 1px),linear-gradient(to bottom,rgba(143,120,240,.4) 1px,rgba(0,0,0,0) 1px);background-size:10px 10px}
+.p-censored{padding:3px;background:#ece9fb}
+.p-crt{padding:4px;background:#322e59;box-shadow:inset 0 0 0 1px #8f78f0}
+.p-crt:after{content:"";position:absolute;inset:4px;z-index:2;pointer-events:none;background:repeating-linear-gradient(180deg,rgba(21,19,42,.34) 0 2px,rgba(0,0,0,0) 2px 4px)}
+.p-finder{padding:3px;background:#ece9fb}
+.p-rain{padding:4px;background:linear-gradient(180deg,#8f78f0,#2f9a63);box-shadow:0 0 12px rgba(142,224,176,.65)}
+.p-frost{padding:4px;background:linear-gradient(135deg,#ece9fb,#8ee0b0 50%,#8f78f0);box-shadow:0 0 12px rgba(142,224,176,.7)}
+.p-matrix{padding:4px;background:linear-gradient(180deg,#8ee0b0,#2f9a63);box-shadow:0 0 14px rgba(142,224,176,.8),0 0 24px rgba(47,154,99,.65)}
+.p-matrix:after{content:"";position:absolute;inset:4px;z-index:2;pointer-events:none;background:repeating-linear-gradient(180deg,rgba(142,224,176,.28) 0 2px,rgba(0,0,0,0) 2px 8px),repeating-linear-gradient(90deg,rgba(0,0,0,0) 0 14px,rgba(47,154,99,.22) 14px 16px);animation:cbmatrix 2.4s linear infinite}
+.zfx{inset:4px;line-height:0}
+.p-finder .zfx,.p-censored .zfx{inset:3px}
+.zfx svg{width:100%;height:100%;display:block}
+@media (prefers-reduced-motion:reduce){.p-matrix:after{animation:none}}
 /* UTG: crosshair */
 .p-utg{padding:.45em;background:#1a0d14;box-shadow:0 0 0 .14em #e0507f}
 .p-utg:before{content:"";position:absolute;inset:-.55em;z-index:2;pointer-events:none;--r:#ff4d6d;background:
