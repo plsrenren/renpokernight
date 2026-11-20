@@ -77,6 +77,5 @@ html table.pl-t td > .who { display: flex; width: 100%; }
 html table.pl-t .pl-stk { margin-left: auto; margin-right: 6px; }
 /* Matchbook's striker strip makes its bottom edge thicker: nudge the frame down so the pfp itself sits centred in the row */
 html .plf .cb-match { position: relative; top: 2.5px; }
-/* basic frame for players with no pfp border equipped (standings + podium), so their row doesn't look empty next to framed ones.
-   Same footprint as a thin equipped frame (about 2px each side). */
-html table.pl-t .plf > .pfp:first-child, html .pl-card .plf > .pfp:first-child { margin: 2px; box-shadow: 0 0 0 2px #4a4380, 0 0 0 3px rgba(255,255,255,.16); }
+/* basic frame on the top 3 podium for players with no pfp border equipped, so the card doesn't look empty */
+html .pl-card .plf > .pfp:first-child { margin: 4px; box-shadow: 0 0 0 4px #4a4380, 0 0 0 5px rgba(255,255,255,.18); }
