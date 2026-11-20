@@ -4,71 +4,100 @@
 <base target="_top">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@600;700;800;900&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
-/* Layout: one narrow column for a phone, with a totals bar pinned to the bottom. */
+/* Layout: one narrow column for a phone, with a totals bar pinned to the bottom.
+   Look: the site's "Late Show" (Cozy night colours, slanted broadcast bars, Bebas titles, square faces, no rounded corners). */
 :root {
-  --bg: #f3f5f1; --surface: #ffffff; --fg: #17221b; --muted: #5d6b62; --line: #dde3dc;
-  --felt: #1f6b45; --up: #1d7a49; --down: #b93a33; --warn: #9a6a00; --warn-bg: #fff4d6;
-  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
-  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --bg: #100e20; --surface: #221e3d; --panel2: #2a2549; --field: #15132a; --hover: #352f5c;
+  --fg: #ece9fb; --soft: #cfcaf0; --muted: #9a94c4; --line: #332e57;
+  --gold: #f1c75b; --pink: #e0507f; --vio: #8f78f0; --peri: #a9b4f6;
+  --felt: var(--gold); --up: #8ee0b0; --down: #f59bb0; --warn: #f1c75b; --warn-bg: #2b2410;
+  --title: "Bebas Neue", "Arial Narrow", Impact, sans-serif;
+  --display: var(--title);
+  --body: "Nunito", "Segoe UI", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root { --bg: #0f1612; --surface: #17211b; --fg: #e6ece7; --muted: #94a39a; --line: #29362e;
-    --felt: #5cc38c; --up: #6bd39a; --down: #ef7d75; --warn: #f0c35a; --warn-bg: #2e2716; color-scheme: dark; }
+  color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
-body { background: var(--bg); color: var(--fg); font: 15px/1.45 var(--body); }
-.wrap { max-width: 560px; margin: 0 auto; padding: 20px max(16px, env(safe-area-inset-right)) 280px max(16px, env(safe-area-inset-left)); display: grid; gap: 16px; }
-h1 { font-family: var(--display); font-weight: 800; font-size: 28px; line-height: 1.1; margin: 0; color: var(--felt); }
+body { background-color: var(--bg); background-image: linear-gradient(115deg, rgba(143,120,240,.16) 0 26%, rgba(0,0,0,0) 26%), radial-gradient(60% 40% at 100% 0%, rgba(224,80,127,.22), rgba(0,0,0,0) 70%); background-attachment: fixed;
+  color: var(--fg); font: 600 15px/1.45 var(--body); }
+.wrap { max-width: 560px; margin: 0 auto; padding: 20px max(16px, env(safe-area-inset-right)) 280px max(16px, env(safe-area-inset-left)); display: grid; gap: 18px; }
+/* header: pink logo tab + title, like the site */
+.brand { display: flex; align-items: stretch; }
+.brand .lg { width: 70px; flex: none; margin-right: 12px; background: var(--pink) center / 44px no-repeat; clip-path: polygon(0 0, 100% 0, 84% 100%, 0 100%); }
+h1 { font: 400 40px/.9 var(--title); letter-spacing: .02em; margin: 0; color: #fff; }
 .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 12px; }
-.card h2 { font-family: var(--display); font-weight: 700; font-size: 17px; margin: 0; }
-label, .lbl { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); display: block; margin-bottom: 4px; }
+/* cards: a slanted title bar on top, then the panel */
+.card { background: var(--surface); border-top: 3px solid var(--vio); padding: 0 14px 14px; display: grid; gap: 12px; }
+.card h2 { justify-self: start; margin: 0 0 0 -14px; background: var(--vio); color: #fff; font: 400 22px/1 var(--title); letter-spacing: .05em; padding: 6px 26px 4px 14px; clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%); }
+.card.pink { border-top-color: var(--pink); } .card.pink h2 { background: var(--pink); }
+.card.gold { border-top-color: var(--gold); } .card.gold h2 { background: var(--gold); color: var(--field); }
+.card.nohead { padding-top: 14px; }
+label, .lbl { font: 400 14px/1 var(--title); letter-spacing: .1em; color: var(--muted); display: block; margin-bottom: 6px; }
 input, button, select { font: inherit; color: var(--fg); }
-input[type=text], input[type=date], input[type=number], input[type=password], input[inputmode] {
-  width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); min-height: 44px; }
-input:focus-visible, button:focus-visible { outline: 2px solid var(--felt); outline-offset: 1px; }
+input[type=text], input[type=date], input[type=number], input[type=password], input[type=search], input[inputmode], select {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 0; background: var(--field); min-height: 44px; }
+input::placeholder { color: var(--muted); opacity: .8; }
+input:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid var(--peri); outline-offset: 2px; }
 .row2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
-.seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 3px; background: var(--bg); min-height: 44px; }
-.seg button { border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-weight: 500; cursor: pointer; }
-.seg button[aria-pressed="true"] { background: var(--felt); color: var(--surface); font-weight: 600; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); padding: 3px; gap: 3px; background: var(--field); min-height: 44px; }
+.seg button { border: 0; background: transparent; color: var(--muted); font: 400 19px/1 var(--title); letter-spacing: .08em; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--gold); color: var(--field); }
 .money { position: relative; }
 .money::before { content: "$"; position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
 .money input { padding-left: 22px; font-family: var(--mono); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 7px 12px; cursor: pointer; font-size: 14px; min-height: 36px; }
-.chip:hover { border-color: var(--felt); }
+.chip { border: 1px solid var(--line); background: var(--field); padding: 7px 12px; cursor: pointer; font-size: 14px; min-height: 36px; color: var(--soft); }
+.chip:hover { border-color: var(--gold); color: #fff; }
 .newp { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
-.invite { display: grid; gap: 8px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
-.invite .row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; }
+.invite { display: grid; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.invite .row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; }
 .invite details { font-size: 13px; color: var(--muted); }
 .invite details .newp { margin-top: 6px; }
-.invite .found { font-size: 13px; }
-.invite .found .chips { margin-top: 6px; }
-.chip.maybe { border-style: dashed; }
-.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 10px 14px; cursor: pointer; min-height: 44px; font-weight: 500; }
-.btn.primary { background: var(--felt); border-color: var(--felt); color: var(--surface); font-weight: 600; }
+.invite .found { font-size: 13px; color: var(--soft); }
+/* face picker (same look as the head to head picker) */
+.grp { display: flex; justify-content: space-between; font: 400 15px/1 var(--title); letter-spacing: .12em; color: var(--muted); }
+.faces { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 12px 6px; margin: 8px 0 6px; }
+.face { position: relative; display: grid; justify-items: center; border: 0; background: transparent; color: var(--soft); cursor: pointer; padding: 4px 0; min-width: 0; }
+.av { --s: 56px; --h: 260; position: relative; flex: none; width: var(--s); height: var(--s); overflow: hidden; display: grid; place-items: center; font: 400 calc(var(--s) * .42) var(--title); letter-spacing: .03em; background: hsl(var(--h) 70% 82%); color: hsl(var(--h) 45% 26%); }
+.av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.face .nm { font: 400 15px/1 var(--title); letter-spacing: .06em; margin-top: 6px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.face .gt { font: 500 10.5px var(--mono); color: var(--muted); }
+.face.hit .gt { color: var(--gold); }
+.face[aria-pressed="true"] .av { outline: 3px solid var(--gold); outline-offset: 2px; }
+.face[aria-pressed="true"] .nm { color: #fff; }
+.face[aria-pressed="true"]::after { content: "✓"; position: absolute; top: 0; right: calc(50% - 34px); width: 20px; height: 20px; display: grid; place-items: center; background: var(--gold); color: var(--field); font: 900 13px/1 var(--body); }
+.face:hover .nm { color: #fff; }
+.link { border: 0; background: transparent; color: var(--peri); font-weight: 800; cursor: pointer; padding: 4px 0; justify-self: start; text-align: left; }
+.friend { display: grid; gap: 4px; background: #1b1834; padding: 10px; }
+.friend .faces { grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 8px 4px; margin: 4px 0 0; }
+.friend .av { --s: 40px; } .friend .nm { font-size: 13px; }
+.friend .face[aria-pressed="true"]::after { right: calc(50% - 26px); }
+.btn { border: 0; background: var(--panel2); color: var(--soft); padding: 10px 14px; cursor: pointer; min-height: 44px; font-weight: 800; }
+.btn:hover { background: var(--hover); color: #fff; }
+.btn.primary { background: var(--gold); color: var(--field); font: 400 24px/1 var(--title); letter-spacing: .08em; min-height: 48px; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .players { display: grid; gap: 10px; }
-.p { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 10px; background: var(--surface); }
-.p-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.p-name { font-family: var(--display); font-weight: 700; font-size: 18px; }
-.p-net { font-family: var(--mono); font-size: 15px; }
+.p { border-left: 4px solid var(--vio); padding: 12px; display: grid; gap: 10px; background: var(--surface); }
+.p-top { display: flex; align-items: center; gap: 10px; }
+.p-top .av { --s: 40px; }
+.p-name { flex: 1; min-width: 0; font: 400 26px/1 var(--title); letter-spacing: .03em; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.p-name small { display: block; font: 700 12px/1.3 var(--body); letter-spacing: 0; color: var(--gold); }
+.p-net { font: 600 16px var(--mono); }
 .pos { color: var(--up); } .neg { color: var(--down); }
 .x { border: 0; background: transparent; color: var(--muted); font-size: 22px; line-height: 1; cursor: pointer; padding: 4px 8px; min-height: 36px; }
-.step { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; min-height: 44px; }
-.step button { border: 0; background: var(--bg); font-size: 20px; cursor: pointer; }
-.step output { display: grid; place-items: center; font-family: var(--mono); font-size: 16px; }
+.step { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; border: 1px solid var(--line); background: var(--field); overflow: hidden; min-height: 44px; }
+.step button { border: 0; background: var(--panel2); font-size: 20px; cursor: pointer; }
+.step output { display: grid; place-items: center; font: 600 16px var(--mono); }
 .note-in { font-size: 14px; }
 body:not(.tour) .topup-row, body:not(.tour) #payoutCard { display: none; }
 .places { display: grid; gap: 10px; }
 .place { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; align-items: end; }
 .place label { margin: 0; }
-.place .amt { font-family: var(--mono); font-size: 16px; }
-.place select { grid-column: 1 / -1; min-height: 44px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); width: 100%; }
+.place .amt { font: 600 16px var(--mono); color: var(--gold); }
+.place select { grid-column: 1 / -1; }
 .pool { color: var(--muted); font-size: 13px; }
 input.locked { color: var(--muted); }
 /* PKO (progressive knockout) */
@@ -80,36 +109,38 @@ body:not(.tour) .tour-only, body:not(.pko) .pko-only { display: none !important;
 .p-bounty b { color: var(--fg); font-family: var(--mono); font-weight: 500; }
 .kos { list-style: none; counter-reset: ko; margin: 0; padding: 0; display: grid; gap: 6px; }
 .kos li { counter-increment: ko; display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 8px; align-items: center;
-  border: 1px solid var(--line); border-radius: 8px; padding: 6px 4px 6px 10px; font-size: 14px; }
+  border: 1px solid var(--line); background: var(--field); padding: 6px 4px 6px 10px; font-size: 14px; }
 .kos li::before { content: counter(ko); font-family: var(--mono); color: var(--muted); font-size: 13px; }
 .kos small { color: var(--muted); font-size: 12px; }
-.kos .bad small { color: var(--down); }.tin { min-height: 44px; display: flex; align-items: center; font-family: var(--mono); font-size: 16px; }
+.kos .bad small { color: var(--down); }
+.tin { min-height: 44px; display: flex; align-items: center; font-family: var(--mono); font-size: 16px; }
 .empty { color: var(--muted); font-size: 14px; text-align: center; padding: 8px 0; }
-.bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line);
-  padding: 12px max(16px, env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
-.bar-in { max-width: 560px; margin: 0 auto; display: grid; gap: 10px; }
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--field); border-top: 3px solid var(--gold);
+  padding: 10px max(16px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+.bar-in { max-width: 560px; margin: 0 auto; display: grid; gap: 8px; }
 .totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; text-align: center; }
-.totals .v { font-family: var(--mono); font-size: 16px; }
-.totals .k { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
-.msg { border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+.totals .v { font: 600 17px var(--mono); }
+.totals .k { font: 400 13px/1 var(--title); letter-spacing: .12em; color: var(--muted); }
+.msg { padding: 8px 10px; font-size: 13px; }
 .msg.warn { background: var(--warn-bg); color: var(--warn); }
 .msg.err { background: var(--warn-bg); color: var(--down); }
 .msg.ok { color: var(--up); padding: 0; }
-.check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; text-transform: none; letter-spacing: 0; color: var(--fg); margin: 0; }
-.check input { width: 18px; height: 18px; margin-top: 1px; flex: none; }
+.check { display: flex; gap: 8px; align-items: flex-start; font: 600 13.5px/1.4 var(--body); letter-spacing: 0; color: var(--soft); margin: 0; }
+.check input { width: 18px; height: 18px; margin-top: 1px; flex: none; accent-color: var(--gold); }
 .done { text-align: center; display: grid; gap: 12px; padding: 24px 14px; }
-.done .big { font-family: var(--display); font-weight: 800; font-size: 26px; color: var(--felt); }
+.done .big { font: 400 40px/1 var(--title); letter-spacing: .03em; color: var(--gold); }
 [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <div class="wrap" id="form">
-  <header>
-    <h1>Game Night Entry</h1>
-    <div class="sub" id="lastNight">Loading players…</div>
+  <header class="brand">
+    <div class="lg" id="logo" aria-hidden="true"></div>
+    <div><h1>Game Night Entry</h1><div class="sub" id="lastNight">Loading players…</div></div>
   </header>
 
   <section class="card" aria-label="Game details">
+    <h2>Tonight</h2>
     <div class="row2">
       <div><label for="date">Date</label><input type="date" id="date"></div>
       <div><label for="buyIn">Buy-in amount</label><div class="money"><input id="buyIn" inputmode="decimal" autocomplete="off"></div></div>
@@ -130,26 +161,31 @@ body:not(.tour) .tour-only, body:not(.pko) .pko-only { display: none !important;
     </div>
   </section>
 
-  <section class="card" aria-label="Add players">
+  <section class="card pink" aria-label="Add players">
     <h2>Who played?</h2>
     <div class="invite">
-      <div class="row"><button type="button" class="btn" id="invLoad">📥 Load from invite</button><span class="found" id="invInfo">Adds everyone who reacted ✅ on the latest /tourney or /cash invite.</span></div>
+      <div class="row"><button type="button" class="btn" id="invLoad">Load from invite</button><span class="found" id="invInfo">Ticks everyone who reacted to the latest /tourney or /cash invite.</span></div>
       <details id="invMore"><summary>Use a different invite</summary>
         <div class="newp"><input type="text" id="invLink" placeholder="Paste the invite's message link" autocomplete="off"><button type="button" class="btn" id="invLinkGo">Load</button></div>
       </details>
       <div class="found" id="invExtra" hidden></div>
     </div>
-    <div class="chips" id="chips"></div>
-    <div class="newp">
-      <input type="text" id="newName" placeholder="New player's name" autocomplete="off">
-      <button type="button" class="btn" id="addNew">Add</button>
+    <input type="search" id="find" placeholder="Search members" autocomplete="off" aria-label="Search members">
+    <div id="faces"></div>
+    <button type="button" class="link" id="showNew">+ Someone new? Add a first-timer</button>
+    <div id="newWrap" hidden>
+      <label for="newName">Not in Members</label>
+      <div class="newp">
+        <input type="text" id="newName" placeholder="New player's name" autocomplete="off">
+        <button type="button" class="btn" id="addNew">Add</button>
+      </div>
     </div>
   </section>
 
   <section class="players" id="players" aria-label="Players"></section>
-  <p class="empty" id="noPlayers">Tap names above to add tonight's players.</p>
+  <p class="empty" id="noPlayers">Tap faces above, or load the invite.</p>
 
-  <section class="card pko-only" id="koCard" aria-label="Knockouts">
+  <section class="card pink pko-only" id="koCard" aria-label="Knockouts">
     <h2>Knockouts</h2>
     <div class="pool" id="koProgress"></div>
     <div class="row2">
@@ -161,7 +197,7 @@ body:not(.tour) .tour-only, body:not(.pko) .pko-only { display: none !important;
     <div class="msg err" id="koErr" hidden></div>
   </section>
 
-  <section class="card" id="payoutCard" aria-label="Tournament payouts">
+  <section class="card gold" id="payoutCard" aria-label="Tournament payouts">
     <h2>Payouts</h2>
     <div>
       <label for="split">Split (%)</label>
@@ -182,14 +218,14 @@ body:not(.tour) .tour-only, body:not(.pko) .pko-only { display: none !important;
     <label class="check"><input type="checkbox" id="autoOut" checked> <span>Fill cash outs from these payouts (everyone else gets $0)</span></label>
   </section>
 
-  <section class="card" id="pinCard" hidden>
+  <section class="card nohead" id="pinCard" hidden>
     <div><label for="pin">PIN</label><input type="password" id="pin" inputmode="numeric" autocomplete="off"></div>
   </section>
 </div>
 
 <div class="wrap" id="doneView" hidden>
-  <div class="card done">
-    <div class="big">Saved</div>
+  <div class="card nohead done">
+    <div class="big">Night saved</div>
     <div id="doneText"></div>
     <button type="button" class="btn primary" id="again">Enter another night</button>
   </div>
@@ -219,7 +255,7 @@ const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 let SETUP = { players: [], defaultBuyIn: 40, needsPin: false, discord: false };
-let state = { date: today(), type: 'Cash', buyIn: 40, rows: [], payout: null, pko: { on: false, pct: 50, kos: [] } };
+let state = { date: today(), type: 'Cash', buyIn: 40, rows: [], invite: [], payout: null, pko: { on: false, pct: 50, kos: [] } };
 let nextId = 1, saving = false, lastPk = null;
 
 // Keep an unsent draft on this device in case the page closes mid-entry
@@ -228,17 +264,54 @@ const saveDraft = () => { try { localStorage.setItem(DRAFT, JSON.stringify(state
 const loadDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT) || 'null'); } catch (e) { return null; } };
 const clearDraft = () => { try { localStorage.removeItem(DRAFT); } catch (e) {} };
 
+// ---- Faces: only people on the Members tab, grouped by their status, most recent first (like the head to head picker) ----
+// Tap a face to add them, tap again to take them off. Pfps come from the Members tab's Discord ID column (memberFaces in Invite.gs).
+let FACES = { site: '', ids: {} }, showGuests = false;
+const GROUPS = [['Member', 'Regulars'], ['Sometimes', 'Sometimes'], ['Guest', 'Guests']];
+const hue = n => [...n].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+const initials = n => n.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+function av(name) {
+  const id = FACES.ids[name];
+  return `<span class="av" style="--h:${hue(name)}" aria-hidden="true">${esc(initials(name))}${id && FACES.site ? `<img src="${esc(FACES.site)}/api/avatar?id=${esc(id)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
+}
+function ago(d) {
+  if (!d) return 'new';
+  const days = Math.round((new Date((state.date || today()) + 'T12:00:00') - new Date(d + 'T12:00:00')) / 864e5);
+  return days <= 0 ? 'today' : days < 8 ? 'last week' : days < 32 ? Math.round(days / 7) + ' wks ago' : days < 365 ? Math.round(days / 30) + ' mo ago' : 'over a year';
+}
+function groupOf(st) { st = String(st || '').toLowerCase(); return st.startsWith('member') ? 'Member' : st.startsWith('some') ? 'Sometimes' : 'Guest'; }
 function renderChips() {
-  const taken = new Set(state.rows.map(r => r.name.toLowerCase()));
-  const list = SETUP.players.filter(p => !taken.has(p.name.toLowerCase()));
-  $('chips').innerHTML = list.map(p => `<button type="button" class="chip" data-add="${esc(p.name)}">${esc(p.name)}</button>`).join('')
-    || '<span class="empty">Everyone on the list is added.</span>';
+  const taken = new Set(state.rows.map(r => r.name.toLowerCase())), hits = new Set((state.invite || []).map(n => n.toLowerCase()));
+  const q = $('find').value.trim().toLowerCase();
+  const members = SETUP.players.filter(p => p.status);
+  let html = '';
+  GROUPS.forEach(([g, label]) => {
+    if (g === 'Guest' && !showGuests && !q) return;
+    const list = members.filter(p => groupOf(p.status) === g && (!q || p.name.toLowerCase().includes(q)))
+      .sort((a, b) => (b.lastPlayed > a.lastPlayed) - (b.lastPlayed < a.lastPlayed) || b.games - a.games || a.name.localeCompare(b.name));
+    if (!list.length) return;
+    const n = list.filter(p => taken.has(p.name.toLowerCase())).length;
+    html += `<div class="grp"><span>${label}</span><span>${n ? n + ' in' : ''}</span></div><div class="faces">`
+      + list.map(p => { const hit = hits.has(p.name.toLowerCase());
+        return `<button type="button" class="face${hit ? ' hit' : ''}" data-add="${esc(p.name)}" aria-pressed="${taken.has(p.name.toLowerCase())}">${av(p.name)}<span class="nm">${esc(p.name)}</span><span class="gt">${hit ? 'reacted' : ago(p.lastPlayed)}</span></button>`; }).join('')
+      + '</div>';
+  });
+  const guests = members.filter(p => groupOf(p.status) === 'Guest').length;
+  if (!showGuests && !q && guests) html += `<button type="button" class="link" data-guests>Show guests (${guests})</button>`;
+  $('faces').innerHTML = html || (q ? `<p class="empty">No member called “${esc(q)}”. Add them as a first-timer below.</p>`
+    : '<p class="empty">Nobody on the Members tab yet. Add players below.</p>');
+}
+function togglePlayer(name) {
+  const r = state.rows.find(x => x.name.toLowerCase() === name.toLowerCase());
+  if (!r) return addPlayer(name);
+  if ((r.cashOut !== '' || r.notes || r.topUp || r.buys > 1) && !confirm(`Remove ${r.name}? What you typed for them will be cleared.`)) return;
+  state.rows = state.rows.filter(x => x !== r); renderRows(); saveDraft();
 }
 
 function rowHtml(r) {
   return `<article class="p" data-id="${r.id}">
-    <div class="p-top"><span class="p-name">${esc(r.name)}</span>
-      <span><span class="p-net" data-f="net"></span><button type="button" class="x" data-del aria-label="Remove ${esc(r.name)}">×</button></span></div>
+    <div class="p-top">${av(r.name)}<span class="p-name">${esc(r.name)}${r.isNew ? `<small>First night${r.by ? ' · brought by ' + esc(r.by) : ''}</small>` : ''}</span>
+      <span class="p-net" data-f="net"></span><button type="button" class="x" data-del aria-label="Remove ${esc(r.name)}">✕</button></div>
     <div class="p-bounty pko-only" data-f="bounty"></div>
     <div class="row2">
       <div><span class="lbl">Buy-ins</span><div class="step"><button type="button" data-step="-1" aria-label="One fewer buy-in">−</button><output data-f="buys">${r.buys}</output><button type="button" data-step="1" aria-label="One more buy-in">+</button></div></div>
@@ -252,7 +325,15 @@ function rowHtml(r) {
       <div><label for="out${r.id}">Cash out</label><div class="money"><input id="out${r.id}" data-f="cashOut" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${esc(r.cashOut)}"></div></div>
       <div><label for="note${r.id}">Note</label><input id="note${r.id}" class="note-in" type="text" data-f="notes" placeholder="Optional" autocomplete="off" value="${esc(r.notes)}"></div>
     </div>
+    ${r.isNew ? friendHtml(r) : ''}
   </article>`;
+}
+// Bring a friend: a first-timer's row asks who brought them; saving adds "brought by <name>" to their note (pays the friend chips)
+function friendHtml(r) {
+  const hosts = state.rows.filter(x => !x.isNew).map(x => x.name);
+  return `<div class="friend"><span class="lbl" style="margin:0">Who brought ${esc(r.name)}?</span>
+    ${hosts.length ? `<div class="faces">${hosts.map(h => `<button type="button" class="face" data-by="${esc(h)}" aria-pressed="${r.by === h}">${av(h)}<span class="nm">${esc(h)}</span></button>`).join('')}</div>`
+      : '<span class="pool">Add the regulars first, then pick who brought them.</span>'}</div>`;
 }
 
 function renderRows() {
@@ -284,7 +365,8 @@ function addPlayer(name) {
   name = name.trim(); if (!name) return;
   if (state.rows.some(r => r.name.toLowerCase() === name.toLowerCase())) return showStatus('err', `${name} is already on the list.`);
   const known = SETUP.players.find(p => p.name.toLowerCase() === name.toLowerCase());
-  state.rows.push({ id: nextId++, name: known ? known.name : name, buys: 1, cashIn: state.buyIn, manualIn: false, topUp: '', cashOut: '', notes: '' });
+  // isNew = never played before (not in the sheet at all), so the row asks who brought them
+  state.rows.push({ id: nextId++, name: known ? known.name : name, buys: 1, cashIn: state.buyIn, manualIn: false, topUp: '', cashOut: '', notes: '', isNew: !known, by: '' });
   renderRows(); saveDraft();
 }
 
@@ -460,7 +542,12 @@ function syncPayoutInputs() {
 }
 
 // ---- Events ----
-$('chips').addEventListener('click', e => { const b = e.target.closest('[data-add]'); if (b) { $('status').hidden = true; addPlayer(b.dataset.add); } });
+$('faces').addEventListener('click', e => {
+  if (e.target.closest('[data-guests]')) { showGuests = true; renderChips(); return; }
+  const b = e.target.closest('[data-add]'); if (b) { $('status').hidden = true; togglePlayer(b.dataset.add); }
+});
+$('find').addEventListener('input', renderChips);
+$('showNew').addEventListener('click', () => { $('newWrap').hidden = false; $('showNew').hidden = true; $('newName').focus(); });
 // ---- Load players from a Discord invite (✅ reactions). Only adds names: you can still remove or add anyone before saving. ----
 function loadInvite(link) {
   $('invLoad').disabled = true; $('invInfo').textContent = 'Reading the invite…'; $('invExtra').hidden = true;
@@ -468,19 +555,18 @@ function loadInvite(link) {
     .withSuccessHandler(inv => {
       $('invLoad').disabled = false;
       const added = [], already = [];
+      state.invite = inv.in.map(p => p.name);
       inv.in.filter(p => p.known).forEach(p => {
         if (state.rows.some(r => r.name.toLowerCase() === p.name.toLowerCase())) already.push(p.name);
         else { addPlayer(p.name); added.push(p.name); }
       });
       if (inv.kind && inv.kind !== state.type) { setType(inv.kind); saveDraft(); }
       $('status').hidden = true;
-      $('invInfo').textContent = `${inv.kind === 'Cash' ? 'Cash game' : 'Tournament'}${inv.date ? ' · ' + inv.date : ''}: ${inv.in.length} in. `
-        + (added.length ? `Added ${added.join(', ')}.` : already.length ? 'Everyone in is already on the list.' : 'Nobody to add yet.');
-      const unknown = inv.in.filter(p => !p.known), maybe = inv.maybe.filter(p => !state.rows.some(r => r.name.toLowerCase() === p.name.toLowerCase()));
-      const chip = (p, cls) => `<button type="button" class="chip ${cls}" data-add="${esc(p.name)}">${esc(p.name)}</button>`;
-      let html = '';
-      if (unknown.length) html += `<div>✅ but not in the Members tab yet (tap to add as a new player, or add their Discord ID to Members):<div class="chips">${unknown.map(p => chip(p, '')).join('')}</div></div>`;
-      if (maybe.length) html += `<div style="margin-top:8px">🤔 Maybe (tap to add if they showed up):<div class="chips">${maybe.map(p => chip(p, 'maybe')).join('')}</div></div>`;
+      $('invInfo').textContent = `${inv.kind === 'Cash' ? 'Cash game' : 'Tournament'}${inv.date ? ' · ' + inv.date : ''}: ${inv.in.length} reacted. `
+        + (added.length ? `Ticked ${added.length}.` : already.length ? 'Everyone is already in.' : 'Nobody to add yet.');
+      renderChips(); saveDraft();
+      const unknown = inv.in.filter(p => !p.known && !state.rows.some(r => r.name.toLowerCase() === p.name.toLowerCase()));
+      const html = unknown.length ? `<div>Reacted but not in the Members tab yet (tap to add, or add their Discord ID to Members):<div class="chips" style="margin-top:6px">${unknown.map(p => `<button type="button" class="chip" data-add="${esc(p.name)}">${esc(p.name)}</button>`).join('')}</div></div>` : '';
       $('invExtra').innerHTML = html; $('invExtra').hidden = !html;
     })
     .withFailureHandler(err => { $('invLoad').disabled = false; $('invInfo').textContent = String(err && err.message || err).replace(/^Error:\s*/, ''); })
@@ -492,7 +578,7 @@ $('invExtra').addEventListener('click', e => { const b = e.target.closest('[data
 $('addNew').addEventListener('click', () => { $('status').hidden = true; addPlayer($('newName').value); $('newName').value = ''; });
 $('newName').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('addNew').click(); } });
 $('type').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b) { setType(b.dataset.v); saveDraft(); } });
-$('date').addEventListener('change', e => { state.date = e.target.value; $('dupWrap').hidden = true; $('dup').checked = false; updateTotals(); saveDraft(); });
+$('date').addEventListener('change', e => { state.date = e.target.value; $('dupWrap').hidden = true; $('dup').checked = false; renderChips(); updateTotals(); saveDraft(); });
 $('buyIn').addEventListener('input', e => {
   state.buyIn = num(e.target.value);
   state.rows.forEach(r => { if (!r.manualIn) { r.cashIn = round2(r.buys * state.buyIn); updateRow(r); } });
@@ -501,7 +587,9 @@ $('buyIn').addEventListener('input', e => {
 $('players').addEventListener('click', e => {
   const card = e.target.closest('.p'); if (!card) return;
   const r = state.rows.find(x => x.id === +card.dataset.id);
-  if (e.target.closest('[data-del]')) { state.rows = state.rows.filter(x => x !== r); renderRows(); saveDraft(); return; }
+  if (e.target.closest('[data-del]')) { state.rows = state.rows.filter(x => x !== r); state.rows.forEach(x => { if (x.by === r.name) x.by = ''; }); renderRows(); saveDraft(); return; }
+  const by = e.target.closest('[data-by]');
+  if (by) { r.by = r.by === by.dataset.by ? '' : by.dataset.by; renderRows(); saveDraft(); return; }
   const step = e.target.closest('[data-step]');
   if (step) {
     r.buys = Math.max(1, r.buys + +step.dataset.step);
@@ -553,7 +641,7 @@ $('save').addEventListener('click', () => {
     pin: $('pin').value, date: state.date, type: state.type,
     // Cash_In includes any top-up; the top-up is also noted so it can be told apart later
     players: state.rows.map(r => ({ name: r.name, buys: r.buys, cashIn: round2(totalIn(r)), cashOut: num(r.cashOut),
-      notes: [r.notes, topUp(r) > 0 ? `top-up $${topUp(r).toFixed(2)}` : '',
+      notes: [r.notes, r.isNew && r.by && !/brought by/i.test(r.notes) ? `brought by ${r.by}` : '', topUp(r) > 0 ? `top-up $${topUp(r).toFixed(2)}` : '',
         lastPk && lastPk.cash[r.name] > 0 ? `PKO bounties $${lastPk.cash[r.name].toFixed(2)}` : ''].filter(Boolean).join('; ') })),
     postDiscord: SETUP.discord && $('discord').checked, allowDuplicate: $('dup').checked,
   };
@@ -589,7 +677,8 @@ $('save').addEventListener('click', () => {
 });
 
 $('again').addEventListener('click', () => {
-  state = { date: today(), type: state.type, buyIn: state.buyIn, rows: [], payout: defaultPayout(), pko: { on: state.pko.on, pct: state.pko.pct, kos: [] } };
+  state = { date: today(), type: state.type, buyIn: state.buyIn, rows: [], invite: [], payout: defaultPayout(), pko: { on: state.pko.on, pct: state.pko.pct, kos: [] } };
+  $('find').value = ''; $('invInfo').textContent = 'Ticks everyone who reacted to the latest /tourney or /cash invite.'; $('invExtra').hidden = true;
   syncPayoutInputs(); syncPkoInputs();
   $('dupWrap').hidden = true; $('dup').checked = false; $('force').checked = false;
   $('form').hidden = false; $('bar').hidden = false; $('doneView').hidden = true;
@@ -612,6 +701,15 @@ function start(setup) {
   $('lastNight').textContent = (draft && draft.rows && draft.rows.length ? 'Picked up your unsaved entry. ' : '')
     + (ln ? `Last saved night: ${ln.type}, ${ln.date}, ${ln.players} players.` : '');
   renderRows();
+  // pfps + logo from the site (Members tab Discord IDs); the faces show initials until these arrive
+  google.script.run
+    .withSuccessHandler(f => {
+      if (!f) return; FACES = { site: f.site || '', ids: f.ids || {} };
+      if (FACES.site) $('logo').style.backgroundImage = `url("${FACES.site}/icon-192.png")`;
+      renderRows();
+    })
+    .withFailureHandler(err => console.warn('Faces: ' + (err && err.message || err)))
+    .memberFaces();
 }
 google.script.run
   .withSuccessHandler(start)

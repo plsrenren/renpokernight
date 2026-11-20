@@ -3,6 +3,7 @@
  *  - loadInvite: who reacted ✅ / 🤔 on the latest /tourney or /cash invite in Discord (read by the dashboard site).
  *  - postQuarterWrapIfNew: after saving the first night of a new quarter, posts last quarter's wrap card to Discord, once.
  *  - syncRoles: after saving, moves the results roles in Discord (Quarter Leader, Heater, Cash King, ...).
+ *  - memberFaces: Discord IDs from the Members tab, so the entry page can show pfps.
  */
 
 /** { kind, date, in: [{ name, known }], maybe: [...], cant: [...] } from the site's /api/invite. link is optional. */
@@ -52,4 +53,19 @@ function syncRoles() {
     method: 'post', contentType: 'application/json', headers: key ? { 'X-Roles-Key': key } : {},
     payload: JSON.stringify({ input: inputCsv_(), members: membersCsv_() }), muteHttpExceptions: true });
   try { return JSON.parse(res.getContentText()); } catch (e) { return { changes: [], errors: ['Roles: the site said ' + res.getResponseCode()] }; }
+}
+
+/** Pfps for the entry page's faces: { site, ids: { name: discordId } } from the Members tab column whose header mentions "Discord". */
+function memberFaces() {
+  const site = String(DASHBOARD_URL || '').replace(/\/$/, '');
+  const sh = ss_().getSheetByName(MEMBERS_TAB), ids = {};
+  if (!sh || sh.getLastRow() < 2) return { site, ids };
+  const values = sh.getRange(1, 1, sh.getLastRow(), sh.getLastColumn()).getDisplayValues();
+  const col = values[0].findIndex(h => /discord/i.test(h));
+  if (col < 0) return { site, ids };
+  values.slice(1).forEach(r => {
+    const name = String(r[0] || '').trim(), id = String(r[col] || '').replace(/[^\d]/g, '');
+    if (name && /^\d{17,20}$/.test(id)) ids[name] = id;
+  });
+  return { site, ids };
 }
