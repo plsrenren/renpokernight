@@ -43,7 +43,12 @@ poker-dashboard/
     lateshow.css       "Late Show" look (Nov 2026), linked last on every page; every selector is prefixed with html so it beats
                        the page's own <style> (which sits in <body>)
     recap-core.js      Shared logic (browser + API): parsing, recap stories, Hall of Fame, player cards, h2h, quarter wrap
-    api/               Serverless functions: recap/card/hall/h2h/wrap (PNG cards via satori + resvg, all drawn by _late.js = Late Show design), avatar (Discord pfps/banners; &anim=1 = animated GIF pfp, used only on player cards),
+    api/               Serverless functions: recap/card/hall/h2h/wrap (PNG cards via satori + resvg, all drawn by _late.js = Late Show design),
+                       ALL picture endpoints (recap/card/hall/h2h/wrap/bjcards/seats/roulette) are ONE function, api/img.js, reached by vercel.json rewrites
+                       (/api/recap -> /api/img?fn=recap); the code sits in _recap.js _card.js _hall.js _h2h.js _wrap.js _bjcards.js _seatsimg.js _wheel.js.
+                       Why (Nov 20 2026): every deployment stores each function with its own satori+resvg copy; 203 deployments hit 75% of Hobby's
+                       10 GB Function Storage. Don't add new picture functions: add a case to img.js. vercel.json ignoreCommand skips deploys when
+                       nothing under poker-dashboard/vercel changed (entry-page-only PRs don't deploy). avatar (Discord pfps/banners; &anim=1 = animated GIF pfp, used only on player cards),
                        discord (slash commands endpoint; ?setup=1 registers commands), invite (who reacted to /tourney or /cash),
                        roles (results roles + chip rewards; trusts a POSTed sheet only with header X-Roles-Key = env ROLES_KEY, which Invite.gs reads from
                        Script Properties; otherwise reads Google's copy), _tourney.js/_roles.js/_discord.js helpers, _assets/ fonts + logo

@@ -10,7 +10,7 @@ const PICTURE = /^https:\/\/renpokernight\.vercel\.app\/api\/(bjcards|roulette)\
 let libs;
 /** Starts loading the drawing code (satori, resvg, fonts) in the background. Call it early so it overlaps the chip storage calls. */
 export function warmPictures() {
-  return libs || (libs = Promise.all([import('./bjcards.js'), import('./roulette.js')]).catch(e => { libs = null; throw e; }));
+  return libs || (libs = Promise.all([import('./_bjcards.js'), import('./_wheel.js')]).catch(e => { libs = null; throw e; }));
 }
 
 async function draw(url) {

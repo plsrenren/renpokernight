@@ -1,5 +1,6 @@
 {
   "cleanUrls": true,
+  "ignoreCommand": "git diff --quiet \"${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}\" HEAD -- .",
   "rewrites": [
     {
       "source": "/api/login",
@@ -12,35 +13,48 @@
     {
       "source": "/api/shop",
       "destination": "/api/discord?web=shop"
+    },
+    {
+      "source": "/api/recap",
+      "destination": "/api/img?fn=recap"
+    },
+    {
+      "source": "/api/card",
+      "destination": "/api/img?fn=card"
+    },
+    {
+      "source": "/api/hall",
+      "destination": "/api/img?fn=hall"
+    },
+    {
+      "source": "/api/h2h",
+      "destination": "/api/img?fn=h2h"
+    },
+    {
+      "source": "/api/wrap",
+      "destination": "/api/img?fn=wrap"
+    },
+    {
+      "source": "/api/bjcards",
+      "destination": "/api/img?fn=bjcards"
+    },
+    {
+      "source": "/api/seats",
+      "destination": "/api/img?fn=seats"
+    },
+    {
+      "source": "/api/roulette",
+      "destination": "/api/img?fn=roulette"
     }
   ],
   "functions": {
-    "api/recap.js": {
-      "includeFiles": "{api/_assets/**,recap-core.js}",
-      "maxDuration": 20
-    },
-    "api/card.js": {
-      "includeFiles": "{api/_assets/**,recap-core.js,loot.js}",
-      "maxDuration": 15
-    },
     "api/discord.js": {
       "includeFiles": "{api/_assets/**,recap-core.js,loot.js}",
-      "maxDuration": 60
+      "maxDuration": 60,
+      "excludeFiles": "node_modules/@resvg/resvg-js-linux-x64-musl/**"
     },
     "api/avatar.js": {
       "maxDuration": 20
-    },
-    "api/hall.js": {
-      "includeFiles": "{api/_assets/**,recap-core.js}",
-      "maxDuration": 15
-    },
-    "api/h2h.js": {
-      "includeFiles": "{api/_assets/**,recap-core.js}",
-      "maxDuration": 15
-    },
-    "api/wrap.js": {
-      "includeFiles": "{api/_assets/**,recap-core.js}",
-      "maxDuration": 15
     },
     "api/invite.js": {
       "includeFiles": "recap-core.js",
@@ -50,17 +64,10 @@
       "includeFiles": "{recap-core.js,loot.js}",
       "maxDuration": 30
     },
-    "api/bjcards.js": {
-      "includeFiles": "{api/_assets/**,loot.js}",
-      "maxDuration": 10
-    },
-    "api/seats.js": {
-      "includeFiles": "api/_assets/**",
-      "maxDuration": 10
-    },
-    "api/roulette.js": {
-      "includeFiles": "api/_assets/**",
-      "maxDuration": 10
+    "api/img.js": {
+      "includeFiles": "{api/_assets/**,recap-core.js,loot.js}",
+      "excludeFiles": "node_modules/@resvg/resvg-js-linux-x64-musl/**",
+      "maxDuration": 20
     }
   },
   "crons": [
