@@ -92,7 +92,11 @@ export const feedCmds = (me, game, net, wager = 0, stats = {}) => [
 //   blackjack / free bet / UTH / baccarat / roulette   hands (spins) finished at that game
 //   daily      /daily claims          tips   chips received from tips minus chips tipped away (chip titles ignore these)
 //   naturals   dealt blackjacks       royal  UTH royal flushes      believer  roulette spins won with every chip on one number
+//   bjrun/bjbest, rlrun/rlbest, durun/dubest   current / best run of wins at blackjack + free bet, roulette, duels
+//   heavy      house-game hands or spins won by $1,000+      sweep  blackjack splits of 3+ hands where every hand won
 // Every change also drops the player in ac:dirty, so the next bot or site request checks them for new accolades.
+// A win adds 1 to the run (ARGV[1]) and keeps the best run (ARGV[2]); a loss resets the run. One step, so the best can't be missed.
+const STREAK = "if ARGV[3]=='1' then local r=redis.call('HINCRBY',KEYS[1],ARGV[1],1) if r>tonumber(redis.call('HGET',KEYS[1],ARGV[2]) or '0') then redis.call('HSET',KEYS[1],ARGV[2],r) end return r end redis.call('HSET',KEYS[1],ARGV[1],0) return 0";
 function statCmds(id, game, net, stats) {
   if (!id) return [];
   const k = 'ac:n:' + id, out = [];
@@ -100,6 +104,10 @@ function statCmds(id, game, net, stats) {
   else if (game === 'daily') out.push(['HINCRBY', k, 'daily', 1]);
   else if (/^tip (to|from) /.test(game)) out.push(['HINCRBYFLOAT', k, 'tips', Math.round(net * 100) / 100]);
   for (const [f, n] of Object.entries(stats || {})) if (+n) out.push(['HINCRBY', k, f, Math.round(+n)]);
+  // earned bars: runs of wins (a loss resets, a push / break-even skips) and $1,000+ wins
+  const run = game === 'blackjack' || game === 'free bet' ? 'bj' : game === 'roulette' ? 'rl' : /^duel vs /.test(game) ? 'du' : null;
+  if (run && Math.abs(net) > 0.004) out.push(['EVAL', STREAK, 1, k, run + 'run', run + 'best', net > 0 ? 1 : 0]);
+  if (HOUSE_GAMES.has(game) && net >= 1000) out.push(['HINCRBY', k, 'heavy', 1]);
   out.push(['SADD', 'ac:dirty', id]);
   return out;
 }
@@ -131,6 +139,8 @@ export const rakeFor = (net, vol = 0) => Math.min(RAKE.cap, Math.round((Math.max
 /** The /chips line: only the rakeback so far, never the loss. '' when they haven't played this week. */
 export const weekLine = (net, vol) => { const r = rakeFor(net, vol); return r >= 0.01 ? `**${money(r)}** rakeback so far, paid Monday` : ''; };
 /** Total bet in a blackjack hand (all hands incl. paid doubles/splits, plus the side bet). */
+/** 1 when a blackjack hand was split into 3+ hands and every one of them won (Clean Sweep) */
+const sweep = g => g.hands.length >= 3 && g.hands.every(h => h.res === 'win' || h.res === 'bj') ? 1 : 0;
 const staked = g => g.hands.reduce((a, h) => a + h.bet, 0) + (g.side || 0);
 /** How many raw feed entries are kept; the lobby rolls them into session lines (see groupFeed in _casino.js). */
 export const FEED_KEEP = 300;
@@ -298,7 +308,7 @@ export async function newHand(me, bet, mode = '', side = 0) {
   if (natural(g.hands[0]) || total(g.dealer).t === 21) settle(g);
   // the bet is already off (takeChips); this pays a hand that settled on the deal and saves it
   const res = await kv(g.over && g.payout ? ['HINCRBYFLOAT', 'bj:bal', me.id, g.payout] : ['HGET', 'bj:bal', me.id], ['HSET', 'bj:name', me.id, me.name], ['SET', 'bj:g:' + g.id, JSON.stringify(g), 'EX', 3600],
-    ...(g.over ? feedCmds(me, GAME(g), g.net, staked(g), { naturals: g.nat }) : []));
+    ...(g.over ? feedCmds(me, GAME(g), g.net, staked(g), { naturals: g.nat, sweep: sweep(g) }) : []));
   return { g, bal: +res[0] };
 }
 
@@ -347,7 +357,7 @@ export async function handAction(me, gid, action) {
     advance(g); g.step++;
     const delta = g.over ? g.payout : 0;
     const res = await kv(...(delta ? [['HINCRBYFLOAT', 'bj:bal', me.id, delta]] : [['HGET', 'bj:bal', me.id]]), ['SET', 'bj:g:' + g.id, JSON.stringify(g), 'EX', 3600], ['DEL', 'bj:lock:' + gid],
-      ...(g.over ? feedCmds(me, GAME(g), g.net, staked(g), { naturals: g.nat }) : []));
+      ...(g.over ? feedCmds(me, GAME(g), g.net, staked(g), { naturals: g.nat, sweep: sweep(g) }) : []));
     wrote = true; bal = +res[0];
     return { g, bal };
   } finally { if (!wrote) await unlock(); }

@@ -21,9 +21,12 @@ import { ACC, ITEMS, accItem } from '../loot.js';
 /** how much of each thing unlocks what */
 export const NEED = { wins3: 3, tourWins: 5, cashWins: 5, seconds: 5, nights25: 25, nights100: 100, bounty: 100, boughtIn: 1000, monster: 300, missed: 5,
   duelist: 10, gun: 50, nemesis: 10, whale: 10000, stacked: 5000, bigstack: 10000, mountain: 25000,
-  packrat: 25, epic: 10, coll: 50, clockedin: 30, hands: 250, cardshark: 1000, natural: 25, regular: 4 };
+  packrat: 25, epic: 10, coll: 50, clockedin: 30, hands: 250, cardshark: 1000, natural: 25, regular: 4,
+  hotstreak: 3, iron: 10, run: 5, heavy: 1000 };
 /** Got the Milk only counts nights from here on (Renato: not for the past; the count started 4 nights before launch) */
 export const MILK_FROM = '2026-09-19';
+/** the newest set of poker accolades (see checkPoker): 'bars' = the earned overall bars, Nov 2026 */
+export const POKER_SET = 'bars';
 /** the first casino week with weekly totals (the house books started then) */
 export const FIRST_WEEK = Date.UTC(2026, 10, 16, 16);
 const WEEK = 7 * 864e5, DAY_KEEP = 400 * 86400;
@@ -59,6 +62,9 @@ export function earnedFrom(st) {
   add('cardshark', [...HOUSE_GAMES].reduce((t, g) => t + (n[g] || 0), 0) >= NEED.cardshark);
   add('natural', (n.naturals || 0) >= NEED.natural); add('royal', (n.royal || 0) >= 1); add('believer', (n.believer || 0) >= 1);
   add('lucky', !!st.lucky);
+  // earned bars: best runs (bjbest / dubest / rlbest, kept by the STREAK script in _blackjack.js), big wins, clean sweeps
+  add('hotshoe', (n.bjbest || 0) >= NEED.run); add('unbeaten', (n.dubest || 0) >= NEED.run); add('hottable', (n.rlbest || 0) >= NEED.run);
+  add('heavy', (n.heavy || 0) >= 1); add('sweep', (n.sweep || 0) >= 1);
   return out;
 }
 
@@ -196,6 +202,23 @@ export function pokerFrom(rows) {
   const firstNight = {}, nameOf = {};
   rows.forEach(r => { const l = r.player.toLowerCase(); if (!(l in firstNight)) firstNight[l] = r.night; nameOf[l] = r.player; });
   rows.forEach(r => { const host = nameOf[(r.broughtBy || '').toLowerCase()]; if (r.broughtBy && firstNight[r.player.toLowerCase()] === r.night && host && host !== r.player) add(host, 'mlm'); });
+  // Podium (2nd or 3rd in net, up), Highlight Reel (biggest one-night net) and Glow Up (biggest jump from the quarter before, up)
+  // for each finished quarter. Podium ranks the same way as the Champion border (championsFrom in loot.js), so 1st is never on it.
+  const qRows = {}; rows.forEach(r => (qRows[r.quarter] ||= []).push(r));
+  const qNet = q => { const t = {}; (qRows[q] || []).forEach(r => { t[r.player] = (t[r.player] || 0) + r.net; }); return t; };
+  const qs = Object.keys(qRows).sort((a, b) => qKey(a) - qKey(b));
+  for (const q of finished) {
+    const tot = qNet(q), ranked = Object.entries(tot).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    ranked.slice(1, 3).forEach(([p, v]) => { if (v > 0.004) add(p, 'podium'); });
+    const best = Math.max(...qRows[q].map(r => r.net));
+    if (best > 0.004) qRows[q].filter(r => r.net === best).forEach(r => add(r.player, 'reel'));
+    const prev = qs[qs.indexOf(q) - 1];
+    if (prev) {
+      const before = qNet(prev), jumps = Object.entries(tot).filter(([p, v]) => p in before && v > 0.004).map(([p, v]) => [p, v - before[p]]);
+      const top = Math.max(0.005, ...jumps.map(j => j[1]));
+      jumps.filter(j => j[1] === top).forEach(([p]) => add(p, 'glow'));
+    }
+  }
   for (const [p, g] of Object.entries(byPlayer)) {
     const won = g.filter(r => place[r.night][p] === 1), tw = won.filter(r => r.type === 'Tournament').length, cw = won.length - tw;
     if (won.length >= 1) add(p, 'firstblood');
@@ -215,6 +238,10 @@ export function pokerFrom(rows) {
     if (g.reduce((t, r) => t + (r.cin || 0), 0) >= NEED.boughtIn) add(p, 'sponsor');
     if (g.some(r => r.net >= NEED.monster)) add(p, 'monster');
     if (g.some(r => r.type !== 'Tournament' && r.cin > 0 && r.cout >= 2 * r.cin)) add(p, 'doubleup');
+    // Hot Streak: up on 3 nights they played in a row (their own nights, like the Heater role)
+    for (let k = NEED.hotstreak - 1; k < g.length; k++) if (g.slice(k - NEED.hotstreak + 1, k + 1).every(r => r.net > 0.004)) { add(p, 'hotstreak'); break; }
+    // Ironman: 10 nights in a row without missing one (every night on the sheet counts, cash and tournament)
+    let run = 0; for (const n of order) { run = played.has(n) ? run + 1 : 0; if (run >= NEED.iron) { add(p, 'iron'); break; } }
     // Got the Milk: back after missing 5+ nights in a row, counting only nights from MILK_FROM (and only after they'd played once)
     let gone = -1;
     for (const n of order) { if (played.has(n)) { if (gone >= NEED.missed && n >= MILK_FROM) add(p, 'gotmilk'); gone = 0; } else if (gone >= 0 && n >= MILK_FROM) gone++; }
@@ -231,14 +258,15 @@ export async function checkPoker(csv, ids, { now = Date.now(), quiet = false } =
   // ac:pseen = Discord ids already checked once. Someone whose ID is added to the Members tab later gets their past ones quietly
   // too (no catch-up note), same as everyone at launch; only unlocks after that post.
   const linked = Object.values(byName);
-  const [init, ...fresh] = await kv(['SET', 'ac:pinit', String(now), 'NX'], ...linked.map(id => ['SADD', 'ac:pseen', id]));
+  // POKER_SET bumps when new poker accolades are added: the first run after that hands out the new ones from past nights quietly too
+  const [init, newSet, ...fresh] = await kv(['SET', 'ac:pinit', String(now), 'NX'], ['SET', 'ac:pinit:' + POKER_SET, String(now), 'NX'], ...linked.map(id => ['SADD', 'ac:pseen', id]));
   const firstLook = new Set(linked.filter((id, j) => +fresh[j] === 1));
   const news = await stamp(got, now);
-  const loud = init ? [] : news.filter(x => !firstLook.has(x.id));
+  const loud = init || newSet ? [] : news.filter(x => !firstLook.has(x.id));
   let posted = null;
   // the first run quietly hands out everything earned on past nights (by request); only later unlocks post
   if (loud.length && !quiet) {
     try { const shown = await onlyMembers(loud); posted = shown.length ? await postChannel({ content: unlockText(shown), allowed_mentions: { parse: [] } }, 'table') : 'nobody in the server'; } catch (e) { console.error('poker accolade post', e); posted = 'failed: ' + e.message; }
   }
-  return { players: Object.keys(got).length, launch: !!init, unlocked: news, posted };
+  return { players: Object.keys(got).length, launch: !!init, newSet: !!newSet, unlocked: news, posted };
 }

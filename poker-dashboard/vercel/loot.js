@@ -216,14 +216,38 @@ export const ACC = [
   { k: 'switchhitter', slot: 'Title', name: 'Switch Hitter', why: 'Won cash and a tourney', need: 'win at least one cash night and one tournament', poker: 1 },
   { k: 'gotmilk', slot: 'Title', name: 'Got the Milk', why: 'Back from the store', need: 'play again after missing 5+ nights in a row (only nights from Sep 19, 2026 count, so nobody gets it for the past)', poker: 1 },
   { k: 'doubleup', slot: 'Title', name: 'Double Up', why: 'Doubled up at cash', need: 'cash out at least double your Cash_In on a cash night', poker: 1 },
+  // earned overall bars (Nov 2026, Renato's 10 picks). Site look = .cbar-acc-<k> in cosmetics.css (shine: 1 = the slow shimmer,
+  // only on the 4 hardest, by request); look = the simpler version for the Discord images (same fields as LOOK.bar)
+  { k: 'hotstreak', slot: 'Overall bar', name: 'Hot Streak', why: 'Up 3 nights in a row', need: 'finish up on 3 nights you play in a row', poker: 1,
+    look: { bg: 'linear-gradient(90deg, #4a0d12, #c8261c 30%, #ff7a1a 60%, #ffd34d)', fg: '#fff', ovr: '#ffd34d' } },
+  { k: 'podium', slot: 'Overall bar', name: 'Podium', why: 'Top 3 of a quarter', need: 'finish a finished quarter 2nd or 3rd in net, and up (1st gets the Champion border)', poker: 1,
+    look: { bg: 'linear-gradient(100deg, #8a6a1e, #f0c75e 22%, #fff3c4 30%, #e3e8f0 45%, #9aa3b5 60%, #e0a46c 78%, #7a4a22)', fg: '#15132a', ovr: '#f0c75e' } },
+  { k: 'reel', slot: 'Overall bar', name: 'Highlight Reel', why: 'Best night of a quarter', need: 'the biggest one-night net of a finished quarter (ties share it)', poker: 1, shine: 1,
+    look: { bg: 'linear-gradient(90deg, #1b1640, #3a2a6e 45%, #e0507f)', fg: '#fff', ovr: '#ff9ac4' } },
+  { k: 'iron', slot: 'Overall bar', name: 'Ironman', why: '10 nights in a row', need: 'play 10 nights in a row without missing one', poker: 1, shine: 1,
+    look: { bg: 'linear-gradient(180deg, #a3abbd, #5d6578 50%, #3b4150)', fg: '#fff', ovr: '#e8ecf5' } },
+  { k: 'glow', slot: 'Overall bar', name: 'Glow Up', why: 'Most improved quarter', need: 'biggest jump in net from one quarter to the next (finished quarters), and up in the new one', poker: 1,
+    look: { bg: 'linear-gradient(90deg, #2a1f55, #5a3aa8 35%, #5fd6f0 70%, #8fe0b0)', fg: '#fff', ovr: '#8fe0b0' } },
+  { k: 'hotshoe', slot: 'Overall bar', name: 'Hot Shoe', why: '5 BJ wins in a row', need: 'win 5 blackjack or free bet hands in a row (pushes skip)',
+    look: { bg: 'linear-gradient(90deg, #5e0b17, #c2283c)', fg: '#fff', ovr: '#9b1238', ovrBg: '#fff' } },
+  { k: 'heavy', slot: 'Overall bar', name: 'Heavy Hitter', why: 'Won $1,000 on one hand', need: 'win $1,000 or more on one hand or spin at a house game', shine: 1,
+    look: { bg: 'linear-gradient(90deg, #1a0f33, #3b1d6e 60%, #6a3aa8)', fg: '#f0c75e', ovr: '#1a0f33', ovrBg: '#f0c75e' } },
+  { k: 'unbeaten', slot: 'Overall bar', name: 'Unbeaten', why: 'Won 5 duels in a row', need: 'win 5 duels in a row (any duel game)',
+    look: { bg: 'linear-gradient(135deg, #23252e, #6b7183 40%, #b8bfd0 50%, #4a4f5e 60%, #23252e)', fg: '#fff', ovr: '#fff', ovrBg: '#e0507f' } },
+  { k: 'hottable', slot: 'Overall bar', name: 'Hot Table', why: 'Won 5 spins in a row', need: 'win 5 roulette spins in a row (spins you sit out or break even on skip)',
+    look: { bg: 'linear-gradient(90deg, #141218, #5a1018 50%, #b81c2a)', fg: '#fff', ovr: '#141218', ovrBg: '#f0c75e' } },
+  { k: 'sweep', slot: 'Overall bar', name: 'Clean Sweep', why: 'Swept a 3-way split', need: 'split into 3+ hands at blackjack or free bet and win every one', shine: 1,
+    look: { bg: 'linear-gradient(90deg, #4a3a28, #7a5e38 25%, #c99a2e 55%, #f0c75e 78%, #fff3c4)', fg: '#fff', ovr: '#f0c75e' } },
 ];
+// the earned bars' Discord looks sit in LOOK.bar like the pack bars (key acc-<k>)
+for (const a of ACC) if (a.look) LOOK.bar['acc-' + a.k] = a.look;
 const ACC_BY = Object.fromEntries(ACC.map(a => [a.k, a]));
 TCOL.Earned = '#5fd6f0';
 /** an accolade item from its id (a:<key>), or null */
 export function accItem(id) {
   const m = /^a:([a-z]+)$/.exec(String(id || '')), a = m && ACC_BY[m[1]];
   if (!a) return null;
-  return { id: 'a:' + a.k, slot: a.slot, tier: 'Earned', k: a.k, name: a.name, why: a.why, key: a.slot === 'Pfp border' ? 'acc-' + a.k : slug(a.name) };
+  return { id: 'a:' + a.k, slot: a.slot, tier: 'Earned', k: a.k, name: a.name, why: a.why, key: a.slot === 'Pfp border' || a.slot === 'Overall bar' ? 'acc-' + a.k : slug(a.name) };
 }
 /** every accolade as an item, in list order */
 export const ACC_ITEMS = ACC.map(a => accItem('a:' + a.k));
