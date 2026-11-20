@@ -152,12 +152,14 @@ then open it and confirm "Live from Google Sheets" and the row count.
 
 Apps Script web app, execute as owner, access "Only myself". Settings at top of Code.gs: `SPREADSHEET_ID`, `DISCORD_WEBHOOK_URL` (empty),
 `ENTRY_PIN` (empty), `DASHBOARD_URL` (https://renpokernight.vercel.app).
-- Late Show look (Nov 20 2026, same tokens as the site). Pick date, buy-in amount, Cash/Tournament; tap player FACES (h2h-picker style:
-  Members-tab people only, grouped Regulars/Sometimes/Guests by status, guests folded, most recent first, search box; tap again to remove;
-  pfps via memberFaces() in Invite.gs + site /api/avatar) or add a first-timer by name. Load from invite ticks reactors ("reacted").
-  A first-timer's row asks "Who brought X?" (faces) and saving adds "brought by X" to their note (bring-a-friend chips).
-  Never build image tags (or inline on*= handlers) inside JS strings in Index.html: Google's page server rewrites them into a SyntaxError
-  that kills the whole page (happened Nov 20 2026). Pfps are added by addPfps() with createElement; use addEventListener. A hidden red "Problem:" line under the title shows page errors.
+- Late Show look (Nov 20 2026, same tokens as the site). Pick date, buy-in amount, Cash/Tournament; tick players on a CHECKLIST
+  (Members-tab people only, grouped Regulars/Sometimes/Guests by status, guests folded, most recent first, search box; tap again
+  to remove; no pictures, by request) or add a first-timer by name. Load from invite ticks reactors ("reacted").
+  A first-timer's row asks "Who brought X?" (name buttons) and saving adds "brought by X" to their note (bring-a-friend chips).
+  GOTCHA: Google's page server strips "//" comments naively, INCLUDING inside `template strings` (it knows '' and "" only).
+  A URL in a template string killed the whole page on Nov 20 2026 ("missing ) after argument list"). Never put "//" inside a
+  template string in Index.html; build URLs with +. A hidden red "Problem:" line under the title shows page errors.
+  memberFaces() in Invite.gs (Discord IDs) is unused since the checklist replaced the faces.
   Typed names match existing players case-insensitively; typos become new players (no "did you mean" yet).
 - Per player: buy-ins − / + (cash in auto = buys × amount, overridable), cash out (blank = $0), note.
 - **Tournament top-up** field per player: added to Cash_In, not counted as a buy-in, note "top-up $X".
