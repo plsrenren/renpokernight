@@ -822,6 +822,9 @@ const owned = s => [...(s === 'Pfp border' ? champs() : []), ...earned(s), ...IT
 // a pfp inside its border: pack borders use the shop look (.pw), champion and accolade borders the shared cosmetics.css look (.cbw)
 const framed = (it, img, cls = '') => it.tier === 'Champion' || it.tier === 'Earned' ? `<span class="cbw ${cls} cb-${it.key}${it.year ? ' cb-champ-y' : ''}">${img}${decoFor(it)}</span>` : `<span class="pw ${cls} p-${it.key}">${img}${DECO[it.key] || ''}</span>`;
 
+// an overall bar's classes: pack bars use the shop look (.o-<key>), earned bars the shared cosmetics.css look (.cbar-acc-<k>)
+const ovc = it => 'o-' + it.key + (it.tier === 'Earned' ? ' cbar-' + it.key : '');
+
 async function api(body) {
   const r = await fetch('/api/shop', body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' } : { credentials: 'same-origin', cache: 'no-store' });
   let j = {}; try { j = await r.json(); } catch (e) { j = { err: 'Something went wrong. Try again.' }; }
@@ -844,7 +847,7 @@ function card(eq) {
   let h = `<div class="mini fc"><div class="fhero"><img class="ban" alt=""${banOk ? ` src="/api/avatar?id=${esc(id)}&kind=banner"` : ''} data-src="/api/avatar?id=${esc(id)}&kind=banner" onerror="this.removeAttribute('src')"><div class="big">${big}</div>
  <div class="fwho"><div class="fpf${pf ? ' framed' : ''}">${pf ? framed(pf, img) : img}${sk ? `<div class="fstk">${STICKERS[sk.name] || ''}</div>` : ''}</div><div><div class="fnm">${esc(name.toUpperCase())}</div>${tt ? `<div class="fttl" style="color:${TCOL[tt.tier]}">${esc(tt.name.toUpperCase())}</div>` : ''}
  <div class="fss">${pc ? `${esc(pc.label)} · played ${pc.played} of ${pc.nights}` : 'No games on the sheet yet'}</div>${has && pc.badges.length ? `<div class="bdg">${pc.badges.map(b => `<span>${esc(b)}</span>`).join('')}</div>` : ''}</div></div></div>
- <div class="ovr ${ov ? 'o-' + ov.key : ''}"><div class="o"><b>${big}</b><i>OVERALL<small>${has && pc.ovr ? `${pc.ovr.rank} of ${pc.ovr.of} regulars` : 'not rated yet'}</small></i></div><div class="s"><b>${has ? signed(Math.round(pc.net)) : '–'}</b><i>NET</i></div><div class="s"><b>${has ? pc.wins : '–'}</b><i>WINS</i></div><div class="s"><b>${has ? '#' + pc.rank : '–'}</b><i>${has ? 'OF ' + pc.of : 'RANK'}</i></div></div>`;
+ <div class="ovr ${ov ? ovc(ov) : ''}"><div class="o"><b>${big}</b><i>OVERALL<small>${has && pc.ovr ? `${pc.ovr.rank} of ${pc.ovr.of} regulars` : 'not rated yet'}</small></i></div><div class="s"><b>${has ? signed(Math.round(pc.net)) : '–'}</b><i>NET</i></div><div class="s"><b>${has ? pc.wins : '–'}</b><i>WINS</i></div><div class="s"><b>${has ? '#' + pc.rank : '–'}</b><i>${has ? 'OF ' + pc.of : 'RANK'}</i></div></div>`;
   if (!has) return h + `<div class="nogames">${pc ? `No games in ${esc(pc.label)} yet. Your stats fill in after your next night.` : 'Your stats show here once you play a night.'}</div><div class="ft"><b>POKER CLUB @ THE STUDY</b><span>renpokernight.vercel.app</span></div></div>`;
   if (pc.attrs.length) h += `<div class="sec"><b style="background:var(--vio)">RATINGS</b></div><div class="rg">${pc.attrs.map(({ k, v }) => `<div><span>${k}</span><b>${v}</b><i style="width:${v}%;background:${rcol(v)}"></i></div>`).join('')}</div>`;
   const last = pc.form.slice(-3), up = last.filter(f => f.net > 0).length, dn = last.filter(f => f.net < 0).length;
@@ -900,7 +903,7 @@ function swatch(it) {
   if (it.slot === 'Title') return `<div class="ttlsw" style="color:${TCOL[it.tier]}">${esc(it.name.toUpperCase())}</div>`;
   if (it.slot === 'Pfp border') return framed(it, PPIC(), 'pfsw');
   if (it.slot === 'Sticker') return `<div class="stsw">${STICKERS[it.name] || ''}</div>`;
-  return `<div class="ovsw"><div class="ovr o-${it.key}"><div class="o"><b style="font-size:22px">80</b></div><div class="s"><b style="font-size:15px">+$75</b></div></div></div>`;
+  return `<div class="ovsw"><div class="ovr ${ovc(it)}"><div class="o"><b style="font-size:22px">80</b></div><div class="s"><b style="font-size:15px">+$75</b></div></div></div>`;
 }
 function renderTop() {
   const me = $('me'), bb = $('balbox');
