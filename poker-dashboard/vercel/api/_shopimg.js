@@ -6,7 +6,7 @@ import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { BY_ID, LOOK, STICKERS, TCOL, REFUND, PACKS } from '../loot.js';
+import { BY_ID, LOOK, STICKERS, TCOL, REFUND, PACKS, FX, UNDER } from '../loot.js';
 
 const asset = name => readFileSync(new URL(`./_assets/${name}`, import.meta.url));
 let FONTS;
@@ -67,6 +67,8 @@ export function packTree(id) {
 // ---------- the cards ----------
 const CW = 156, CH = 222;
 const silhouette = svgUri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" width="120" height="120"><rect width="60" height="60" fill="#b8e4f4"/><circle cx="30" cy="24" r="12" fill="#6d7fa6"/><path d="M8 60c2-14 12-20 22-20s20 6 22 20z" fill="#6d7fa6"/></svg>');
+const fxCache = {};
+const fxPng = (svg, s) => fxCache[s + svg] || (fxCache[s + svg] = 'data:image/png;base64,' + Buffer.from(new Resvg(svg, { fitTo: { mode: 'width', value: s * 2 }, font: SVG_FONTS }).render().asPng()).toString('base64'));
 /** a pfp with a border (LOOK.border), pfp size s */
 export function borderBox(key, s, pic = silhouette, look = null) {
   const L = look || LOOK.border[key] || { bg: '#f1c75b', pad: 3 }, k = s / 72, pad = Math.max(2, Math.round(L.pad * k));
@@ -78,8 +80,12 @@ export function borderBox(key, s, pic = silhouette, look = null) {
       : b.at === 'tc' ? { left: 0, right: 0, top: -Math.round(10 * k), justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0)' } : { left: 0, right: 0, bottom: -Math.round(8 * k), justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0)' }) },
     b.at === 'tc' || b.at === 'bc' ? h({ backgroundColor: b.bg, padding: `${Math.round(2 * k)}px ${Math.round(6 * k)}px 0` }, B(b.t, Math.round(11 * k), b.fg)) : b.icon ? h({ alignItems: 'center' }, img(b.icon, Math.round(13 * k), Math.round(13 * k), { marginRight: Math.round(3 * k), marginTop: -Math.round(2 * k) }), B(b.t, Math.round(10 * k), b.fg, { letterSpacing: Math.round(1.2 * k), whiteSpace: 'nowrap' }))
     : B(b.t, Math.round((b.round ? 11 : 12) * k), b.fg)) : null;
-  return h({ position: 'relative', padding: pad, backgroundImage: L.bg.includes('gradient') ? L.bg : undefined, backgroundColor: L.bg.includes('gradient') ? undefined : L.bg, boxShadow: shadow || undefined },
-    img(pic, s, s, { objectFit: 'cover' }), badge);
+  // fx = see-through art over the pfp, under = pattern behind it (FX / UNDER in loot.js), pre-drawn as PNGs with resvg
+  const fx = L.fx && FX[key] ? img(fxPng(FX[key], s), s, s, { position: 'absolute', left: pad, top: pad }) : null;
+  const under = L.under && UNDER[key] ? `url(${fxPng(UNDER[key], s + 2 * pad)})` : null;
+  return h({ position: 'relative', padding: pad, backgroundImage: under || (L.bg.includes('gradient') ? L.bg : undefined), backgroundSize: under ? '100% 100%' : undefined,
+    backgroundColor: L.bg.includes('gradient') ? undefined : L.bg, boxShadow: shadow || undefined },
+    img(pic, s, s, { objectFit: 'cover' }), fx, badge);
 }
 /** an overall bar strip (LOOK.bar) */
 export function barStrip(key, w, ht, ovr = '80', rest = '+$75') {
