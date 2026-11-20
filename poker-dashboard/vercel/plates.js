@@ -61,20 +61,7 @@ export function loadouts() {
   return P ||= Promise.all([
     import('/loot.js'),
     fetch('/api/shop', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null),
-  ]).then(([L, j]) => demo(L, { L, byName: (j && j.byName) || {}, byId: (j && j.byId) || {} })).catch(() => ({ L: null, byName: {}, byId: {} }));
-}
-// PREVIEW ONLY: on a Vercel preview link (or with ?demo=1) every empty slot (title, border, bar, sticker) gets a random pack
-// item, the same one every time for the same player, to see how full lists look. Real loadouts are kept.
-// Never on renpokernight.vercel.app. Remove before merging.
-function demo(L, lo) {
-  const on = /-git-/.test(location.hostname) || new URLSearchParams(location.search).has('demo');
-  if (!on || !L || location.hostname === 'renpokernight.vercel.app') return lo;
-  const pool = s => L.ITEMS.filter(i => i.slot === s);
-  const SL = ['Title', 'Pfp border', 'Overall bar', 'Sticker'].map(s => [s, pool(s)]);
-  const h = k => [...String(k)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
-  const fill = m => new Proxy(m, { get: (t, k) => { if (typeof k !== 'string') return t[k];
-    const e = { ...(t[k] || {}) }; for (const [s, items] of SL) if (!e[s]) e[s] = items[h(k + s) % items.length].id; return e; } });
-  return { ...lo, byName: fill(lo.byName), byId: fill(lo.byId) };
+  ]).then(([L, j]) => ({ L, byName: (j && j.byName) || {}, byId: (j && j.byId) || {} })).catch(() => ({ L: null, byName: {}, byId: {} }));
 }
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 /** the pieces of one player's loadout for the page to place. eq = { 'Title': id, 'Pfp border': id, ... } */
