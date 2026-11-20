@@ -574,10 +574,11 @@ function syncPayoutInputs() {
 }
 
 // ---- Events ----
-$('faces').addEventListener('click', e => {
+$('faces').addEventListener('click', e => { try { facesClick(e); } catch (err) { DIAG.err = 'tap: ' + (err && err.message) + ' | ' + String(err && err.stack || '').split('\n').slice(0, 3).join(' / '); diag(); } });
+function facesClick(e) {
   if (e.target.closest('[data-guests]')) { showGuests = true; renderChips(); return; }
   const b = e.target.closest('[data-add]'); if (b) { $('status').hidden = true; togglePlayer(b.dataset.add); DIAG.tap = (DIAG.tap || 0) + 1; diag(); }
-});
+}
 $('find').addEventListener('input', renderChips);
 $('showNew').addEventListener('click', () => { $('newWrap').hidden = false; $('showNew').hidden = true; $('newName').focus(); });
 // ---- Load players from a Discord invite (✅ reactions). Only adds names: you can still remove or add anyone before saving. ----
@@ -751,7 +752,7 @@ function start(setup) {
   $('logo').style.backgroundImage = `url("${SITE}/icon-192.png")`;
 }
 google.script.run
-  .withSuccessHandler(start)
+  .withSuccessHandler(s => { try { start(s); } catch (e) { if (loadDraft()) { clearDraft(); try { state = { date: today(), type: 'Cash', buyIn: 40, rows: [], invite: [], payout: null, pko: { on: false, pct: 50, kos: [] } }; start(s); DIAG.err = 'old draft cleared: ' + (e && e.message); diag(); return; } catch (e2) { e = e2; } } DIAG.err = 'start: ' + (e && e.message) + ' | ' + String(e && e.stack || '').split('\n').slice(0, 3).join(' / '); diag(); } })
   .withFailureHandler(err => showStatus('err', 'Could not load the player list: ' + (err && err.message || err)))
   .getSetup();
 </script>
