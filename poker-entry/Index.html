@@ -266,13 +266,39 @@ const clearDraft = () => { try { localStorage.removeItem(DRAFT); } catch (e) {} 
 
 // ---- Faces: only people on the Members tab, grouped by their status, most recent first (like the head to head picker) ----
 // Tap a face to add them, tap again to take them off. Pfps come from the Members tab's Discord ID column (memberFaces in Invite.gs).
-let FACES = { site: '', ids: {} }, showGuests = false;
+// Defaults so pfps and the logo still work if memberFaces() isn't there or fails (both are public: the site and the sheet's Members CSV)
+const SITE = 'https://renpokernight.vercel.app', SHEET_ID = '1YxoWSWgeTRrEiPlm1Ys85s4UsHKxSzpPHEssynXEytM';
+let FACES = { site: SITE, ids: {} }, showGuests = false;
+// A pfp that fails (Discord busy = 503) gets one retry a moment later, then falls back to initials
+function pfpFail(img) { if (img.dataset.r) { img.remove(); return; } img.dataset.r = '1'; setTimeout(() => { img.src = img.src + '&r=1'; }, 1500); }
+function csvRows(text) {
+  const rows = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; } else if (c === '"') q = false; else cell += c; }
+    else if (c === '"') q = true; else if (c === ',') { row.push(cell); cell = ''; }
+    else if (c === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; } else if (c !== '\r') cell += c;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows;
+}
+// Fallback: read the Discord IDs straight from the sheet's public Members CSV (same source the site uses)
+function idsFromSheet() {
+  return fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Members`).then(r => r.ok ? r.text() : '').then(t => {
+    const rows = csvRows(t.trim()), ids = {};
+    if (rows.length < 2) return ids;
+    const col = rows[0].findIndex(h => /discord/i.test(h));
+    if (col < 0) return ids;
+    rows.slice(1).forEach(r => { const n = (r[0] || '').trim(), id = String(r[col] || '').replace(/[^\d]/g, ''); if (n && /^\d{17,20}$/.test(id)) ids[n] = id; });
+    return ids;
+  }).catch(() => ({}));
+}
 const GROUPS = [['Member', 'Regulars'], ['Sometimes', 'Sometimes'], ['Guest', 'Guests']];
 const hue = n => [...n].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
 const initials = n => n.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
 function av(name) {
   const id = FACES.ids[name];
-  return `<span class="av" style="--h:${hue(name)}" aria-hidden="true">${esc(initials(name))}${id && FACES.site ? `<img src="${esc(FACES.site)}/api/avatar?id=${esc(id)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
+  return `<span class="av" style="--h:${hue(name)}" aria-hidden="true">${esc(initials(name))}${id && FACES.site ? `<img src="${esc(FACES.site)}/api/avatar?id=${esc(id)}" alt="" onerror="pfpFail(this)">` : ''}</span>`;
 }
 function ago(d) {
   if (!d) return 'new';
@@ -704,12 +730,17 @@ function start(setup) {
   // pfps + logo from the site (Members tab Discord IDs); the faces show initials until these arrive
   google.script.run
     .withSuccessHandler(f => {
-      if (!f) return; FACES = { site: f.site || '', ids: f.ids || {} };
-      if (FACES.site) $('logo').style.backgroundImage = `url("${FACES.site}/icon-192.png")`;
-      renderRows();
+      FACES = { site: (f && f.site) || SITE, ids: (f && f.ids) || {} };
+      $('logo').style.backgroundImage = `url("${FACES.site}/icon-192.png")`;
+      if (Object.keys(FACES.ids).length) renderRows();
+      else idsFromSheet().then(ids => { FACES.ids = ids; renderRows(); });
     })
-    .withFailureHandler(err => console.warn('Faces: ' + (err && err.message || err)))
+    .withFailureHandler(err => {
+      console.warn('Faces: ' + (err && err.message || err));
+      idsFromSheet().then(ids => { FACES.ids = ids; renderRows(); });
+    })
     .memberFaces();
+  $('logo').style.backgroundImage = `url("${SITE}/icon-192.png")`;
 }
 google.script.run
   .withSuccessHandler(start)
