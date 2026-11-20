@@ -247,6 +247,17 @@ body:not(.tour) .tour-only, body:not(.pko) .pko-only { display: none !important;
 </div>
 
 <script>
+// TEMP: a separate tiny script so errors in the main script (even a syntax error) still show on the Check line
+(function () {
+  var t0 = Date.now();
+  function put(m) { var el = document.getElementById('diag'); if (el) el.textContent = 'Check: ' + m; }
+  put('page script running');
+  window.addEventListener('error', function (e) { put('ERROR ' + (e.message || '') + ' line ' + (e.lineno || '?') + ':' + (e.colno || '?')); });
+  setTimeout(function () { var el = document.getElementById('diag'); if (el && /page script running|starting/.test(el.textContent)) put('no answer from Google after ' + Math.round((Date.now() - t0) / 1000) + 's (main script ' + (window.__mainOk ? 'ok' : 'NOT running') + ')'); }, 15000);
+})();
+</script>
+<script>
+window.__mainOk = true;
 const $ = id => document.getElementById(id);
 const fmt = n => (n < 0 ? '-$' : '$') + Math.abs(n).toFixed(2);
 const fmtNet = n => (n > 0 ? '+' : '') + fmt(n);
