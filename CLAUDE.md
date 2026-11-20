@@ -88,6 +88,7 @@ poker-dashboard/
                        and adds the player to ac:dirty; discord.js runs checkAccolades() after each answer (waitUntil), roles.js after each night and
                        the Monday cron (plus weeklyAccolades() for High Roller/Beat the House/Whale/Regular, each week once via ac:wk:<week>).
                        Stamped in ac:own:<id> (kept forever). Chip Leader (live #1 border) was REMOVED by request: accolades are only things people keep forever.
+                       Earned overall bars (Nov 2026, 10, ids a:<k>, slot 'Overall bar', key acc-<k>, CSS .cbar-acc-<k> in cosmetics.css, Discord look = ACC .look copied into LOOK.bar): poker Hot Streak, Podium, Highlight Reel, Ironman, Glow Up (pokerFrom; new poker sets are handed out quietly once via ac:pinit:<POKER_SET>) + casino Hot Shoe, Heavy Hitter, Unbeaten, Hot Table, Clean Sweep (ac:n bjbest/rlbest/dubest via the STREAK Lua in statCmds, heavy, sweep). Only the 4 hardest shimmer (shine: 1), by request.
                        Unlocks post a short note in #casino. No accolades page, by request: the note (why, 24 chars max) replaces the rarity line in /loadout + /shop tiles
     vercel.json        Function durations + included files. Env vars on Vercel: DISCORD_BOT_TOKEN, DISCORD_PUBLIC_KEY
 poker-entry/
