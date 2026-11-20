@@ -277,8 +277,14 @@ a.rc-mu { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; b
   </section>
 
   <section class="panel">
-    <h2>Standings</h2>
-    <p class="hint">Net profit for the selected period. Wins count nights finished first. Click a name for that player's stats.</p>
+    <div class="panel-head">
+      <h2>Standings</h2>
+      <p class="hint" id="stdHint">Net profit for the selected period. Wins count nights finished first. Click a name for that player's stats.</p>
+      <div class="seg" role="group" aria-label="Players shown" id="stdSeg">
+        <button type="button" data-f="all" aria-pressed="true">All</button>
+        <button type="button" data-f="reg" aria-pressed="false">Reg Only</button>
+      </div>
+    </div>
     <div class="table-scroll">
       <div class="pl-pod" id="podium"></div>
       <table class="pl-t">
@@ -353,8 +359,8 @@ a.rc-mu { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; b
       </div>
     </section>
 
-    <section class="panel p-detail">
-      <h2>Game log</h2>
+    <details class="panel p-detail fold" id="logFold">
+      <summary><b>Game log</b><span id="logSum">Every night played</span><i>See all</i></summary>
       <p class="hint">Every night played, newest first. Finish ranks the night's players by net.</p>
       <div class="table-scroll">
         <table>
@@ -362,7 +368,7 @@ a.rc-mu { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; b
           <tbody id="pLog"></tbody>
         </table>
       </div>
-    </section>
+    </details>
   </div>
 
   <footer>Data from the <strong>Input</strong> tab of the Poker Stats Google Sheet.</footer>
@@ -469,6 +475,14 @@ document.getElementById('barSeg').addEventListener('click', e => {
   const b = e.target.closest('button[data-f]'); if (!b || b.dataset.f === barFilter) return;
   barFilter = b.dataset.f; try { localStorage.setItem('study-bar-filter', barFilter); } catch (err) {}
   render();
+});
+
+// Standings: same All / Reg Only choice, its own setting (remembered in this browser); ranks and the podium follow the filter
+let stdFilter = (() => { try { return localStorage.getItem('study-std-filter') === 'reg' ? 'reg' : 'all'; } catch (e) { return 'all'; } })();
+document.getElementById('stdSeg').addEventListener('click', e => {
+  const b = e.target.closest('button[data-f]'); if (!b || b.dataset.f === stdFilter) return;
+  stdFilter = b.dataset.f; try { localStorage.setItem('study-std-filter', stdFilter); } catch (err) {}
+  drawStandings();
 });
 
 function quarterSort(a, b) { const [qa, ya] = a.split(' '), [qb, yb] = b.split(' '); return (yb - ya) || (qb.slice(1) - qa.slice(1)); }
@@ -601,7 +615,11 @@ function plateFor(n) {
   return b || { any: false, bar: '', title: '', sticker: '', face: (h, size) => `<span class="plf" style="--s:${size}px">${h}</span>` };
 }
 function drawStandings() {
-  const standings = lastStandings, netCls = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
+  const standings = stdFilter === 'reg' ? lastStandings.filter(p => isReg(p.player)) : lastStandings, netCls = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
+  document.querySelectorAll('#stdSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.f === stdFilter)));
+  document.getElementById('stdHint').textContent = stdFilter === 'reg' && !standings.length
+    ? 'No members played in this period. Members come from the Members tab (status "Member").'
+    : `Net profit for the selected period${stdFilter === 'reg' ? ', members only' : ''}. Wins count nights finished first. Click a name for that player's stats.`;
   document.getElementById('standings').innerHTML = standings.map((p, i) => {
     const pl = plateFor(p.player);
     return `<tr class="${pl.bar ? 'pl-wash' : ''}">
@@ -957,7 +975,8 @@ function renderPlayer(name) {
       scales: { x: { grid: { display: false }, ticks: { color: ink, maxRotation: 50 } },
         y: { grid: { color: c => c.tick.value === 0 ? muted : grid }, border: { display: false }, ticks: { callback: v => (v < 0 ? '-$' : '$') + Math.abs(v) } } } } });
 
-  // Game log
+  // Game log (folded by default like the casino's "Earn chips at poker night"; open/closed remembered in this browser)
+  document.getElementById('logSum').textContent = `${games.length} night${games.length === 1 ? '' : 's'} · newest first`;
   document.getElementById('pLog').innerHTML = [...games].reverse().map(r => {
     const field = byNight[r.key], place = field.filter(o => o.net > r.net).length + 1;
     return `<tr><td>${fmtDate(r.date)}</td><td>${r.type}</td><td class="num">${r.buys}</td><td class="num">${fmt(r.cin)}</td>
@@ -968,6 +987,9 @@ function renderPlayer(name) {
 
 document.addEventListener('click', e => { const b = e.target.closest('[data-player]'); if (b) openPlayer(b.dataset.player); });
 document.getElementById('backBtn').addEventListener('click', closePlayer);
+{ const f = document.getElementById('logFold');
+  try { f.open = localStorage.getItem('study-log-open') === '1'; } catch (e) {}
+  f.addEventListener('toggle', () => { try { localStorage.setItem('study-log-open', f.open ? '1' : '0'); } catch (e) {} }); }
 window.addEventListener('hashchange', () => { fromHash(); show(); });
 window.addEventListener('popstate', () => { fromHash(); show(); });
 
@@ -1008,6 +1030,16 @@ boot();
 
 <!-- phone-only tab bar at the bottom (the header buttons hide on phones) -->
 <style>
+/* Game log fold-out on the player page (same look as the casino's "Earn chips at poker night" bar) */
+html .fold { padding: 0; border-left: 4px solid var(--gold, #f0c75e); }
+html .fold > summary { display: flex; align-items: center; gap: 12px; padding: 14px 18px; cursor: pointer; list-style: none; }
+html .fold > summary::-webkit-details-marker { display: none; }
+html .fold > summary b { font: 400 24px/1 var(--title, "Bebas Neue"), Impact, sans-serif; letter-spacing: .06em; white-space: nowrap; }
+html .fold > summary span { color: var(--muted); font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html .fold > summary i { margin-left: auto; font: 400 17px var(--title, "Bebas Neue"), Impact, sans-serif; letter-spacing: .08em; color: var(--gold, #f0c75e); font-style: normal; white-space: nowrap; }
+html .fold > summary i::after { content: ' \25BE'; } html .fold[open] > summary i::after { content: ' \25B4'; }
+html .fold > :not(summary) { margin-left: 18px; margin-right: 18px; } html .fold > .table-scroll { margin-bottom: 16px; }
+
 .tabbar { display: none; }
 @media (max-width: 640px) {
   .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: grid; grid-template-columns: repeat(5, 1fr);
