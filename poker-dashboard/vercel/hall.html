@@ -165,24 +165,35 @@ const av = n => `<span class="av" style="--h:${hueFor(n)}">${esc(initials(n))}${
 const link = (n, inner) => `<a class="pl" href="/#${slug(n)}" style="text-decoration:none;color:inherit;display:contents">${inner}</a>`;
 const cup = c => `<svg viewBox="0 0 24 24"><path d="M7 3h10v5c0 3.3-2.2 6-5 6s-5-2.7-5-6z" fill="${c}"/><path d="M7 5H4c0 3 1.5 5 3.5 5.5M17 5h3c0 3-1.5 5-3.5 5.5" fill="none" stroke="${c}" stroke-width="1.6" stroke-linecap="round"/><rect x="10.5" y="13.5" width="3" height="4" fill="${c}"/><rect x="7.5" y="17.5" width="9" height="3" rx="1" fill="${c}"/></svg>`;
 
+// "Nameplates": each player's equipped Study Cards (plates.js): their border on the pfp, title under the name, and their
+// overall bar as a soft wash behind record cards, trophy tiles and Top 5 rows. Plain until /api/shop answers, then redrawn.
+let PL = null, HH = null;
+import('/plates.js').then(m => m.loadouts().then(lo => { PL = { ...lo, bits: m.bits }; if (HH) render(HH); })).catch(() => {});
+const lo = n => (PL && PL.L && PL.bits(PL.L, PL.byName[n])) || null;
+const avL = (n, size, corner) => { const b = lo(n); return b ? b.face(av(n), size, corner) : av(n); };
+const wash = n => { const b = lo(n); return b && b.bar ? `<span class="pl-bg ${b.bar}" aria-hidden="true"></span>` : ''; };
+const washCls = n => { const b = lo(n); return b && b.bar ? ' pl-wash' : ''; };
+const ttl = n => { const b = lo(n); return b ? b.title : ''; };
+
 function render(H) {
+  HH = H;
   $('recs').innerHTML = [['Overall', 'overall', 'Best all-time P&L'], ['Cash games', 'cash', 'Best all-time cash total'], ['Tournaments', 'tour', 'Best all-time tournament total']]
     .filter(([, k]) => H.records[k]).map(([t, k, sub]) => { const r = H.records[k];
-      return `<div class="rec" style="--c:${C[k]}"><span class="k">${t}</span>${link(r.name, `<div class="who">${av(r.name)}<b>${esc(r.name)}</b></div>`)}<div class="big">${usd(r.net)}</div><span class="k" style="letter-spacing:.04em;text-transform:none;font-weight:700">${sub}</span></div>`; }).join('');
+      return `<div class="rec${washCls(r.name)}" style="--c:${C[k]}">${wash(r.name)}<span class="k">${t}</span>${link(r.name, `<div class="who">${avL(r.name, 44, true)}<span class="pl-nm"><b>${esc(r.name)}</b>${ttl(r.name)}</span></div>`)}<div class="big">${usd(r.net)}</div><span class="k" style="letter-spacing:.04em;text-transform:none;font-weight:700">${sub}</span></div>`; }).join('');
 
   // trophy shelf as a wall of faces: total titles on the badge, the split by category underneath (name on hover)
   $('shelf').innerHTML = `<div class="shelfgrid">${H.shelf.map((t, i) => { const tip = `${t.name}: ${t.total} title${t.total === 1 ? '' : 's'} (${t.overall} overall, ${t.cash} cash, ${t.tour} tournament)`;
-    return `<a class="trophy${i === 0 ? ' first' : ''}" href="/#${slug(t.name)}" title="${esc(tip)}" aria-label="${esc(tip)}"><span class="face">${av(t.name)}<span class="tot">${t.total}</span></span>
+    return `<a class="trophy${i === 0 ? ' first' : ''}${washCls(t.name)} from-top" href="/#${slug(t.name)}" title="${esc(tip)}" aria-label="${esc(tip)}">${wash(t.name)}<span class="face">${avL(t.name, 60)}<span class="tot">${t.total}</span></span>
     <span class="mix" aria-hidden="true">${[['overall', t.overall], ['cash', t.cash], ['tour', t.tour]].filter(([, n]) => n).map(([k, n]) => `<span>${cup(C[k])}${n}</span>`).join('')}</span></a>`; }).join('')}</div>`;
   $('legend').innerHTML = [['Overall', C.overall], ['Cash game', C.cash], ['Tournament', C.tour]].map(([t, c]) => `<span>${cup(c)}${t}</span>`).join('');
 
-  const row = (lab, col, c, main) => c ? `<div class="champ${main ? ' main' : ''}">${av(c.name)}<span class="t"><small style="color:${col}">${lab}</small>${link(c.name, `<b>${esc(c.name)}<em>(${c.nth})</em></b>`)}</span><span class="amt up">${usd(c.net)}</span></div>`
+  const row = (lab, col, c, main) => c ? `<div class="champ${main ? ' main' : ''}">${avL(c.name, 30)}<span class="t"><small style="color:${col}">${lab}</small>${link(c.name, `<b>${esc(c.name)}<em>(${c.nth})</em></b>`)}</span><span class="amt up">${usd(c.net)}</span></div>`
     : `<div class="champ${main ? ' main' : ''}"><span></span><span class="t"><small style="color:${col}">${lab}</small><b style="color:var(--muted)">Nobody finished up</b></span><span></span></div>`;
   $('quarters').innerHTML = H.quarters.map(q => `<article class="q${q.live ? ' live' : ''}"><div class="qh"><b>${q.q}</b>${q.live ? '<span>In progress</span>' : ''}</div>
     ${row('Overall', C.overall, q.overall, true)}<hr>${row('Cash game', '#b6a6ff', q.cash)}${row('Tournament', '#e2a93b', q.tour)}</article>`).join('');
 
   $('boards').innerHTML = H.boards.map(b => `<div class="board"><h3>${b.title}<span>${b.when}</span></h3>
-    ${b.rows.map((r, i) => `<div class="brow"><span class="md ${['g', 's', 'b', 'n', 'n'][i]}">${i + 1}</span>${av(r.name)}${link(r.name, `<b>${esc(r.name)}</b>`)}<span class="amt ${r.net < 0 ? 'down' : 'up'}">${usd(r.net)}</span></div>`).join('')}</div>`).join('');
+    ${b.rows.map((r, i) => `<div class="brow${washCls(r.name)}">${wash(r.name)}<span class="md ${['g', 's', 'b', 'n', 'n'][i]}">${i + 1}</span>${avL(r.name, 30)}${link(r.name, `<span class="pl-nm"><b>${esc(r.name)}</b>${ttl(r.name)}</span>`)}<span class="amt ${r.net < 0 ? 'down' : 'up'}">${usd(r.net)}</span></div>`).join('')}</div>`).join('');
 }
 
 async function load() {
@@ -218,5 +229,7 @@ load();
 </style>
 <nav class="tabbar" aria-label="Pages"><a href="/"><span aria-hidden="true">📊</span>Dashboard</a><a href="/recap"><span aria-hidden="true">📰</span>Recap</a><a href="/hall" class="on" aria-current="page"><span aria-hidden="true">🏆</span>Hall</a><a href="/h2h"><span aria-hidden="true">⚔️</span>H2H</a><a href="/casino"><span aria-hidden="true">🃏</span>Casino</a></nav>
 <link rel="stylesheet" href="/lateshow.css">
+<link rel="stylesheet" href="/cosmetics.css">
+<link rel="stylesheet" href="/plates.css">
 </body>
 </html>

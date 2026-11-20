@@ -117,6 +117,24 @@ function face(el, name) {
   el.style.setProperty('--h', hueFor(name));
   el.innerHTML = esc(initials(name)) + (IDS[name] ? `<img src="${avatarUrl(IDS[name])}" alt="" onerror="this.remove()">` : '');
 }
+// "Nameplates": each slot gets that player's equipped overall bar as a wash fading out from the pfp, plus their border,
+// title and sticker (plates.js)
+let PL = null;
+import('/plates.js').then(m => m.loadouts().then(lo => { PL = { ...lo, bits: m.bits }; if (state.a) { dressSlot('a', state.a); dressSlot('b', state.b); } })).catch(() => {});
+function dressSlot(k, name) {
+  const K = k.toUpperCase(), slot = $('slot' + K), av = $('av' + K);
+  // undo the last player's look
+  slot.className = 'slot ' + k;
+  const old = slot.querySelector('.plf'); if (old) old.replaceWith(av);
+  slot.querySelectorAll('.pl-ttl, .pl-bg').forEach(e => e.remove());
+  if (!PL || !PL.L) return;
+  const b = PL.bits(PL.L, PL.byName[name]); if (!b.any) return;
+  if (b.bar) { slot.classList.add('pl-wash'); slot.insertAdjacentHTML('afterbegin', `<span class="pl-bg ${b.bar}" aria-hidden="true"></span>`); }
+  const tmp = document.createElement('span');
+  tmp.innerHTML = b.face('<i></i>', matchMedia('(max-width: 520px)').matches ? 64 : 58, true);
+  const w = tmp.firstElementChild; av.replaceWith(w); w.querySelector('i').replaceWith(av);
+  if (b.title) slot.querySelector('.t small').insertAdjacentHTML('beforebegin', b.title);
+}
 function cardUrl() { return `/api/h2h?a=${encodeURIComponent(state.a)}&b=${encodeURIComponent(state.b)}&period=${encodeURIComponent(periodOf(state.p))}`; }
 function pageUrl() { const u = new URL(location.href); u.search = ''; u.searchParams.set('a', state.a); u.searchParams.set('b', state.b); const latest = latestQuarter(RECS); if (state.p !== 'year' || YEAR !== 'Y' + latest.split(' ')[1]) u.searchParams.set('period', periodOf(state.p)); return u.toString(); }
 
@@ -148,6 +166,7 @@ function pickSide(k) { open = open === k ? '' : k; $('shFind').value = ''; show(
 function show() {
   $('nmA').textContent = state.a; $('nmB').textContent = state.b;
   face($('avA'), state.a); face($('avB'), state.b);
+  dressSlot('a', state.a); dressSlot('b', state.b);
   const sc = state.a !== state.b ? pairStats(RECS, state.a, state.b, periodOf(state.p)) : null;
   $('score').innerHTML = sc && sc.n ? `${sc.aw}<em>vs</em><span class="y">${sc.bw}</span>` : `–<em>vs</em><span class="y">–</span>`;
   sheet();
@@ -219,5 +238,7 @@ main();
 </style>
 <nav class="tabbar" aria-label="Pages"><a href="/"><span aria-hidden="true">📊</span>Dashboard</a><a href="/recap"><span aria-hidden="true">📰</span>Recap</a><a href="/hall"><span aria-hidden="true">🏆</span>Hall</a><a href="/h2h" class="on" aria-current="page"><span aria-hidden="true">⚔️</span>H2H</a><a href="/casino"><span aria-hidden="true">🃏</span>Casino</a></nav>
 <link rel="stylesheet" href="/lateshow.css">
+<link rel="stylesheet" href="/cosmetics.css">
+<link rel="stylesheet" href="/plates.css">
 </body>
 </html>

@@ -798,6 +798,7 @@ a { color: inherit; }
 
 <script type="module">
 import { ITEMS, BY_ID, PRICE, TIERS, ODDS, REFUND, TCOL, SLOT_NAMES, DECO, STICKERS, itemFor, tierRank, decoFor } from '/loot.js';
+import '/plates.js'; // smooth sticker outlines (the SVG filter), same as the rest of the site
 import { SHEET_URL, MEMBERS_URL, gameRecords, playerCard, memberIds, hueFor, initials } from '/recap-core.js';
 
 const $ = id => document.getElementById(id);
