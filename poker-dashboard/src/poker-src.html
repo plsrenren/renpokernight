@@ -79,7 +79,7 @@ body.room .wrap { max-width: none; }
 .oval::after { content: "THE STUDY"; position: absolute; left: 50%; top: 70%; transform: translateX(-50%); font: 400 22px var(--title); letter-spacing: .4em; color: rgba(255,255,255,.07); white-space: nowrap; }
 .center { position: absolute; left: 50%; top: 47%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 8px; width: 56%; }
 .crow { height: 30px; display: grid; place-items: center; width: 100%; }
-.pot { font: 600 13px var(--mono); background: rgba(14,31,23,.85); color: #fff; padding: 3px 10px; white-space: nowrap; }
+.pot { font: 400 20px/1 var(--title); letter-spacing: .05em; background: var(--gold); color: var(--ink); padding: 5px 12px 3px; white-space: nowrap; text-transform: uppercase; }
 .bd5 { display: flex; gap: 6px; min-height: 82px; perspective: 800px; }
 .bd5 .cd { width: 58px; height: 82px; font-size: 27px; position: relative; } .bd5 .cd i { font-size: 22px; }
 .cd .bk { position: absolute; inset: 0; background: repeating-linear-gradient(45deg, #5a40ad 0 6px, #6e52c8 6px 12px); border: 3px solid var(--cardbg); pointer-events: none; opacity: 0; }
@@ -139,7 +139,17 @@ body.room .wrap { max-width: none; }
 .st.empty button { font: 400 15px var(--title); letter-spacing: .08em; width: 64px; height: 48px; border: 2px dashed rgba(255,255,255,.3); background: rgba(0,0,0,.2); color: var(--soft); }
 .st.empty button:hover { border-color: var(--gold); color: var(--gold); }
 .st.empty .lbl { width: 54px; height: 44px; border: 2px dashed rgba(255,255,255,.12); }
-.bet { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 4px; font: 600 12px var(--mono); color: #fff; background: rgba(14,31,23,.8); padding: 2px 7px 2px 3px; white-space: nowrap; z-index: 1; }
+.bet { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: flex-end; gap: 4px; white-space: nowrap; z-index: 1; }
+.bet .stks { display: flex; align-items: flex-end; gap: 3px; }
+.stk { position: relative; width: 20px; display: block; }
+.stk i { position: absolute; left: 0; width: 20px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: inset 0 -1px 0 rgba(0,0,0,.35), 0 1px 0 rgba(0,0,0,.45); }
+.stk i::after { content: ""; position: absolute; inset: 1px 4px; border-top: 2px dashed rgba(255,255,255,.75); border-radius: 50%; }
+.stk .k1 { --c: #f2f2f2; } .stk .k1::after { border-color: #3b6fd6; } .stk .k5 { --c: #d93a4a; } .stk .k25 { --c: #2e9e5b; } .stk .k500 { --c: #8f78f0; }
+.stk .k100 { --c: #22202f; box-shadow: inset 0 -1px 0 rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.55); }
+.bet .tag { display: grid; font: 400 12px/1 var(--title); letter-spacing: .08em; }
+.bet .tag span { background: var(--ink); color: var(--soft); padding: 3px 7px 1px; justify-self: start; }
+.bet .tag b { font: 400 20px/1 var(--title); letter-spacing: .03em; font-weight: 400; padding: 4px 12px 2px 8px; background: var(--soft); color: var(--ink); clip-path: polygon(0 0,100% 0,calc(100% - 8px) 100%,0 100%); }
+.bet.raise .tag b { background: var(--pink); color: #fff; } .bet.allin .tag b { background: #e2394f; color: #fff; } .bet.call .tag b { background: var(--up); color: #0e2a1c; }
 .pchip { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle, var(--pink) 0 38%, #fff 40% 52%, var(--pink) 54%); flex: none; }
 .dmark { display: none; }
 .dbtn2 { position: absolute; transform: translate(-50%, -50%); width: 22px; height: 22px; border-radius: 50%; background: #fff; color: var(--ink); font: 900 12px/22px var(--round); text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,.5); z-index: 1; }
@@ -228,6 +238,8 @@ details.fold > summary + * { margin-top: 10px; }
   .dmark { display: block; position: absolute; left: -7px; top: -7px; width: 18px; height: 18px; border-radius: 50%; background: #fff; color: var(--ink); font: 900 10px/18px var(--round); font-style: normal; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,.5); z-index: 3; }
   .cd { width: 36px; height: 50px; font-size: 17px; } .cd i { font-size: 14px; }
   .bd5 { gap: 4px; min-height: 62px; }
+  .bet .tag b { font-size: 15px; padding: 3px 9px 1px 6px; } .bet .tag { font-size: 10px; } .bet .tag span { padding: 2px 5px 1px; }
+  .stk, .stk i { width: 15px; } .stk i { height: 6px; } .bet .stks { gap: 2px; } .pot { font-size: 16px; padding: 4px 9px 2px; }
   .bd5 .cd { width: 44px; height: 62px; font-size: 21px; } .bd5 .cd i { font-size: 17px; }
   .cd.sc { width: 31px; height: 44px; font-size: 16px; } .cd.sc i { font-size: 13px; }
   .st-cards { margin-left: -8px; } .st-cards .cd + .cd { margin-left: -13px; }
@@ -400,14 +412,24 @@ function seatHTML(s, i) {
   return `<div class="${cls}" data-peek="${i}" style="left:${pos.x}%;top:${pos.y}%">
     <div class="st-row"><div class="pfw">${b.face(av(s.id, s.name), size)}${i === t.button && t.hand ? '<i class="dmark">D</i>' : ''}${t.nit && t.nit.need.includes(s.id) ? '<i class="nitmark">NIT</i>' : ''}</div><div class="st-cards">${hc}</div></div>
     <div class="st-name${b.bar ? ' pl-wash' : ''}">${b.bar ? `<span class="pl-bg ${b.bar}" aria-hidden="true"></span>` : ''}<b>${esc(s.name)}</b><span class="sk">${stack}</span></div>${b.sticker ? `<span class="st-stk">${b.sticker}</span>` : ''}
-    ${s.last ? `<div class="act ${lastCls}">${esc(s.last)}</div>` : s.out && !s.left && s.stack ? '<div class="act fold">Sitting out</div>' : ''}
+    ${s.last && !(s.bet > 0 && BETTY.test(s.last)) ? `<div class="act ${lastCls}">${esc(s.last)}</div>` : s.out && !s.left && s.stack ? '<div class="act fold">Sitting out</div>' : ''}
     ${t.toAct === i && t.phase === 'hand' ? `<div class="tmr"><i style="animation-duration:${dur}s;animation-delay:-${Math.max(0, dur - left).toFixed(2)}s"></i></div>` : ''}
     ${peek === i && b.title ? `<div class="st-peek">${b.title}</div>` : ''}
   </div>`;
 }
+// bets look like option D (picked Nov 21): tight chip stacks in casino colors + a slanted tag with the move and the amount
+const DEN = [[500, 'k500'], [100, 'k100'], [25, 'k25'], [5, 'k5'], [1, 'k1']];
+function stacksHTML(a, cols = 2) {
+  const g = []; let left = Math.floor(a), n = 0;
+  for (const [v, k] of DEN) { let c = 0; while (left >= v && n < 12) { left -= v; c++; n++; } if (c) g.push([k, c]); }
+  return g.slice(0, cols).map(([k, c]) => `<span class="stk" style="height:${8 + (c - 1) * 2}px">${Array.from({ length: c }, (_, j) => `<i class="${k}" style="bottom:${j * 2}px"></i>`).join('')}</span>`).join('');
+}
+const betKind = last => /^(Raise|Bet)/.test(last || '') ? 'raise' : /^All/.test(last || '') ? 'allin' : /^Call/.test(last || '') ? 'call' : 'blind';
+const BETTY = /^(SB|BB|Straddle|Bomb|Call|Raise|Bet|All in)/;
+const betInner = (amt, last) => { const l = BETTY.test(last || '') ? String(last).replace(/\s*\$.*/, '') : ''; return `<span class="stks">${stacksHTML(amt)}</span><span class="tag">${l ? `<span>${esc(l)}</span>` : ''}<b>${money(amt)}</b></span>`; };
 function tableHTML() {
   const t = T();
-  const bets = t.seats.map((s, i) => s && s.bet > 0 ? `<div class="bet" style="left:${toward(seatPos(i), .54).x}%;top:${toward(seatPos(i), .54).y}%"><span class="pchip"></span>${money(s.bet)}</div>` : '').join('');
+  const bets = t.seats.map((s, i) => s && s.bet > 0 ? `<div class="bet ${betKind(s.last)}" style="left:${toward(seatPos(i), .54).x}%;top:${toward(seatPos(i), .54).y}%">${betInner(s.bet, s.last)}</div>` : '').join('');
   const dp = t.button >= 0 && t.hand ? toward(seatPos(t.button), .8) : null;
   const hl = t.res && t.res.hl || [];
   const board = Array.from({ length: 5 }, (_, k) => { const c = t.board[k]; return card(c, '', c && hl.length ? (hl.includes(c) ? 'hl' : 'dim') : ''); }).join('');
@@ -581,7 +603,7 @@ function fxAfter(t) {
   // 4C: bets slide into the pot when a betting round ends
   if (prevView && prevView.hid === t.hid && prevView.seats.some(s => s && s.bet > 0) && t.seats.every(s => !s || !s.bet)) {
     const felt = $('.felt'), pp = feltPt('.center .crow') || { x: felt.clientWidth / 2, y: felt.clientHeight / 2 };
-    prevView.seats.forEach((s, i) => { if (!s || !s.bet) return; const p = toward(seatPos(i), .54), g = document.createElement('div'); g.className = 'bet'; g.innerHTML = `<span class="pchip"></span>${money(s.bet)}`; g.style.left = p.x + '%'; g.style.top = p.y + '%'; felt.appendChild(g);
+    prevView.seats.forEach((s, i) => { if (!s || !s.bet) return; const p = toward(seatPos(i), .54), g = document.createElement('div'); g.className = 'bet ' + betKind(s.last); g.innerHTML = betInner(s.bet, s.last); g.style.left = p.x + '%'; g.style.top = p.y + '%'; felt.appendChild(g);
       const x0 = p.x / 100 * felt.clientWidth, y0 = p.y / 100 * felt.clientHeight;
       g.animate([{ transform: 'translate(-50%, -50%)', opacity: 1 }, { transform: `translate(calc(-50% + ${pp.x - x0}px), calc(-50% + ${pp.y - y0}px))`, opacity: .2 }], { duration: 430, easing: 'cubic-bezier(.5,0,.6,1)', fill: 'forwards' }).finished.then(() => g.remove()).catch(() => {}); });
   }
@@ -616,7 +638,7 @@ function flipLate(el, start, at) { // face down until `at` ms after start, then 
   play(el, [{ scale: '1 1' }, { scale: '1 1', offset: at / dur }, { scale: '0 1', offset: mid }, { scale: '1 1' }], dur, start);
   const bk = backCover(el); play(bk, [{ opacity: 1 }, { opacity: 1, offset: mid }, { opacity: 0, offset: Math.min(1, mid + .001) }, { opacity: 0 }], dur, start, { fill: 'forwards' });
 }
-const snap = t => ({ hid: t.hid, board: t.board.slice(), res: !!t.res, pot: t.pot + t.seats.reduce((a, s) => a + (s ? s.bet : 0), 0), seats: t.seats.map(s => s && { id: s.id, bet: s.bet, stack: s.stack }) });
+const snap = t => ({ hid: t.hid, board: t.board.slice(), res: !!t.res, pot: t.pot + t.seats.reduce((a, s) => a + (s ? s.bet : 0), 0), seats: t.seats.map(s => s && { id: s.id, bet: s.bet, stack: s.stack, last: s.last }) });
 function render() {
   clearTimeout(fxT);
   const raw = S && S.table; disp = raw && raw.open ? holdView(raw) : null;
