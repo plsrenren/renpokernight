@@ -97,7 +97,7 @@ body.room .wrap { max-width: none; }
 }
 .cd.back { background: repeating-linear-gradient(45deg, #5a40ad 0 6px, #6e52c8 6px 12px); border: 3px solid var(--cardbg); }
 .cd.ph { background: rgba(0,0,0,.18); box-shadow: none; border: 2px dashed rgba(255,255,255,.12); }
-.cd.dim { opacity: .45; } .cd.hl { transform: translateY(-6px); box-shadow: 0 0 0 3px var(--gold), 0 6px 14px rgba(0,0,0,.5); }
+.cd.dim { opacity: .45; } .cd.fold { filter: brightness(.5) saturate(.5); opacity: .75; } .cd.hl { transform: translateY(-6px); box-shadow: 0 0 0 3px var(--gold), 0 6px 14px rgba(0,0,0,.5); }
 .cd.lg { width: 66px; height: 92px; font-size: 30px; } .cd.lg i { font-size: 25px; }
 .cd.sc { width: 42px; height: 59px; font-size: 21px; } .cd.sc i { font-size: 17px; margin-top: 1px; }
 .st { position: absolute; transform: translate(-50%, -50%); display: grid; justify-items: center; z-index: 2; cursor: pointer; }
@@ -216,8 +216,7 @@ details.fold > summary + * { margin-top: 10px; }
 <body>
 <div class="wrap">
   <header class="top">
-    <div class="brand"><a class="lg" href="/" aria-label="Dashboard"></a><div><h1><a href="/poker" style="text-decoration:none">Poker Room</a></h1>
-      <nav class="links"><a class="recap-link" href="/">Dashboard</a><a class="recap-link casino-link" href="/casino">🎰 Casino</a><a class="recap-link casino-link" href="/shop">🃏 Study Cards</a></nav></div></div>
+    <div class="brand"><a class="lg" href="/" aria-label="Dashboard"></a><div><h1><a href="/poker" style="text-decoration:none">Poker Room</a></h1></div></div>
     <div class="me hidden" id="me"></div>
   </header>
   <div id="note"></div>
@@ -348,7 +347,8 @@ function seatHTML(s, i) {
   const hl = c => res && res.hl && res.hl.includes(c) ? (win ? 'hl' : '') : (res && res.hl && res.hl.length && s.cards ? 'dim' : '');
   const mine = i === me && S.me.cards && S.me.cards.length && cardsFor === t.hid ? S.me.cards : null;
   const shown = s.cards || mine;
-  const hc = s.dealt && !s.folded ? (shown ? shown.map(c => card(c, 'sc', hl(c))).join('') : '<div class="cd sc back"></div><div class="cd sc back"></div>') : '';
+  const hc = s.dealt && !s.folded ? (shown ? shown.map(c => card(c, 'sc', hl(c))).join('') : '<div class="cd sc back"></div><div class="cd sc back"></div>')
+    : s.dealt && mine ? mine.map(c => card(c, 'sc', 'fold')).join('') : ''; // your own folded hand stays, faded and dark
   const b = plateOf(s.id), size = PHONE.matches ? 38 : 48;
   const lastCls = /^Fold/.test(s.last) ? 'fold' : /^All/.test(s.last) ? 'allin' : /^(Raise|Bet)/.test(s.last) ? 'raise' : s.last === 'Wins' ? 'win' : '';
   const left = Math.max(0, (t.deadline - serverNow()) / 1000), dur = t.cfg.turn;
@@ -378,10 +378,10 @@ function actHTML() {
   const t = T(), i = mySeat(), s = i >= 0 ? t.seats[i] : null;
   if (!S.me) return '';
   if (!s) return `<div class="actbar"><div class="mine"><div class="cards">${card(null, 'lg')}${card(null, 'lg')}</div></div><div class="wait">${t.open ? 'Pick an open seat to sit down' : 'The room is closed'}<small>You have ${money(S.me.bal)} in chips. Buy in for ${money(t.cfg.min)} to ${money(t.cfg.max)}.</small></div></div>`;
-  const cards = S.me.cards && S.me.cards.length && cardsFor === t.hid && s.dealt && !s.folded ? S.me.cards : null;
+  const cards = S.me.cards && S.me.cards.length && cardsFor === t.hid && s.dealt ? S.me.cards : null, folded = !!(cards && s.folded);
   const hint = cards ? (t.board.length >= 3 ? describe(bestOf([...cards, ...t.board])) : cards[0][0] === cards[1][0] ? `Pocket ${PL[rv(cards[0])]}` : `${rn(Math.max(rv(cards[0]), rv(cards[1])))}-${rn(Math.min(rv(cards[0]), rv(cards[1])))}${cards[0][1] === cards[1][1] ? ' suited' : ''}`) : '';
   const res = t.res, win = res && res.win.includes(i);
-  const mine = `<div class="mine"><div class="cards">${cards ? cards.map(c => card(c, 'lg', win && res.hl.includes(c) ? 'hl' : '')).join('') : card(null, 'lg') + card(null, 'lg')}</div>${hint ? `<div class="str">${esc(hint)}</div>` : ''}</div>`;
+  const mine = `<div class="mine"><div class="cards">${cards ? cards.map(c => card(c, 'lg', folded ? 'fold' : win && res.hl.includes(c) ? 'hl' : '')).join('') : card(null, 'lg') + card(null, 'lg')}</div>${hint ? `<div class="str">${folded ? 'Folded' : esc(hint)}</div>` : ''}</div>`;
   let right;
   if (s.out) right = `<div class="wait">You're sitting out<small>${s.stack > 0 ? "Your seat is saved. Come back and you're dealt in next hand." : 'Out of chips at this table. Rebuy from your casino chips to keep playing.'}</small>
       ${s.stack > 0 ? `<button class="cbtn up sm" data-a="back">I'm back</button>` : `<button class="cbtn up sm" data-a="top">Rebuy</button>`}</div>`;
