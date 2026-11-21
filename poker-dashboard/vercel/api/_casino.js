@@ -19,6 +19,7 @@ import { REWARD_LIST } from './_rewards.js';
 import { lotteryView } from './_lottery.js';
 import { shopWeb } from './_shop.js';
 import { sweepDuels } from './_duel.js';
+import { pokerWeb } from './_poker.js';
 
 const DAYS30 = 30 * 24 * 3600;
 const out = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers } });
@@ -60,7 +61,8 @@ async function login(req, sheet) {
   const u = new URL(req.url), origin = originOf(req), redirect = origin + '/api/login', code = u.searchParams.get('code');
   // ?to=shop brings you back to /shop instead of /casino (kept next to the state in the same short cookie)
   const [wantState, to] = String(readCookie(req, 'cas_state') || '').split('.');
-  const back = (code || u.searchParams.get('error') ? to : u.searchParams.get('to')) === 'shop' ? '/shop' : '/casino';
+  const want = code || u.searchParams.get('error') ? to : u.searchParams.get('to');
+  const back = want === 'shop' ? '/shop' : want === 'poker' ? '/poker' : '/casino';
   const fail = why => go(`${back}?err=${encodeURIComponent(why)}`, [cookie('cas_state', '', 0)]);
   if (u.searchParams.get('error')) return fail('cancelled');
   if (!code) { // step 1: off to Discord
@@ -68,7 +70,7 @@ async function login(req, sheet) {
     if (!id || !process.env.DISCORD_CLIENT_SECRET) return fail('setup');
     const state = randomBytes(12).toString('hex');
     const q = new URLSearchParams({ client_id: id, response_type: 'code', redirect_uri: redirect, scope: 'identify', state, prompt: 'none' });
-    return go('https://discord.com/oauth2/authorize?' + q, [cookie('cas_state', state + (back === '/shop' ? '.shop' : ''), 600)]);
+    return go('https://discord.com/oauth2/authorize?' + q, [cookie('cas_state', state + (back === '/casino' ? '' : '.' + back.slice(1)), 600)]);
   }
   // step 2: Discord sent us back
   if (!u.searchParams.get('state') || u.searchParams.get('state') !== wantState) return fail('expired');
@@ -171,13 +173,14 @@ async function act(req, me) {
   return out({ err: 'Unknown action.' }, 400);
 }
 
-/** Entry point from api/discord.js. what = 'login' | 'casino' | 'shop' (Study Cards, see _shop.js). sheet() = the cached sheet loader (for Members tab IDs). */
+/** Entry point from api/discord.js. what = 'login' | 'casino' | 'shop' (Study Cards, see _shop.js) | 'poker' (the poker room, see _poker.js). sheet() = the cached sheet loader (for Members tab IDs). */
 export async function casinoWeb(req, what, sheet) {
   if (!kvUrl() || !kvToken()) return out({ err: "The chip storage isn't connected." }, 503);
   try {
     if (what === 'login') return await login(req, sheet);
     const me = readSession(req);
     if (what === 'shop' && req.method === 'GET') return await shopWeb(req, me, sheet, out);
+    if (what === 'poker' && req.method === 'GET') return await pokerWeb(req, me, sheet, out);
     if (req.method === 'GET') return out(await state(me, sheet));
     if (req.method !== 'POST') return out({ err: 'Method not allowed.' }, 405);
     // same-site only: the cookie is SameSite=Lax already; this also refuses posts from other sites
@@ -185,6 +188,7 @@ export async function casinoWeb(req, what, sheet) {
     if (o && new URL(o).host !== (req.headers.get('x-forwarded-host') || new URL(req.url).host)) return out({ err: 'Wrong site.' }, 403);
     if (!me) return out({ err: 'Sign in first.', signedOut: true }, 401);
     if (what === 'shop') return await shopWeb(req, me, sheet, out);
+    if (what === 'poker') return await pokerWeb(req, me, sheet, out);
     return await act(req, me);
   } catch (e) {
     console.error('casino', e);
