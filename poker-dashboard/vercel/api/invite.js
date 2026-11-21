@@ -1,4 +1,4 @@
-// /api/invite            who answered the latest /tourney or /cash invite (the entry page's "Load from invite" button)
+// /api/invite            who answered the latest /game invite (the entry page's "Load from invite" button)
 // /api/invite?link=...   the same for a specific invite (Discord: right-click the invite > Copy Message Link)
 // /api/invite?refresh=1 rewrites the newest invite's headcount card (called every 5 minutes by a scheduler, e.g. Upstash QStash;
 //   cheap: does nothing for invites older than 3 days, more than once a minute, or when the list hasn't changed).
@@ -26,10 +26,10 @@ export default async function handler(req, res) {
     if (link) {
       msg = await dc(`/channels/${link[2]}/messages/${link[3]}`);
       if (msg) msg.guild_id = link[1] === '@me' ? '' : link[1];
-      if (!isInvite(msg, me.id)) { res.status(404).json({ error: "That link isn't a /tourney or /cash invite (or the bot can't see that channel)." }); return; }
+      if (!isInvite(msg, me.id)) { res.status(404).json({ error: "That link isn't a /game invite (or the bot can't see that channel)." }); return; }
     } else {
       msg = await latestInvite(me.id);
-      if (!msg) { res.status(404).json({ error: 'No /tourney or /cash invite found in the last 50 messages of any channel the bot can see.' }); return; }
+      if (!msg) { res.status(404).json({ error: 'No /game invite found in the last 50 messages of any channel the bot can see.' }); return; }
     }
     const members = await fetch(MEMBERS_URL, { cache: 'no-store' }).then(r => r.ok ? r.text() : '').catch(() => '');
     const names = Object.fromEntries(Object.entries(memberIds(members)).map(([n, id]) => [id, n]));

@@ -9,8 +9,8 @@
 //   /hall                   Hall of Fame: record holders, champions, trophy counts
 //   /wrap                   the last finished quarter's "wrapped" card (quarter: picks another)
 //   /roles                  refreshes the results roles (Quarter Leader, Heater, ...; see _roles.js)
-//   /tourney date:...       tournament invite people answer with reactions (see _tourney.js)
-//   /cash date:...          same for a cash game
+//   /game type: date:...    tournament or cash game invite people answer with reactions (see _tourney.js; was /tourney + /cash)
+//   /info                   posts the pinned-style welcome post (links + starter commands) in this channel (pitbosses only, see _info.js)
 //   /daily /blackjack /freebet /chips  blackjack (and Free Bet Blackjack) with chips (see _blackjack.js; needs Upstash storage)
 //   /duel                   player vs player for chips: coin flip (default), rock paper scissors or high card (see _duel.js)
 //   /uth                    Ultimate Texas Hold'em against the dealer for chips (see _uth.js)
@@ -26,7 +26,7 @@
 // Needs Vercel env vars DISCORD_BOT_TOKEN (already there) and DISCORD_PUBLIC_KEY (from the Developer Portal).
 import { createPublicKey, verify } from 'node:crypto';
 import { waitUntil } from '@vercel/functions';
-import { TOURNEY_COMMAND, CASH_COMMAND, startTourney, tally, inviteBlocked, refreshInvite } from './_tourney.js';
+import { GAME_COMMAND, startTourney, tally, inviteBlocked, refreshInvite } from './_tourney.js';
 import { syncRoles } from './_roles.js';
 import { BLACKJACK_COMMANDS, blackjackCommand, blackjackButton } from './_blackjack.js';
 import { DUEL_COMMAND, duelCommand, duelButton, sweepDuels } from './_duel.js';
@@ -44,6 +44,7 @@ import { wrongChannel } from './_channels.js';
 import { withPicture, warmPictures } from './_attach.js';
 import { board as lotteryBoard, quarterOf, shownQuarter, drawable, drawQuarter, TICKET, LUCKY_ROLE, nextQuarter } from './_lottery.js';
 import { nightRows } from './_rewards.js';
+import { INFO_COMMAND, postInfo } from './_info.js';
 import { SHEET_URL, MEMBERS_URL, gameRecords, findPlayer, latestQuarter, memberIds, toNights, hallOfFame, usd, wrapDefault, quartersWithGames } from '../recap-core.js';
 
 const SITE = 'https://renpokernight.vercel.app';
@@ -63,8 +64,8 @@ const COMMANDS = [
   { name: 'roles', description: 'Refresh the results roles (Quarter Leader, Heater, Cash King, ...)', type: 1 },
   { name: 'wrap', description: "A quarter's wrap-up card: champion, best night, awards", type: 1,
     options: [{ type: 3, name: 'quarter', description: 'Pick another quarter (default: the last finished one)', autocomplete: true, required: false }] },
-  TOURNEY_COMMAND,
-  CASH_COMMAND,
+  GAME_COMMAND,
+  INFO_COMMAND,
   { name: 'fish', description: 'Call out the fish at the table', type: 1, options: [{ type: 6, name: 'who', description: 'Who is the fish (leave empty for the usual suspect)', required: false }] },
   { name: 'donkey', description: 'Call someone a donkey', type: 1, options: [{ type: 6, name: 'who', description: 'Who played like a donkey (leave empty for the usual suspect)', required: false }] },
   ...BLACKJACK_COMMANDS,
@@ -162,6 +163,10 @@ async function answer(i) {
   const hint = await wrongChannel(i); // casino games only in #casino, poker commands only in #the-table (see _channels.js)
   if (hint) return say(hint);
   if (i.data.name === 'roulette') return rouletteCommand(i, waitUntil); // no sheet needed; stays awake 30s to spin
+  if (i.data.name === 'info') { // pitbosses only (plus Renato and admins); no sheet needed
+    const no = await inviteBlocked(i, cache.ids ? cache : { ids: {} }, HOST_ID, true);
+    return json(no || await postInfo(i));
+  }
   if (i.data.name === 'fish' || i.data.name === 'donkey') { // fun pings, no sheet needed
     const id = (opts.who && opts.who.value) || FISH_DEFAULT;
     if (!id) return say('Pick who with the "who" option.');
@@ -183,7 +188,7 @@ async function answer(i) {
   if (i.data.name === 'uth') return uthCommand(i, opts, s);
   if (i.data.name === 'baccarat') return baccaratCommand(i, opts, s);
   if (i.data.name === 'seats') return json(startSeats(i, opts, s, waitUntil));
-  if (i.data.name === 'tourney' || i.data.name === 'cash') { // pitboss role only (plus Renato and admins), see inviteBlocked
+  if (i.data.name === 'game' || i.data.name === 'tourney' || i.data.name === 'cash') { // pitboss role only (plus Renato and admins), see inviteBlocked
     const no = await inviteBlocked(i, s || { ids: {} }, HOST_ID);
     return json(no || startTourney(i, opts, s || { ids: {} }, waitUntil));
   }
@@ -381,7 +386,7 @@ export async function GET(req) {
   const app = await fetch('https://discord.com/api/v10/oauth2/applications/@me', { headers: H }).then(r => r.ok ? r.json() : null).catch(() => null);
   if (!app) return new Response("Discord didn't accept the bot token. Check DISCORD_BOT_TOKEN.", { status: 500 });
   const r = await fetch(`https://discord.com/api/v10/applications/${app.id}/commands`, { method: 'PUT', headers: H, body: JSON.stringify(COMMANDS) });
-  // bot + commands: View Channel, Add Reactions, Read Message History, Mention Everyone (for /tourney), Manage Roles (results roles)
+  // bot + commands: View Channel, Add Reactions, Read Message History, Mention Everyone (for /game), Manage Roles (results roles)
   const invite = `https://discord.com/oauth2/authorize?client_id=${app.id}&scope=bot%20applications.commands&permissions=${1024 + 64 + 65536 + 131072 + 268435456}`;
   const ok = r.ok, keySet = !!process.env.DISCORD_PUBLIC_KEY;
   const html = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Discord commands setup</title>
@@ -389,7 +394,7 @@ export async function GET(req) {
 <h2>${ok ? '✅ Commands registered: ' + COMMANDS.map(c => '/' + c.name).join(', ') : '❌ Registering the commands failed'}</h2>
 ${ok ? '' : `<pre style="white-space:pre-wrap">${(await r.text()).replace(/[<&]/g, c => ({ '<': '&lt;', '&': '&amp;' }[c]))}</pre>`}
 <p>${keySet ? '✅' : '⚠️'} DISCORD_PUBLIC_KEY ${keySet ? 'is set' : 'is missing: add it in Vercel, then redeploy'}.</p>
-<p>Next, add the bot to your server (you need Manage Server there). Do this again if you added it before /tourney existed: it now joins as a member so it can add and read reactions.</p>
+<p>Next, add the bot to your server (you need Manage Server there). Do this again if you added it before game invites existed: it now joins as a member so it can add and read reactions.</p>
 <p><a style="display:inline-block;background:#5865f2;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:700" href="${invite}">Add the bot to my server</a></p>
 <p style="color:#9a94c4">New commands can take a minute to show up; type / in any channel.</p></body>`;
   return new Response(html, { status: ok ? 200 : 500, headers: { 'Content-Type': 'text/html; charset=utf-8' } });

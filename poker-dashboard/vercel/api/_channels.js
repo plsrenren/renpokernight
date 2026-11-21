@@ -8,14 +8,14 @@ export const HOME = {
   casino: { label: 'casino', test: n => /casino/i.test(n),
     commands: ['daily', 'blackjack', 'freebet', 'chips', 'duel', 'uth', 'roulette', 'baccarat', 'lottery', 'pack', 'loadout', 'tip'] },
   table: { label: 'the-table', test: n => /table/i.test(n),
-    commands: ['player', 'standings', 'recap', 'h2h', 'hall', 'wrap', 'tourney', 'cash', 'seats', 'roles'] },
+    commands: ['player', 'standings', 'recap', 'h2h', 'hall', 'wrap', 'game', 'tourney', 'cash', 'seats', 'roles'] },
 };
 const homeOf = cmd => Object.values(HOME).find(h => h.commands.includes(cmd));
 const THREAD = new Set([10, 11, 12]);
 
 // the server's channel list, kept for 10 minutes; only fetched when a command looks like it's in the wrong place
 let list = { at: 0, guild: '', chans: null };
-async function channels(guild) {
+export async function channels(guild) {
   if (list.chans && list.guild === guild && Date.now() - list.at < 600e3) return list.chans;
   const token = process.env.DISCORD_BOT_TOKEN;
   if (!token) return null;

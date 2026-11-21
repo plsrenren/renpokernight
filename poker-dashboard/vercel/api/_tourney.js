@@ -1,4 +1,5 @@
-// /tourney and /cash: a game invite people answer with reactions. Any reaction counts as "in".
+// /game (was /tourney and /cash, merged Nov 21 2026): a game invite people answer with reactions. Any reaction counts as "in".
+// type: Tournament (default) or Cash picks the card's wording; old /tourney and /cash still work if a client sends them.
 // The bot can't watch reactions live (it only wakes up on commands and button presses), so refreshInvite() rewrites
 // the newest card's names and count: on any use of the bot and every 5 minutes from a scheduler (/api/invite?refresh=1).
 // Cards posted before Nov 16, 2026 had a "🔄 Update headcount" button (custom_id tally:...); tally() still answers it
@@ -20,8 +21,10 @@ const inviteOptions = buyinHint => [
   { type: 11, name: 'meme', description: 'A picture to go with it', required: false },
   { type: 3, name: 'note', description: 'Anything else to say', required: false, max_length: 200 },
 ];
-export const TOURNEY_COMMAND = { name: 'tourney', description: 'Post a tournament invite people answer with reactions', type: 1, options: inviteOptions('e.g. $25') };
-export const CASH_COMMAND = { name: 'cash', description: 'Post a cash game invite people answer with reactions', type: 1, options: inviteOptions('e.g. $20 buy-in or 25c/50c') };
+export const GAME_COMMAND = { name: 'game', description: 'Post a game invite (tournament or cash) people answer with reactions', type: 1, options: [
+  { type: 3, name: 'type', description: 'Tournament or cash game', required: true,
+    choices: [{ name: 'Tournament', value: 'tourney' }, { name: 'Cash game', value: 'cash' }] },
+  ...inviteOptions('e.g. $25, or $20 buy-in / 25c/50c for cash')] };
 const KIND = { t: { title: '🏆 Tournament @ The Study', ask: 'Tournament night?' }, c: { title: '💵 Cash game @ The Study', ask: 'Cash game?' } };
 
 function inviteEmbed({ date, time, buyin, host, note, min, kind = 't' }, lists, image) {
@@ -65,7 +68,7 @@ async function pitbossRole(guild) {
     return roleCache.id;
   } catch (e) { return undefined; } finally { clearTimeout(t); }
 }
-/** null when this person may run /tourney or /cash, otherwise the (ephemeral) answer to send back.
+/** null when this person may run /game (invites), otherwise the (ephemeral) answer to send back.
  *  strict (used by /house): DMs, a missing pitboss role, or a failed check block everyone but Renato and admins. */
 export async function inviteBlocked(i, s, hostId, strict = false) {
   const m = i.member, uid = ((m && m.user) || i.user || {}).id;
@@ -76,17 +79,17 @@ export async function inviteBlocked(i, s, hostId, strict = false) {
   const rid = await pitbossRole(i.guild_id);
   if (rid && (m.roles || []).includes(rid)) return null;
   if (!rid) return strict ? no("Only pitbosses can use this, and I couldn't find a pitboss role.") : null; // invites: don't get in the way
-  return no(strict ? `Only <@&${rid}> can see the house books.` : `Only <@&${rid}> can post game invites. Ask one of them to run /${i.data.name}.`);
+  return no(strict ? (i.data.name === 'house' ? `Only <@&${rid}> can see the house books.` : `Only <@&${rid}> can use /${i.data.name}.`) : `Only <@&${rid}> can post game invites. Ask one of them to run /${i.data.name}.`);
 }
 
-/** The /tourney command: answers "thinking…" right away, then finishes the post in the background. */
+/** The /game command: answers "thinking…" right away, then finishes the post in the background. */
 export function startTourney(i, opts, s, waitUntil) {
   const v = k => opts[k] && opts[k].value;
   const who = (i.member && i.member.user) || i.user || {};
   const byId = Object.fromEntries(Object.entries(s.ids).map(([n, id]) => [id, n]));
   const host = byId[who.id] || (i.member && i.member.nick) || who.global_name || who.username || 'someone';
   const att = v('meme') && i.data.resolved && i.data.resolved.attachments && i.data.resolved.attachments[v('meme')];
-  const info = { date: v('date'), time: v('time'), buyin: v('buyin'), note: v('note'), min: v('min'), host, kind: i.data.name === 'cash' ? 'c' : 't' };
+  const info = { date: v('date'), time: v('time'), buyin: v('buyin'), note: v('note'), min: v('min'), host, kind: (i.data.name === 'cash' || (opts.type && opts.type.value) === 'cash') ? 'c' : 't' };
   waitUntil(finishTourney(i, info, att));
   return { type: 5 }; // "The Study is thinking…"
 }
@@ -126,12 +129,12 @@ export async function dc(path) {
   }
   return null;
 }
-/** A /tourney or /cash card: posted by the bot, with the invite title (or, on old cards, the Update headcount button). */
+/** A /game invite card: posted by the bot, with the invite title (or, on old cards, the Update headcount button). */
 export const isInvite = (m, botId) => !!(m && m.author && m.author.id === botId
   && ((m.embeds || []).some(e => TITLE.test(e.title || ''))
     || (m.components || []).some(row => (row.components || []).some(c => String(c.custom_id || '').startsWith('tally:')))));
 
-/** The bot's newest /tourney or /cash invite. Looks in channelId first (when given), then the text channels of the
+/** The bot's newest /game invite. Looks in channelId first (when given), then the text channels of the
  *  server guildId (or of every server the bot is in). Returns the message with guild_id added, or null. */
 export async function latestInvite(botId, { channelId, guildId } = {}) {
   if (channelId) {
