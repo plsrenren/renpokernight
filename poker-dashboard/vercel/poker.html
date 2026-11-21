@@ -116,6 +116,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .dbtn2 { position: absolute; transform: translate(-50%, -50%); width: 22px; height: 22px; border-radius: 50%; background: #fff; color: var(--ink); font: 900 12px/22px var(--round); text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,.5); z-index: 1; }
 
 .actbar { background: var(--panel); padding: 12px 14px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; min-height: 118px; }
+.actbar.guest { grid-template-columns: minmax(0, 1fr) auto; min-height: 0; }
 .mine { display: grid; gap: 6px; justify-items: center; }
 .mine .cards { display: flex; gap: 6px; }
 .mine .str { font: 600 11.5px var(--mono); color: var(--gold); white-space: nowrap; }
@@ -184,7 +185,8 @@ details.fold:not([open]) { padding-bottom: 0; }
   .st-name b, .st-name span.sk { font-size: 10px; } .st-name b { max-width: 54px; }
   .st-stk { right: -8px; bottom: 10px; } .st-stk .pl-stk { width: 20px; height: 20px; }
   .st.empty button { width: 48px; height: 38px; font-size: 13px; }
-  .actbar { grid-template-columns: minmax(0, 1fr); }
+  .actbar, .actbar.guest { grid-template-columns: minmax(0, 1fr); }
+  .actbar.guest .dbtn { justify-content: center; }
   .mine { grid-auto-flow: column; justify-content: start; align-items: center; gap: 12px; }
   .cd.lg { width: 52px; height: 72px; font-size: 24px; } .cd.lg i { font-size: 20px; }
   .banner { font-size: 15px; }
@@ -286,8 +288,9 @@ function scheduleTick() {
 // ---------- live updates ----------
 let rt = null, liveOn = false;
 function connectLive() {
-  if (rt || !S || !S.ably || !S.me || !window.Ably) return;
-  rt = new Ably.Realtime({ authCallback: (p, cb) => api({ a: 'token' }).then(j => j.token ? cb(null, j.token) : cb(j.err || 'no token')).catch(e => cb(String(e))), autoConnect: true, echoMessages: false });
+  if (rt || !S || !S.ably || !window.Ably) return;
+  const getToken = () => S.me ? api({ a: 'token' }) : fetch('/api/poker?token=1', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.json()); // guests get a listen-only token
+  rt = new Ably.Realtime({ authCallback: (p, cb) => getToken().then(j => j.token ? cb(null, j.token) : cb(j.err || 'no token')).catch(e => cb(String(e))), autoConnect: true, echoMessages: false });
   rt.connection.on(ch => { liveOn = ch.current === 'connected'; renderLive(); if (ch.current === 'connected' && ch.previous !== 'initialized') api().catch(() => {}); });
   rt.channels.get('poker:table').subscribe('t', m => { try { onTable(JSON.parse(m.data)); } catch (e) {} });
   rt.channels.get('poker:chat').subscribe(m => { const d = m.data || {}; addChat(m.clientId, d.name, d.text); });
@@ -304,7 +307,7 @@ function addChat(id, name, text) {
   if (chat.length > 60) chat.shift();
   const el = $('#chat'); if (el) { el.innerHTML = chatHTML(); el.scrollTop = el.scrollHeight; }
 }
-const chatHTML = () => chat.length ? chat.map(c => `<div><b>${esc(c.name)}:</b> ${esc(c.text)}</div>`).join('') : '<div class="sys">Say something. Everyone at the table and on the rail sees it.</div>';
+const chatHTML = () => chat.length ? chat.map(c => `<div><b>${esc(c.name)}:</b> ${esc(c.text)}</div>`).join('') : (S && S.me ? '<div class="sys">Say something. Everyone at the table and on the rail sees it.</div>' : '<div class="sys">Table talk shows up here.</div>');
 function say(text) {
   text = String(text || '').trim().slice(0, 140); if (!text) return;
   if (!rt || !liveOn) return toast('Chat needs live updates. Try again in a moment.', true);
@@ -422,8 +425,18 @@ function render() {
   const qerr = new URLSearchParams(location.search).get('err');
   $('#note').innerHTML = qerr && ERRS[qerr] ? `<div class="note">${esc(ERRS[qerr])}</div>` : '';
   const t = T(), v = $('#view');
+  if (!S.me && t.open) { // signing in is optional: guests watch the table and the chat live
+    v.innerHTML = `<div class="tbar"><div class="info">No-limit Hold'em · ${money(t.cfg.sb)}/${money(t.cfg.bb)} · Hand <b>#${t.hand || 0}</b><span class="live" id="live"></span></div>
+        <a class="cbtn sm" href="/api/login?to=poker">Sign in to sit</a></div>
+      <div class="game"><div>${tableHTML()}<div class="actbar guest"><div class="wait">You're watching<small>Sign in with Discord to sit down with your casino chips or chat.</small></div><a class="dbtn" href="/api/login?to=poker">${DISCORD_SVG}Sign in with Discord</a></div></div>
+        <div class="side"><div class="panel"><h2>Table talk</h2><div class="chat" id="chat">${chatHTML()}</div></div>
+          <div class="panel"><h2 class="g">House rules</h2>${rulesHTML(t.cfg)}</div></div></div>`;
+    const c = $('#chat'); if (c) c.scrollTop = c.scrollHeight;
+    renderLive();
+    return;
+  }
   if (!S.me) {
-    v.innerHTML = `<section class="hero"><div><h2>${t.open ? 'The poker room is open' : 'The poker room'}</h2><p>${t.open ? `No-limit Hold'em, blinds ${money(t.cfg.sb)}/${money(t.cfg.bb)}. ${t.seats.filter(s => s && !s.left).length} of 8 seats taken. ` : 'A host opens it on game night. '}Sign in with Discord to sit down with your casino chips.</p></div>
+    v.innerHTML = `<section class="hero"><div><h2>${t.open ? 'The poker room is open' : 'The poker room'}</h2><p>${t.open ? `No-limit Hold'em, blinds ${money(t.cfg.sb)}/${money(t.cfg.bb)}. ${t.seats.filter(s => s && !s.left).length} of 8 seats taken. ` : 'A host opens it on game night, and anyone can watch. '}Sign in with Discord to sit down with your casino chips.</p></div>
       <div><a class="dbtn" href="/api/login?to=poker">${DISCORD_SVG}Sign in with Discord</a></div></section>`;
     return;
   }
@@ -520,7 +533,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) api(
 (async function start() {
   try { await api(); } catch (e) { $('#view').innerHTML = '<p class="loading">Couldn\'t reach the table. Refresh to try again.</p>'; return; }
   poll();
-  if (S.ably && S.me) { const sc = document.createElement('script'); sc.src = '/ably.min.js'; sc.onload = connectLive; document.head.appendChild(sc); }
+  if (S.ably) { const sc = document.createElement('script'); sc.src = '/ably.min.js'; sc.onload = connectLive; document.head.appendChild(sc); }
 })();
 </script>
 <style>

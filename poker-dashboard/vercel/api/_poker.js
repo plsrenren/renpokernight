@@ -2,6 +2,7 @@
 // Routed through api/discord.js (vercel.json rewrites /api/poker there with ?web=poker), so it needs no function of its own.
 //
 //   GET  /api/poker            → the table (public), plus for a signed-in person: your seat, your two cards, your chips, host or not
+//   GET  /api/poker?token=1    → Ably token request; guests (not signed in) get listen-only, so watching needs no sign-in
 //   POST /api/poker {a: …}     → token (Ably sign-in for live updates) | sit {seat, amt} | top {amt} | leave | sitout {on}
 //                                | act {do: fold|check|call|raise, to} | tick | host: open {cfg} | close | pause | resume | blinds {sb, bb} | seatout {seat, on}
 //
@@ -71,10 +72,11 @@ async function publish(T, t) {
   } catch (e) { console.error('ably publish', e.name); } finally { clearTimeout(timer); }
 }
 /** A signed Ably token request (the browser swaps it for a token itself): listen on the table, talk on the chat, nothing else. */
-function tokenRequest(clientId) {
+function tokenRequest(clientId, guest) {
   const [keyName, secret] = ablyKey().split(':');
-  // Ably signs the capability in its sorted form (channels A-Z, operations A-Z), so it's written that way here
-  const capability = JSON.stringify({ [CHAT]: ['publish', 'subscribe'], [CHAN]: ['subscribe'] });
+  // Ably signs the capability in its sorted form (channels A-Z, operations A-Z), so it's written that way here.
+  // Guests (not signed in) can only watch: listen on the table and the chat, never talk.
+  const capability = JSON.stringify({ [CHAT]: guest ? ['subscribe'] : ['publish', 'subscribe'], [CHAN]: ['subscribe'] });
   const ttl = 4 * 3600e3, timestamp = Date.now(), nonce = randomBytes(12).toString('hex');
   const mac = createHmac('sha256', secret).update([keyName, ttl, capability, clientId, timestamp, nonce, ''].join('\n')).digest('base64');
   return { keyName, ttl, capability, clientId, timestamp, nonce, mac };
@@ -116,6 +118,8 @@ export async function pokerWeb(req, me, sheet, out) {
   const t = Date.now();
   const ids = await sheet().then(s => (s && s.ids) || {}).catch(() => ({}));
   if (req.method === 'GET') {
+    // signing in is optional: anyone can watch, and a guest gets a listen-only live token here
+    if (new URL(req.url).searchParams.get('token')) return ablyKey() ? out({ token: tokenRequest(me ? me.id : 'guest-' + randomBytes(6).toString('hex'), !me) }) : out({ err: 'Live updates are not set up.' });
     let T = await load();
     // nobody ticks a room that everyone walked away from; the next visit does (closes it, pays everyone)
     if (T.open && ((T.at && t - T.at > 3 * 3600e3) || (!T.seats.some(s => s && !s.left) && T.emptyAt && t - T.emptyAt > 30 * 60e3))) {
