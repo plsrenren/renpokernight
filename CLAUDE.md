@@ -74,7 +74,7 @@ poker-dashboard/
                        recomputed from the sheet and diffed against rw:paid, so re-saves pay only the difference; a night missing from the sheet entirely is never clawed back. Not in the recap post, by request)
                        shop: _shop.js (Study Cards: /pack $100 for 3 cosmetics, tear + flip buttons, third card Uncommon+, duplicates refund chips;
                        /loadout (ephemeral menus) and /tip user amount note (moves bj:bal chips, atomic Lua script). Every game takes bets with takeChips() (DEBIT Lua in _blackjack.js: check + take in one step);
-                       never read the balance and then HINCRBYFLOAT a bet separately. Chip slash commands use the in-memory sheet copy, never wait on Google (3s limit). Keys sh:own:<id>, sh:eq, sh:packs, sh:pk:<pack>.
+                       never read the balance and then HINCRBYFLOAT a bet separately. Chip slash commands use the in-memory sheet copy, never wait on Google (3s limit). Keys sh:own:<id>, sh:eq, sh:packs, sh:pk:<pack> (7 days), sh:open:<id> (packs with face-down cards). Cards land in sh:own at purchase but stay out of loadout/menus/equip until flipped (hiddenCards); /shop resumes a half-open pack (POST {a:reveal}).
                        Site /shop talks to /api/shop = vercel.json rewrite into discord.js?web=shop (shopWeb); /api/login?to=shop returns to /shop.
                        Pack + card images = bjcards?m=pack|cards (_shopimg.js); equipped items drawn on /player (_late.js) and the dashboard card)
                        house books + rakeback: every house-game hand (blackjack, free bet, UTH, baccarat, roulette) goes through feedCmds(me, game, net, wager), which also
