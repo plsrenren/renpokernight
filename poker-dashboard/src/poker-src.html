@@ -378,7 +378,7 @@ function seatHTML(s, i) {
     <div class="st-name${b.bar ? ' pl-wash' : ''}">${b.bar ? `<span class="pl-bg ${b.bar}" aria-hidden="true"></span>` : ''}<b>${esc(s.name)}</b><span class="sk">${stack}</span></div>${b.sticker ? `<span class="st-stk">${b.sticker}</span>` : ''}
     ${s.last ? `<div class="act ${lastCls}">${esc(s.last)}</div>` : s.out && !s.left && s.stack ? '<div class="act fold">Sitting out</div>' : ''}
     ${t.toAct === i && t.phase === 'hand' ? `<div class="tmr"><i style="animation-duration:${dur}s;animation-delay:-${Math.max(0, dur - left).toFixed(2)}s"></i></div>` : ''}
-    ${peek === i ? `<div class="st-peek">${b.title || `<small>No title equipped</small>`}</div>` : ''}
+    ${peek === i && b.title ? `<div class="st-peek">${b.title}</div>` : ''}
   </div>`;
 }
 function tableHTML() {
@@ -389,7 +389,7 @@ function tableHTML() {
   const board = Array.from({ length: 5 }, (_, k) => { const c = t.board[k]; return card(c, '', c && hl.length ? (hl.includes(c) ? 'hl' : 'dim') : ''); }).join('');
   const pot = t.pot + t.seats.reduce((a, s) => a + (s ? s.bet : 0), 0);
   const top = t.phase === 'paused' ? '<div class="banner">Paused by the host</div>' : t.res ? `<div class="banner">${esc(t.res.banner)}</div>`
-    : t.phase === 'idle' ? `<div class="banner sub">${t.seats.filter(s => s).length < 2 ? 'Waiting for players' : 'Waiting for players to be dealt in'}</div>` : `<div class="pot">Pot ${money(pot)}</div>`;
+    : t.phase === 'idle' ? `<div class="banner sub">Waiting for players</div>` : `<div class="pot">Pot ${money(pot)}</div>`;
   return `<div class="felt"><div class="oval"></div>${dp ? `<div class="dbtn2" style="left:${dp.x - 7}%;top:${dp.y}%">D</div>` : ''}${bets}
     <div class="center"><div class="crow">${top}</div><div class="bd5">${board}</div><div class="crow">${t.res && t.res.sub ? `<div class="banner sub">${esc(t.res.sub)}</div>` : ''}</div></div>
     ${t.seats.map(seatHTML).join('')}</div>`;
@@ -397,13 +397,13 @@ function tableHTML() {
 function actHTML() {
   const t = T(), i = mySeat(), s = i >= 0 ? t.seats[i] : null;
   if (!S.me) return '';
-  if (!s) return `<div class="actbar"><div class="mine"><div class="cards">${card(null, 'lg')}${card(null, 'lg')}</div></div><div class="wait">${t.open ? 'Pick an open seat to sit down' : 'The room is closed'}<small>You have ${money(S.me.bal)} in chips. Buy in for ${money(t.cfg.min)} to ${money(t.cfg.max)}.</small></div></div>`;
+  if (!s) return `<div class="actbar"><div class="mine"><div class="cards">${card(null, 'lg')}${card(null, 'lg')}</div></div><div class="wait">${t.open ? 'Tap SIT to join' : 'The room is closed'}</div></div>`;
   const cards = S.me.cards && S.me.cards.length && cardsFor === t.hid && s.dealt ? S.me.cards : null, folded = !!(cards && s.folded);
   const hint = cards ? (t.board.length >= 3 ? describe(bestOf([...cards, ...t.board])) : cards[0][0] === cards[1][0] ? `Pocket ${PL[rv(cards[0])]}` : `${rn(Math.max(rv(cards[0]), rv(cards[1])))}-${rn(Math.min(rv(cards[0]), rv(cards[1])))}${cards[0][1] === cards[1][1] ? ' suited' : ''}`) : '';
   const res = t.res, win = res && res.win.includes(i);
   const mine = `<div class="mine"><div class="cards">${cards ? cards.map(c => card(c, 'lg', folded ? 'fold' : win && res.hl.includes(c) ? 'hl' : '')).join('') : card(null, 'lg') + card(null, 'lg')}</div>${hint ? `<div class="str">${folded ? 'Folded' : esc(hint)}</div>` : ''}</div>`;
   let right;
-  if (s.out) right = `<div class="wait">You're sitting out<small>${s.stack > 0 ? "Your seat is saved. Come back and you're dealt in next hand." : 'Out of chips at this table. Rebuy from your casino chips to keep playing.'}</small>
+  if (s.out) right = `<div class="wait">You're sitting out<small>${s.stack > 0 ? 'Seat saved' : 'Out of chips'}</small>
       ${s.stack > 0 ? `<button class="cbtn up sm" data-a="back">I'm back</button>` : `<button class="cbtn up sm" data-a="top">Rebuy</button>`}</div>`;
   else if (t.phase === 'hand' && t.toAct === i) {
     const toCall = t.curBet - s.bet, maxTo = s.bet + s.stack, minTo = Math.min(t.curBet === 0 ? t.cfg.bb : t.curBet + t.minRaise, maxTo);
@@ -420,29 +420,28 @@ function actHTML() {
 </div>`;
   } else {
     const who = t.phase === 'hand' && t.toAct >= 0 && t.seats[t.toAct] ? t.seats[t.toAct].name : '';
-    right = `<div class="wait">${t.phase === 'paused' ? 'Game paused by the host' : who ? `Waiting on ${esc(who)}` : t.phase === 'done' ? 'Next hand coming up' : 'Waiting for players'}
-      <small>${s.dealt && !s.folded ? `${t.cfg.turn} seconds per turn. Run out of time and you check or fold.` : s.dealt ? 'You folded this hand.' : t.phase === 'hand' ? "You're in next hand." : 'Sit tight.'}</small></div>`;
+    right = `<div class="wait">${t.phase === 'paused' ? 'Paused' : who ? `Waiting on ${esc(who)}` : t.phase === 'done' ? 'Next hand coming up' : 'Waiting for players'}</div>`;
   }
   return `<div class="actbar">${mine}${right}</div>`;
 }
-const logHTML = t => `<div class="panel pop" id="pop"><h2>Hand log</h2><div class="hlog">${t.log.map(l => /^Hand #/.test(l) ? `<div class="h">${esc(l)}</div>` : `<div>${esc(l)}</div>`).join('')}</div></div>`;
+const logHTML = t => `<div class="panel pop" id="pop"><div class="hlog">${t.log.map(l => /^Hand #/.test(l) ? `<div class="h">${esc(l)}</div>` : `<div>${esc(l)}</div>`).join('')}</div></div>`;
 /** the buttons at the top right (Hand log, House rules, and Host for hosts); each drops down its panel, one at a time */
 function popBar(t) {
   const btn = (k, label, cls = 'ghost') => `<button class="cbtn sm popbtn ${cls} ${pop === k ? 'on' : ''}" data-pop="${k}" aria-expanded="${pop === k}">${label} ${pop === k ? '▴' : '▾'}</button>`;
   const host = S.me && S.me.host;
-  const panel = pop === 'log' ? logHTML(t) : pop === 'rules' ? `<div class="panel pop" id="pop"><h2 class="g">House rules</h2>${rulesHTML(t.cfg)}</div>` : pop === 'host' && host ? hostHTML() : '';
+  const panel = pop === 'log' ? logHTML(t) : pop === 'rules' ? `<div class="panel pop" id="pop">${rulesHTML(t.cfg)}</div>` : pop === 'host' && host ? hostHTML() : '';
   return `<span class="popbar">${btn('log', '<span class="wide">Hand </span>log')}${btn('rules', 'Rules')}${host ? btn('host', 'Host', 'hostbtn') : ''}</span>${panel}`;
 }
 function rulesHTML(c) {
-  return `<ul class="rules"><li>No-limit Texas Hold'em, blinds ${money(c.sb)}/${money(c.bb)}.</li><li>Buy in for ${money(c.min)} to ${money(c.max)} from your casino chips. Leave anytime and your stack goes back to your balance.</li>
-    <li>One table, up to 8 seats. Sit down anytime; you're dealt in next hand.</li><li>${c.turn} seconds to act, then you check or fold. Time out twice in a row and you're sat out.</li><li>No rake. Pots are player vs player.</li></ul>`;
+  return `<ul class="rules"><li>No-limit Texas Hold'em, blinds ${money(c.sb)}/${money(c.bb)}.</li><li>Buy in for ${money(c.min)} to ${money(c.max)} in casino chips. They go back when you leave.</li>
+    <li>Sit down anytime; you're dealt in next hand.</li><li>${c.turn} seconds to act, then you check or fold. Time out twice in a row and you're sat out.</li><li>No rake. Pots are player vs player.</li></ul>`;
 }
 const opts = (list, cur, fmt = v => v) => list.map(v => `<option value="${v}" ${String(v) === String(cur) ? 'selected' : ''}>${fmt(v)}</option>`).join('');
 function hostHTML() {
   const t = T();
   if (!S.me || !S.me.host) return '';
   const D = hostDraft;
-  if (!t.open) return `<div class="panel host"><h2 class="p">Host controls</h2><p class="hint">Only hosts see this (Renato, pitbosses, admins). The room stays closed until a host opens it.</p>
+  if (!t.open) return `<div class="panel host"><h2 class="p">Host controls</h2>
     <div class="hgrid"><label>Blinds<select id="hBlinds">${STAKES.map(([a, b]) => `<option value="${a}/${b}" ${(D.hBlinds || `${t.cfg.sb}/${t.cfg.bb}`) === `${a}/${b}` ? 'selected' : ''}>${money(a)}/${money(b)}</option>`).join('')}</select></label>
       <label>Min buy-in<select id="hMin">${opts(MIN_BUYS, D.hMin || t.cfg.min, money)}</select></label>
       <label>Max buy-in<select id="hMax">${opts(MAX_BUYS, D.hMax || t.cfg.max, money)}</select></label>
@@ -450,12 +449,12 @@ function hostHTML() {
     <label class="chk"><input type="checkbox" id="hPost" ${D.hPost === false ? '' : 'checked'}> Post "The poker room is open" in #the-table</label>
     <button class="cbtn up" data-host="open">Open the room</button></div>`;
   const people = t.seats.map((s, i) => s && !s.left ? `<div>${av(s.id, s.name)}<b>${esc(s.name)}</b><small>${s.out ? 'sitting out' : money(s.stack)}</small><button class="cbtn ${s.out ? 'up' : 'ghost'} sm" data-seatout="${i}" data-on="${s.out ? '' : '1'}">${s.out ? 'Deal in' : 'Sit out'}</button></div>` : '').join('');
-  return `<div class="panel host pop" id="pop"><h2 class="p">Host controls</h2><p class="hint">Only hosts see this. Changes apply from the next hand.</p>
+  return `<div class="panel host pop" id="pop">
     <div class="hrow">${t.phase === 'paused' ? `<button class="cbtn up sm" data-host="resume">Resume game</button>` : `<button class="cbtn ghost sm" data-host="pause" ${t.pauseReq ? 'disabled' : ''}>${t.pauseReq ? 'Pausing after this hand' : 'Pause after this hand'}</button>`}
       <button class="cbtn sm" data-host="close" ${t.closeReq ? 'disabled' : ''}>${t.closeReq ? 'Closing after this hand' : 'Close room'}</button></div>
     <label class="hl1">Blinds<select id="hBlinds2">${STAKES.map(([a, b]) => `<option value="${a}/${b}" ${a === t.cfg.sb && b === t.cfg.bb ? 'selected' : ''}>${money(a)}/${money(b)}</option>`).join('')}</select></label>
     <div class="plist">${people || '<p class="hint">Nobody is sitting down yet.</p>'}</div>
-    <p class="hint">Hosts can't see anyone's cards or move chips. Closing finishes the hand and cashes everyone out. An empty room closes itself after 30 minutes.</p></div>`;
+    <p class="hint">Changes apply next hand. Closing cashes everyone out.</p></div>`;
 }
 function header() {
   const el = $('#me');
@@ -479,9 +478,9 @@ function render() {
   $('#note').innerHTML = qerr && ERRS[qerr] ? `<div class="note">${esc(ERRS[qerr])}</div>` : '';
   const t = T(), v = $('#view');
   if (!S.me && t.open) { // signing in is optional: guests watch the table and the chat live
-    v.innerHTML = `<div class="tbar"><div class="info">No-limit Hold'em · ${money(t.cfg.sb)}/${money(t.cfg.bb)} · Hand <b>#${t.hand || 0}</b><span class="live" id="live"></span></div>
-        <div class="tbtns"><a class="cbtn sm" href="/api/login?to=poker">Sign in to sit</a>${popBar(t)}</div></div>
-      <div class="game"><div>${tableHTML()}<div class="actbar guest"><div class="wait">You're watching<small>Sign in with Discord to sit down with your casino chips.</small></div><a class="dbtn" href="/api/login?to=poker">${DISCORD_SVG}Sign in with Discord</a></div></div></div>`;
+    v.innerHTML = `<div class="tbar"><div class="info">${money(t.cfg.sb)}/${money(t.cfg.bb)} · Hand <b>#${t.hand || 0}</b><span class="live" id="live"></span></div>
+        <div class="tbtns">${popBar(t)}</div></div>
+      <div class="game"><div>${tableHTML()}<div class="actbar guest"><div class="wait">You're watching</div><a class="dbtn" href="/api/login?to=poker">${DISCORD_SVG}Sign in with Discord</a></div></div></div>`;
     keepLog();
     renderLive();
     return;
@@ -497,7 +496,7 @@ function render() {
     return;
   }
   const i = mySeat(), s = i >= 0 ? t.seats[i] : null;
-  v.innerHTML = `<div class="tbar"><div class="info">No-limit Hold'em · ${money(t.cfg.sb)}/${money(t.cfg.bb)} · Hand <b>#${t.hand || 0}</b><span class="live" id="live"></span></div>
+  v.innerHTML = `<div class="tbar"><div class="info">${money(t.cfg.sb)}/${money(t.cfg.bb)} · Hand <b>#${t.hand || 0}</b><span class="live" id="live"></span></div>
       <div class="tbtns">${s ? `<button class="cbtn ghost sm" data-a="top" ${s.stack + (s.pend || 0) >= t.cfg.max ? 'disabled' : ''}>Top up</button>
       <button class="cbtn ghost sm" data-a="${s.out ? 'back' : 'sitout'}">${s.out ? "I'm back" : 'Sit out'}</button>
       <button class="cbtn sm" data-a="leave">Leave<span class="wide"> table</span></button>` : ''}
@@ -523,7 +522,7 @@ function modal(kind, seat) {
     const max = Math.floor(Math.min(room, S.me.bal)), min = kind === 'top' ? 1 : t.cfg.min;
     if (max < min) return toast(kind === 'top' ? `You can have up to ${money(t.cfg.max)} in front of you.` : `You need ${money(t.cfg.min)} in chips to sit down. You have ${money(S.me.bal)}.`, true);
     m.innerHTML = `<div class="modal"><form class="box" id="buyF"><h3>${kind === 'top' ? (s.stack ? 'Top up' : 'Rebuy') : 'Buy in'}</h3>
-      <p>${kind === 'top' ? `Add chips, up to ${money(t.cfg.max)} in front of you. In the middle of a hand it's added before the next one.` : 'It comes out of your casino chips and goes back when you leave.'}</p>
+      ${kind === 'top' ? `<p>Up to ${money(t.cfg.max)} in front of you.</p>` : ''}
       <div class="amt" id="buyAmt">${money(max)}</div><input type="range" id="buyR" min="${min}" max="${max}" step="1" value="${max}" aria-label="Amount">
       <p style="font:500 12px var(--mono);color:var(--muted)">Casino chips after: <span id="buyLeft">${money(S.me.bal - max)}</span></p>
       <div class="row"><button class="cbtn gold">${kind === 'top' ? 'Add chips' : 'Sit down'}</button><button type="button" class="cbtn ghost" data-close>Cancel</button></div></form></div>`;
