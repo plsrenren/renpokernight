@@ -62,16 +62,17 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 
 /* table */
 .tbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; position: relative; z-index: 30; }
-.hostbtn { background: var(--pink); color: #fff; } .hostbtn.on { background: var(--gold); color: var(--ink); }
-.hostpop { position: absolute; right: 0; top: calc(100% + 8px); width: min(360px, calc(100vw - 32px)); max-height: calc(100vh - 140px); overflow-y: auto; box-shadow: 0 18px 40px rgba(0,0,0,.55); border: 2px solid var(--pink); }
+.popbar { display: flex; gap: 8px; }
+.popbtn.on { background: var(--gold); color: var(--ink); } .hostbtn { background: var(--pink); color: #fff; }
+.pop .hlog { max-height: min(420px, calc(100vh - 220px)); }
+.pop { position: absolute; right: 0; top: calc(100% + 8px); width: min(360px, calc(100vw - 32px)); max-height: calc(100vh - 140px); overflow-y: auto; box-shadow: 0 18px 40px rgba(0,0,0,.55); border: 2px solid var(--vio); } .pop.host { border-color: var(--pink); }
 .tbar .info { font: 400 20px var(--title); letter-spacing: .06em; color: var(--soft); margin-right: auto; white-space: nowrap; }
 .tbar .info b { color: var(--gold); font-weight: 400; }
 .live { font: 600 10.5px var(--mono); padding: 2px 6px; background: var(--panel2); color: var(--muted); vertical-align: middle; margin-left: 6px; letter-spacing: 0; }
 .live.on { background: rgba(142,224,176,.18); color: var(--up); }
 .game { display: grid; gap: 16px; margin-top: 12px; }
-/* the open room uses the whole browser width; controls, log and rules sit in a row under the table */
+/* the open room uses the whole browser width; log, rules and host controls drop down from buttons at the top right */
 body.room .wrap { max-width: none; }
-.below { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; align-items: start; }
 .felt { position: relative; aspect-ratio: 2 / 1; width: 100%; max-height: max(380px, calc(100vh - 340px)); margin-block: 14px; }
 .oval { position: absolute; inset: 9% 7%; border-radius: 50%; background: radial-gradient(120% 90% at 50% 20%, var(--felt1), var(--felt2) 72%); border: 10px solid #3a2a6e; outline: 3px solid var(--gold); box-shadow: inset 0 0 40px rgba(0,0,0,.45); }
 .oval::after { content: "THE STUDY"; position: absolute; left: 50%; top: 70%; transform: translateX(-50%); font: 400 22px var(--title); letter-spacing: .4em; color: rgba(255,255,255,.07); white-space: nowrap; }
@@ -333,7 +334,8 @@ function say(text) {
 }
 
 // ---------- drawing ----------
-function seatPos(i) { const a = (90 + i * 45) * Math.PI / 180, rx = PHONE.matches ? 31 : 38; return { x: 47 + rx * Math.cos(a), y: 50 + 39 * Math.sin(a) }; }
+// once you sit down the table turns so your seat is always the one at the bottom (seat order and dealing don't change)
+function seatPos(i) { const me = mySeat(), k = me >= 0 ? (i - me + 8) % 8 : i, a = (90 + k * 45) * Math.PI / 180, rx = PHONE.matches ? 31 : 38; return { x: 47 + rx * Math.cos(a), y: 50 + 39 * Math.sin(a) }; }
 const toward = (p, f) => ({ x: 50 + (p.x - 50) * f, y: 50 + (p.y - 50) * f });
 function seatHTML(s, i) {
   const t = T(), pos = seatPos(i), me = mySeat();
@@ -403,7 +405,14 @@ function actHTML() {
   }
   return `<div class="actbar">${mine}${right}</div>`;
 }
-const logHTML = (t, open) => `<details class="panel fold" id="hlog" ${open ? 'open' : ''}><summary><h2>Hand log</h2></summary><div class="hlog">${t.log.map(l => /^Hand #/.test(l) ? `<div class="h">${esc(l)}</div>` : `<div>${esc(l)}</div>`).join('')}</div></details>`;
+const logHTML = t => `<div class="panel pop" id="pop"><h2>Hand log</h2><div class="hlog">${t.log.map(l => /^Hand #/.test(l) ? `<div class="h">${esc(l)}</div>` : `<div>${esc(l)}</div>`).join('')}</div></div>`;
+/** the buttons at the top right (Hand log, House rules, and Host for hosts); each drops down its panel, one at a time */
+function popBar(t) {
+  const btn = (k, label, cls = 'ghost') => `<button class="cbtn sm popbtn ${cls} ${pop === k ? 'on' : ''}" data-pop="${k}" aria-expanded="${pop === k}">${label} ${pop === k ? '▴' : '▾'}</button>`;
+  const host = S.me && S.me.host;
+  const panel = pop === 'log' ? logHTML(t) : pop === 'rules' ? `<div class="panel pop" id="pop"><h2 class="g">House rules</h2>${rulesHTML(t.cfg)}</div>` : pop === 'host' && host ? hostHTML() : '';
+  return `<span class="popbar">${btn('log', 'Hand log')}${btn('rules', 'Rules')}${host ? btn('host', 'Host', 'hostbtn') : ''}</span>${panel}`;
+}
 function rulesHTML(c) {
   return `<ul class="rules"><li>No-limit Texas Hold'em, blinds ${money(c.sb)}/${money(c.bb)}.</li><li>Buy in for ${money(c.min)} to ${money(c.max)} from your casino chips. Leave anytime and your stack goes back to your balance.</li>
     <li>One table, up to 8 seats. Sit down anytime; you're dealt in next hand.</li><li>${c.turn} seconds to act, then you check or fold. Time out twice in a row and you're sat out.</li><li>No rake. Pots are player vs player.</li></ul>`;
@@ -421,8 +430,7 @@ function hostHTML() {
     <label class="chk"><input type="checkbox" id="hPost" ${D.hPost === false ? '' : 'checked'}> Post "The poker room is open" in #the-table</label>
     <button class="cbtn up" data-host="open">Open the room</button></div>`;
   const people = t.seats.map((s, i) => s && !s.left ? `<div>${av(s.id, s.name)}<b>${esc(s.name)}</b><small>${s.out ? 'sitting out' : money(s.stack)}</small><button class="cbtn ${s.out ? 'up' : 'ghost'} sm" data-seatout="${i}" data-on="${s.out ? '' : '1'}">${s.out ? 'Deal in' : 'Sit out'}</button></div>` : '').join('');
-  if (!hostPop) return '';
-  return `<div class="panel host hostpop" id="hostpop"><h2 class="p">Host controls</h2><p class="hint">Only hosts see this. Changes apply from the next hand.</p>
+  return `<div class="panel host pop" id="pop"><h2 class="p">Host controls</h2><p class="hint">Only hosts see this. Changes apply from the next hand.</p>
     <div class="hrow">${t.phase === 'paused' ? `<button class="cbtn up sm" data-host="resume">Resume game</button>` : `<button class="cbtn ghost sm" data-host="pause" ${t.pauseReq ? 'disabled' : ''}>${t.pauseReq ? 'Pausing after this hand' : 'Pause after this hand'}</button>`}
       <button class="cbtn sm" data-host="close" ${t.closeReq ? 'disabled' : ''}>${t.closeReq ? 'Closing after this hand' : 'Close room'}</button></div>
     <label class="hl1">Blinds<select id="hBlinds2">${STAKES.map(([a, b]) => `<option value="${a}/${b}" ${a === t.cfg.sb && b === t.cfg.bb ? 'selected' : ''}>${money(a)}/${money(b)}</option>`).join('')}</select></label>
@@ -435,7 +443,8 @@ function header() {
   el.classList.remove('hidden');
   el.innerHTML = `<span class="bal">${money(S.me.bal)}</span>${av(S.me.id, S.me.name)}<span class="nm">${esc(S.me.name)}</span>`;
 }
-let hostPop = false;          // host controls: a panel that drops down from the Host button at the top right
+let pop = '';                 // which top-right panel is open: '' | 'log' | 'rules' | 'host' (kept while the table updates)
+let logScroll = null;         // where you scrolled the hand log to (null = follow the newest line)
 let raiseKeep = { k: '', v: 0 }; // the raise amount you picked (preset or slider) stays put until the action moves on
 const hostDraft = {};          // the open-room form keeps what you picked while the page refreshes
 const turnKey = t => [t.hid, t.street, t.curBet, t.toAct].join('|');
@@ -444,17 +453,16 @@ function render() {
   document.body.classList.toggle('seated', mySeat() >= 0);
   document.body.classList.toggle('room', !!(S.table && S.table.open));
   const raiseFocus = $('#raise') && document.activeElement === $('#raise');
-  const logOpen = $('#hlog') ? $('#hlog').open : false;
+  const hl = $('#pop .hlog'); if (hl) logScroll = hl.scrollHeight - hl.scrollTop - hl.clientHeight < 8 ? null : hl.scrollTop;
   header();
   const qerr = new URLSearchParams(location.search).get('err');
   $('#note').innerHTML = qerr && ERRS[qerr] ? `<div class="note">${esc(ERRS[qerr])}</div>` : '';
   const t = T(), v = $('#view');
   if (!S.me && t.open) { // signing in is optional: guests watch the table and the chat live
     v.innerHTML = `<div class="tbar"><div class="info">No-limit Hold'em · ${money(t.cfg.sb)}/${money(t.cfg.bb)} · Hand <b>#${t.hand || 0}</b><span class="live" id="live"></span></div>
-        <a class="cbtn sm" href="/api/login?to=poker">Sign in to sit</a></div>
-      <div class="game"><div>${tableHTML()}<div class="actbar guest"><div class="wait">You're watching<small>Sign in with Discord to sit down with your casino chips.</small></div><a class="dbtn" href="/api/login?to=poker">${DISCORD_SVG}Sign in with Discord</a></div></div>
-        <div class="below">${logHTML(t, logOpen)}<details class="panel fold"><summary><h2 class="g">House rules</h2></summary>${rulesHTML(t.cfg)}</details></div></div>`;
-    const h = $('#hlog .hlog'); if (h) h.scrollTop = h.scrollHeight;
+        <a class="cbtn sm" href="/api/login?to=poker">Sign in to sit</a>${popBar(t)}</div>
+      <div class="game"><div>${tableHTML()}<div class="actbar guest"><div class="wait">You're watching<small>Sign in with Discord to sit down with your casino chips.</small></div><a class="dbtn" href="/api/login?to=poker">${DISCORD_SVG}Sign in with Discord</a></div></div></div>`;
+    keepLog();
     renderLive();
     return;
   }
@@ -473,10 +481,8 @@ function render() {
       ${s ? `<button class="cbtn ghost sm" data-a="top" ${s.stack + (s.pend || 0) >= t.cfg.max ? 'disabled' : ''}>Top up</button>
       <button class="cbtn ghost sm" data-a="${s.out ? 'back' : 'sitout'}">${s.out ? "I'm back" : 'Sit out'}</button>
       <button class="cbtn sm" data-a="leave">Leave table</button>` : ''}
-      ${S.me.host ? `<button class="cbtn sm hostbtn ${hostPop ? 'on' : ''}" data-a="hostpop" aria-expanded="${hostPop}">Host ${hostPop ? '▴' : '▾'}</button>${hostHTML()}` : ''}</div>
-    <div class="game"><div>${tableHTML()}${actHTML()}</div>
-      <div class="below">${logHTML(t, logOpen)}
-        <details class="panel fold"><summary><h2 class="g">House rules</h2></summary>${rulesHTML(t.cfg)}</details></div></div>`;
+      ${popBar(t)}</div>
+    <div class="game"><div>${tableHTML()}${actHTML()}</div></div>`;
   renderLive();
   const r = $('#raise');
   if (r) {
@@ -484,8 +490,9 @@ function render() {
     const show = () => { raiseKeep = { k: turnKey(T()), v: +r.value }; $('#raiseOut').textContent = money(+r.value); const s2 = T().seats[mySeat()]; $('#raiseBtn').textContent = +r.value >= s2.bet + s2.stack ? 'All in ' + money(+r.value) : (T().curBet === 0 ? 'Bet ' : 'Raise ') + money(+r.value); };
     r.addEventListener('input', show); show(); if (raiseFocus) r.focus();
   }
-  const h = $('#hlog .hlog'); if (h) h.scrollTop = h.scrollHeight;
+  keepLog();
 }
+function keepLog() { const h = $('#pop .hlog'); if (h) h.scrollTop = logScroll === null ? h.scrollHeight : logScroll; }
 function toast(text, bad) { const d = document.createElement('div'); d.className = 'toast' + (bad ? ' bad' : ''); d.textContent = text; document.body.appendChild(d); setTimeout(() => d.remove(), 2800); }
 
 // ---------- modals ----------
@@ -524,8 +531,8 @@ async function send(body) {
 // ---------- clicks ----------
 document.addEventListener('click', e => {
   const b = e.target.closest('button');
-  if (hostPop && !e.target.closest('#hostpop') && !(b && b.dataset.a === 'hostpop')) { hostPop = false; render(); if (!b) return; } // tap outside closes it
-  if (b && b.dataset.a === 'hostpop') { hostPop = !hostPop; return render(); }
+  if (pop && !e.target.closest('#pop') && !(b && b.dataset.pop)) { pop = ''; render(); if (!b) return; } // tap outside closes it
+  if (b && b.dataset.pop) { pop = pop === b.dataset.pop ? '' : b.dataset.pop; logScroll = null; return render(); }
   if (!b) { const st = e.target.closest('[data-peek]'); if (st) { const i = +st.dataset.peek; peek = peek === i ? -1 : i; render(); } return; }
   if (b.disabled) return;
   if (b.hasAttribute('data-close')) { $('#modal').innerHTML = ''; return; }
