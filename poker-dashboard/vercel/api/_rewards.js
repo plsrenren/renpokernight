@@ -6,7 +6,7 @@
 // (RSVP chips go straight to whoever reacted on the invite, Members tab or not).
 //
 // Per night (amounts in R below):
-//   RSVP            reacted to the /tourney or /cash invite for that night
+//   RSVP            reacted to the /game invite for that night
 //   Showed up       reacted AND played
 //   1st / 2nd / 3rd cash games by net, tournaments by cash out; only players who finished up or cashed; ties both get it
 //   Bad beat        the night's biggest loser: 20% of the real loss back, up to $100 (on top of consolation)

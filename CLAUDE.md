@@ -58,7 +58,7 @@ poker-dashboard/
                        Why (Nov 20 2026): every deployment stores each function with its own satori+resvg copy; 203 deployments hit 75% of Hobby's
                        10 GB Function Storage. Don't add new picture functions: add a case to img.js. vercel.json ignoreCommand skips deploys when
                        nothing under poker-dashboard/vercel changed (entry-page-only PRs don't deploy). avatar (Discord pfps/banners; &anim=1 = animated GIF pfp, used only on player cards),
-                       discord (slash commands endpoint; ?setup=1 registers commands), invite (who reacted to /tourney or /cash),
+                       discord (slash commands endpoint; ?setup=1 registers commands), invite (who reacted to the latest /game invite; /game type:Tournament|Cash replaced /tourney + /cash on Nov 21 2026, old names still answered),
                        roles (results roles + chip rewards; trusts a POSTed sheet only with header X-Roles-Key = env ROLES_KEY, which Invite.gs reads from
                        Script Properties; otherwise reads Google's copy), _tourney.js/_roles.js/_discord.js helpers, _assets/ fonts + logo
                        blackjack: _blackjack.js (/daily /blackjack /freebet /chips; splits up to 6 hands (MAX_HANDS) in both games; /freebet = mode 'free' on the same hand code:
@@ -75,6 +75,7 @@ poker-dashboard/
                        is spun by the next tap, New round or /roulette for up to a day) + roulette.js (wheel picture)
                        baccarat: _baccarat.js (/baccarat Player/Banker/Tie; picture = bjcards?m=bac)
                        seats: _seats.js (/seats random seat order from the latest invite's reactions) + seats.js (table picture)
+                       info: _info.js (/info posts the 2-card welcome post (links + Start here) as a normal bot message in that channel, for #info + pin; running it again in that channel edits the same post (id in Redis info:msg:<channel>), so wording changes = edit _info.js, deploy, /info; pitbosses/Renato/admins only)
                        channels: _channels.js (casino commands only in #casino, poker commands only in #the-table, matched by channel name; wrong channel = ephemeral "lives in #x" hint; /fish /donkey anywhere; no such channel = allowed anywhere)
                        casino: _casino.js (site /casino page: Discord sign-in + blackjack/UTH/baccarat/daily with the same bj:bal chips;
                        /api/login and /api/casino are vercel.json rewrites into discord.js?web=, so no extra function. Env DISCORD_CLIENT_SECRET,

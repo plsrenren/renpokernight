@@ -1,4 +1,4 @@
-// /seats: random seat order for everyone who reacted to the newest /tourney or /cash invite.
+// /seats: random seat order for everyone who reacted to the newest /game invite.
 //   add:    walk-ins, comma separated (matched to sheet names when they're close)
 //   remove: no-shows, comma separated names or @mentions
 // Everyone sits at one table. No dealer button (Renato asked to leave it out). Posts the table picture (/api/seats)
@@ -10,7 +10,7 @@ import { readReacts, latestInvite } from './_tourney.js';
 const SITE = 'https://renpokernight.vercel.app';
 const MAX = 16;
 
-export const SEATS_COMMAND = { name: 'seats', description: 'Random seat order for everyone in on the latest /tourney or /cash invite', type: 1,
+export const SEATS_COMMAND = { name: 'seats', description: 'Random seat order for everyone in on the latest /game invite', type: 1,
   options: [
     { type: 3, name: 'add', description: 'Walk-ins to add, comma separated (e.g. Mike, Tommy)', required: false, max_length: 200 },
     { type: 3, name: 'remove', description: 'No-shows to take out, comma separated names or @mentions', required: false, max_length: 300 }] };
@@ -77,7 +77,7 @@ async function finishSeats(i, opts, s) {
     if (!name || players.some(p => p.name.toLowerCase() === name.toLowerCase())) continue;
     players.push({ id: id || (s.ids || {})[name] || '', name }); added.push(name);
   }
-  if (!inv && !players.length) return fail("I couldn't find a /tourney or /cash invite. Post one first, or list everyone with `add:`.");
+  if (!inv && !players.length) return fail("I couldn't find a /game invite. Post one first, or list everyone with `add:`.");
   if (players.length < 2) return fail(`Only ${players.length} player${players.length === 1 ? '' : 's'} so far. Seats need at least 2 (use \`add:\` for walk-ins).`);
   if (players.length > MAX) return fail(`That's ${players.length} players, more than fit around one table (${MAX} max).`);
   const bits = [added.length ? `${added.join(', ')} added` : '', removed.length ? `${removed.join(', ')} removed` : ''].filter(Boolean);
