@@ -66,8 +66,11 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .tbar .info b { color: var(--gold); font-weight: 400; }
 .live { font: 600 10.5px var(--mono); padding: 2px 6px; background: var(--panel2); color: var(--muted); vertical-align: middle; margin-left: 6px; letter-spacing: 0; }
 .live.on { background: rgba(142,224,176,.18); color: var(--up); }
-.game { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; margin-top: 12px; align-items: start; }
-.felt { position: relative; aspect-ratio: 16 / 10; width: 100%; margin-block: 14px; }
+.game { display: grid; gap: 16px; margin-top: 12px; }
+/* the open room uses the whole browser width; controls, log and rules sit in a row under the table */
+body.room .wrap { max-width: none; }
+.below { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; align-items: start; }
+.felt { position: relative; aspect-ratio: 2 / 1; width: 100%; max-height: max(380px, calc(100vh - 340px)); margin-block: 14px; }
 .oval { position: absolute; inset: 9% 7%; border-radius: 50%; background: radial-gradient(120% 90% at 50% 20%, var(--felt1), var(--felt2) 72%); border: 10px solid #3a2a6e; outline: 3px solid var(--gold); box-shadow: inset 0 0 40px rgba(0,0,0,.45); }
 .oval::after { content: "THE STUDY"; position: absolute; left: 50%; top: 70%; transform: translateX(-50%); font: 400 22px var(--title); letter-spacing: .4em; color: rgba(255,255,255,.07); white-space: nowrap; }
 .center { position: absolute; left: 50%; top: 47%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 8px; width: 56%; }
@@ -155,6 +158,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 details.fold summary { list-style: none; cursor: pointer; } details.fold summary::-webkit-details-marker { display: none; }
 details.fold summary h2::after { content: ' ▾'; } details.fold[open] summary h2::after { content: ' ▴'; }
 details.fold:not([open]) { padding-bottom: 0; }
+details.fold > summary + * { margin-top: 10px; }
 .hlog { max-height: 220px; overflow-y: auto; font-size: 12.5px; color: var(--soft); line-height: 1.4; }
 .hlog div.h { font: 400 15px var(--title); letter-spacing: .08em; color: var(--vio); margin-top: 6px; }
 .host select { font: 600 13px var(--mono); background: var(--panel2); color: var(--fg); border: 0; padding: 6px 8px; margin-top: 4px; width: 100%; }
@@ -180,12 +184,12 @@ details.fold:not([open]) { padding-bottom: 0; }
 .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--up); color: #0e2a1c; font: 700 14px var(--body); padding: 10px 16px; z-index: 70; max-width: calc(100% - 32px); }
 .toast.bad { background: var(--down); color: #3a0d18; }
 
-@media (max-width: 900px) { .game, .lobby { grid-template-columns: minmax(0, 1fr); } .hero { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .lobby { grid-template-columns: minmax(0, 1fr); } .felt { aspect-ratio: 16 / 10; } .hero { grid-template-columns: 1fr; } }
 @media (max-width: 640px) {
   .wrap { padding: 14px 14px 30px; }
   .brand .lg { width: 70px; height: 60px; } .brand h1 { font-size: 38px; margin-top: 4px; }
   .links { display: none; } .me { margin-top: 4px; } .me .nm { display: none; }
-  .felt { aspect-ratio: 10 / 13.5; }
+  .felt { aspect-ratio: 10 / 13.5; max-height: none; }
   .oval { inset: 7% 11%; border-width: 7px; } .oval::after { top: 74%; font-size: 16px; }
   .center { width: 66%; top: 48%; }
   .cd { width: 36px; height: 50px; font-size: 17px; } .cd i { font-size: 14px; }
@@ -397,6 +401,7 @@ function actHTML() {
   }
   return `<div class="actbar">${mine}${right}</div>`;
 }
+const logHTML = (t, open) => `<details class="panel fold" id="hlog" ${open ? 'open' : ''}><summary><h2>Hand log</h2></summary><div class="hlog">${t.log.map(l => /^Hand #/.test(l) ? `<div class="h">${esc(l)}</div>` : `<div>${esc(l)}</div>`).join('')}</div></details>`;
 function rulesHTML(c) {
   return `<ul class="rules"><li>No-limit Texas Hold'em, blinds ${money(c.sb)}/${money(c.bb)}.</li><li>Buy in for ${money(c.min)} to ${money(c.max)} from your casino chips. Leave anytime and your stack goes back to your balance.</li>
     <li>One table, up to 8 seats. Sit down anytime; you're dealt in next hand.</li><li>${c.turn} seconds to act, then you check or fold. Time out twice in a row and you're sat out.</li><li>No rake. Pots are player vs player.</li></ul>`;
@@ -405,20 +410,22 @@ const opts = (list, cur, fmt = v => v) => list.map(v => `<option value="${v}" ${
 function hostHTML() {
   const t = T();
   if (!S.me || !S.me.host) return '';
-  if (!t.open) return `<div class="panel host"><h2 class="p">Host controls</h2><p class="hint">Only hosts see this (Renato, pitbosses, admins). The room stays closed until a host opens it.</p>
-    <div class="hgrid"><label>Blinds<select id="hBlinds">${STAKES.map(([a, b]) => `<option value="${a}/${b}" ${a === t.cfg.sb ? 'selected' : ''}>${money(a)}/${money(b)}</option>`).join('')}</select></label>
-      <label>Min buy-in<select id="hMin">${opts(MIN_BUYS, t.cfg.min, money)}</select></label>
-      <label>Max buy-in<select id="hMax">${opts(MAX_BUYS, t.cfg.max, money)}</select></label>
-      <label>Turn timer<select id="hTurn">${opts(TURNS, t.cfg.turn, v => v + ' sec')}</select></label></div>
-    <label class="chk"><input type="checkbox" id="hPost" checked> Post "The poker room is open" in #the-table</label>
-    <button class="cbtn up" data-host="open">Open the room</button></div>`;
+  const open = hostOpen === null ? !t.open : hostOpen, D = hostDraft;
+  const head = `<details class="panel fold host" id="hostd" ${open ? 'open' : ''}><summary><h2 class="p">Host controls</h2></summary><div>`;
+  if (!t.open) return `${head}<p class="hint">Only hosts see this (Renato, pitbosses, admins). The room stays closed until a host opens it.</p>
+    <div class="hgrid"><label>Blinds<select id="hBlinds">${STAKES.map(([a, b]) => `<option value="${a}/${b}" ${(D.hBlinds || `${t.cfg.sb}/${t.cfg.bb}`) === `${a}/${b}` ? 'selected' : ''}>${money(a)}/${money(b)}</option>`).join('')}</select></label>
+      <label>Min buy-in<select id="hMin">${opts(MIN_BUYS, D.hMin || t.cfg.min, money)}</select></label>
+      <label>Max buy-in<select id="hMax">${opts(MAX_BUYS, D.hMax || t.cfg.max, money)}</select></label>
+      <label>Turn timer<select id="hTurn">${opts(TURNS, D.hTurn || t.cfg.turn, v => v + ' sec')}</select></label></div>
+    <label class="chk"><input type="checkbox" id="hPost" ${D.hPost === false ? '' : 'checked'}> Post "The poker room is open" in #the-table</label>
+    <button class="cbtn up" data-host="open">Open the room</button></div></details>`;
   const people = t.seats.map((s, i) => s && !s.left ? `<div>${av(s.id, s.name)}<b>${esc(s.name)}</b><small>${s.out ? 'sitting out' : money(s.stack)}</small><button class="cbtn ${s.out ? 'up' : 'ghost'} sm" data-seatout="${i}" data-on="${s.out ? '' : '1'}">${s.out ? 'Deal in' : 'Sit out'}</button></div>` : '').join('');
-  return `<div class="panel host"><h2 class="p">Host controls</h2><p class="hint">Only hosts see this. Changes apply from the next hand.</p>
+  return `${head}<p class="hint">Only hosts see this. Changes apply from the next hand.</p>
     <div class="hrow">${t.phase === 'paused' ? `<button class="cbtn up sm" data-host="resume">Resume game</button>` : `<button class="cbtn ghost sm" data-host="pause" ${t.pauseReq ? 'disabled' : ''}>${t.pauseReq ? 'Pausing after this hand' : 'Pause after this hand'}</button>`}
       <button class="cbtn sm" data-host="close" ${t.closeReq ? 'disabled' : ''}>${t.closeReq ? 'Closing after this hand' : 'Close room'}</button></div>
     <label class="hl1">Blinds<select id="hBlinds2">${STAKES.map(([a, b]) => `<option value="${a}/${b}" ${a === t.cfg.sb && b === t.cfg.bb ? 'selected' : ''}>${money(a)}/${money(b)}</option>`).join('')}</select></label>
     <div class="plist">${people || '<p class="hint">Nobody is sitting down yet.</p>'}</div>
-    <p class="hint">Hosts can't see anyone's cards or move chips. Closing finishes the hand and cashes everyone out. An empty room closes itself after 30 minutes.</p></div>`;
+    <p class="hint">Hosts can't see anyone's cards or move chips. Closing finishes the hand and cashes everyone out. An empty room closes itself after 30 minutes.</p></div></details>`;
 }
 function header() {
   const el = $('#me');
@@ -426,11 +433,18 @@ function header() {
   el.classList.remove('hidden');
   el.innerHTML = `<span class="bal">${money(S.me.bal)}</span>${av(S.me.id, S.me.name)}<span class="nm">${esc(S.me.name)}</span>`;
 }
+let lastRoomOpen = null;
+let hostOpen = null;          // host controls dropdown: null = default (open while the room is closed)
+let raiseKeep = { k: '', v: 0 }; // the raise amount you picked (preset or slider) stays put until the action moves on
+const hostDraft = {};          // the open-room form keeps what you picked while the page refreshes
+const turnKey = t => [t.hid, t.street, t.curBet, t.toAct].join('|');
 function render() {
   if (!S || !S.table) return;
   document.body.classList.toggle('seated', mySeat() >= 0);
-  const keepRaise = $('#raise') && document.activeElement === $('#raise') ? $('#raise').value : null;
-  const chatScroll = $('#chat') && $('#chat').scrollTop, typed = $('#sayIn') ? $('#sayIn').value : '', typing = document.activeElement && document.activeElement.id === 'sayIn';
+  document.body.classList.toggle('room', !!(S.table && S.table.open));
+  const raiseFocus = $('#raise') && document.activeElement === $('#raise');
+  if ($('#hostd')) hostOpen = $('#hostd').open;
+  if (S.table.open !== lastRoomOpen) { lastRoomOpen = S.table.open; hostOpen = null; } // fold it again once the room opens
   const logOpen = $('#hlog') ? $('#hlog').open : false;
   header();
   const qerr = new URLSearchParams(location.search).get('err');
@@ -439,10 +453,9 @@ function render() {
   if (!S.me && t.open) { // signing in is optional: guests watch the table and the chat live
     v.innerHTML = `<div class="tbar"><div class="info">No-limit Hold'em · ${money(t.cfg.sb)}/${money(t.cfg.bb)} · Hand <b>#${t.hand || 0}</b><span class="live" id="live"></span></div>
         <a class="cbtn sm" href="/api/login?to=poker">Sign in to sit</a></div>
-      <div class="game"><div>${tableHTML()}<div class="actbar guest"><div class="wait">You're watching<small>Sign in with Discord to sit down with your casino chips or chat.</small></div><a class="dbtn" href="/api/login?to=poker">${DISCORD_SVG}Sign in with Discord</a></div></div>
-        <div class="side"><div class="panel"><h2>Table talk</h2><div class="chat" id="chat">${chatHTML()}</div></div>
-          <div class="panel"><h2 class="g">House rules</h2>${rulesHTML(t.cfg)}</div></div></div>`;
-    const c = $('#chat'); if (c) c.scrollTop = c.scrollHeight;
+      <div class="game"><div>${tableHTML()}<div class="actbar guest"><div class="wait">You're watching<small>Sign in with Discord to sit down with your casino chips.</small></div><a class="dbtn" href="/api/login?to=poker">${DISCORD_SVG}Sign in with Discord</a></div></div>
+        <div class="below">${logHTML(t, logOpen)}<details class="panel fold"><summary><h2 class="g">House rules</h2></summary>${rulesHTML(t.cfg)}</details></div></div>`;
+    const h = $('#hlog .hlog'); if (h) h.scrollTop = h.scrollHeight;
     renderLive();
     return;
   }
@@ -462,23 +475,15 @@ function render() {
       <button class="cbtn ghost sm" data-a="${s.out ? 'back' : 'sitout'}">${s.out ? "I'm back" : 'Sit out'}</button>
       <button class="cbtn sm" data-a="leave">Leave table</button>` : ''}</div>
     <div class="game"><div>${tableHTML()}${actHTML()}</div>
-      <div class="side">
-        <div class="panel"><h2>Table talk</h2><div class="chat" id="chat">${chatHTML()}</div>
-          <div class="quick">${['nh', 'gg', 'ship it', 'ty', 'sick', '🐟'].map(q => `<button data-say="${esc(q)}">${esc(q)}</button>`).join('')}</div>
-          <form class="say" id="sayF"><input id="sayIn" maxlength="140" placeholder="Say something" autocomplete="off" aria-label="Chat message"><button class="cbtn ghost sm">Send</button></form></div>
-        ${hostHTML()}
-        <details class="panel fold" id="hlog" ${logOpen ? 'open' : ''}><summary><h2>Hand log</h2></summary><div class="hlog">${t.log.map(l => /^Hand #/.test(l) ? `<div class="h">${esc(l)}</div>` : `<div>${esc(l)}</div>`).join('')}</div></details>
-        <details class="panel fold"><summary><h2 class="g">House rules</h2></summary>${rulesHTML(t.cfg)}</details>
-      </div></div>`;
+      <div class="below">${hostHTML()}${logHTML(t, logOpen)}
+        <details class="panel fold"><summary><h2 class="g">House rules</h2></summary>${rulesHTML(t.cfg)}</details></div></div>`;
   renderLive();
   const r = $('#raise');
   if (r) {
-    if (keepRaise) r.value = keepRaise;
-    const show = () => { $('#raiseOut').textContent = money(+r.value); const s2 = T().seats[mySeat()]; $('#raiseBtn').textContent = +r.value >= s2.bet + s2.stack ? 'All in ' + money(+r.value) : (T().curBet === 0 ? 'Bet ' : 'Raise ') + money(+r.value); };
-    r.addEventListener('input', show); show(); if (keepRaise) r.focus();
+    if (raiseKeep.k === turnKey(t)) r.value = raiseKeep.v;
+    const show = () => { raiseKeep = { k: turnKey(T()), v: +r.value }; $('#raiseOut').textContent = money(+r.value); const s2 = T().seats[mySeat()]; $('#raiseBtn').textContent = +r.value >= s2.bet + s2.stack ? 'All in ' + money(+r.value) : (T().curBet === 0 ? 'Bet ' : 'Raise ') + money(+r.value); };
+    r.addEventListener('input', show); show(); if (raiseFocus) r.focus();
   }
-  const c = $('#chat'); if (c) c.scrollTop = chatScroll || c.scrollHeight;
-  const si = $('#sayIn'); if (si) { si.value = typed; if (typing) si.focus(); }
   const h = $('#hlog .hlog'); if (h) h.scrollTop = h.scrollHeight;
 }
 function toast(text, bad) { const d = document.createElement('div'); d.className = 'toast' + (bad ? ' bad' : ''); d.textContent = text; document.body.appendChild(d); setTimeout(() => d.remove(), 2800); }
@@ -537,7 +542,7 @@ document.addEventListener('click', e => {
   if (h === 'open') { const [sb, bb] = $('#hBlinds').value.split('/').map(Number); return send({ a: 'open', post: $('#hPost').checked, cfg: { sb, bb, min: +$('#hMin').value, max: +$('#hMax').value, turn: +$('#hTurn').value } }); }
   if (h) return send({ a: h });
 });
-document.addEventListener('change', e => { if (e.target.id === 'hBlinds2') { const [sb, bb] = e.target.value.split('/').map(Number); send({ a: 'blinds', sb, bb }); } });
+document.addEventListener('change', e => { const id = e.target.id; if (['hBlinds', 'hMin', 'hMax', 'hTurn'].includes(id)) hostDraft[id] = e.target.value; if (id === 'hPost') hostDraft.hPost = e.target.checked; if (e.target.id === 'hBlinds2') { const [sb, bb] = e.target.value.split('/').map(Number); send({ a: 'blinds', sb, bb }); } });
 document.addEventListener('submit', e => { if (e.target.id === 'sayF') { e.preventDefault(); const i = $('#sayIn'); say(i.value); i.value = ''; } });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) api().catch(() => {}); });
 
