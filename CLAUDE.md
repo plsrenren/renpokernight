@@ -32,8 +32,17 @@ poker-dashboard/
                        by inlining the logo where __LOGO__ appears) and the parts of recap-core.js:
                        cat core.part.js stories.part.js members.part.js hof.part.js card.part.js > ../vercel/recap-core.js
   vercel/              What Vercel deploys (project root dir). cleanUrls on, so /recap serves recap.html.
-    index.html recap.html hall.html h2h.html casino.html shop.html entry.html (entry = redirect to the Apps Script page; casino.html = copy of src/casino-src.html;
+    index.html recap.html hall.html h2h.html casino.html shop.html poker.html entry.html (entry = redirect to the Apps Script page; casino.html = copy of src/casino-src.html;
                        shop.html = copy of src/shop-src.html, which is built from the shop mockup CSS and does NOT link lateshow.css)
+    poker.html         Poker room (Nov 2026) = copy of src/poker-src.html. Host-run no-limit Hold'em, one table, 8 seats, casino chips (bj:bal).
+                       Server: api/_poker.js (web/IO, /api/poker = vercel.json rewrite into discord.js?web=poker) + api/_pokergame.js (pure rules:
+                       betting, side pots, timers via deadline/nextAt + client "tick", host open/pause/close). Table = one JSON in pk:t + version pk:v,
+                       saved with a Lua compare-and-set (2 Redis commands per move). Live: Ably (env ABLY_API_KEY, server-side; browser gets token
+                       requests limited to poker:table subscribe + poker:chat; capability must be in Ably's sorted form or the mac fails);
+                       ably.min.js is self-hosted (v2.29.0). Without Ably the page polls. Hosts = Renato, admins, pitboss role. Cash-outs pay after
+                       the save and add a "poker room" feed line (NOT feedCmds: no house books/rakeback). Monday cron closes a room idle 3h+.
+                       Seat look = mockup style B (nameplate + angled cards), border/bar wash/sticker from plates.js, title on tap.
+    ably.min.js        Ably browser library (Apache 2.0), served for /poker
     loot.js            Study Cards items (195 in play; 36 pfp borders after the 9 Gemini frames were added Nov 20 2026 (overlay art = FX/UNDER svgs in loot.js, drawn on Discord with resvg in borderBox); 27 stickers after Rivered, Tilted, Last Call, Snowed In were added Nov 19 2026; t:bubble-boy retired Nov 2026 for the earned poker title: titles, pfp borders, overall bars, stickers; RETIRED ids stay in BY_ID but leave packs/loadout/cards, owners get the dupe refund once via loadout()), odds 55/30/11/4, duplicate refunds, pack designs,
                        Champion borders (CHAMP, champItem, championsFrom: ids c:<ovr|cash|tour>:<Q4-2026|2026>, earned from the sheet for every finished quarter/year,
                        never stored or sold; equip checks champsFor() in _shop.js; slanted date tab + icon, year versions get a foil sheen on the site),

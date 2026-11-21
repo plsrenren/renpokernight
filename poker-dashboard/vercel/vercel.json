@@ -15,6 +15,10 @@
       "destination": "/api/discord?web=shop"
     },
     {
+      "source": "/api/poker",
+      "destination": "/api/discord?web=poker"
+    },
+    {
       "source": "/api/recap",
       "destination": "/api/img?fn=recap"
     },

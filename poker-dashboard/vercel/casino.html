@@ -528,6 +528,7 @@ function lottery() {
         <li>Tickets start over every quarter. /lottery odds shows this in Discord too.</li></ul>
         ${past ? `<div class="sub">Past winners</div>${past}` : ''}</div></div></div>`;
 }
+const POKER_LINK = `<a class="shopln" href="/poker" style="border-left-color:var(--up)"><div class="ic">♠️</div><div><b>Poker Room</b><span>No-limit Hold'em against the group with your chips. Open on game night.</span></div><div class="go" style="color:var(--up)">Take a seat →</div></a>`;
 const SHOP_LINK = `<a class="shopln" href="/shop"><div class="ic">🃏</div><div><b>Study Cards</b><span>Open packs, equip titles, borders and stickers.</span></div><div class="go">Shop →</div></a>`;
 function lobby() {
   if (!S.me) return `<section class="hero"><div><h2>Same chips as Discord</h2>
@@ -551,6 +552,7 @@ function lobby() {
         <div class="game soon" style="--c:var(--up)"><div class="ic">🎡</div><b>Roulette</b><span>Play it with /roulette in the Discord server.</span><div class="go">Discord only</div></div>
         <div class="game soon" style="--c:#7fb6ff"><div class="ic">⚔️</div><b>Duel</b><span>Challenge someone with /duel in the Discord server.</span><div class="go">Discord only</div></div>
       </div></div>
+    ${POKER_LINK}
     ${SHOP_LINK}
     ${lottery()}
     <div class="cols">${board()}${feed()}</div>

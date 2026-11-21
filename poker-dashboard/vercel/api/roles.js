@@ -15,6 +15,7 @@ import { payRewards } from './_rewards.js';
 import { kvUrl, kvToken } from './_blackjack.js';
 import { payRakeback } from './_rakeback.js';
 import { checkAccolades, weeklyAccolades, checkPoker } from './_accolades.js';
+import { pokerSweep } from './_poker.js';
 
 /** true when the request carries the right secret key (and one is set on Vercel). */
 export function keyOk(sent, want = process.env.ROLES_KEY) {
@@ -43,6 +44,7 @@ export default async function handler(req, res) {
         const [csv, members] = await Promise.all([SHEET_URL, MEMBERS_URL].map(u => fetch(u, { cache: 'no-store' }).then(r => r.ok ? r.text() : '').catch(() => '')));
         if (csv) out.poker = await checkPoker(csv, memberIds(members));
       } catch (e) { console.error('poker accolades', e); out.poker = { error: e.message }; }
+      try { out.pokerRoom = await pokerSweep(); } catch (e) { out.pokerRoom = { error: e.message }; } // a forgotten poker room cashes everyone out
       res.setHeader('Cache-Control', 'no-store'); res.status(200).json(out); return;
     }
     if (!process.env.DISCORD_BOT_TOKEN) { res.status(500).json({ error: 'DISCORD_BOT_TOKEN is not set on Vercel' }); return; }
