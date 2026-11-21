@@ -227,8 +227,6 @@ details.fold > summary + * { margin-top: 10px; }
   body.room .me { margin-top: 2px; } body.room .me .bal { font-size: 18px; }
   body.room .tbar { margin-top: 6px; gap: 4px; }
   body.room .felt { aspect-ratio: auto; height: max(300px, calc(100dvh - 296px)); margin-block: 6px; }
-  body.room:not(.seated) .felt { height: max(260px, calc(100dvh - 400px)); }
-  body.room:not(.seated) .wrap { padding-bottom: 64px; }
   .banner { font-size: 15px; }
   .hero h2 { font-size: 40px; }
 }
@@ -583,21 +581,6 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) api(
   if (S.ably) { const sc = document.createElement('script'); sc.src = '/ably.min.js'; sc.onload = connectLive; document.head.appendChild(sc); }
 })();
 </script>
-<style>
-.tabbar { display: none; }
-@media (max-width: 640px) {
-  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: grid; grid-template-columns: repeat(5, 1fr);
-    background: rgba(22,19,42,.94); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border-top: 1px solid rgba(255,255,255,.1);
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
-  .tabbar a { display: flex; flex-direction: column; align-items: center; gap: 3px; color: #a9a3cf; text-decoration: none; font: 800 11px/1.1 Nunito, system-ui, sans-serif; padding: 4px 0; }
-  .tabbar a span { font-size: 20px; line-height: 1; }
-  .tabbar a.on { color: #f1c75b; }
-  body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
-  .recap-link, .tab-hide { display: none !important; }
-  body.seated .tabbar { display: none; } body.seated { padding-bottom: env(safe-area-inset-bottom); }
-}
-</style>
-<nav class="tabbar" aria-label="Pages"><a href="/"><span aria-hidden="true">📊</span>Dashboard</a><a href="/recap"><span aria-hidden="true">📰</span>Recap</a><a href="/hall"><span aria-hidden="true">🏆</span>Hall</a><a href="/h2h"><span aria-hidden="true">⚔️</span>H2H</a><a href="/casino" class="on" aria-current="page"><span aria-hidden="true">🃏</span>Casino</a></nav>
 <link rel="stylesheet" href="/lateshow.css">
 <link rel="stylesheet" href="/cosmetics.css">
 <link rel="stylesheet" href="/plates.css">
