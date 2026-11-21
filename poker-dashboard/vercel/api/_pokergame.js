@@ -107,7 +107,7 @@ export function startHand(T, now) {
   if (live.length < 2) { T.phase = 'idle'; T.toAct = -1; T.nextAt = 0; return; }
   if (T.nitNext) { T.nit = { amt: T.nitNext.amt, need: T.seats.filter(s => s && !s.left).map(s => s.id) }; T.nitNext = null; log(T, `Nit game on: the last player to win a pot pays everyone ${$(T.nit.amt)}`); }
   T.hand++; T.hid = Math.random().toString(36).slice(2, 10);
-  T.deck = newDeck(); T.street = 'pre'; T.phase = 'hand';
+  T.deck = newDeck(); T.street = 'pre'; T.phase = 'hand'; T.runout = false;
   T.button = nextSeat(T, T.button, ok);
   const heads = live.length === 2;
   const sb = heads ? T.button : nextSeat(T, T.button, ok), bb = nextSeat(T, sb, ok);
@@ -359,7 +359,7 @@ export function closeRoom(T, t) {
 export function publicView(T, t = Date.now()) {
   return {
     v: T.v, now: t, open: T.open, cfg: T.cfg, hand: T.hand, hid: T.hid, button: T.button, board: T.board, pot: T.pot, curBet: T.curBet, minRaise: T.minRaise,
-    toAct: T.toAct, street: T.street, phase: T.phase, bomb: T.bomb || 0, bombHand: !!T.bombHand, nit: T.nit || null, nitNext: T.nitNext || null, deadline: T.deadline, nextAt: T.nextAt, pauseReq: T.pauseReq, closeReq: T.closeReq, res: T.res, log: T.log.slice(-30),
+    toAct: T.toAct, street: T.street, phase: T.phase, runout: !!T.runout, bomb: T.bomb || 0, bombHand: !!T.bombHand, nit: T.nit || null, nitNext: T.nitNext || null, deadline: T.deadline, nextAt: T.nextAt, pauseReq: T.pauseReq, closeReq: T.closeReq, res: T.res, log: T.log.slice(-30),
     seats: T.seats.map(s => s && { id: s.id, name: s.name, stack: s.stack, pend: s.pend || 0, bet: s.bet, last: s.last, folded: s.folded, allIn: s.allIn, out: s.out, left: !!s.left,
       dealt: inHand(s), cards: s.show ? s.cards : undefined }),
   };
