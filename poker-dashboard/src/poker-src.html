@@ -77,7 +77,16 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .banner.sub { background: rgba(21,19,42,.8); color: var(--gold); font-size: 15px; }
 .cd { width: 44px; height: 62px; background: var(--cardbg); color: #1b1b1b; display: flex; flex-direction: column; align-items: center; justify-content: center; font: 900 20px/1 var(--round); box-shadow: 0 3px 8px rgba(0,0,0,.4); flex: none; transition: transform .2s, opacity .2s; }
 .cd i { font-style: normal; font-size: 17px; margin-top: 2px; }
-.cd.r { color: var(--red); }
+/* four-color deck: spades black, hearts red, diamonds blue, clubs green */
+.cd.su-h { color: var(--red); } .cd.su-d { color: #2c63d6; } .cd.su-c { color: #1f8a4c; }
+/* hover a card to see it bigger (mouse only; transforms win over the angled/highlighted ones) */
+@media (hover: hover) {
+  .cd.face { cursor: zoom-in; }
+  html body .cd.face:hover { transform: translateY(-8px) scale(1.65); z-index: 6; box-shadow: 0 10px 24px rgba(0,0,0,.6); position: relative; }
+  html body .cd.face.lg:hover { transform: translateY(-6px) scale(1.3); }
+  html body .cd.face.dim:hover { opacity: 1; }
+  .st:has(.cd.face:hover) { z-index: 20; }
+}
 .cd.back { background: repeating-linear-gradient(45deg, #5a40ad 0 6px, #6e52c8 6px 12px); border: 3px solid var(--cardbg); }
 .cd.ph { background: rgba(0,0,0,.18); box-shadow: none; border: 2px dashed rgba(255,255,255,.12); }
 .cd.dim { opacity: .45; } .cd.hl { transform: translateY(-6px); box-shadow: 0 0 0 3px var(--gold), 0 6px 14px rgba(0,0,0,.5); }
@@ -234,7 +243,7 @@ function score5(cs) {
 }
 function bestOf(cs) { let b = null; const n = cs.length; for (let a = 0; a < n; a++) for (let b1 = a + 1; b1 < n; b1++) for (let c = b1 + 1; c < n; c++) for (let d = c + 1; d < n; d++) for (let e = d + 1; e < n; e++) { const s = score5([cs[a], cs[b1], cs[c], cs[d], cs[e]]); if (!b || s.v > b.v) b = s; } return b; }
 const describe = h => { const k = h.ks; return [`${rn(k[0])} high`, `Pair of ${PL[k[0]]}`, `Two pair, ${PL[k[0]]} and ${PL[k[1]]}`, `Three ${PL[k[0]]}`, `Straight, ${rn(k[0])} high`, `Flush, ${rn(k[0])} high`, `Full house, ${PL[k[0]]} full of ${PL[k[1]]}`, `Four ${PL[k[0]]}`, k[0] === 14 ? 'Royal flush' : `Straight flush, ${rn(k[0])} high`][h.cat]; };
-function card(c, size = '', extra = '') { if (!c) return `<div class="cd ph ${size}"></div>`; return `<div class="cd ${c[1] === 'h' || c[1] === 'd' ? 'r' : ''} ${size} ${extra}"><b>${rn(rv(c))}</b><i>${SYM[c[1]]}</i></div>`; }
+function card(c, size = '', extra = '') { if (!c) return `<div class="cd ph ${size}"></div>`; return `<div class="cd face su-${c[1]} ${size} ${extra}"><b>${rn(rv(c))}</b><i>${SYM[c[1]]}</i></div>`; }
 
 // ---------- state ----------
 let S = null;               // { table, me, ably }
