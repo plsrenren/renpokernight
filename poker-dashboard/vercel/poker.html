@@ -68,6 +68,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .pop { position: absolute; right: 0; top: calc(100% + 8px); width: min(360px, calc(100vw - 32px)); max-height: calc(100vh - 140px); overflow-y: auto; box-shadow: 0 18px 40px rgba(0,0,0,.55); border: 2px solid var(--vio); } .pop.host { border-color: var(--pink); }
 .tbar .info { font: 400 20px var(--title); letter-spacing: .06em; color: var(--soft); margin-right: auto; white-space: nowrap; }
 .tbar .info b { color: var(--gold); font-weight: 400; }
+.tbtns { display: flex; gap: 8px; align-items: center; }
 .live { font: 600 10.5px var(--mono); padding: 2px 6px; background: var(--panel2); color: var(--muted); vertical-align: middle; margin-left: 6px; letter-spacing: 0; }
 .live.on { background: rgba(142,224,176,.18); color: var(--up); }
 .game { display: grid; gap: 16px; margin-top: 12px; }
@@ -130,6 +131,7 @@ body.room .wrap { max-width: none; }
 .st.empty .lbl { width: 54px; height: 44px; border: 2px dashed rgba(255,255,255,.12); }
 .bet { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 4px; font: 600 12px var(--mono); color: #fff; background: rgba(14,31,23,.8); padding: 2px 7px 2px 3px; white-space: nowrap; z-index: 1; }
 .pchip { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle, var(--pink) 0 38%, #fff 40% 52%, var(--pink) 54%); flex: none; }
+.dmark { display: none; }
 .dbtn2 { position: absolute; transform: translate(-50%, -50%); width: 22px; height: 22px; border-radius: 50%; background: #fff; color: var(--ink); font: 900 12px/22px var(--round); text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,.5); z-index: 1; }
 
 .actbar { background: var(--panel); padding: 12px 14px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; min-height: 118px; }
@@ -194,7 +196,14 @@ details.fold > summary + * { margin-top: 10px; }
   .links { display: none; } .me { margin-top: 4px; } .me .nm { display: none; }
   .felt { aspect-ratio: 10 / 13.5; max-height: none; }
   .oval { inset: 7% 11%; border-width: 7px; } .oval::after { top: 74%; font-size: 16px; }
-  .center { width: 66%; top: 48%; }
+  .center { width: 66%; top: 37%; }
+  .tbar .info { flex: 1 0 100%; font-size: 17px; }
+  .tbtns, .popbar { gap: 5px; flex-wrap: nowrap; } .tbtns { width: 100%; }
+  .tbtns .cbtn.sm { font-size: 14px; padding: 5px 9px 3px 8px; white-space: nowrap; clip-path: polygon(0 0,100% 0,calc(100% - 6px) 100%,0 100%); }
+  .tbtns .wide { display: none; }
+  /* phones: the dealer button rides on the dealer's picture instead of floating on the felt (no room there) */
+  .dbtn2 { display: none; } .pfw { position: relative; }
+  .dmark { display: block; position: absolute; left: -7px; top: -7px; width: 18px; height: 18px; border-radius: 50%; background: #fff; color: var(--ink); font: 900 10px/18px var(--round); font-style: normal; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,.5); z-index: 3; }
   .cd { width: 36px; height: 50px; font-size: 17px; } .cd i { font-size: 14px; }
   .bd5 { gap: 4px; min-height: 52px; }
   .cd.sc { width: 31px; height: 44px; font-size: 16px; } .cd.sc i { font-size: 13px; }
@@ -334,7 +343,7 @@ function say(text) {
 
 // ---------- drawing ----------
 // once you sit down the table turns so your seat is always the one at the bottom (seat order and dealing don't change)
-function seatPos(i) { const me = mySeat(), k = me >= 0 ? (i - me + 8) % 8 : i, a = (90 + k * 45) * Math.PI / 180, rx = PHONE.matches ? 31 : 38; return { x: 47 + rx * Math.cos(a), y: 50 + 39 * Math.sin(a) }; }
+function seatPos(i) { const me = mySeat(), k = me >= 0 ? (i - me + 8) % 8 : i, a = (90 + k * 45) * Math.PI / 180, rx = PHONE.matches ? 31 : 38; return { x: 47 + rx * Math.cos(a), y: 50 + 39 * Math.sin(a) + (PHONE.matches && k % 4 === 2 ? 9 : 0) }; }
 const toward = (p, f) => ({ x: 50 + (p.x - 50) * f, y: 50 + (p.y - 50) * f });
 function seatHTML(s, i) {
   const t = T(), pos = seatPos(i), me = mySeat();
@@ -354,7 +363,7 @@ function seatHTML(s, i) {
   const left = Math.max(0, (t.deadline - serverNow()) / 1000), dur = t.cfg.turn;
   const stack = s.left ? 'left' : s.out && !s.stack ? 'out' : money(s.stack) + (s.pend ? '+' : '');
   return `<div class="${cls}" data-peek="${i}" style="left:${pos.x}%;top:${pos.y}%">
-    <div class="st-row"><div class="pfw">${b.face(av(s.id, s.name), size)}</div><div class="st-cards">${hc}</div></div>
+    <div class="st-row"><div class="pfw">${b.face(av(s.id, s.name), size)}${i === t.button && t.hand ? '<i class="dmark">D</i>' : ''}</div><div class="st-cards">${hc}</div></div>
     <div class="st-name${b.bar ? ' pl-wash' : ''}">${b.bar ? `<span class="pl-bg ${b.bar}" aria-hidden="true"></span>` : ''}<b>${esc(s.name)}</b><span class="sk">${stack}</span></div>${b.sticker ? `<span class="st-stk">${b.sticker}</span>` : ''}
     ${s.last ? `<div class="act ${lastCls}">${esc(s.last)}</div>` : s.out && !s.left && s.stack ? '<div class="act fold">Sitting out</div>' : ''}
     ${t.toAct === i && t.phase === 'hand' ? `<div class="tmr"><i style="animation-duration:${dur}s;animation-delay:-${Math.max(0, dur - left).toFixed(2)}s"></i></div>` : ''}
@@ -411,7 +420,7 @@ function popBar(t) {
   const btn = (k, label, cls = 'ghost') => `<button class="cbtn sm popbtn ${cls} ${pop === k ? 'on' : ''}" data-pop="${k}" aria-expanded="${pop === k}">${label} ${pop === k ? '▴' : '▾'}</button>`;
   const host = S.me && S.me.host;
   const panel = pop === 'log' ? logHTML(t) : pop === 'rules' ? `<div class="panel pop" id="pop"><h2 class="g">House rules</h2>${rulesHTML(t.cfg)}</div>` : pop === 'host' && host ? hostHTML() : '';
-  return `<span class="popbar">${btn('log', 'Hand log')}${btn('rules', 'Rules')}${host ? btn('host', 'Host', 'hostbtn') : ''}</span>${panel}`;
+  return `<span class="popbar">${btn('log', '<span class="wide">Hand </span>log')}${btn('rules', 'Rules')}${host ? btn('host', 'Host', 'hostbtn') : ''}</span>${panel}`;
 }
 function rulesHTML(c) {
   return `<ul class="rules"><li>No-limit Texas Hold'em, blinds ${money(c.sb)}/${money(c.bb)}.</li><li>Buy in for ${money(c.min)} to ${money(c.max)} from your casino chips. Leave anytime and your stack goes back to your balance.</li>
@@ -460,7 +469,7 @@ function render() {
   const t = T(), v = $('#view');
   if (!S.me && t.open) { // signing in is optional: guests watch the table and the chat live
     v.innerHTML = `<div class="tbar"><div class="info">No-limit Hold'em · ${money(t.cfg.sb)}/${money(t.cfg.bb)} · Hand <b>#${t.hand || 0}</b><span class="live" id="live"></span></div>
-        <a class="cbtn sm" href="/api/login?to=poker">Sign in to sit</a>${popBar(t)}</div>
+        <div class="tbtns"><a class="cbtn sm" href="/api/login?to=poker">Sign in to sit</a>${popBar(t)}</div></div>
       <div class="game"><div>${tableHTML()}<div class="actbar guest"><div class="wait">You're watching<small>Sign in with Discord to sit down with your casino chips.</small></div><a class="dbtn" href="/api/login?to=poker">${DISCORD_SVG}Sign in with Discord</a></div></div></div>`;
     keepLog();
     renderLive();
@@ -478,10 +487,10 @@ function render() {
   }
   const i = mySeat(), s = i >= 0 ? t.seats[i] : null;
   v.innerHTML = `<div class="tbar"><div class="info">No-limit Hold'em · ${money(t.cfg.sb)}/${money(t.cfg.bb)} · Hand <b>#${t.hand || 0}</b><span class="live" id="live"></span></div>
-      ${s ? `<button class="cbtn ghost sm" data-a="top" ${s.stack + (s.pend || 0) >= t.cfg.max ? 'disabled' : ''}>Top up</button>
+      <div class="tbtns">${s ? `<button class="cbtn ghost sm" data-a="top" ${s.stack + (s.pend || 0) >= t.cfg.max ? 'disabled' : ''}>Top up</button>
       <button class="cbtn ghost sm" data-a="${s.out ? 'back' : 'sitout'}">${s.out ? "I'm back" : 'Sit out'}</button>
-      <button class="cbtn sm" data-a="leave">Leave table</button>` : ''}
-      ${popBar(t)}</div>
+      <button class="cbtn sm" data-a="leave">Leave<span class="wide"> table</span></button>` : ''}
+      ${popBar(t)}</div></div>
     <div class="game"><div>${tableHTML()}${actHTML()}</div></div>`;
   renderLive();
   const r = $('#raise');
