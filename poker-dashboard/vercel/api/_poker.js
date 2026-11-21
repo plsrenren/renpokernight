@@ -4,7 +4,7 @@
 //   GET  /api/poker            → the table (public), plus for a signed-in person: your seat, your two cards, your chips, host or not
 //   GET  /api/poker?token=1    → Ably token request; guests (not signed in) get listen-only, so watching needs no sign-in
 //   POST /api/poker {a: …}     → token (Ably sign-in for live updates) | sit {seat, amt} | top {amt} | leave | sitout {on}
-//                                | act {do: fold|check|call|raise, to} | tick | host: open {cfg} | close | pause | resume | blinds {sb, bb} | seatout {seat, on} | bomb {x} | straddle {on} | nit {x}
+//                                | act {do: fold|check|call|raise, to} | tick | host: open {cfg} | close | pause | resume | blinds {sb, bb} | seatout {seat, on} | bomb {x} | straddle {on} | nit {x} | bot {on} (add one test player / remove them all)
 //
 // Storage: the whole table is one JSON value (pk:t) with a version number (pk:v). Each change reads it, applies the rules
 // (_pokergame.js) and writes it back only if nobody else wrote in between (one Lua compare-and-set), else tries again.
@@ -54,6 +54,7 @@ async function payOut(list) {
   const cmds = [];
   for (const o of list) {
     if (o.amt > 0) cmds.push(['HINCRBYFLOAT', 'bj:bal', o.id, o.amt]);
+    if (o.test) continue; // a test-table sitting: chips back, nothing to show in the feed
     cmds.push(['LPUSH', 'cas:feed', JSON.stringify({ id: o.id, name: o.name, game: 'poker room', net: o.net, src: 'site', at: Date.now() })]);
   }
   cmds.push(['LTRIM', 'cas:feed', 0, FEED_KEEP - 1]);
@@ -129,7 +130,7 @@ export async function pokerWeb(req, me, sheet, out) {
   }
   let b; try { b = await req.json(); } catch (e) { return out({ err: 'Bad request.' }, 400); }
   const who = { id: me.id, name: me.name };
-  const host = ['open', 'close', 'pause', 'resume', 'blinds', 'seatout', 'bomb', 'straddle', 'nit'].includes(b.a);
+  const host = ['open', 'close', 'pause', 'resume', 'blinds', 'seatout', 'bomb', 'straddle', 'nit', 'bot'].includes(b.a);
   if (host && !(await isHost(me.id, ids))) return out({ err: 'Only hosts can do that.' }, 403);
   const done = async (r, extra = {}) => r.err ? out({ err: r.err, ...(r.T ? await view(r.T, me, ids, t) : {}) }) : out(await view(r.T, me, ids, t, extra));
 
@@ -168,6 +169,7 @@ export async function pokerWeb(req, me, sheet, out) {
     case 'bomb': return done(await change(T => E.setBomb(T, int(b.x)), t));
     case 'straddle': return done(await change(T => E.setStraddle(T, !!b.on), t));
     case 'nit': return done(await change(T => E.setNit(T, int(b.x)), t));
+    case 'bot': return done(await change((T, now) => b.on ? E.addBot(T, now) : E.removeBots(T, now), t));
   }
   return out({ err: 'Unknown action.' }, 400);
 }
