@@ -9,7 +9,10 @@
 // Host extras: cfg.straddle (the player after the big blind always posts 2x BB and acts last before the flop),
 //   T.bomb (x BB everyone puts in on the next hand, which skips pre-flop betting; 0 = none), T.bombHand (this hand is one),
 //   T.nit ({ amt, need: [ids] } while a nit game runs: whoever is last to win a pot pays everyone else amt),
-//   T.nitNext ({ amt } = a nit game starts with the next hand). Every extra kicks in at the start of a hand, never mid-hand.
+//   T.nitNext ({ amt } = a nit game starts with the next hand).
+// Test players (host only): bot seats (s.bot, ids 'bot:N') play on fake chips and are never paid out. While a bot is at the table every
+//   real player's sitting is a test from the next hand (s.test): s.back = their stack then (+ top-ups), and that is exactly what they get when
+//   they leave, win or lose, so play against bots never moves a balance. Every extra kicks in at the start of a hand, never mid-hand.
 import { randomInt } from 'node:crypto';
 
 export const SEATS = 8;
@@ -83,7 +86,9 @@ function move(s, a) { a = Math.max(0, Math.min(a, s.stack)); s.stack -= a; s.bet
 const blank = () => ({ cards: [], bet: 0, total: 0, folded: false, allIn: false, acted: false, last: '', show: false });
 /** chips owed back to players after a change: [{ id, name, amt, net }] is pushed onto T._out (paid by _poker.js after saving) */
 function cashOut(T, s, why) {
-  const amt = Math.round((s.stack + (s.pend || 0)) * 100) / 100;
+  let amt = Math.round((s.stack + (s.pend || 0)) * 100) / 100;
+  if (s.bot) { log(T, `${s.name} ${why}`); s.stack = 0; s.pend = 0; return 0; }
+  if (s.test) { log(T, `${s.name} ${why} with ${$(amt)} (test table: ${$(s.back)} back)`); amt = s.back; (T._out ||= []).push({ id: s.id, name: s.name, amt, net: Math.round((amt - s.buyins) * 100) / 100, test: true }); s.stack = 0; s.pend = 0; return amt; }
   (T._out ||= []).push({ id: s.id, name: s.name, amt, net: Math.round((amt - s.buyins) * 100) / 100 });
   log(T, `${s.name} ${why} with ${$(amt)}`);
   s.stack = 0; s.pend = 0;
@@ -96,8 +101,10 @@ export function startHand(T, now) {
   T.seats = T.seats.map(s => s && s.left ? null : s);
   if (T.closeReq) return closeRoom(T, now);
   if (T.pauseReq) { T.pauseReq = false; T.phase = 'paused'; T.toAct = -1; T.res = null; T.board = []; T.seats.forEach(s => s && Object.assign(s, blank())); log(T, 'The host paused the game'); return; }
+  markTest(T);
   T.seats.forEach(s => {
     if (!s) return;
+    if (s.bot && s.stack <= 0) { s.stack = T.cfg.max; s.out = false; log(T, `${s.name} rebuys`); }
     if (s.pend) { s.stack += s.pend; log(T, `${s.name} topped up ${$(s.pend)}`); s.pend = 0; }
     Object.assign(s, blank());
   });
@@ -134,7 +141,7 @@ function nextTurn(T, i, now) {
   if (alive(T).length === 1) return winUncontested(T, now);
   const n = nextSeat(T, i, s => canAct(s) && (!s.acted || s.bet < T.curBet));
   if (n < 0 || (T.seats.filter(canAct).length === 1 && T.seats[n].bet >= T.curBet)) return endStreet(T, now);
-  T.toAct = n; T.deadline = now + T.cfg.turn * 1000;
+  T.toAct = n; T.deadline = now + (T.seats[n].bot ? 900 + Math.random() * 1300 : T.cfg.turn * 1000);
   if (T.seats[n].out) return act(T, n, T.seats[n].bet < T.curBet ? 'fold' : 'check', 0, now, true);
 }
 /** A player's move. kind = fold | check | call | raise (to = their total bet this street). Returns an error string or undefined. */
@@ -256,6 +263,7 @@ export function tick(T, now) {
   const seated = T.seats.filter(s => s && !s.left).length;
   if (seated === 0 && T.phase !== 'hand') { if (!T.emptyAt) { T.emptyAt = now; return true; } if (now - T.emptyAt > 30 * 60e3) { closeRoom(T, now); return true; } }
   if (T.at && now - T.at > 3 * 3600e3) { closeRoom(T, now); return true; }
+  if (T.phase === 'hand' && T.toAct >= 0 && now >= T.deadline && T.seats[T.toAct].bot) { const [k, to] = botMove(T, T.toAct); if (act(T, T.toAct, k, to, now)) act(T, T.toAct, T.curBet > T.seats[T.toAct].bet ? 'call' : 'check', 0, now); return true; }
   if (T.phase === 'hand' && T.toAct >= 0 && now >= T.deadline) { const s = T.seats[T.toAct]; act(T, T.toAct, T.curBet > s.bet ? 'fold' : 'check', 0, now, true); return true; }
   if ((T.phase === 'done' || T.phase === 'idle') && (T.closeReq || T.pauseReq || T.phase === 'done' ? now >= T.nextAt : canStart(T))) { startHand(T, now); return true; }
   return false;
@@ -270,6 +278,7 @@ export function sit(T, me, idx, amt, now) {
   T.seats[idx] = { id: me.id, name: me.name, stack: amt, pend: 0, buyins: amt, out: false, timeouts: 0, ...blank() };
   T.emptyAt = 0;
   if (T.nit && !T.nit.need.includes(me.id)) T.nit.need.push(me.id);
+  if (T.seats.some(s => s && s.bot && !s.left)) Object.assign(T.seats[idx], { test: true, back: amt });
   log(T, `${me.name} sits down with ${$(amt)}`);
   if (T.phase === 'idle' && canStart(T)) T.nextAt = now + 3000, T.phase = 'done';
 }
@@ -278,7 +287,7 @@ export function topUp(T, me, amt, t) {
   const i = seatOf(T, me.id); if (i < 0) return "You're not at the table.";
   const s = T.seats[i];
   if (amt < 1 || s.stack + (s.pend || 0) + amt > T.cfg.max) return `You can top up to ${$(T.cfg.max)} in front of you.`;
-  s.buyins += amt;
+  s.buyins += amt; if (s.test) s.back += amt;
   if (inHand(s) && !s.folded && T.phase === 'hand') { s.pend = (s.pend || 0) + amt; log(T, `${s.name} adds ${$(amt)} for next hand`); }
   else { s.stack += amt; if (s.out && s.timeouts < SIT_OUT_AFTER) s.out = false; log(T, `${s.name} tops up ${$(amt)}`); }
   if (T.phase === 'idle' && canStart(T)) T.nextAt = t + 3000, T.phase = 'done';
@@ -318,6 +327,33 @@ export function setBlinds(T, sb, bb) {
   const st = STAKES.find(([a, b]) => a === +sb && b === +bb); if (!st) return 'Pick blinds from the list.';
   T.cfg.sb = st[0]; T.cfg.bb = st[1]; if (T.phase !== 'hand') T.minRaise = st[1];
   log(T, `The host set the blinds to ${$(st[0])}/${$(st[1])} from the next hand`);
+}
+const BOT_NAMES = ['Bot Ace', 'Bot Deuce', 'Bot Trey', 'Bot Four', 'Bot Five', 'Bot Six', 'Bot Seven', 'Bot Eight'];
+// run between hands (and on sit): s.back = what the player would walk away with right now; their real result so far is kept
+function markTest(T) { if (T.seats.some(s => s && s.bot && !s.left)) T.seats.forEach(s => { if (s && !s.bot && !s.left && !s.test) { s.test = true; s.back = Math.round((s.stack + (s.pend || 0)) * 100) / 100; } }); }
+/** a simple bot: mostly calls and checks, sometimes bets or raises, folds to big bets now and then */
+function botMove(T, i) {
+  const s = T.seats[i], toCall = T.curBet - s.bet, pot = potTotal(T), r = Math.random();
+  const raiseTo = f => Math.max(T.curBet + T.minRaise, Math.round(T.curBet + f * (pot + toCall)));
+  if (toCall <= 0) return r < .7 ? ['check', 0] : ['raise', raiseTo(.5 + Math.random() * .5)];
+  if (toCall >= s.stack * .5 && r < .45) return ['fold', 0];
+  return r < .12 ? ['fold', 0] : r < .85 ? ['call', 0] : ['raise', raiseTo(.6 + Math.random() * .6)];
+}
+export function addBot(T, t) {
+  if (!T.open) return 'Open the room first.';
+  const idx = T.seats.findIndex(s => !s); if (idx < 0) return 'The table is full.';
+  const used = new Set(T.seats.filter(Boolean).map(s => s.id));
+  let k = 0; while (used.has('bot:' + k)) k++;
+  T.seats[idx] = { id: 'bot:' + k, name: BOT_NAMES[k % 8], bot: true, stack: T.cfg.max, pend: 0, buyins: 0, out: false, timeouts: 0, ...blank() };
+  T.emptyAt = 0; if (T.phase !== 'hand') markTest(T); // mid-hand: people are marked when the next hand starts
+  log(T, `The host added ${BOT_NAMES[k % 8]} (test player, fake chips)`);
+  if (T.phase === 'idle' && canStart(T)) T.nextAt = t + 2000, T.phase = 'done';
+}
+export function removeBots(T, t) {
+  const bots = T.seats.filter(s => s && s.bot && !s.left);
+  if (!bots.length) return 'No test players at the table.';
+  bots.forEach(b => leave(T, { id: b.id }, t));
+  log(T, 'The host removed the test players');
 }
 export function setBomb(T, x) {
   x = +x; if (x && !BOMBS.includes(x)) return 'Pick a bomb pot size from the list.';
@@ -360,7 +396,7 @@ export function publicView(T, t = Date.now()) {
   return {
     v: T.v, now: t, open: T.open, cfg: T.cfg, hand: T.hand, hid: T.hid, button: T.button, board: T.board, pot: T.pot, curBet: T.curBet, minRaise: T.minRaise,
     toAct: T.toAct, street: T.street, phase: T.phase, runout: !!T.runout, bomb: T.bomb || 0, bombHand: !!T.bombHand, nit: T.nit || null, nitNext: T.nitNext || null, deadline: T.deadline, nextAt: T.nextAt, pauseReq: T.pauseReq, closeReq: T.closeReq, res: T.res, log: T.log.slice(-30),
-    seats: T.seats.map(s => s && { id: s.id, name: s.name, stack: s.stack, pend: s.pend || 0, bet: s.bet, last: s.last, folded: s.folded, allIn: s.allIn, out: s.out, left: !!s.left,
+    seats: T.seats.map(s => s && { id: s.id, name: s.name, bot: !!s.bot, test: !!s.test, stack: s.stack, pend: s.pend || 0, bet: s.bet, last: s.last, folded: s.folded, allIn: s.allIn, out: s.out, left: !!s.left,
       dealt: inHand(s), cards: s.show ? s.cards : undefined }),
   };
 }

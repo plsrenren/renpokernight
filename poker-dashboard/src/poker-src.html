@@ -284,12 +284,12 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const money = n => '$' + (Math.round(n * 100) / 100).toLocaleString('en-US');
 const hue = n => [...String(n)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
 const initials = n => String(n).split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
-const av = (id, name) => `<span class="av" style="--h:${hue(name)}">${esc(initials(name))}${id ? `<img src="/api/avatar?id=${esc(id)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
+const av = (id, name) => `<span class="av" style="--h:${hue(name)}">${esc(initials(name))}${id && !String(id).startsWith('bot:') ? `<img src="/api/avatar?id=${esc(id)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
 const DISCORD_SVG = '<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M20.3 4.4A19.6 19.6 0 0 0 15.4 3l-.6 1.3a18 18 0 0 0-5.6 0L8.6 3a19.6 19.6 0 0 0-4.9 1.5C.6 9-.3 13.6.1 18.1A19.8 19.8 0 0 0 6.1 21l1.3-2.1a12.8 12.8 0 0 1-2-1l.5-.4a14 14 0 0 0 12.2 0l.5.4c-.6.4-1.3.7-2 1l1.3 2.1a19.7 19.7 0 0 0 6-3c.5-5.2-.9-9.8-3.6-13.7zM8.3 15.3c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4zm7.4 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4z"/></svg>';
 const ERRS = { cancelled: 'Sign-in was cancelled.', setup: "Discord sign-in isn't set up yet.", expired: 'That sign-in link expired. Try again.', discord: "Discord didn't answer. Try again.", stranger: "That Discord account isn't one the club knows yet. Play a hand with the bot in the server first." };
 const STAKES = [[1, 2], [2, 5], [5, 10]], MIN_BUYS = [20, 40, 100], MAX_BUYS = [100, 200, 500, 1000], TURNS = [15, 20, 30], BOMBS = [2, 5, 10], NITS = [2, 5, 10];
 /** what the host has switched on, shown in the table bar */
-const extras = t => [t.cfg.straddle && 'Straddle', t.nit && `Nit ${money(t.nit.amt)}`, t.nitNext && 'Nit next', t.bomb && 'Bomb next'].filter(Boolean).map(x => ` · <span class="xtra">${x}</span>`).join('');
+const extras = t => [t.seats.some(s => s && s.bot && !s.left) && 'Test table', t.cfg.straddle && 'Straddle', t.nit && `Nit ${money(t.nit.amt)}`, t.nitNext && 'Nit next', t.bomb && 'Bomb next'].filter(Boolean).map(x => ` · <span class="xtra">${x}</span>`).join('');
 
 // ---------- cards (same ranking as the server, for the "what you have" line) ----------
 const RANKS = '23456789TJQKA', SYM = { s: '♠', h: '♥', d: '♦', c: '♣' }, RN = { 10: '10', 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
@@ -352,7 +352,7 @@ function scheduleTick() {
   clearTimeout(tickT);
   const t = S && S.table; if (!t || !t.open || !S.me || (mySeat() < 0 && !S.me.host)) return;
   let at = 0;
-  if (t.phase === 'hand' && t.toAct >= 0) at = t.deadline + 600 + Math.random() * 1400;
+  if (t.phase === 'hand' && t.toAct >= 0) at = t.deadline + (t.seats[t.toAct] && t.seats[t.toAct].bot ? 80 + Math.random() * 200 : 600 + Math.random() * 1400);
   else if ((t.phase === 'done' || t.phase === 'idle') && t.nextAt) at = t.nextAt + 150 + Math.random() * 900;
   if (!at) return;
   tickT = setTimeout(() => api({ a: 'tick' }).catch(() => {}), Math.max(200, at - serverNow()));
@@ -480,7 +480,7 @@ function popBar(t) {
 }
 function rulesHTML(c) {
   return `<ul class="rules"><li>No-limit Texas Hold'em, blinds ${money(c.sb)}/${money(c.bb)}.</li><li>Buy in for ${money(c.min)} to ${money(c.max)} in casino chips. They go back when you leave.</li>
-    <li>Sit down anytime; you're dealt in next hand.</li><li>${c.turn} seconds to act, then you check or fold. Time out twice in a row and you're sat out.</li><li>No rake. Pots are player vs player.</li>${c.straddle ? `<li>Straddle on: the player after the big blind posts ${money(2 * c.bb)} and acts last before the flop.</li>` : ''}${T().nit ? `<li>Nit game: the last player to win a pot pays everyone ${money(T().nit.amt)}.</li>` : ''}<li>Bomb pot (host's call): everyone puts in the same amount and the cards start on the flop.</li></ul>`;
+    <li>Sit down anytime; you're dealt in next hand.</li><li>${c.turn} seconds to act, then you check or fold. Time out twice in a row and you're sat out.</li><li>No rake. Pots are player vs player.</li>${c.straddle ? `<li>Straddle on: the player after the big blind posts ${money(2 * c.bb)} and acts last before the flop.</li>` : ''}${T().seats.some(s => s && s.bot && !s.left) ? '<li>Test table: bots play on fake chips. When you leave you get back what you had when the bots sat down (plus top-ups), win or lose.</li>' : ''}${T().nit ? `<li>Nit game: the last player to win a pot pays everyone ${money(T().nit.amt)}.</li>` : ''}<li>Bomb pot (host's call): everyone puts in the same amount and the cards start on the flop.</li></ul>`;
 }
 const opts = (list, cur, fmt = v => v) => list.map(v => `<option value="${v}" ${String(v) === String(cur) ? 'selected' : ''}>${fmt(v)}</option>`).join('');
 function hostHTML() {
@@ -505,6 +505,7 @@ function hostHTML() {
       <div><b>Bomb pot</b>${t.bomb ? `<small>Next hand, ${money(t.bomb * t.cfg.bb)} each</small><button class="cbtn ghost sm" data-hx="bomb" data-x="0">Call off</button>`
         : `<select id="hBomb">${BOMBS.map(x => `<option value="${x}" ${x === (+hostDraft.hBomb || 5) ? 'selected' : ''}>${money(x * t.cfg.bb)} each</option>`).join('')}</select><button class="cbtn up sm" data-hx="bomb">Next hand</button>`}</div>
       <div><b>Straddle</b><small>${t.phase === 'hand' ? 'From next hand' : `${money(2 * t.cfg.bb)} after the BB`}</small><button class="cbtn ${t.cfg.straddle ? 'up' : 'ghost'} sm" data-hx="straddle" data-on="${t.cfg.straddle ? '' : '1'}">${t.cfg.straddle ? 'On' : 'Off'}</button></div>
+      <div><b>Bots</b><small>Fake chips</small>${t.seats.some(s => s && s.bot && !s.left) ? `<button class="cbtn ghost sm" data-hx="bot" data-on="">Remove</button>` : ''}<button class="cbtn up sm" data-hx="bot" data-on="1" ${t.seats.every(Boolean) ? 'disabled' : ''}>Add bot</button></div>
       <div><b>Nit game</b>${t.nit || t.nitNext ? `<small>${t.nit ? `${money(t.nit.amt)} each, ${t.nit.need.length} left` : `Next hand, ${money(t.nitNext.amt)} each`}</small><button class="cbtn ghost sm" data-hx="nit" data-x="0">${t.nit ? 'End' : 'Call off'}</button>`
         : `<select id="hNit">${NITS.map(x => `<option value="${x}" ${x === (+hostDraft.hNit || 5) ? 'selected' : ''}>${money(x * t.cfg.bb)} each</option>`).join('')}</select><button class="cbtn up sm" data-hx="nit">Next hand</button>`}</div>
     </div>
@@ -745,7 +746,7 @@ document.addEventListener('click', e => {
   if (a === 'back') return send({ a: 'sitout', on: false });
   if (b.dataset.seatout !== undefined) return send({ a: 'seatout', seat: +b.dataset.seatout, on: !!b.dataset.on });
   const hx = b.dataset.hx;
-  if (hx === 'straddle') return send({ a: 'straddle', on: !!b.dataset.on });
+  if (hx === 'straddle' || hx === 'bot') return send({ a: hx, on: !!b.dataset.on });
   if (hx) return send({ a: hx, x: b.dataset.x !== undefined ? +b.dataset.x : +$(hx === 'bomb' ? '#hBomb' : '#hNit').value });
   const h = b.dataset.host;
   if (h === 'open') { const [sb, bb] = $('#hBlinds').value.split('/').map(Number); return send({ a: 'open', post: $('#hPost').checked, cfg: { sb, bb, min: +$('#hMin').value, max: +$('#hMax').value, turn: +$('#hTurn').value, straddle: $('#hStrO').checked, bomb: +$('#hBombO').value, nit: +$('#hNitO').value } }); }
