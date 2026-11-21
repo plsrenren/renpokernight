@@ -52,11 +52,18 @@ export default async function handler(req, res) {
     if (!csv) csv = await fetch(SHEET_URL, { cache: 'no-store' }).then(r => r.ok ? r.text() : '').catch(() => '');
     if (members == null) members = await fetch(MEMBERS_URL, { cache: 'no-store' }).then(r => r.ok ? r.text() : '').catch(() => '');
     if (!csv || csv.length > 2_000_000) { res.status(400).json({ error: 'could not read the sheet' }); return; }
-    const ids = memberIds(members);
+    let ids = memberIds(members);
+    // No Discord IDs at all (the posted Members text had no usable Discord column, or Google's copy failed to load):
+    // read Google's Members tab before paying, or every name-based chip payout gets parked (happened Nov 21 2026).
+    if (!Object.keys(ids).length) {
+      const again = await fetch(MEMBERS_URL, { cache: 'no-store' }).then(r => r.ok ? r.text() : '').catch(() => '');
+      ids = memberIds(again);
+    }
     const hasKv = kvUrl() && kvToken();
     let report;
     try { report = await syncRoles(gameRecords(csv), ids); } catch (e) { report = { changes: [], errors: ['Roles: ' + e.message], holders: {} }; }
-    if (hasKv) {
+    if (hasKv && !Object.keys(ids).length) report.errors = [...(report.errors || []), 'Chip rewards skipped: no Discord IDs found on the Members tab.'];
+    else if (hasKv) {
       try { report.chips = await payRewards(csv, ids); } catch (e) { console.error('rewards', e); report.errors = [...(report.errors || []), 'Chip rewards: ' + e.message]; }
       try { report.accolades = await checkAccolades({ all: true, ids }); } catch (e) { console.error('accolades', e); }
       try { report.poker = await checkPoker(csv, ids); } catch (e) { console.error('poker accolades', e); }
