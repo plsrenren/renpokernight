@@ -61,7 +61,7 @@ export default async function handler(req, res) {
     let csv = '', members = null;
     if (req.method === 'POST') { const j = JSON.parse(await readBody(req) || '{}'); csv = j.input || ''; members = j.members ?? null; }
     else csv = await fetch(SHEET_URL, { cache: 'no-store' }).then(r => r.ok ? r.text() : '').catch(() => '');
-    if (members == null) members = await fetch(MEMBERS_URL, { cache: 'no-store' }).then(r => r.ok ? r.text() : '').catch(() => '');
+    if (members == null || !Object.keys(memberIds(members)).length) members = await fetch(MEMBERS_URL, { cache: 'no-store' }).then(r => r.ok ? r.text() : '').catch(() => '');
     if (!csv || csv.length > 2_000_000) { res.status(400).send('could not read the sheet'); return; }
     if (lot !== null && sp.has('spin')) {
       const gif = await renderSpin(csv, lot, members);

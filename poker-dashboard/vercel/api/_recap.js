@@ -45,7 +45,8 @@ export default async function handler(req, res) {
       if (!r.ok) throw new Error('sheet returned ' + r.status);
       csv = await r.text();
     }
-    if (members == null) {
+    // no members sent, or the sent copy has no usable Discord IDs (happened Nov 21 2026: letter tiles instead of pfps): read Google's copy
+    if (members == null || !Object.keys(memberIds(members)).length) {
       try { const r = await fetch(MEMBERS_URL, { cache: 'no-store' }); members = r.ok ? await r.text() : ''; } catch (e) { members = ''; }
     }
     if (!csv || csv.length > 2_000_000) { res.status(400).send('missing or oversized CSV'); return; }
