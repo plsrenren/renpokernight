@@ -61,7 +61,9 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .rules { padding-left: 18px; margin: 0; }
 
 /* table */
-.tbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.tbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; position: relative; z-index: 30; }
+.hostbtn { background: var(--pink); color: #fff; } .hostbtn.on { background: var(--gold); color: var(--ink); }
+.hostpop { position: absolute; right: 0; top: calc(100% + 8px); width: min(360px, calc(100vw - 32px)); max-height: calc(100vh - 140px); overflow-y: auto; box-shadow: 0 18px 40px rgba(0,0,0,.55); border: 2px solid var(--pink); }
 .tbar .info { font: 400 20px var(--title); letter-spacing: .06em; color: var(--soft); margin-right: auto; white-space: nowrap; }
 .tbar .info b { color: var(--gold); font-weight: 400; }
 .live { font: 600 10.5px var(--mono); padding: 2px 6px; background: var(--panel2); color: var(--muted); vertical-align: middle; margin-left: 6px; letter-spacing: 0; }
@@ -410,22 +412,22 @@ const opts = (list, cur, fmt = v => v) => list.map(v => `<option value="${v}" ${
 function hostHTML() {
   const t = T();
   if (!S.me || !S.me.host) return '';
-  const open = hostOpen === null ? !t.open : hostOpen, D = hostDraft;
-  const head = `<details class="panel fold host" id="hostd" ${open ? 'open' : ''}><summary><h2 class="p">Host controls</h2></summary><div>`;
-  if (!t.open) return `${head}<p class="hint">Only hosts see this (Renato, pitbosses, admins). The room stays closed until a host opens it.</p>
+  const D = hostDraft;
+  if (!t.open) return `<div class="panel host"><h2 class="p">Host controls</h2><p class="hint">Only hosts see this (Renato, pitbosses, admins). The room stays closed until a host opens it.</p>
     <div class="hgrid"><label>Blinds<select id="hBlinds">${STAKES.map(([a, b]) => `<option value="${a}/${b}" ${(D.hBlinds || `${t.cfg.sb}/${t.cfg.bb}`) === `${a}/${b}` ? 'selected' : ''}>${money(a)}/${money(b)}</option>`).join('')}</select></label>
       <label>Min buy-in<select id="hMin">${opts(MIN_BUYS, D.hMin || t.cfg.min, money)}</select></label>
       <label>Max buy-in<select id="hMax">${opts(MAX_BUYS, D.hMax || t.cfg.max, money)}</select></label>
       <label>Turn timer<select id="hTurn">${opts(TURNS, D.hTurn || t.cfg.turn, v => v + ' sec')}</select></label></div>
     <label class="chk"><input type="checkbox" id="hPost" ${D.hPost === false ? '' : 'checked'}> Post "The poker room is open" in #the-table</label>
-    <button class="cbtn up" data-host="open">Open the room</button></div></details>`;
+    <button class="cbtn up" data-host="open">Open the room</button></div>`;
   const people = t.seats.map((s, i) => s && !s.left ? `<div>${av(s.id, s.name)}<b>${esc(s.name)}</b><small>${s.out ? 'sitting out' : money(s.stack)}</small><button class="cbtn ${s.out ? 'up' : 'ghost'} sm" data-seatout="${i}" data-on="${s.out ? '' : '1'}">${s.out ? 'Deal in' : 'Sit out'}</button></div>` : '').join('');
-  return `${head}<p class="hint">Only hosts see this. Changes apply from the next hand.</p>
+  if (!hostPop) return '';
+  return `<div class="panel host hostpop" id="hostpop"><h2 class="p">Host controls</h2><p class="hint">Only hosts see this. Changes apply from the next hand.</p>
     <div class="hrow">${t.phase === 'paused' ? `<button class="cbtn up sm" data-host="resume">Resume game</button>` : `<button class="cbtn ghost sm" data-host="pause" ${t.pauseReq ? 'disabled' : ''}>${t.pauseReq ? 'Pausing after this hand' : 'Pause after this hand'}</button>`}
       <button class="cbtn sm" data-host="close" ${t.closeReq ? 'disabled' : ''}>${t.closeReq ? 'Closing after this hand' : 'Close room'}</button></div>
     <label class="hl1">Blinds<select id="hBlinds2">${STAKES.map(([a, b]) => `<option value="${a}/${b}" ${a === t.cfg.sb && b === t.cfg.bb ? 'selected' : ''}>${money(a)}/${money(b)}</option>`).join('')}</select></label>
     <div class="plist">${people || '<p class="hint">Nobody is sitting down yet.</p>'}</div>
-    <p class="hint">Hosts can't see anyone's cards or move chips. Closing finishes the hand and cashes everyone out. An empty room closes itself after 30 minutes.</p></div></details>`;
+    <p class="hint">Hosts can't see anyone's cards or move chips. Closing finishes the hand and cashes everyone out. An empty room closes itself after 30 minutes.</p></div>`;
 }
 function header() {
   const el = $('#me');
@@ -433,8 +435,7 @@ function header() {
   el.classList.remove('hidden');
   el.innerHTML = `<span class="bal">${money(S.me.bal)}</span>${av(S.me.id, S.me.name)}<span class="nm">${esc(S.me.name)}</span>`;
 }
-let lastRoomOpen = null;
-let hostOpen = null;          // host controls dropdown: null = default (open while the room is closed)
+let hostPop = false;          // host controls: a panel that drops down from the Host button at the top right
 let raiseKeep = { k: '', v: 0 }; // the raise amount you picked (preset or slider) stays put until the action moves on
 const hostDraft = {};          // the open-room form keeps what you picked while the page refreshes
 const turnKey = t => [t.hid, t.street, t.curBet, t.toAct].join('|');
@@ -443,8 +444,6 @@ function render() {
   document.body.classList.toggle('seated', mySeat() >= 0);
   document.body.classList.toggle('room', !!(S.table && S.table.open));
   const raiseFocus = $('#raise') && document.activeElement === $('#raise');
-  if ($('#hostd')) hostOpen = $('#hostd').open;
-  if (S.table.open !== lastRoomOpen) { lastRoomOpen = S.table.open; hostOpen = null; } // fold it again once the room opens
   const logOpen = $('#hlog') ? $('#hlog').open : false;
   header();
   const qerr = new URLSearchParams(location.search).get('err');
@@ -473,9 +472,10 @@ function render() {
   v.innerHTML = `<div class="tbar"><div class="info">No-limit Hold'em · ${money(t.cfg.sb)}/${money(t.cfg.bb)} · Hand <b>#${t.hand || 0}</b><span class="live" id="live"></span></div>
       ${s ? `<button class="cbtn ghost sm" data-a="top" ${s.stack + (s.pend || 0) >= t.cfg.max ? 'disabled' : ''}>Top up</button>
       <button class="cbtn ghost sm" data-a="${s.out ? 'back' : 'sitout'}">${s.out ? "I'm back" : 'Sit out'}</button>
-      <button class="cbtn sm" data-a="leave">Leave table</button>` : ''}</div>
+      <button class="cbtn sm" data-a="leave">Leave table</button>` : ''}
+      ${S.me.host ? `<button class="cbtn sm hostbtn ${hostPop ? 'on' : ''}" data-a="hostpop" aria-expanded="${hostPop}">Host ${hostPop ? '▴' : '▾'}</button>${hostHTML()}` : ''}</div>
     <div class="game"><div>${tableHTML()}${actHTML()}</div>
-      <div class="below">${hostHTML()}${logHTML(t, logOpen)}
+      <div class="below">${logHTML(t, logOpen)}
         <details class="panel fold"><summary><h2 class="g">House rules</h2></summary>${rulesHTML(t.cfg)}</details></div></div>`;
   renderLive();
   const r = $('#raise');
@@ -524,6 +524,8 @@ async function send(body) {
 // ---------- clicks ----------
 document.addEventListener('click', e => {
   const b = e.target.closest('button');
+  if (hostPop && !e.target.closest('#hostpop') && !(b && b.dataset.a === 'hostpop')) { hostPop = false; render(); if (!b) return; } // tap outside closes it
+  if (b && b.dataset.a === 'hostpop') { hostPop = !hostPop; return render(); }
   if (!b) { const st = e.target.closest('[data-peek]'); if (st) { const i = +st.dataset.peek; peek = peek === i ? -1 : i; render(); } return; }
   if (b.disabled) return;
   if (b.hasAttribute('data-close')) { $('#modal').innerHTML = ''; return; }
