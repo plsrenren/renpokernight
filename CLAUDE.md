@@ -75,7 +75,7 @@ poker-dashboard/
                        is spun by the next tap, New round or /roulette for up to a day) + roulette.js (wheel picture)
                        baccarat: _baccarat.js (/baccarat Player/Banker/Tie; picture = bjcards?m=bac)
                        seats: _seats.js (/seats random seat order from the latest invite's reactions) + seats.js (table picture)
-                       info: _info.js (/info posts the 2-card welcome post (links + Start here) as a normal bot message in that channel, for #info + pin; pitbosses/Renato/admins only)
+                       info: _info.js (/info posts the 2-card welcome post (links + Start here) as a normal bot message in that channel, for #info + pin; running it again in that channel edits the same post (id in Redis info:msg:<channel>), so wording changes = edit _info.js, deploy, /info; pitbosses/Renato/admins only)
                        channels: _channels.js (casino commands only in #casino, poker commands only in #the-table, matched by channel name; wrong channel = ephemeral "lives in #x" hint; /fish /donkey anywhere; no such channel = allowed anywhere)
                        casino: _casino.js (site /casino page: Discord sign-in + blackjack/UTH/baccarat/daily with the same bj:bal chips;
                        /api/login and /api/casino are vercel.json rewrites into discord.js?web=, so no extra function. Env DISCORD_CLIENT_SECRET,
