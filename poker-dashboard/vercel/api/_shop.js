@@ -6,7 +6,11 @@
 // The site's /shop page uses the same code through /api/shop (rewritten to api/discord.js?web=shop, see shopWeb).
 // Casino accolades (a:<key> items, earned by playing, see _accolades.js) sit in the same slots; ac:own:<user id> holds them.
 // Keys: sh:own:<user id> (hash item id → how many), sh:eq (hash user id → JSON {slot: item id}), sh:packs (hash user id → packs
-// bought), sh:pk:<pack id> (an opened pack and which cards are flipped, 1 day), sh:lock:<user id> (stops double taps).
+// bought), sh:pk:<pack id> (an opened pack and which cards are flipped, PACK_TTL), sh:open:<user id> (set of their packs that
+// still have face-down cards), sh:lock:<user id> (stops double taps).
+// Cards go into sh:own when the pack is bought (so refunds and the chips are settled in one go), but a card stays out of the
+// loadout, the menus and equip until it's flipped (hiddenCards). A pack left half-open can be finished later (Discord buttons,
+// or the site picks it back up); once its sh:pk key runs out, whatever was still face down simply shows up.
 // Chips come off with one storage script (DEBIT) so two taps can never spend chips you don't have.
 import { randomBytes, randomInt } from 'node:crypto';
 import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds, DEBIT } from './_blackjack.js';
@@ -32,6 +36,28 @@ const lock = async uid => { const [got] = await kv(['SET', 'sh:lock:' + uid, '1'
 const unlock = uid => kv(['DEL', 'sh:lock:' + uid]).catch(() => {});
 const parseEq = raw => { try { const e = JSON.parse(raw || '{}'); return e && typeof e === 'object' ? e : {}; } catch (e) { return {}; } };
 const hashObj = arr => { const o = {}; for (let k = 0; k < (arr || []).length; k += 2) o[arr[k]] = +arr[k + 1]; return o; };
+const PACK_TTL = 7 * 86400;
+const savePack = p => ['SET', 'sh:pk:' + p.id, JSON.stringify(p), 'EX', PACK_TTL];
+
+/** cards someone bought but hasn't flipped yet: { hid: {item id: n}, open: newest unfinished pack or null }.
+ *  openIds = SMEMBERS sh:open:<uid> when the caller already has it. Tidies finished and expired packs out of the set. */
+export async function hiddenCards(uid, openIds) {
+  if (!openIds) [openIds] = await kv(['SMEMBERS', 'sh:open:' + uid]);
+  const hid = {}; let open = null;
+  if (!openIds || !openIds.length) return { hid, open };
+  const [raws] = await kv(['MGET', ...openIds.map(id => 'sh:pk:' + id)]);
+  const done = [];
+  openIds.forEach((pid, k) => {
+    let p = null; try { p = raws[k] ? JSON.parse(raws[k]) : null; } catch (e) {}
+    if (!p || p.uid !== uid || p.f.every(Boolean)) { done.push(pid); return; }
+    p.cards.forEach(([id], j) => { if (!p.f[j]) hid[id] = (hid[id] || 0) + 1; });
+    if (!open || p.at > open.at) open = p;
+  });
+  if (done.length) kv(['SREM', 'sh:open:' + uid, ...done]).catch(() => {});
+  return { hid, open };
+}
+/** owned minus the face-down cards */
+const shown = (owned, hid) => { const o = { ...owned }; for (const [id, n] of Object.entries(hid)) { o[id] = (o[id] || 0) - n; if (!(o[id] > 0)) delete o[id]; } return o; };
 
 /** everything one person has: { owned: {id: n}, eq: {slot: id}, bal, packs, earned: [accolade ids they can wear] } */
 // pays back a retired item once: removes it from sh:own and adds its refund per copy to bj:bal, in one step
@@ -39,10 +65,10 @@ const RETIRE = "local n=tonumber(redis.call('HGET',KEYS[1],ARGV[1]) or '0') if n
 export async function loadout(uid) {
   // same pipeline, refunds first, so the balance read below already includes them
   const res = await kv(...RETIRED.map(id => ['EVAL', RETIRE, 2, 'sh:own:' + uid, 'bj:bal', id, REFUND[BY_ID[id].tier], uid]),
-    ['HGETALL', 'sh:own:' + uid], ['HGET', 'sh:eq', uid], ['HGET', 'bj:bal', uid], ['HGET', 'sh:packs', uid], ['HGETALL', 'ac:own:' + uid], ['HGETALL', 'bj:bal']);
-  const [own, eq, bal, packs, acc, all] = res.slice(RETIRED.length);
-  const earned = earnedIds(uid, acc, all);
-  return { owned: hashObj(own), eq: wearable(parseEq(eq), earned), bal: bal === null ? null : +bal, packs: +packs || 0, earned };
+    ['HGETALL', 'sh:own:' + uid], ['HGET', 'sh:eq', uid], ['HGET', 'bj:bal', uid], ['HGET', 'sh:packs', uid], ['HGETALL', 'ac:own:' + uid], ['HGETALL', 'bj:bal'], ['SMEMBERS', 'sh:open:' + uid]);
+  const [own, eq, bal, packs, acc, all, openIds] = res.slice(RETIRED.length);
+  const earned = earnedIds(uid, acc, all), { hid, open } = await hiddenCards(uid, openIds);
+  return { owned: shown(hashObj(own), hid), eq: wearable(parseEq(eq), earned), bal: bal === null ? null : +bal, packs: +packs || 0, earned, open };
 }
 /** an equipped set without retired items or accolades they haven't earned. earned = earnedIds */
 export const wearable = (eq, earned) => Object.fromEntries(Object.entries(eq || {}).filter(([, id]) => !RETIRED.includes(id) && (!String(id).startsWith('a:') || earned.includes(id))));
@@ -72,7 +98,7 @@ export async function buyPack(me) {
       ['HINCRBYFLOAT', 'bj:bal', me.id, back], ['HINCRBY', 'sh:packs', me.id, 1], ['HSET', 'bj:name', me.id, me.name], ['HLEN', 'sh:own:' + me.id],
       ...feedCmds(me, 'study cards', back - PRICE));
     pack.bal = +res[3]; pack.owned = +res[6];
-    await kv(['SET', 'sh:pk:' + pack.id, JSON.stringify(pack), 'EX', 86400]);
+    await kv(savePack(pack), ['SADD', 'sh:open:' + me.id, pack.id]);
     return { pack, bal: pack.bal, owned: pack.owned };
   } finally { await unlock(me.id); }
 }
@@ -97,8 +123,8 @@ export async function equip(uid, slot, id, champs = null) {
       const [acc, bal] = await kv(['HGETALL', 'ac:own:' + uid], ['HGETALL', 'bj:bal']);
       if (!earnedIds(uid, acc, bal).includes(id)) return { err: `You haven't earned ${it.name} yet.` };
     } else {
-      const [n] = await kv(['HGET', 'sh:own:' + uid, id]);
-      if (!(+n > 0)) return { err: `You don't have ${it.name} yet.` };
+      const [[n], { hid }] = await Promise.all([kv(['HGET', 'sh:own:' + uid, id]), hiddenCards(uid)]);
+      if (!(+n - (hid[id] || 0) > 0)) return { err: +n > 0 ? `Flip the card first to see what you got.` : `You don't have ${it.name} yet.` };
     }
     slot = it.slot;
   } else if (!SLOT_NAMES.includes(slot)) return { err: 'Unknown slot.' };
@@ -242,12 +268,13 @@ export async function shopInteraction(i, s) {
     if (act === 't') p.torn = true;
     else if (act === 'f') { const k = +arg; if (!p.torn || !(k >= 0 && k < 3) || p.f[k]) return json({ type: 6 }); p.f[k] = 1; }
     else return json({ type: 6 });
-    await kv(['SET', 'sh:pk:' + p.id, JSON.stringify(p), 'EX', 86400]);
+    await kv(savePack(p), ...(p.f.every(Boolean) ? [['SREM', 'sh:open:' + me.id, p.id]] : []));
     return json({ type: 7, data: packView(p) });
   } catch (e) { console.error('shop button', e); return quiet("Couldn't reach the chip storage just now. Try again in a moment."); }
 }
 
 // ---------- the site: /api/shop ----------
+const sitePack = p => ({ id: p.id, d: p.d, torn: !!p.torn, f: p.f, cards: p.cards.map(([id, dup]) => ({ id, dup: !!dup })) });
 //   GET  /api/shop            your chips, cards and loadout (signed in), plus everyone's equipped items by player name
 //   POST /api/shop {a: 'buy'} / {a: 'equip', id} / {a: 'equip', slot, id: null}
 export async function shopWeb(req, me, sheet, out) {
@@ -258,7 +285,7 @@ export async function shopWeb(req, me, sheet, out) {
     // by Discord id too, for lists keyed by id (the casino chip leaders, which include people not on the sheet)
     for (const [id, eq] of Object.entries(all)) if (eq && Object.keys(eq).length) byId[id] = eq;
     const body = { price: PRICE, byName, byId, me: null };
-    if (me) { const L = await loadout(me.id); body.me = { id: me.id, name: me.name, ...L, champs: champsFor(me.id, sh) || [] }; }
+    if (me) { const L = await loadout(me.id); body.me = { id: me.id, name: me.name, ...L, open: L.open ? sitePack(L.open) : null, champs: champsFor(me.id, sh) || [] }; }
     return out(body);
   }
   if (!me) return out({ err: 'Sign in first.', signedOut: true }, 401);
@@ -268,7 +295,19 @@ export async function shopWeb(req, me, sheet, out) {
     const r = await buyPack(who);
     if (r.busy) return out({ busy: true });
     if (r.err) return out({ err: r.err.replace(/\*\*/g, '').replace('Use /daily', 'Claim your daily chips on the casino page'), bal: r.bal });
-    return out({ bal: r.bal, owned: r.owned, pack: { d: r.pack.d, cards: r.pack.cards.map(([id, dup]) => ({ id, dup: !!dup })) } });
+    return out({ bal: r.bal, owned: r.owned, pack: sitePack(r.pack) });
+  }
+  // tearing and flipping on the site: {a: 'reveal', pack, k: 't' | 0..2}. The page sends these one at a time.
+  if (b.a === 'reveal') {
+    const pid = String(b.pack || '').replace(/[^a-f0-9]/g, '');
+    const [raw] = pid ? await kv(['GET', 'sh:pk:' + pid]) : [null];
+    if (!raw) return out({ ok: true, gone: true }); // ran out: the cards already show
+    const p = JSON.parse(raw);
+    if (p.uid !== me.id) return out({ err: 'Not your pack.' }, 403);
+    if (b.k === 't') p.torn = true;
+    else { const k = +b.k; if (!(k >= 0 && k < 3)) return out({ err: 'Bad card.' }, 400); p.torn = true; p.f[k] = 1; }
+    await kv(savePack(p), ...(p.f.every(Boolean) ? [['SREM', 'sh:open:' + me.id, p.id]] : []));
+    return out({ ok: true });
   }
   if (b.a === 'equip') {
     const id = b.id ? String(b.id) : null, champ = id && id.startsWith('c:');
