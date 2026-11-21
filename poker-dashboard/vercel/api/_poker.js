@@ -155,7 +155,8 @@ export async function pokerWeb(req, me, sheet, out) {
       const r = await change((T, now) => E.openRoom(T, b.cfg || {}, now), t);
       if (!r.err && b.post !== false) {
         const c = r.T.cfg, origin = `https://${req.headers.get('x-forwarded-host') || new URL(req.url).host}`;
-        await postChannel({ content: `🃏 **The poker room is open.** No-limit Hold'em, blinds ${$(c.sb)}/${$(c.bb)}, buy in ${$(c.min)} to ${$(c.max)} with your casino chips.\n${origin}/poker`, allowed_mentions: { parse: [] } }, 'table').catch(e => console.error('poker open post', e));
+        const x = [c.straddle && 'Straddle on.', r.T.nitNext && `Nit game: last to win a pot pays everyone ${$(r.T.nitNext.amt)}.`, r.T.bomb && `First hand is a ${$(r.T.bomb * c.bb)} bomb pot.`].filter(Boolean).join(' ');
+        await postChannel({ content: `🃏 **The poker room is open.** No-limit Hold'em, blinds ${$(c.sb)}/${$(c.bb)}, buy in ${$(c.min)} to ${$(c.max)} with your casino chips.${x ? ' ' + x : ''}\n${origin}/poker`, allowed_mentions: { parse: [] } }, 'table').catch(e => console.error('poker open post', e));
       }
       return done(r);
     }

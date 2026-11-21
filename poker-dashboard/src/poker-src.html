@@ -267,7 +267,7 @@ const DISCORD_SVG = '<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><pa
 const ERRS = { cancelled: 'Sign-in was cancelled.', setup: "Discord sign-in isn't set up yet.", expired: 'That sign-in link expired. Try again.', discord: "Discord didn't answer. Try again.", stranger: "That Discord account isn't one the club knows yet. Play a hand with the bot in the server first." };
 const STAKES = [[1, 2], [2, 5], [5, 10]], MIN_BUYS = [20, 40, 100], MAX_BUYS = [100, 200, 500, 1000], TURNS = [15, 20, 30], BOMBS = [2, 5, 10], NITS = [2, 5, 10];
 /** what the host has switched on, shown in the table bar */
-const extras = t => [t.cfg.straddle && 'Straddle', t.nit && `Nit ${money(t.nit.amt)}`, t.bomb && 'Bomb next'].filter(Boolean).map(x => ` · <span class="xtra">${x}</span>`).join('');
+const extras = t => [t.cfg.straddle && 'Straddle', t.nit && `Nit ${money(t.nit.amt)}`, t.nitNext && 'Nit next', t.bomb && 'Bomb next'].filter(Boolean).map(x => ` · <span class="xtra">${x}</span>`).join('');
 
 // ---------- cards (same ranking as the server, for the "what you have" line) ----------
 const RANKS = '23456789TJQKA', SYM = { s: '♠', h: '♥', d: '♦', c: '♣' }, RN = { 10: '10', 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
@@ -460,6 +460,9 @@ function hostHTML() {
       <label>Min buy-in<select id="hMin">${opts(MIN_BUYS, D.hMin || t.cfg.min, money)}</select></label>
       <label>Max buy-in<select id="hMax">${opts(MAX_BUYS, D.hMax || t.cfg.max, money)}</select></label>
       <label>Turn timer<select id="hTurn">${opts(TURNS, D.hTurn || t.cfg.turn, v => v + ' sec')}</select></label></div>
+    <div class="hgrid"><label>1st hand bomb<select id="hBombO"><option value="0">No</option>${BOMBS.map(x => `<option value="${x}" ${String(x) === D.hBombO ? 'selected' : ''}>${x} BB each</option>`).join('')}</select></label>
+      <label>Nit game<select id="hNitO"><option value="0">Off</option>${NITS.map(x => `<option value="${x}" ${String(x) === D.hNitO ? 'selected' : ''}>${x} BB each</option>`).join('')}</select></label></div>
+    <label class="chk"><input type="checkbox" id="hStrO" ${D.hStrO ? 'checked' : ''}> Straddle (2× BB)</label>
     <label class="chk"><input type="checkbox" id="hPost" ${D.hPost === false ? '' : 'checked'}> Post "The poker room is open" in #the-table</label>
     <button class="cbtn up" data-host="open">Open the room</button></div>`;
   const people = t.seats.map((s, i) => s && !s.left ? `<div>${av(s.id, s.name)}<b>${esc(s.name)}</b><small>${s.out ? 'sitting out' : money(s.stack)}</small><button class="cbtn ${s.out ? 'up' : 'ghost'} sm" data-seatout="${i}" data-on="${s.out ? '' : '1'}">${s.out ? 'Deal in' : 'Sit out'}</button></div>` : '').join('');
@@ -469,9 +472,9 @@ function hostHTML() {
     <div class="hx">
       <div><b>Bomb pot</b>${t.bomb ? `<small>Next hand, ${money(t.bomb * t.cfg.bb)} each</small><button class="cbtn ghost sm" data-hx="bomb" data-x="0">Call off</button>`
         : `<select id="hBomb">${BOMBS.map(x => `<option value="${x}" ${x === (+hostDraft.hBomb || 5) ? 'selected' : ''}>${money(x * t.cfg.bb)} each</option>`).join('')}</select><button class="cbtn up sm" data-hx="bomb">Next hand</button>`}</div>
-      <div><b>Straddle</b><small>${money(2 * t.cfg.bb)} after the BB</small><button class="cbtn ${t.cfg.straddle ? 'up' : 'ghost'} sm" data-hx="straddle" data-on="${t.cfg.straddle ? '' : '1'}">${t.cfg.straddle ? 'On' : 'Off'}</button></div>
-      <div><b>Nit game</b>${t.nit ? `<small>${money(t.nit.amt)} each, ${t.nit.need.length} left</small><button class="cbtn ghost sm" data-hx="nit" data-x="0">End</button>`
-        : `<select id="hNit">${NITS.map(x => `<option value="${x}" ${x === (+hostDraft.hNit || 5) ? 'selected' : ''}>${money(x * t.cfg.bb)} each</option>`).join('')}</select><button class="cbtn up sm" data-hx="nit">Start</button>`}</div>
+      <div><b>Straddle</b><small>${t.phase === 'hand' ? 'From next hand' : `${money(2 * t.cfg.bb)} after the BB`}</small><button class="cbtn ${t.cfg.straddle ? 'up' : 'ghost'} sm" data-hx="straddle" data-on="${t.cfg.straddle ? '' : '1'}">${t.cfg.straddle ? 'On' : 'Off'}</button></div>
+      <div><b>Nit game</b>${t.nit || t.nitNext ? `<small>${t.nit ? `${money(t.nit.amt)} each, ${t.nit.need.length} left` : `Next hand, ${money(t.nitNext.amt)} each`}</small><button class="cbtn ghost sm" data-hx="nit" data-x="0">${t.nit ? 'End' : 'Call off'}</button>`
+        : `<select id="hNit">${NITS.map(x => `<option value="${x}" ${x === (+hostDraft.hNit || 5) ? 'selected' : ''}>${money(x * t.cfg.bb)} each</option>`).join('')}</select><button class="cbtn up sm" data-hx="nit">Next hand</button>`}</div>
     </div>
     <label class="hl1">Blinds<select id="hBlinds2">${STAKES.map(([a, b]) => `<option value="${a}/${b}" ${a === t.cfg.sb && b === t.cfg.bb ? 'selected' : ''}>${money(a)}/${money(b)}</option>`).join('')}</select></label>
     <div class="plist">${people || '<p class="hint">Nobody is sitting down yet.</p>'}</div>
@@ -591,10 +594,10 @@ document.addEventListener('click', e => {
   if (hx === 'straddle') return send({ a: 'straddle', on: !!b.dataset.on });
   if (hx) return send({ a: hx, x: b.dataset.x !== undefined ? +b.dataset.x : +$(hx === 'bomb' ? '#hBomb' : '#hNit').value });
   const h = b.dataset.host;
-  if (h === 'open') { const [sb, bb] = $('#hBlinds').value.split('/').map(Number); return send({ a: 'open', post: $('#hPost').checked, cfg: { sb, bb, min: +$('#hMin').value, max: +$('#hMax').value, turn: +$('#hTurn').value } }); }
+  if (h === 'open') { const [sb, bb] = $('#hBlinds').value.split('/').map(Number); return send({ a: 'open', post: $('#hPost').checked, cfg: { sb, bb, min: +$('#hMin').value, max: +$('#hMax').value, turn: +$('#hTurn').value, straddle: $('#hStrO').checked, bomb: +$('#hBombO').value, nit: +$('#hNitO').value } }); }
   if (h) return send({ a: h });
 });
-document.addEventListener('change', e => { const id = e.target.id; if (['hBlinds', 'hMin', 'hMax', 'hTurn', 'hBomb', 'hNit'].includes(id)) hostDraft[id] = e.target.value; if (id === 'hPost') hostDraft.hPost = e.target.checked; if (e.target.id === 'hBlinds2') { const [sb, bb] = e.target.value.split('/').map(Number); send({ a: 'blinds', sb, bb }); } });
+document.addEventListener('change', e => { const id = e.target.id; if (['hBlinds', 'hMin', 'hMax', 'hTurn', 'hBomb', 'hNit', 'hBombO', 'hNitO'].includes(id)) hostDraft[id] = e.target.value; if (id === 'hPost' || id === 'hStrO') hostDraft[id] = e.target.checked; if (e.target.id === 'hBlinds2') { const [sb, bb] = e.target.value.split('/').map(Number); send({ a: 'blinds', sb, bb }); } });
 document.addEventListener('submit', e => { if (e.target.id === 'sayF') { e.preventDefault(); const i = $('#sayIn'); say(i.value); i.value = ''; } });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) api().catch(() => {}); });
 
