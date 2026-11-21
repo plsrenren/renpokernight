@@ -74,10 +74,11 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .game { display: grid; gap: 16px; margin-top: 12px; }
 /* the open room uses the whole browser width; log, rules and host controls drop down from buttons at the top right */
 body.room .wrap { max-width: none; }
-.felt { position: relative; aspect-ratio: 2 / 1; width: 100%; max-height: max(380px, calc(100vh - 340px)); margin-block: 14px; }
+.felt { position: relative; aspect-ratio: 2 / 1; width: 100%; max-height: max(360px, calc(100vh - 400px)); margin-block: 14px; }
 .oval { position: absolute; inset: 9% 7%; border-radius: 50%; background: radial-gradient(120% 90% at 50% 20%, var(--felt1), var(--felt2) 72%); border: 10px solid #3a2a6e; outline: 3px solid var(--gold); box-shadow: inset 0 0 40px rgba(0,0,0,.45); }
 .oval::after { content: "THE STUDY"; position: absolute; left: 50%; top: 70%; transform: translateX(-50%); font: 400 22px var(--title); letter-spacing: .4em; color: rgba(255,255,255,.07); white-space: nowrap; }
 .center { position: absolute; left: 50%; top: 47%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 8px; width: 56%; }
+.crow { height: 30px; display: grid; place-items: center; width: 100%; }
 .pot { font: 600 13px var(--mono); background: rgba(14,31,23,.85); color: #fff; padding: 3px 10px; white-space: nowrap; }
 .bd5 { display: flex; gap: 6px; min-height: 64px; }
 .banner { font: 400 18px/1.1 var(--title); letter-spacing: .05em; color: var(--ink); background: var(--gold); padding: 5px 10px 3px; text-align: center; max-width: 100%; }
@@ -134,8 +135,8 @@ body.room .wrap { max-width: none; }
 .dmark { display: none; }
 .dbtn2 { position: absolute; transform: translate(-50%, -50%); width: 22px; height: 22px; border-radius: 50%; background: #fff; color: var(--ink); font: 900 12px/22px var(--round); text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,.5); z-index: 1; }
 
-.actbar { background: var(--panel); padding: 12px 14px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; min-height: 118px; }
-.actbar.guest { grid-template-columns: minmax(0, 1fr) auto; min-height: 0; }
+.actbar { background: var(--panel); padding: 12px 14px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; height: 140px; overflow: hidden; }
+.actbar.guest { grid-template-columns: minmax(0, 1fr) auto; }
 .mine { display: grid; gap: 6px; justify-items: center; }
 .mine .cards { display: flex; gap: 6px; }
 .mine .str { font: 600 11.5px var(--mono); color: var(--gold); white-space: nowrap; }
@@ -196,7 +197,7 @@ details.fold > summary + * { margin-top: 10px; }
   .links { display: none; } .me { margin-top: 4px; } .me .nm { display: none; }
   .felt { aspect-ratio: 10 / 13.5; max-height: none; }
   .oval { inset: 7% 11%; border-width: 7px; } .oval::after { top: 74%; font-size: 16px; }
-  .center { width: 66%; top: 37%; }
+  .center { width: 66%; top: 43%; }
   .tbar .info { flex: 1 0 100%; font-size: 17px; }
   .tbtns, .popbar { gap: 5px; flex-wrap: nowrap; } .tbtns { width: 100%; }
   .tbtns .cbtn.sm { font-size: 14px; padding: 5px 9px 3px 8px; white-space: nowrap; clip-path: polygon(0 0,100% 0,calc(100% - 6px) 100%,0 100%); }
@@ -212,10 +213,22 @@ details.fold > summary + * { margin-top: 10px; }
   .st-name b, .st-name span.sk { font-size: 10px; } .st-name b { max-width: 54px; }
   .st-stk { right: -8px; bottom: 10px; } .st-stk .pl-stk { width: 20px; height: 20px; }
   .st.empty button { width: 48px; height: 38px; font-size: 13px; }
-  .actbar, .actbar.guest { grid-template-columns: minmax(0, 1fr); }
+  .actbar { grid-template-columns: auto minmax(0, 1fr); gap: 10px; padding: 8px 10px; height: 136px; }
+  .actbar.guest { grid-template-columns: minmax(0, 1fr); height: auto; }
   .actbar.guest .dbtn { justify-content: center; }
-  .mine { grid-auto-flow: column; justify-content: start; align-items: center; gap: 12px; }
-  .cd.lg { width: 52px; height: 72px; font-size: 24px; } .cd.lg i { font-size: 20px; }
+  .cd.lg { width: 42px; height: 58px; font-size: 20px; } .cd.lg i { font-size: 16px; }
+  .mine .cards { gap: 4px; } .mine .str { font-size: 10px; max-width: 92px; overflow: hidden; text-overflow: ellipsis; }
+  .ctrls { gap: 6px; } .ctrls .btns { gap: 5px; } .ctrls .btns .cbtn { font-size: 15px; padding: 7px 4px 5px; }
+  .presets { gap: 4px; flex-wrap: nowrap; } .presets button { font-size: 10.5px; padding: 4px 6px; white-space: nowrap; }
+  .slide output { font-size: 12px; min-width: 44px; }
+  .wait { font-size: 18px; } .wait small { font-size: 11px; }
+  body.room .wrap { padding: 8px 10px 6px; }
+  body.room .brand .lg { width: 46px; height: 40px; } body.room .brand h1 { font-size: 28px; margin: 4px 0 0; }
+  body.room .me { margin-top: 2px; } body.room .me .bal { font-size: 18px; }
+  body.room .tbar { margin-top: 6px; gap: 4px; }
+  body.room .felt { aspect-ratio: auto; height: max(300px, calc(100dvh - 296px)); margin-block: 6px; }
+  body.room:not(.seated) .felt { height: max(260px, calc(100dvh - 400px)); }
+  body.room:not(.seated) .wrap { padding-bottom: 64px; }
   .banner { font-size: 15px; }
   .hero h2 { font-size: 40px; }
 }
@@ -343,7 +356,7 @@ function say(text) {
 
 // ---------- drawing ----------
 // once you sit down the table turns so your seat is always the one at the bottom (seat order and dealing don't change)
-function seatPos(i) { const me = mySeat(), k = me >= 0 ? (i - me + 8) % 8 : i, a = (90 + k * 45) * Math.PI / 180, rx = PHONE.matches ? 31 : 38; return { x: 47 + rx * Math.cos(a), y: 50 + 39 * Math.sin(a) + (PHONE.matches && k % 4 === 2 ? 9 : 0) }; }
+function seatPos(i) { const me = mySeat(), k = me >= 0 ? (i - me + 8) % 8 : i, a = (90 + k * 45) * Math.PI / 180, rx = PHONE.matches ? 31 : 38; return { x: 47 + rx * Math.cos(a), y: 50 + 39 * Math.sin(a) + (PHONE.matches && k % 4 === 2 ? 13 : 0) }; }
 const toward = (p, f) => ({ x: 50 + (p.x - 50) * f, y: 50 + (p.y - 50) * f });
 function seatHTML(s, i) {
   const t = T(), pos = seatPos(i), me = mySeat();
@@ -380,7 +393,7 @@ function tableHTML() {
   const top = t.phase === 'paused' ? '<div class="banner">Paused by the host</div>' : t.res ? `<div class="banner">${esc(t.res.banner)}</div>`
     : t.phase === 'idle' ? `<div class="banner sub">${t.seats.filter(s => s).length < 2 ? 'Waiting for players' : 'Waiting for players to be dealt in'}</div>` : `<div class="pot">Pot ${money(pot)}</div>`;
   return `<div class="felt"><div class="oval"></div>${dp ? `<div class="dbtn2" style="left:${dp.x - 7}%;top:${dp.y}%">D</div>` : ''}${bets}
-    <div class="center">${top}<div class="bd5">${board}</div>${t.res && t.res.sub ? `<div class="banner sub">${esc(t.res.sub)}</div>` : ''}</div>
+    <div class="center"><div class="crow">${top}</div><div class="bd5">${board}</div><div class="crow">${t.res && t.res.sub ? `<div class="banner sub">${esc(t.res.sub)}</div>` : ''}</div></div>
     ${t.seats.map(seatHTML).join('')}</div>`;
 }
 function actHTML() {
@@ -406,11 +419,11 @@ function actHTML() {
       <div class="btns"><button class="cbtn ghost" data-act="fold">Fold</button>
         <button class="cbtn up" data-act="${toCall > 0 ? 'call' : 'check'}">${toCall > 0 ? (toCall >= s.stack ? 'Call all in' : 'Call ' + money(toCall)) : 'Check'}</button>
         <button class="cbtn" data-act="raise" id="raiseBtn" ${canRaise ? '' : 'disabled'}>${minTo >= maxTo ? 'All in' : (t.curBet === 0 ? 'Bet ' : 'Raise ') + money(minTo)}</button></div>
-      ${err ? `<div class="err">${esc(err)}</div>` : ''}</div>`;
+</div>`;
   } else {
     const who = t.phase === 'hand' && t.toAct >= 0 && t.seats[t.toAct] ? t.seats[t.toAct].name : '';
     right = `<div class="wait">${t.phase === 'paused' ? 'Game paused by the host' : who ? `Waiting on ${esc(who)}` : t.phase === 'done' ? 'Next hand coming up' : 'Waiting for players'}
-      <small>${s.dealt && !s.folded ? `${t.cfg.turn} seconds per turn. Run out of time and you check or fold.` : s.dealt ? 'You folded this hand.' : t.phase === 'hand' ? "You're in next hand." : 'Sit tight.'}</small>${err ? `<div class="err">${esc(err)}</div>` : ''}</div>`;
+      <small>${s.dealt && !s.folded ? `${t.cfg.turn} seconds per turn. Run out of time and you check or fold.` : s.dealt ? 'You folded this hand.' : t.phase === 'hand' ? "You're in next hand." : 'Sit tight.'}</small></div>`;
   }
   return `<div class="actbar">${mine}${right}</div>`;
 }
@@ -530,7 +543,7 @@ async function send(body) {
   try {
     const before = S.me ? S.me.bal : 0;
     const j = await api(body);
-    if (j.err) { if (body.a === 'act') err = j.err; else toast(j.err, true); render(); }
+    if (j.err) { toast(j.err, true); render(); }
     else if (body.a === 'leave') toast(`${money(j.me.bal - before)} went back to your casino chips`);
     else if (body.a === 'sit') toast("You're in. You'll be dealt in next hand.");
   } catch (e) { toast("Couldn't reach the table. Try again.", true); }
