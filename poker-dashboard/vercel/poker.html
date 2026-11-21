@@ -173,6 +173,17 @@ details.fold > summary + * { margin-top: 10px; }
 .host label.chk { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
 .host label.hl1 { margin: 10px 0 8px; }
 .hrow { display: flex; gap: 8px; flex-wrap: wrap; }
+.hx { display: grid; gap: 6px; margin: 12px 0 2px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08); }
+.hx div { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; }
+.hx b { min-width: 72px; }
+.hx small { color: var(--muted); font: 500 11px var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hx select { margin: 0 0 0 auto; width: auto; }
+.hx small + .cbtn, .hx select + .cbtn { margin-left: 0; }
+.hx div > .cbtn { min-width: 78px; text-align: center; font-size: 14px; padding: 4px 10px 3px; }
+.hx div > small { margin-left: auto; }
+.tbar .xtra { color: var(--gold); }
+.pfw { position: relative; }
+.nitmark { position: absolute; right: -8px; top: -7px; background: var(--red); color: #fff; font: 800 8.5px/1 var(--round); font-style: normal; letter-spacing: .04em; padding: 3px 4px 2px; z-index: 4; box-shadow: 0 2px 4px rgba(0,0,0,.5); pointer-events: none; }
 .plist { display: grid; gap: 6px; margin-bottom: 10px; }
 .plist div { display: flex; align-items: center; gap: 8px; font-size: 13px; min-width: 0; }
 .plist .av { width: 26px; height: 26px; font-size: 10px; }
@@ -198,7 +209,8 @@ details.fold > summary + * { margin-top: 10px; }
   .felt { aspect-ratio: 10 / 13.5; max-height: none; }
   .oval { inset: 7% 11%; border-width: 7px; } .oval::after { top: 74%; font-size: 16px; }
   .center { width: 66%; top: 43%; }
-  .tbar .info { flex: 1 0 100%; font-size: 17px; }
+  .tbar .info { flex: 1 0 100%; font-size: 17px; overflow: hidden; text-overflow: ellipsis; }
+  .tbar .info.hasx .hno { display: none; }
   .tbtns, .popbar { gap: 5px; flex-wrap: nowrap; } .tbtns { width: 100%; }
   .tbtns .cbtn.sm { font-size: 14px; padding: 5px 9px 3px 8px; white-space: nowrap; clip-path: polygon(0 0,100% 0,calc(100% - 6px) 100%,0 100%); }
   .tbtns .wide { display: none; }
@@ -253,7 +265,9 @@ const initials = n => String(n).split(/\s+/).map(w => w[0]).join('').slice(0, 2)
 const av = (id, name) => `<span class="av" style="--h:${hue(name)}">${esc(initials(name))}${id ? `<img src="/api/avatar?id=${esc(id)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
 const DISCORD_SVG = '<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M20.3 4.4A19.6 19.6 0 0 0 15.4 3l-.6 1.3a18 18 0 0 0-5.6 0L8.6 3a19.6 19.6 0 0 0-4.9 1.5C.6 9-.3 13.6.1 18.1A19.8 19.8 0 0 0 6.1 21l1.3-2.1a12.8 12.8 0 0 1-2-1l.5-.4a14 14 0 0 0 12.2 0l.5.4c-.6.4-1.3.7-2 1l1.3 2.1a19.7 19.7 0 0 0 6-3c.5-5.2-.9-9.8-3.6-13.7zM8.3 15.3c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4zm7.4 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4z"/></svg>';
 const ERRS = { cancelled: 'Sign-in was cancelled.', setup: "Discord sign-in isn't set up yet.", expired: 'That sign-in link expired. Try again.', discord: "Discord didn't answer. Try again.", stranger: "That Discord account isn't one the club knows yet. Play a hand with the bot in the server first." };
-const STAKES = [[1, 2], [2, 5], [5, 10]], MIN_BUYS = [20, 40, 100], MAX_BUYS = [100, 200, 500, 1000], TURNS = [15, 20, 30];
+const STAKES = [[1, 2], [2, 5], [5, 10]], MIN_BUYS = [20, 40, 100], MAX_BUYS = [100, 200, 500, 1000], TURNS = [15, 20, 30], BOMBS = [2, 5, 10], NITS = [2, 5, 10];
+/** what the host has switched on, shown in the table bar */
+const extras = t => [t.cfg.straddle && 'Straddle', t.nit && `Nit ${money(t.nit.amt)}`, t.bomb && 'Bomb next'].filter(Boolean).map(x => ` · <span class="xtra">${x}</span>`).join('');
 
 // ---------- cards (same ranking as the server, for the "what you have" line) ----------
 const RANKS = '23456789TJQKA', SYM = { s: '♠', h: '♥', d: '♦', c: '♣' }, RN = { 10: '10', 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
@@ -374,7 +388,7 @@ function seatHTML(s, i) {
   const left = Math.max(0, (t.deadline - serverNow()) / 1000), dur = t.cfg.turn;
   const stack = s.left ? 'left' : s.out && !s.stack ? 'out' : money(s.stack) + (s.pend ? '+' : '');
   return `<div class="${cls}" data-peek="${i}" style="left:${pos.x}%;top:${pos.y}%">
-    <div class="st-row"><div class="pfw">${b.face(av(s.id, s.name), size)}${i === t.button && t.hand ? '<i class="dmark">D</i>' : ''}</div><div class="st-cards">${hc}</div></div>
+    <div class="st-row"><div class="pfw">${b.face(av(s.id, s.name), size)}${i === t.button && t.hand ? '<i class="dmark">D</i>' : ''}${t.nit && t.nit.need.includes(s.id) ? '<i class="nitmark">NIT</i>' : ''}</div><div class="st-cards">${hc}</div></div>
     <div class="st-name${b.bar ? ' pl-wash' : ''}">${b.bar ? `<span class="pl-bg ${b.bar}" aria-hidden="true"></span>` : ''}<b>${esc(s.name)}</b><span class="sk">${stack}</span></div>${b.sticker ? `<span class="st-stk">${b.sticker}</span>` : ''}
     ${s.last ? `<div class="act ${lastCls}">${esc(s.last)}</div>` : s.out && !s.left && s.stack ? '<div class="act fold">Sitting out</div>' : ''}
     ${t.toAct === i && t.phase === 'hand' ? `<div class="tmr"><i style="animation-duration:${dur}s;animation-delay:-${Math.max(0, dur - left).toFixed(2)}s"></i></div>` : ''}
@@ -389,7 +403,7 @@ function tableHTML() {
   const board = Array.from({ length: 5 }, (_, k) => { const c = t.board[k]; return card(c, '', c && hl.length ? (hl.includes(c) ? 'hl' : 'dim') : ''); }).join('');
   const pot = t.pot + t.seats.reduce((a, s) => a + (s ? s.bet : 0), 0);
   const top = t.phase === 'paused' ? '<div class="banner">Paused by the host</div>' : t.res ? `<div class="banner">${esc(t.res.banner)}</div>`
-    : t.phase === 'idle' ? `<div class="banner sub">Waiting for players</div>` : `<div class="pot">Pot ${money(pot)}</div>`;
+    : t.phase === 'idle' ? `<div class="banner sub">Waiting for players</div>` : `<div class="pot">${t.bombHand ? 'Bomb pot' : 'Pot'} ${money(pot)}</div>`;
   return `<div class="felt"><div class="oval"></div>${dp ? `<div class="dbtn2" style="left:${dp.x - 7}%;top:${dp.y}%">D</div>` : ''}${bets}
     <div class="center"><div class="crow">${top}</div><div class="bd5">${board}</div><div class="crow">${t.res && t.res.sub ? `<div class="banner sub">${esc(t.res.sub)}</div>` : ''}</div></div>
     ${t.seats.map(seatHTML).join('')}</div>`;
@@ -434,7 +448,7 @@ function popBar(t) {
 }
 function rulesHTML(c) {
   return `<ul class="rules"><li>No-limit Texas Hold'em, blinds ${money(c.sb)}/${money(c.bb)}.</li><li>Buy in for ${money(c.min)} to ${money(c.max)} in casino chips. They go back when you leave.</li>
-    <li>Sit down anytime; you're dealt in next hand.</li><li>${c.turn} seconds to act, then you check or fold. Time out twice in a row and you're sat out.</li><li>No rake. Pots are player vs player.</li></ul>`;
+    <li>Sit down anytime; you're dealt in next hand.</li><li>${c.turn} seconds to act, then you check or fold. Time out twice in a row and you're sat out.</li><li>No rake. Pots are player vs player.</li>${c.straddle ? `<li>Straddle on: the player after the big blind posts ${money(2 * c.bb)} and acts last before the flop.</li>` : ''}${T().nit ? `<li>Nit game: the last player to win a pot pays everyone ${money(T().nit.amt)}.</li>` : ''}<li>Bomb pot (host's call): everyone puts in the same amount and the cards start on the flop.</li></ul>`;
 }
 const opts = (list, cur, fmt = v => v) => list.map(v => `<option value="${v}" ${String(v) === String(cur) ? 'selected' : ''}>${fmt(v)}</option>`).join('');
 function hostHTML() {
@@ -452,6 +466,13 @@ function hostHTML() {
   return `<div class="panel host pop" id="pop">
     <div class="hrow">${t.phase === 'paused' ? `<button class="cbtn up sm" data-host="resume">Resume game</button>` : `<button class="cbtn ghost sm" data-host="pause" ${t.pauseReq ? 'disabled' : ''}>${t.pauseReq ? 'Pausing after this hand' : 'Pause after this hand'}</button>`}
       <button class="cbtn sm" data-host="close" ${t.closeReq ? 'disabled' : ''}>${t.closeReq ? 'Closing after this hand' : 'Close room'}</button></div>
+    <div class="hx">
+      <div><b>Bomb pot</b>${t.bomb ? `<small>Next hand, ${money(t.bomb * t.cfg.bb)} each</small><button class="cbtn ghost sm" data-hx="bomb" data-x="0">Call off</button>`
+        : `<select id="hBomb">${BOMBS.map(x => `<option value="${x}" ${x === (+hostDraft.hBomb || 5) ? 'selected' : ''}>${money(x * t.cfg.bb)} each</option>`).join('')}</select><button class="cbtn up sm" data-hx="bomb">Next hand</button>`}</div>
+      <div><b>Straddle</b><small>${money(2 * t.cfg.bb)} after the BB</small><button class="cbtn ${t.cfg.straddle ? 'up' : 'ghost'} sm" data-hx="straddle" data-on="${t.cfg.straddle ? '' : '1'}">${t.cfg.straddle ? 'On' : 'Off'}</button></div>
+      <div><b>Nit game</b>${t.nit ? `<small>${money(t.nit.amt)} each, ${t.nit.need.length} left</small><button class="cbtn ghost sm" data-hx="nit" data-x="0">End</button>`
+        : `<select id="hNit">${NITS.map(x => `<option value="${x}" ${x === (+hostDraft.hNit || 5) ? 'selected' : ''}>${money(x * t.cfg.bb)} each</option>`).join('')}</select><button class="cbtn up sm" data-hx="nit">Start</button>`}</div>
+    </div>
     <label class="hl1">Blinds<select id="hBlinds2">${STAKES.map(([a, b]) => `<option value="${a}/${b}" ${a === t.cfg.sb && b === t.cfg.bb ? 'selected' : ''}>${money(a)}/${money(b)}</option>`).join('')}</select></label>
     <div class="plist">${people || '<p class="hint">Nobody is sitting down yet.</p>'}</div>
     <p class="hint">Changes apply next hand. Closing cashes everyone out.</p></div>`;
@@ -478,7 +499,7 @@ function render() {
   $('#note').innerHTML = qerr && ERRS[qerr] ? `<div class="note">${esc(ERRS[qerr])}</div>` : '';
   const t = T(), v = $('#view');
   if (!S.me && t.open) { // signing in is optional: guests watch the table and the chat live
-    v.innerHTML = `<div class="tbar"><div class="info">${money(t.cfg.sb)}/${money(t.cfg.bb)} · Hand <b>#${t.hand || 0}</b><span class="live" id="live"></span></div>
+    v.innerHTML = `<div class="tbar"><div class="info${extras(t) ? ' hasx' : ''}">${money(t.cfg.sb)}/${money(t.cfg.bb)}<span class="hno"> · Hand <b>#${t.hand || 0}</b></span>${extras(t)}<span class="live" id="live"></span></div>
         <div class="tbtns">${popBar(t)}</div></div>
       <div class="game"><div>${tableHTML()}<div class="actbar guest"><div class="wait">You're watching</div><a class="dbtn" href="/api/login?to=poker">${DISCORD_SVG}Sign in with Discord</a></div></div></div>`;
     keepLog();
@@ -496,7 +517,7 @@ function render() {
     return;
   }
   const i = mySeat(), s = i >= 0 ? t.seats[i] : null;
-  v.innerHTML = `<div class="tbar"><div class="info">${money(t.cfg.sb)}/${money(t.cfg.bb)} · Hand <b>#${t.hand || 0}</b><span class="live" id="live"></span></div>
+  v.innerHTML = `<div class="tbar"><div class="info${extras(t) ? ' hasx' : ''}">${money(t.cfg.sb)}/${money(t.cfg.bb)}<span class="hno"> · Hand <b>#${t.hand || 0}</b></span>${extras(t)}<span class="live" id="live"></span></div>
       <div class="tbtns">${s ? `<button class="cbtn ghost sm" data-a="top" ${s.stack + (s.pend || 0) >= t.cfg.max ? 'disabled' : ''}>Top up</button>
       <button class="cbtn ghost sm" data-a="${s.out ? 'back' : 'sitout'}">${s.out ? "I'm back" : 'Sit out'}</button>
       <button class="cbtn sm" data-a="leave">Leave<span class="wide"> table</span></button>` : ''}
@@ -566,11 +587,14 @@ document.addEventListener('click', e => {
   if (a === 'sitout') return send({ a: 'sitout', on: true });
   if (a === 'back') return send({ a: 'sitout', on: false });
   if (b.dataset.seatout !== undefined) return send({ a: 'seatout', seat: +b.dataset.seatout, on: !!b.dataset.on });
+  const hx = b.dataset.hx;
+  if (hx === 'straddle') return send({ a: 'straddle', on: !!b.dataset.on });
+  if (hx) return send({ a: hx, x: b.dataset.x !== undefined ? +b.dataset.x : +$(hx === 'bomb' ? '#hBomb' : '#hNit').value });
   const h = b.dataset.host;
   if (h === 'open') { const [sb, bb] = $('#hBlinds').value.split('/').map(Number); return send({ a: 'open', post: $('#hPost').checked, cfg: { sb, bb, min: +$('#hMin').value, max: +$('#hMax').value, turn: +$('#hTurn').value } }); }
   if (h) return send({ a: h });
 });
-document.addEventListener('change', e => { const id = e.target.id; if (['hBlinds', 'hMin', 'hMax', 'hTurn'].includes(id)) hostDraft[id] = e.target.value; if (id === 'hPost') hostDraft.hPost = e.target.checked; if (e.target.id === 'hBlinds2') { const [sb, bb] = e.target.value.split('/').map(Number); send({ a: 'blinds', sb, bb }); } });
+document.addEventListener('change', e => { const id = e.target.id; if (['hBlinds', 'hMin', 'hMax', 'hTurn', 'hBomb', 'hNit'].includes(id)) hostDraft[id] = e.target.value; if (id === 'hPost') hostDraft.hPost = e.target.checked; if (e.target.id === 'hBlinds2') { const [sb, bb] = e.target.value.split('/').map(Number); send({ a: 'blinds', sb, bb }); } });
 document.addEventListener('submit', e => { if (e.target.id === 'sayF') { e.preventDefault(); const i = $('#sayIn'); say(i.value); i.value = ''; } });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) api().catch(() => {}); });
 

@@ -4,7 +4,7 @@
 //   GET  /api/poker            → the table (public), plus for a signed-in person: your seat, your two cards, your chips, host or not
 //   GET  /api/poker?token=1    → Ably token request; guests (not signed in) get listen-only, so watching needs no sign-in
 //   POST /api/poker {a: …}     → token (Ably sign-in for live updates) | sit {seat, amt} | top {amt} | leave | sitout {on}
-//                                | act {do: fold|check|call|raise, to} | tick | host: open {cfg} | close | pause | resume | blinds {sb, bb} | seatout {seat, on}
+//                                | act {do: fold|check|call|raise, to} | tick | host: open {cfg} | close | pause | resume | blinds {sb, bb} | seatout {seat, on} | bomb {x} | straddle {on} | nit {x}
 //
 // Storage: the whole table is one JSON value (pk:t) with a version number (pk:v). Each change reads it, applies the rules
 // (_pokergame.js) and writes it back only if nobody else wrote in between (one Lua compare-and-set), else tries again.
@@ -129,7 +129,7 @@ export async function pokerWeb(req, me, sheet, out) {
   }
   let b; try { b = await req.json(); } catch (e) { return out({ err: 'Bad request.' }, 400); }
   const who = { id: me.id, name: me.name };
-  const host = ['open', 'close', 'pause', 'resume', 'blinds', 'seatout'].includes(b.a);
+  const host = ['open', 'close', 'pause', 'resume', 'blinds', 'seatout', 'bomb', 'straddle', 'nit'].includes(b.a);
   if (host && !(await isHost(me.id, ids))) return out({ err: 'Only hosts can do that.' }, 403);
   const done = async (r, extra = {}) => r.err ? out({ err: r.err, ...(r.T ? await view(r.T, me, ids, t) : {}) }) : out(await view(r.T, me, ids, t, extra));
 
@@ -164,6 +164,9 @@ export async function pokerWeb(req, me, sheet, out) {
     case 'resume': return done(await change((T, now) => E.resume(T, now), t));
     case 'blinds': return done(await change(T => E.setBlinds(T, int(b.sb), int(b.bb)), t));
     case 'seatout': return done(await change((T, now) => E.sitOut(T, int(b.seat), !!b.on, now, 'host'), t));
+    case 'bomb': return done(await change(T => E.setBomb(T, int(b.x)), t));
+    case 'straddle': return done(await change(T => E.setStraddle(T, !!b.on), t));
+    case 'nit': return done(await change(T => E.setNit(T, int(b.x)), t));
   }
   return out({ err: 'Unknown action.' }, 400);
 }

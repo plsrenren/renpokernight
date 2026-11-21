@@ -6,6 +6,9 @@
 // Seat fields: id, name, stack, pend (top-up waiting for the next hand), buyins (all chips brought this sitting),
 //   hand state: cards, bet (this street), total (this hand), folded, allIn, acted, last (label), show
 //   flags: out (sitting out), timeouts (in a row), left (left mid-hand: already cashed out, removed after the hand)
+// Host extras: cfg.straddle (the player after the big blind always posts 2x BB and acts last before the flop),
+//   T.bomb (x BB everyone puts in on the next hand, which skips pre-flop betting; 0 = none), T.bombHand (this hand is one),
+//   T.nit ({ amt, need: [ids] } while a nit game runs: whoever is last to win a pot pays everyone else amt).
 import { randomInt } from 'node:crypto';
 
 export const SEATS = 8;
@@ -13,12 +16,14 @@ export const STAKES = [[1, 2], [2, 5], [5, 10]];
 export const MIN_BUYS = [20, 40, 100];
 export const MAX_BUYS = [100, 200, 500, 1000];
 export const TURNS = [15, 20, 30];
-export const DEFAULT_CFG = { sb: 1, bb: 2, min: 40, max: 200, turn: 20 };
+export const BOMBS = [2, 5, 10];   // bomb pot, x the big blind
+export const NITS = [2, 5, 10];    // nit game payment to each player, x the big blind
+export const DEFAULT_CFG = { sb: 1, bb: 2, min: 40, max: 200, turn: 20, straddle: false };
 const LOG_KEEP = 40, SIT_OUT_AFTER = 2; // timeouts in a row before you're sat out
 
 export const fresh = () => ({ v: 0, open: false, cfg: { ...DEFAULT_CFG }, seats: Array(SEATS).fill(null), hand: 0, hid: '', button: -1,
   board: [], deck: [], pot: 0, curBet: 0, minRaise: 2, toAct: -1, street: '', phase: 'idle', deadline: 0, nextAt: 0,
-  pauseReq: false, closeReq: false, res: null, log: [], at: 0, emptyAt: 0 });
+  pauseReq: false, closeReq: false, res: null, log: [], at: 0, emptyAt: 0, bomb: 0, bombHand: false, nit: null });
 
 // ---------- cards ----------
 const RANKS = '23456789TJQKA';
@@ -106,11 +111,21 @@ export function startHand(T, now) {
   const sb = heads ? T.button : nextSeat(T, T.button, ok), bb = nextSeat(T, sb, ok);
   log(T, `Hand #${T.hand}`);
   for (let r = 0; r < 2; r++) for (let k = 0; k < SEATS; k++) { const s = T.seats[(sb + k) % SEATS]; if (ok(s)) s.cards.push(T.deck.pop()); }
+  T.bombHand = T.bomb > 0;
+  if (T.bombHand) { // bomb pot: no blinds, everyone puts the same in and the cards start on the flop
+    const amt = T.bomb * T.cfg.bb; T.bomb = 0;
+    log(T, `Bomb pot: everyone puts in ${$(amt)}`);
+    T.seats.forEach(s => { if (inHand(s)) { move(s, amt); s.last = 'Bomb'; s.acted = true; } });
+    T.curBet = Math.max(...T.seats.filter(inHand).map(s => s.bet));
+    return endStreet(T, now);
+  }
   move(T.seats[sb], T.cfg.sb); T.seats[sb].last = 'SB';
   move(T.seats[bb], T.cfg.bb); T.seats[bb].last = 'BB';
-  T.minRaise = T.cfg.bb;
-  T.curBet = Math.max(T.cfg.bb, T.seats[sb].bet, T.seats[bb].bet);
-  return nextTurn(T, bb, now);
+  let last = bb;
+  if (T.cfg.straddle && live.length >= 3) { const st = nextSeat(T, bb, ok); move(T.seats[st], 2 * T.cfg.bb); T.seats[st].last = 'Straddle'; last = st; }
+  T.curBet = Math.max(T.cfg.bb, ...T.seats.map(s => s ? s.bet : 0));
+  T.minRaise = T.curBet;
+  return nextTurn(T, last, now);
 }
 /** finds who acts after seat i; ends the street if nobody needs to */
 function nextTurn(T, i, now) {
@@ -174,9 +189,24 @@ function endStreet(T, now) {
   T.runout = false;
   return nextTurn(T, T.button, now);
 }
+/** nit game: pot winners are safe; when one player is left without a win, they pay everyone else and the nit game ends */
+function nitCheck(T) {
+  const N = T.nit; if (!N || !T.res) return;
+  const seated = T.seats.filter(s => s && !s.left), won = T.res.win.map(i => T.seats[i] && T.seats[i].id);
+  N.need = N.need.filter(id => seated.some(s => s.id === id) && !won.includes(id));
+  if (N.need.length > 1) return;
+  T.nit = null;
+  const nit = seated.find(s => s.id === N.need[0]), others = seated.filter(s => s !== nit);
+  if (!nit || !others.length) { log(T, 'The nit game is over'); return; }
+  const each = Math.min(N.amt, Math.floor(nit.stack / others.length));
+  others.forEach(s => s.stack += each); nit.stack -= each * others.length;
+  log(T, `${nit.name} is the last nit and pays everyone ${$(each)}`);
+  T.res.sub = `${nit.name} is the nit: pays ${$(each)} each`;
+}
 function finish(T, now, ms) {
   T.phase = 'done'; T.toAct = -1; T.deck = [];
   T.nextAt = now + ms;
+  nitCheck(T);
   T.seats.forEach(s => { if (s && !s.left && s.stack <= 0 && !s.pend) { s.out = true; } });
 }
 function winUncontested(T, now) {
@@ -237,6 +267,7 @@ export function sit(T, me, idx, amt, now) {
   if (amt < T.cfg.min || amt > T.cfg.max) return `Buy in for ${$(T.cfg.min)} to ${$(T.cfg.max)}.`;
   T.seats[idx] = { id: me.id, name: me.name, stack: amt, pend: 0, buyins: amt, out: false, timeouts: 0, ...blank() };
   T.emptyAt = 0;
+  if (T.nit && !T.nit.need.includes(me.id)) T.nit.need.push(me.id);
   log(T, `${me.name} sits down with ${$(amt)}`);
   if (T.phase === 'idle' && canStart(T)) T.nextAt = now + 3000, T.phase = 'done';
 }
@@ -274,13 +305,31 @@ export function openRoom(T, cfg, t) {
   const st = STAKES.find(([a, b]) => a === +cfg.sb && b === +cfg.bb) || STAKES[0];
   const min = MIN_BUYS.includes(+cfg.min) ? +cfg.min : DEFAULT_CFG.min, max = Math.max(min, MAX_BUYS.includes(+cfg.max) ? +cfg.max : DEFAULT_CFG.max);
   const keep = T.log;
-  Object.assign(T, fresh(), { v: T.v, open: true, cfg: { sb: st[0], bb: st[1], min, max, turn: TURNS.includes(+cfg.turn) ? +cfg.turn : DEFAULT_CFG.turn }, log: keep, at: t, emptyAt: t });
+  Object.assign(T, fresh(), { v: T.v, open: true, cfg: { sb: st[0], bb: st[1], min, max, turn: TURNS.includes(+cfg.turn) ? +cfg.turn : DEFAULT_CFG.turn, straddle: false }, log: keep, at: t, emptyAt: t });
   log(T, `The host opened the room: ${$(st[0])}/${$(st[1])}, buy-in ${$(min)} to ${$(max)}`);
 }
 export function setBlinds(T, sb, bb) {
   const st = STAKES.find(([a, b]) => a === +sb && b === +bb); if (!st) return 'Pick blinds from the list.';
   T.cfg.sb = st[0]; T.cfg.bb = st[1]; if (T.phase !== 'hand') T.minRaise = st[1];
   log(T, `The host set the blinds to ${$(st[0])}/${$(st[1])} from the next hand`);
+}
+export function setBomb(T, x) {
+  x = +x; if (x && !BOMBS.includes(x)) return 'Pick a bomb pot size from the list.';
+  T.bomb = x || 0;
+  log(T, x ? `The host made the next hand a bomb pot (${$(x * T.cfg.bb)} each)` : 'The host called off the bomb pot');
+}
+export function setStraddle(T, on) {
+  T.cfg.straddle = !!on;
+  log(T, `The host turned the straddle ${on ? 'on' : 'off'} from the next hand`);
+}
+export function setNit(T, x) {
+  x = +x;
+  if (!x) { if (T.nit) { T.nit = null; log(T, 'The host ended the nit game'); } return; }
+  if (!NITS.includes(x)) return 'Pick a nit game amount from the list.';
+  const ids = T.seats.filter(s => s && !s.left).map(s => s.id);
+  if (ids.length < 2) return 'You need at least 2 players for a nit game.';
+  T.nit = { amt: x * T.cfg.bb, need: ids };
+  log(T, `The host started a nit game: the last player to win a pot pays everyone ${$(x * T.cfg.bb)}`);
 }
 export function pause(T, t) {
   if (T.phase === 'paused') return;
@@ -305,7 +354,7 @@ export function closeRoom(T, t) {
 export function publicView(T, t = Date.now()) {
   return {
     v: T.v, now: t, open: T.open, cfg: T.cfg, hand: T.hand, hid: T.hid, button: T.button, board: T.board, pot: T.pot, curBet: T.curBet, minRaise: T.minRaise,
-    toAct: T.toAct, street: T.street, phase: T.phase, deadline: T.deadline, nextAt: T.nextAt, pauseReq: T.pauseReq, closeReq: T.closeReq, res: T.res, log: T.log.slice(-30),
+    toAct: T.toAct, street: T.street, phase: T.phase, bomb: T.bomb || 0, bombHand: !!T.bombHand, nit: T.nit || null, deadline: T.deadline, nextAt: T.nextAt, pauseReq: T.pauseReq, closeReq: T.closeReq, res: T.res, log: T.log.slice(-30),
     seats: T.seats.map(s => s && { id: s.id, name: s.name, stack: s.stack, pend: s.pend || 0, bet: s.bet, last: s.last, folded: s.folded, allIn: s.allIn, out: s.out, left: !!s.left,
       dealt: inHand(s), cards: s.show ? s.cards : undefined }),
   };
