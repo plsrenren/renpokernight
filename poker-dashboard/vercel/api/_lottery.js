@@ -73,7 +73,7 @@ export async function drawQuarter(csv, ids, q, rnd = randomInt) {
     if (!ok) return { err: `${q} was already drawn.` };
     await kv(['SET', 'lt:last', q], ['HINCRBYFLOAT', 'bj:bal', id, d.jackpot], ['HSETNX', 'bj:name', id, d.name],
       ['LPUSH', 'cas:feed', JSON.stringify({ id, name: d.name, game: 'lottery', why: `${q} lottery jackpot`, net: d.jackpot, src: 'night', at: Date.now() })],
-      ['LTRIM', 'cas:feed', 0, FEED_KEEP - 1], ['SADD', 'ac:dirty', id]); // ac:dirty: the next request gives them the Lucky Ticket sticker
+      ['LTRIM', 'cas:feed', 0, FEED_KEEP - 1], ['HINCRBY', 'ac:n:' + id, 'lotto', 1], ['SADD', 'ac:dirty', id]); // ac:dirty: the next request gives them the Lucky Ticket sticker + lottery titles
     return { d, id, board: b };
   } finally { await kv(['DEL', 'lt:lock']).catch(() => {}); }
 }

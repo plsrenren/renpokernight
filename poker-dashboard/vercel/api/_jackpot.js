@@ -15,7 +15,7 @@ import { postCasino } from './_rewards.js';
 export const JP = { cut: 0.02, seed: 500, cap: 2000, minBet: 5 };
 const SITE = 'https://renpokernight.vercel.app';
 
-// KEYS: jp, bj:bal, cas:feed, hs:wk:<week>, hs:all, jp:news
+// KEYS: jp, bj:bal, cas:feed, hs:wk:<week>, hs:all, jp:news, ac:n:<id>, ac:dirty (jackpot wins count toward the Mystery Machine / Struck Twice titles)
 // ARGV: 1 id, 2 slice, 3 qualifies (1/0), 4 seed, 5 cap, 6 random 0-1 (next drop point), 7 name, 8 game, 9 src, 10 now ms, 11 feed keep
 const JACKPOT = `
 local seed, cap, now = tonumber(ARGV[4]), tonumber(ARGV[5]), ARGV[10]
@@ -30,6 +30,7 @@ local win = math.floor(pot * 100 + 0.5) / 100
 redis.call('HINCRBYFLOAT', KEYS[2], ARGV[1], win)
 redis.call('HSET', KEYS[1], 'pot', seed, 'drop', nextDrop, 'since', now, 'lastId', ARGV[1], 'lastName', ARGV[7], 'lastWin', win, 'lastAt', now, 'lastGame', ARGV[8])
 redis.call('HINCRBY', KEYS[1], 'wins', 1)
+redis.call('HINCRBY', KEYS[7], 'jackpots', 1) redis.call('SADD', KEYS[8], ARGV[1])
 books('jackpot seed', seed)
 local e = cjson.encode({ id = ARGV[1], name = ARGV[7], game = 'jackpot', why = 'mystery drop · ' .. ARGV[8], net = win, src = ARGV[9], at = tonumber(now) })
 redis.call('LPUSH', KEYS[3], e) redis.call('LTRIM', KEYS[3], 0, tonumber(ARGV[11]) - 1)
@@ -40,7 +41,7 @@ return tostring(win)`;
 export function jackpotCmds(me, game, net, wager) {
   if (!me || !me.id || !(net < 0)) return [];
   const slice = Math.round(-net * JP.cut * 100) / 100, wk = weekKey();
-  return [['EVAL', JACKPOT, 6, 'jp', 'bj:bal', 'cas:feed', 'hs:wk:' + wk, 'hs:all', 'jp:news',
+  return [['EVAL', JACKPOT, 8, 'jp', 'bj:bal', 'cas:feed', 'hs:wk:' + wk, 'hs:all', 'jp:news', 'ac:n:' + me.id, 'ac:dirty',
     me.id, slice, (+wager || 0) >= JP.minBet ? 1 : 0, JP.seed, JP.cap, randomInt(1e6) / 1e6, me.name || 'Someone', game, me.src || 'discord', Date.now(), FEED_KEEP]];
 }
 
