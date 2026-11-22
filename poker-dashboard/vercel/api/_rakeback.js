@@ -56,10 +56,11 @@ export async function houseBooks(now = Date.now()) {
   return { all: num(all), week: num(week) };
 }
 
-const LABEL = { blackjack: 'Blackjack', 'free bet': 'Free Bet', UTH: "Ultimate Hold'em", baccarat: 'Baccarat', roulette: 'Roulette', rakeback: 'Rakeback paid' };
+const LABEL = { blackjack: 'Blackjack', 'free bet': 'Free Bet', UTH: "Ultimate Hold'em", baccarat: 'Baccarat', roulette: 'Roulette', rakeback: 'Rakeback paid', jackpot: 'Jackpot slices', 'jackpot seed': 'Jackpot seeds' };
+const PAID_OUT = new Set(['rakeback', 'jackpot', 'jackpot seed']); // money handed back, listed after the games
 const signed = n => (n < 0 ? '−' : '+') + money(Math.abs(n));
 const block = o => {
-  const rows = Object.entries(o).filter(([, v]) => v).sort(([a], [b]) => (a === 'rakeback') - (b === 'rakeback') || o[b] - o[a]);
+  const rows = Object.entries(o).filter(([, v]) => v).sort(([a], [b]) => PAID_OUT.has(a) - PAID_OUT.has(b) || o[b] - o[a]);
   const total = Math.round(rows.reduce((t, [, v]) => t + v, 0) * 100) / 100;
   return rows.length ? rows.map(([k, v]) => `${LABEL[k] || k} **${signed(v)}**`).join('\n') + `\n**Total ${signed(total)}**` : 'Nothing yet.';
 };
@@ -76,5 +77,5 @@ export async function houseEmbed(now = Date.now()) {
       { name: 'All time', value: block(num(all)), inline: true },
       { name: 'Rakeback so far this week', value: `${money(owedTotal)} to ${owed.length} player${owed.length === 1 ? '' : 's'}, paid Monday · ${money(bet)} bet this week` },
     ],
-    footer: { text: 'What the house won (+) or lost (−) at blackjack, free bet, UTH, baccarat and roulette. Counted since rakeback went live.' } };
+    footer: { text: 'What the house won (+) or lost (−) at blackjack, free bet, UTH, baccarat and roulette. Jackpot slices = 2% of hands the house won, moved into the pot; jackpot seeds = new chips that restart the pot. Counted since rakeback went live.' } };
 }

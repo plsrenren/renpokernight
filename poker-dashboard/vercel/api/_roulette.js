@@ -11,6 +11,7 @@
 import { attachPicture, discordBody } from './_attach.js';
 import { randomBytes, randomInt } from 'node:crypto';
 import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds, takeChips } from './_blackjack.js';
+import { afterJackpot } from './_jackpot.js';
 
 const SITE = 'https://renpokernight.vercel.app', API = 'https://discord.com/api/v10';
 const OPEN_MS = 30e3, CHIPS = [5, 10, 25, 50, 100], DEFAULT_CHIP = 10, MAX_PER_SPIN = 1000;
@@ -106,6 +107,7 @@ async function spin(t) {
   const res = await kv(...pay, ['LPUSH', 'ro:hist:' + t.channel, n], ['LTRIM', 'ro:hist:' + t.channel, 0, 4], ['LRANGE', 'ro:hist:' + t.channel, 0, 4], save(t), ['EVAL', CLEAR_OPEN, 1, 'ro:open:' + t.channel, t.id], ...feed);
   t.hist = (res[pay.length + 2] || []).map(Number);
   await kv(save(t));
+  await afterJackpot().catch(e => console.error('jackpot', e)); // a spin can hit the mystery drop: post it now
   return t;
 }
 

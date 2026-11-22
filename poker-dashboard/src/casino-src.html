@@ -229,6 +229,18 @@ details.pay summary { cursor: pointer; font: 400 17px var(--title); letter-spaci
   .bacrow { gap: 10px; }
   .uth-board .card { width: 46px; height: 66px; font-size: 21px; } .uth-board .card i { font-size: 16px; }
 }
+/* casino jackpot banner (see api/_jackpot.js) */
+.jpb { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: center; margin-top: 16px; padding: 12px 18px 14px; background: linear-gradient(100deg, #2f2461, #7e2d55); border-left: 4px solid var(--gold); position: relative; }
+.jpb .k { font: 400 17px/1 var(--title); letter-spacing: .14em; color: var(--gold); }
+.jpb .n { font: 400 52px/.9 var(--title); color: #fff; letter-spacing: .02em; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.jpb .jps { text-align: right; font-size: 12px; color: #ead9ff; }
+.jpb .jps b { display: block; font: 400 20px/1 var(--title); letter-spacing: .06em; color: #fff; }
+.jpb .meter { grid-column: 1 / -1; height: 6px; background: rgba(0,0,0,.35); position: relative; }
+.jpb .meter i { position: absolute; inset: 0 auto 0 0; background: var(--gold); transition: width .6s; }
+.jpb .hint { grid-column: 1 / -1; font-size: 12px; color: #d9cdf5; }
+.jpb.hit { animation: jpflash 1.6s ease-out; }
+@keyframes jpflash { 0% { box-shadow: inset 0 0 0 999px rgba(241,199,91,.55); } 100% { box-shadow: inset 0 0 0 999px rgba(241,199,91,0); } }
+@media (max-width: 640px) { .jpb .n { font-size: 42px; } .jpb { grid-template-columns: minmax(0, 1fr); } .jpb .jps { text-align: left; } }
 /* quarter lottery panel */
 .lot .wheelbox { display: flex; gap: 18px; align-items: flex-start; } .lot .wheel { flex: none; overflow: visible; }
 .lot .wheel g[data-spin] { transition: transform 5.5s cubic-bezier(.12,.62,.16,1); }
@@ -319,6 +331,7 @@ async function load() {
   if (S.fb) T.fb = S.fb;
   if (S.uth) T.uth = S.uth;
   render();
+  jpRefresh();
 }
 const setBal = b => { if (S.me && typeof b === 'number') S.me.bal = b; };
 
@@ -530,11 +543,41 @@ function lottery() {
 }
 const POKER_LINK = `<a class="shopln" href="/poker" style="border-left-color:var(--up)"><div class="ic">♠️</div><div><b>Poker Room</b><span>No-limit Hold'em against the group with your chips. Open on game night.</span></div><div class="go" style="color:var(--up)">Take a seat →</div></a>`;
 const SHOP_LINK = `<a class="shopln" href="/shop"><div class="ic">🃏</div><div><b>Study Cards</b><span>Open packs, equip titles, borders and stickers.</span></div><div class="go">Shop →</div></a>`;
+// ---------- casino jackpot banner (data from /api/casino, refreshed every 15s while the lobby is open) ----------
+const jpAgo = ms => { const m = Math.round((Date.now() - ms) / 60e3); return m < 60 ? `${Math.max(1, m)} min ago` : m < 2880 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`; };
+const cents = n => money(Math.round(n * 100) / 100).replace(/(\.\d)$/, '$10').replace(/^(\D*\d[\d,]*)$/, '$1.00');
+function jackpot() {
+  const J = S.jackpot; if (!J) return '';
+  const pct = Math.max(0, Math.min(100, (J.pot - J.seed) / Math.max(1, J.cap - J.seed) * 100));
+  return `<div class="jpb" id="jpb"><div><div class="k">🎰 Casino jackpot</div><div class="n" id="jpN">${cents(J.pot)}</div></div>
+    <div class="jps"><b>MUST DROP BY ${money(J.cap)}</b>at a secret amount</div>
+    <div class="meter"><i id="jpBar" style="width:${pct}%"></i></div>
+    <div class="hint" id="jpHint">${J.last ? `Last hit: ${esc(J.last.name)} ${cents(J.last.win)} · ${jpAgo(J.last.at)}` : '2% of every hand the house wins goes in. The losing hand that pushes it past the secret amount wins it all.'}</div></div>`;
+}
+let jpTimer = null;
+function jpRefresh() {
+  clearInterval(jpTimer);
+  jpTimer = setInterval(async () => {
+    if (!document.getElementById('jpb') || document.hidden) return;
+    let j; try { j = await (await fetch('/api/casino?jp=1', { cache: 'no-store', credentials: 'same-origin' })).json(); } catch (e) { return; }
+    if (!j || !j.jackpot || !S) return;
+    const old = S.jackpot, hit = old && j.jackpot.wins > old.wins;
+    S.jackpot = j.jackpot;
+    const box = document.getElementById('jpb'); if (!box) return;
+    if (hit) { box.outerHTML = jackpot(); const b = document.getElementById('jpb'); if (!REDUCED) b.classList.add('hit'); return; }
+    const from = old ? old.pot : j.jackpot.pot, to = j.jackpot.pot, el = document.getElementById('jpN'), t0 = performance.now();
+    document.getElementById('jpBar').style.width = Math.max(0, Math.min(100, (to - j.jackpot.seed) / Math.max(1, j.jackpot.cap - j.jackpot.seed) * 100)) + '%';
+    if (REDUCED || from === to) { el.textContent = cents(to); return; }
+    const step = now => { const k = Math.min(1, (now - t0) / 900); el.textContent = cents(from + (to - from) * k); if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  }, 15000);
+}
+
 function lobby() {
   if (!S.me) return `<section class="hero"><div><h2>Same chips as Discord</h2>
       <p>Play blackjack, Ultimate Hold'em and baccarat with your Discord chips. Win here and /chips on Discord shows it, and the other way round. Sign in once so the site knows whose chips they are.</p></div>
       <div><a class="dbtn" href="/api/login">${DISCORD_SVG}Sign in with Discord</a><div class="fine">The site only gets your Discord name, pfp and ID. No password, no email, no messages.</div></div></section>
-    ${SHOP_LINK}${lottery()}<div class="cols">${board()}${feed()}</div>`;
+    ${jackpot()}${SHOP_LINK}${lottery()}<div class="cols">${board()}${feed()}</div>`;
   const me = S.me, top = S.board[0];
   const msg = T.got ? `<div class="note ok">+${money(T.got)} added${T.weekly ? ' (weekly bonus)' : ''}. Good luck.</div>` : '';
   return `${msg}<div class="strip">
@@ -542,6 +585,7 @@ function lobby() {
       ${dailyTile()}
       <div class="tl" style="border-left-color:var(--pink)"><div class="k">Top stack</div><div class="v">${top ? esc(top.name) : '–'}</div><div class="s">${top ? money(top.bal) : ''}</div></div>
     </div>
+    ${jackpot()}
     ${T.err ? `<div class="err">${esc(T.err)}</div>` : ''}
     <div class="panel"><h2>Pick a table</h2><p class="hint">Same games, rules and limits as the Discord commands.</p>
       <div class="games">
