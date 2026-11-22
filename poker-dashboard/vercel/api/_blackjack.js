@@ -282,7 +282,7 @@ function view(g, bal) {
   }
   const footer = g.over ? (isFree(g) ? 'Free doubles on 9-11 · free splits (not 10s) · dealer 22 pushes · dealer hits soft 17' : 'Blackjack pays 3:2 · dealer stands on 17 · split up to 6 hands')
     : `Balance ${money(bal)} (+${money(onTable)} on the table${freeOn ? `, ${money(freeOn)} free` : ''}) · only ${g.name} can press these`;
-  const btn = (label, emoji, id, style, disabled = false) => ({ type: 2, style, label, emoji: { name: emoji }, custom_id: `bj:${id}:${g.id}`, disabled });
+  const btn = (label, emoji, id, style, disabled = false) => ({ type: 2, style, label, emoji: { name: emoji }, custom_id: `bj:${id}:${g.id}:${g.step}`, disabled }); // the step makes a stale or repeated press harmless
   const m = moves(g, bal), again = g.bet + (g.side || 0);
   const row = g.over ? [btn(`Play again (${money(g.bet)}${g.side ? ` + ${money(g.side)}` : ''})`, '🔁', 'again', 1, bal < again)]
     : [btn('Hit', '👊', 'hit', 1), btn('Stand', '✋', 'stand', 2),
@@ -322,7 +322,8 @@ const freebet = (i, opts, s) => blackjack(i, opts, s, 'free');
 
 /** Hit / Stand / Double / Split on a hand in progress. Shared by the Discord buttons and the site.
  *  Returns { g, bal }, { err } (a message for the player), { gone } (hand expired), { notYours }, or { busy } (a tap is already being handled). */
-export async function handAction(me, gid, action) {
+/** step = the hand step the button was drawn for (Discord): a press from an older step changes nothing and returns { stale, g, bal }. */
+export async function handAction(me, gid, action, step) {
   // one trip to read the hand, take the lock and read the balance; one trip to write and unlock
   const [raw, lock, balRaw] = await kv(['GET', 'bj:g:' + gid], ['SET', 'bj:lock:' + gid, '1', 'NX', 'EX', 5], ['HGET', 'bj:bal', me.id]);
   let wrote = false;
@@ -332,8 +333,9 @@ export async function handAction(me, gid, action) {
   if (g.uid !== me.id) { if (lock) await unlock(); return { notYours: g.name }; }
   if (!lock) return { busy: true };
   try {
-    if (g.over) return { busy: true };
     let bal = +balRaw || 0, spend = 0;
+    if (step !== undefined && (+step !== g.step || g.over)) return { stale: true, g, bal };
+    if (g.over) return { busy: true };
     const h = active(g), m = moves(g, bal);
     if (action === 'hit') { h.cards.push(draw(g)); autoDone(h); }
     else if (action === 'stand') h.done = true;
@@ -375,7 +377,7 @@ export function publicHand(g, bal) {
 /** The buttons under a hand (custom_id bj:<action>:<hand id>). */
 export async function blackjackButton(i, s) {
   if (!kvUrl() || !kvToken()) return noStorage();
-  const [, action, gid] = String(i.data.custom_id).split(':');
+  const [, action, gid, step] = String(i.data.custom_id).split(':'); // step is missing on buttons drawn before it existed
   const me = whoIs(i, s);
   if (action === 'again') {
     const [raw, lock] = await kv(['GET', 'bj:g:' + gid], ['SET', 'bj:lock:' + gid, '1', 'NX', 'EX', 5]);
@@ -386,15 +388,24 @@ export async function blackjackButton(i, s) {
     if (!lock) return json({ type: 6 });
     try {
       if (!g.over) return json({ type: 6 });
+      // a second Play again on the same message while the hand it dealt is still going (say, the first answer was too slow
+      // and never showed) shows that hand again instead of dealing and charging another one
+      if (g.next) {
+        const [nRaw, nBal] = await kv(['GET', 'bj:g:' + g.next], ['HGET', 'bj:bal', me.id]);
+        const n = nRaw && JSON.parse(nRaw);
+        if (n && n.uid === me.id && !n.over) return json({ type: 4, data: view(n, +nBal || 0) });
+      }
       const out = await newHand(me, g.bet, g.mode, g.side);
       if (out.err) return quiet(out.err);
+      g.next = out.g.id; await kv(['SET', 'bj:g:' + g.id, JSON.stringify(g), 'KEEPTTL']);
       return json({ type: 4, data: view(out.g, out.bal) });
     } finally { await unlock(); }
   }
-  const r = await handAction(me, gid, action);
+  const r = await handAction(me, gid, action, step);
   if (r.gone) return quiet('This hand has expired. Start a new one with **/blackjack** or **/freebet**.');
   if (r.notYours) return quiet(`That's ${r.notYours}'s hand. Start your own with **/blackjack** or **/freebet**.`);
-  if (r.busy) return json({ type: 6 });
+  if (r.stale) return json({ type: 7, data: view(r.g, r.bal) }); // the message was behind: show where the hand really is, play nothing
+  if (r.busy) return quiet('Your last move is still going through. If the table looks behind, press any button to refresh it.');
   if (r.err) return quiet(r.err);
   return json({ type: 7, data: view(r.g, r.bal) });
 }
