@@ -85,9 +85,11 @@ function tokenRequest(clientId, guest) {
 
 // ---------- hosts ----------
 const hostCache = new Map();
+/** ids = () => Promise of the Members-tab Discord IDs; only waited on when the answer isn't known yet (it can mean a trip to Google) */
 async function isHost(id, ids) {
-  if (id === RENATO || id === ids.Renato) return true;
+  if (id === RENATO) return true;
   const c = hostCache.get(id); if (c && Date.now() - c.at < 600e3) return c.ok;
+  if (id === (await ids()).Renato) return true;
   let ok = false;
   const token = process.env.DISCORD_BOT_TOKEN;
   if (token) try {
@@ -117,7 +119,8 @@ async function view(T, me, ids, t, extra = {}) {
 
 export async function pokerWeb(req, me, sheet, out) {
   const t = Date.now();
-  const ids = await sheet().then(s => (s && s.ids) || {}).catch(() => ({}));
+  // the sheet is loaded only if a host check needs it: every move (bots' ticks too) used to wait on it, up to ~2s on a cold start
+  let idsP = null; const ids = () => idsP ||= sheet().then(s => (s && s.ids) || {}).catch(() => ({}));
   if (req.method === 'GET') {
     // signing in is optional: anyone can watch, and a guest gets a listen-only live token here
     if (new URL(req.url).searchParams.get('token')) return ablyKey() ? out({ token: tokenRequest(me ? me.id : 'guest-' + randomBytes(6).toString('hex'), !me) }) : out({ err: 'Live updates are not set up.' });

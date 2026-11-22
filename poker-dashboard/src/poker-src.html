@@ -330,20 +330,26 @@ async function api(body) {
 }
 function take(j) {
   if (!S) S = {};
-  if (j.me !== undefined) S.me = j.me;
   if (j.ably !== undefined) S.ably = j.ably;
-  if (j.table && (!S.table || j.table.v >= S.table.v)) { S.table = j.table; skew = j.table.now - Date.now(); }
-  if (S.me && S.me.cards && S.me.cards.length) cardsFor = S.table.hid;
-  after();
+  // an answer can land after a newer table came in live (slow request): then its table AND its "me" (your cards) are old, so skip both
+  const fresh = !j.table || !S.table || j.table.v >= S.table.v;
+  if (j.me !== undefined && (fresh || !S.me)) { S.me = j.me; cardsFor = S.me && S.me.cards && S.me.cards.length && j.table ? j.table.hid : ''; }
+  if (j.table && fresh) { S.table = j.table; skew = j.table.now - Date.now(); }
+  needCards(); after();
 }
 /** a table update from Ably (or a poll) */
 function onTable(t) {
   if (!S || !S.table || t.v <= S.table.v) return;
   S.table = t; skew = t.now - Date.now();
   if (S.me && S.me.cards && S.table.hid !== cardsFor) S.me.cards = [];
-  const i = mySeat();
-  if (i >= 0 && t.seats[i].dealt && t.hid && cardsFor !== t.hid && t.phase === 'hand') { cardsFor = t.hid; api().catch(() => { cardsFor = ''; }); } // fetch my two new cards
-  after();
+  needCards(); after();
+}
+/** dealt in but holding no cards for this hand: fetch them (again, if an answer came back without them) */
+let cardsReq = '';
+function needCards() {
+  const t = S && S.table, i = mySeat(); if (!t || i < 0 || t.phase !== 'hand' || !t.hid || !t.seats[i].dealt || cardsFor === t.hid || cardsReq === t.hid) return;
+  cardsReq = t.hid;
+  api().catch(() => {}).finally(() => { if (cardsReq === t.hid) cardsReq = ''; if (cardsFor !== t.hid && S.table.hid === t.hid) setTimeout(needCards, 600); });
 }
 function after() { render(); scheduleTick(); }
 
@@ -355,7 +361,7 @@ function scheduleTick() {
   if (t.phase === 'hand' && t.toAct >= 0) at = t.deadline + (t.seats[t.toAct] && t.seats[t.toAct].bot ? 80 + Math.random() * 200 : 600 + Math.random() * 1400);
   else if ((t.phase === 'done' || t.phase === 'idle') && t.nextAt) at = t.nextAt + 150 + Math.random() * 900;
   if (!at) return;
-  tickT = setTimeout(() => api({ a: 'tick' }).catch(() => {}), Math.max(200, at - serverNow()));
+  tickT = setTimeout(() => api({ a: 'tick' }).catch(() => { clearTimeout(tickT); tickT = setTimeout(scheduleTick, 1500); }), Math.max(200, at - serverNow())); // a failed nudge tries again
 }
 
 // ---------- live updates ----------
