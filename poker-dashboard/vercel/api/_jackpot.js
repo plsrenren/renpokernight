@@ -54,11 +54,7 @@ export function jackpotView(raw) {
 }
 export async function readJackpot() { const [raw] = await kv(['HGETALL', 'jp']); return jackpotView(raw); }
 
-// Kept in memory for the "🎰 Jackpot" line on game replies, so replies never wait on an extra storage trip.
-let cached = { at: 0, v: null };
-export const cachedJackpot = () => cached.v;
 const usd = n => '$' + (Math.round(n * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-export const jackpotLine = v => v ? `🎰 Jackpot ${usd(v.pot)} · must drop by ${usd(v.cap).replace('.00', '')}` : '';
 
 const ago = ms => { const m = Math.round((Date.now() - ms) / 60e3); return m < 60 ? `${Math.max(1, m)} min ago` : m < 1440 * 2 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`; };
 /** /jackpot */
@@ -76,27 +72,13 @@ const winEmbed = w => ({ color: 0xf1c75b, title: `💥 JACKPOT! ${w.name} wins $
   thumbnail: { url: `${SITE}/api/avatar?id=${w.id}` },
   footer: { text: `Next pot starts at ${money(JP.seed)} · must drop by ${money(JP.cap)} · /jackpot` } });
 
-/** Posts any new jackpot wins in #casino and refreshes the in-memory pot (at most every 20s unless a win came in).
+/** Posts any new jackpot wins in #casino.
  *  Called after every bot/site answer (waitUntil) and after a roulette spin. */
-export async function afterJackpot(force = false) {
-  const [news, raw] = await kv(['EVAL', "local a=redis.call('LRANGE',KEYS[1],0,-1) if #a>0 then redis.call('DEL',KEYS[1]) end return a", 1, 'jp:news'],
-    ...(force || !cached.v || Date.now() - cached.at > 20e3 ? [['HGETALL', 'jp']] : []));
-  if (raw) cached = { at: Date.now(), v: jackpotView(raw) };
+export async function afterJackpot() {
+  const [news] = await kv(['EVAL', "local a=redis.call('LRANGE',KEYS[1],0,-1) if #a>0 then redis.call('DEL',KEYS[1]) end return a", 1, 'jp:news']);
   const wins = (news || []).map(x => { try { return JSON.parse(x); } catch (e) { return null; } }).filter(Boolean).reverse();
-  if (wins.length && !raw) cached = { at: Date.now(), v: await readJackpot() };
   for (const w of wins) {
     try { await postCasino({ content: `<@${w.id}>`, embeds: [winEmbed(w)], allowed_mentions: { users: [w.id] } }); } catch (e) { console.error('jackpot post', e); }
   }
   return wins.length;
-}
-
-/** Adds the jackpot line to the footer of a game reply's last embed (Discord answers only). */
-export function withJackpotLine(msg) {
-  const v = cachedJackpot(), line = jackpotLine(v);
-  const embeds = msg && msg.data && msg.data.embeds;
-  if (!line || !Array.isArray(embeds) || !embeds.length || msg.data.flags & 64) return msg;
-  const e = embeds[embeds.length - 1], text = e.footer && e.footer.text;
-  if (text && text.includes('🎰')) return msg;
-  e.footer = { ...(e.footer || {}), text: text ? `${text} · ${line}` : line };
-  return msg;
 }

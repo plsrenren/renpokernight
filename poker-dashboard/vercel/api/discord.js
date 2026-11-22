@@ -37,7 +37,7 @@ import { BACCARAT_COMMAND, baccaratCommand, baccaratButton } from './_baccarat.j
 import { casinoWeb } from './_casino.js';
 import { checkAccolades } from './_accolades.js';
 import { houseEmbed } from './_rakeback.js';
-import { afterJackpot, withJackpotLine, readJackpot, jackpotEmbed, JP } from './_jackpot.js';
+import { afterJackpot, readJackpot, jackpotEmbed, JP } from './_jackpot.js';
 import { REWARD_LIST } from './_rewards.js';
 import { WEEKLY_CLAIM, DAILY, DAILY_RESET_UTC, RAKE, kvUrl, kvToken } from './_blackjack.js';
 import { SHOP_COMMANDS, shopCommand, shopInteraction } from './_shop.js';
@@ -121,13 +121,7 @@ const PIC_BUTTONS = /^(bj|du|uth|ro|ba|sh):/, PIC_COMMANDS = ['blackjack', 'free
 // after an answer is sent: checks the players whose casino numbers just changed for new accolades (see _accolades.js)
 const accoladesLater = () => { if (!kvUrl() || !kvToken()) return;
   waitUntil(checkAccolades({ ids: cache.ids }).catch(e => console.error('accolades', e)));
-  waitUntil(afterJackpot().catch(e => console.error('jackpot', e))); }; // posts any jackpot win in #casino, refreshes the pot shown on replies
-// game replies get a "🎰 Jackpot $X · must drop by $2,000" footer line (from the pot kept in memory, so no extra wait)
-const jackpotLine = async r => {
-  if (!r || !(r.headers.get('content-type') || '').includes('application/json')) return r;
-  const msg = await r.clone().json().catch(() => null);
-  return msg && (msg.type === 4 || msg.type === 7) ? json(withJackpotLine(msg)) : r;
-};
+  waitUntil(afterJackpot().catch(e => console.error('jackpot', e))); }; // posts any jackpot win in #casino
 export async function POST(req) {
   if (webRoute(req)) { waitUntil(refreshNewestInvite()); const out = await casinoWeb(req, webRoute(req), sheet); accoladesLater(); return out; }
   const startedAt = Date.now();
@@ -138,7 +132,7 @@ export async function POST(req) {
   const pic = (i.type === 3 && i.data && PIC_BUTTONS.test(String(i.data.custom_id))) || (i.type === 2 && i.data && PIC_COMMANDS.includes(i.data.name));
   if (!pic) { const out = await answer(i); accoladesLater(); return out; }
   warmPictures().catch(e => console.error('picture code', e)); // loads while the game talks to chip storage
-  const raw = answer(i).then(jackpotLine);
+  const raw = answer(i);
   const out = await inTime(i, raw, raw.then(r => withPicture(r, startedAt)));
   accoladesLater();
   return out;

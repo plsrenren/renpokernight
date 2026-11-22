@@ -103,7 +103,7 @@ poker-dashboard/
                        $500 seed and the $2,000 cap (jp.drop, never sent anywhere) is picked after each win; the losing hand ($5+ bet) that pushes the pot past it
                        wins it all, pot restarts at the seed. Seeds are NEW chips (Renato's call). /house shows 'jackpot' (slices) and 'jackpot seed' lines; wins don't
                        touch rakeback or accolade counts. Wins go to jp:news; afterJackpot() (after every bot/site answer + after roulette spins) posts them in
-                       #casino and refreshes the in-memory pot used for the "🎰 Jackpot $X" footer on game replies. /jackpot command, /earn line, site lobby banner
+                       #casino. Game replies do NOT mention the jackpot (removed Nov 22 by request). /jackpot command, /earn line, site lobby banner
                        (GET /api/casino?jp=1 every 15s), feed game 'jackpot'
                        lottery: _lottery.js (quarter lottery: 1 ticket per $10 of Cash_In in the quarter, jackpot = all buy-ins 1:1 in chips;
                        drawn by hand with /lottery draw (host only, live ticket roll in Discord, draws the last finished quarter once), Lucky Ticket role (_roles.js);
