@@ -66,7 +66,13 @@ poker-dashboard/
                        site table #freebet (cas:cur fb), feed game name "free bet"; play chips in Upstash Redis via KV_REST_API_URL/TOKEN; daily resets once a day at 16:00 UTC, not 24h after the last claim; first claim of each week (Monday 16:00 UTC on) pays WEEKLY_CLAIM $100, the rest DAILY $50, no separate welcome bonus),
                        bjcards (table picture under each hand)
                        pictures: _attach.js draws the bjcards/roulette picture inside the discord.js reply and uploads it as attachment://table.png
-                       (multipart), so Discord doesn't fetch it afterwards; falls back to the /api/bjcards link if drawing runs past ~1.8s. Game code keeps
+                       (multipart), so Discord doesn't fetch it afterwards; falls back to the /api/bjcards link if drawing runs past ~1.8s.
+                       Late replies (Nov 22 2026): if a casino reply isn't ready ~2.4s after Discord sent the tap (timed from the interaction id, so cold
+                       starts count), discord.js inTime() defers (6/5) and finishLate() edits/follows up through the webhook. Blackjack + UTH buttons
+                       carry the hand step (bj|uth:<act>:<id>:<step>): an older step changes nothing and redraws the table; Play again twice re-shows
+                       the hand it already dealt (g.next) instead of charging another. Same idea in /duel (stale taps redraw, one rematch
+                       per duel via d.next) and packs (Open another = sh:a:<pack id>, p.next; repeat flips redraw). Baccarat + roulette taps are bets
+                       by design (each tap = a new hand/chip), covered only by the late-reply defer. Game code keeps
                        building the link URLs as before; discord.js POST wraps casino replies with withPicture(), roulette's spin edit uses attachPicture()
                        duel: _duel.js (/duel rock paper scissors or high card for the same chips; high card picture = bjcards?m=duel; both stakes taken in one Lua step;
                        RPS: "Call it off" refunds both after 3 min, sweepDuels refunds duels stuck 30+ min (run on /duel and /daily, du:live hash))

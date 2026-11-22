@@ -156,7 +156,7 @@ const cardLine = ([id, dup]) => { const it = BY_ID[id]; return `${SQ[it.tier]} *
 const cardsUrl = (p) => `${SITE}/api/bjcards?${new URLSearchParams({ m: 'cards', c: p.cards.map(([id, dup]) => `${id}.${dup}`).join(','), f: p.f.join('') })}`;
 const btn = (label, id, style = 2, emoji) => ({ type: 2, style, label, custom_id: id, ...(emoji ? { emoji: { name: emoji } } : {}) });
 const row = (...c) => ({ type: 1, components: c });
-const after = () => row(btn(`Open another · ${money(PRICE)}`, 'sh:a', 1, '🃏'), btn('My loadout', 'sh:l'), btn('Odds', 'sh:o'));
+const after = p => row(btn(`Open another · ${money(PRICE)}`, 'sh:a:' + p.id, 1, '🃏'), btn('My loadout', 'sh:l'), btn('Odds', 'sh:o'));
 
 function packView(p) {
   const name = packName(p.d);
@@ -171,7 +171,7 @@ function packView(p) {
   if (!done) return { allowed_mentions: { parse: [] }, embeds: [embed], components: [row(...p.cards.map((_, k) => p.f[k] ? null : btn(`Flip card ${k + 1}`, `sh:f:${p.id}:${k}`, 1)).filter(Boolean))] };
   embed.footer = { text: `−${money(PRICE)}${p.back ? ` +${money(p.back)}` : ''} · balance ${money(p.bal)} · ${p.owned} of ${ITEMS.length} collected` };
   const opts = p.cards.filter((c, k, a) => a.findIndex(x => x[0] === c[0]) === k).map(([id]) => { const it = BY_ID[id]; return { label: `Equip ${it.name}`.slice(0, 100), value: id, description: `${it.tier} ${slotWord(it.slot)}` }; });
-  return { allowed_mentions: { parse: [] }, embeds: [embed], components: [row({ type: 3, custom_id: 'sh:e:' + p.id, placeholder: 'Equip one of these…', options: opts }), after()] };
+  return { allowed_mentions: { parse: [] }, embeds: [embed], components: [row({ type: 3, custom_id: 'sh:e:' + p.id, placeholder: 'Equip one of these…', options: opts }), after(p)] };
 }
 
 async function newPack(i, s) {
@@ -245,7 +245,7 @@ export async function shopInteraction(i, s) {
   const [, act, pid, arg] = String(i.data.custom_id).split(':');
   const me = whoIs(i, s);
   try {
-    if (act === 'a') return await newPack(i, s);
+    if (act === 'a' && !pid) return await newPack(i, s); // buttons drawn before the pack id was added
     if (act === 'o') return quiet(ODDS_TEXT());
     if (act === 'l') return json({ type: 4, data: await loadoutView(me, s) });
     if (act === 'ls') return json({ type: 7, data: await loadoutView(me, s, SLOT_NAMES.includes(i.data.values[0]) ? i.data.values[0] : 'Title') });
@@ -257,8 +257,22 @@ export async function shopInteraction(i, s) {
     }
     // pack buttons: only the person who bought it
     const [raw] = await kv(['GET', 'sh:pk:' + pid]);
+    if (!raw && act === 'a') return await newPack(i, s); // the old pack expired: just buy
     if (!raw) return quiet('This pack is too old to open here. Your cards are already in **/loadout**.');
     const p = JSON.parse(raw);
+    if (act === 'a') { // Open another: one new pack per pack message. A second tap while that pack still has face-down cards
+      // (say, the first answer was too slow to show) shows it again instead of buying another.
+      if (p.uid === me.id && p.next) {
+        const [nRaw] = await kv(['GET', 'sh:pk:' + p.next]);
+        const n = nRaw && JSON.parse(nRaw);
+        if (n && !n.f.every(Boolean)) return json({ type: 4, data: packView(n) });
+      }
+      const r = await buyPack(me);
+      if (r.busy) return json({ type: 6 });
+      if (r.err) return quiet(r.err);
+      if (p.uid === me.id) { p.next = r.pack.id; await kv(savePack(p)); }
+      return json({ type: 4, data: packView(r.pack) });
+    }
     if (p.uid !== me.id) return quiet(`This is ${p.name}'s pack. Open your own with **/pack**.`);
     if (act === 'e') {
       const id = i.data.values[0];
@@ -266,7 +280,7 @@ export async function shopInteraction(i, s) {
       return quiet(r.err ? r.err : `Equipped **${BY_ID[id].name}** (${slotWord(BY_ID[id].slot)}). It shows on /player and the site card.`);
     }
     if (act === 't') p.torn = true;
-    else if (act === 'f') { const k = +arg; if (!p.torn || !(k >= 0 && k < 3) || p.f[k]) return json({ type: 6 }); p.f[k] = 1; }
+    else if (act === 'f') { const k = +arg; if (!(k >= 0 && k < 3)) return json({ type: 6 }); if (!p.torn || p.f[k]) return json({ type: 7, data: packView(p) }); p.f[k] = 1; } // a repeat tap redraws
     else return json({ type: 6 });
     await kv(savePack(p), ...(p.f.every(Boolean) ? [['SREM', 'sh:open:' + me.id, p.id]] : []));
     return json({ type: 7, data: packView(p) });

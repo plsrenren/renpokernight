@@ -74,7 +74,8 @@ function view(d, extra = {}) {
     } else {
       description = `One card each, high card wins (aces high).${d.redraws ? ` Same rank ${d.redraws === 1 ? 'once' : d.redraws === 2 ? 'twice' : d.redraws + ' times'}, so it dealt again.` : ''}`;
     }
-    description += `\n\n**${w.name}** +${money(d.bet)} (now ${money(d.bal[w.id])}) · **${l.name}** −${money(d.bet)} (now ${money(d.bal[l.id])})`;
+    const now = id => (d.bal && d.bal[id] !== undefined ? ` (now ${money(d.bal[id])})` : ''); // balances aren't stored, so a redraw leaves them out
+    description += `\n\n**${w.name}** +${money(d.bet)}${now(w.id)} · **${l.name}** −${money(d.bet)}${now(l.id)}`;
     const rec = d.rec || {}, foot = `${A} ${rec[d.a.id] || 0}–${rec[d.b.id] || 0} ${B} in duels`;
     const image = d.game === 'high' ? { image: { url: `${SITE}/api/bjcards?${new URLSearchParams({ m: 'duel', c: `${d.cards[d.a.id]}.${d.cards[d.b.id]}`, n: `${A}|${B}`, w: d.winner === d.a.id ? '0' : '1' })}` } } : {};
     const again = [btn(`Rematch (${money(d.bet)})`, '🔁', 're', d.id, 1)];
@@ -166,8 +167,10 @@ export async function duelButton(i, s, waitUntil) {
     d = JSON.parse(raw);
     const inIt = me.id === d.a.id || (d.b && me.id === d.b.id);
 
+    // a tap on a message that's behind (say, the last answer was too slow to show) redraws it instead of doing nothing
+    const behind = () => json({ type: 7, data: view(d) });
     if (act === 'acc') {
-      if (d.state !== 'open') return json({ type: 6 });
+      if (d.state !== 'open') return behind();
       if (me.id === d.a.id) return quiet("That's your own challenge. Wait for someone to accept it.");
       if (d.b && me.id !== d.b.id) return quiet(`This duel is for ${d.b.name}. Start your own with **/duel**.`);
       if (Date.now() - d.made > EXPIRES) { d.state = 'off'; await store(save(d)); return json({ type: 7, data: view(d, { note: `⌛ Nobody accepted in time, so it's off. No chips moved.` }) }); }
@@ -183,7 +186,7 @@ export async function duelButton(i, s, waitUntil) {
     }
 
     if (act === 'dec') {
-      if (d.state !== 'open') return json({ type: 6 });
+      if (d.state !== 'open') return behind();
       if (me.id === d.a.id) { d.state = 'off'; await store(save(d)); return json({ type: 7, data: view(d, { note: `${d.a.name} called it off. No chips moved.` }) }); }
       if (d.b && me.id === d.b.id) { d.state = 'off'; await store(save(d)); return json({ type: 7, data: view(d, { note: `${d.b.name} declined. No chips moved.` }) }); }
       return quiet("That's not your duel. Just let it be.");
@@ -191,7 +194,7 @@ export async function duelButton(i, s, waitUntil) {
 
     if ((PICK[act] || act === 'off') && d.state === 'off') return json({ type: 7, data: view(d, { note: 'This duel was called off. Both stakes went back.' }) });
     if (act === 'off') {
-      if (d.state !== 'pick') return json({ type: 6 });
+      if (d.state !== 'pick') return behind();
       if (!inIt) return quiet(`This is ${d.a.name} vs ${d.b.name}. Start your own with **/duel**.`);
       const wait = (d.pickAt || d.made) + CALL_OFF - Date.now();
       if (wait > 0) return quiet(`Give them a moment. You can call it off in ${Math.ceil(wait / 60e3)} min if they still haven't picked.`);
@@ -201,7 +204,7 @@ export async function duelButton(i, s, waitUntil) {
     }
 
     if (PICK[act]) {
-      if (d.state !== 'pick') return json({ type: 6 });
+      if (d.state !== 'pick') return behind();
       if (!inIt) return quiet(`This is ${d.a.name} vs ${d.b.name}. Start your own with **/duel**.`);
       if (d.picks[me.id]) return quiet(`You already locked in ${PICK[d.picks[me.id]][0]} ${PICK[d.picks[me.id]][1]}.`);
       d.picks[me.id] = act;
@@ -219,11 +222,18 @@ export async function duelButton(i, s, waitUntil) {
     }
 
     if (act === 're' || act === 'dn') {
-      if (d.state !== 'done') return json({ type: 6 });
+      if (d.state !== 'done') return behind();
       if (!inIt) return quiet('Only the two players can call a rematch. Start your own with **/duel**.');
+      // one rematch per duel: a second tap (a repeat, or the other player) shows the open one, so it can be accepted there
+      if (d.next) {
+        const [nRaw] = await kv(['GET', 'du:' + d.next]);
+        const n = nRaw && JSON.parse(nRaw);
+        if (n && n.state === 'open') return json({ type: 4, data: view(n) });
+      }
       const other = me.id === d.a.id ? d.b : d.a;
       const out = await challenge(me, other, act === 'dn' ? d.bet * 2 : d.bet, d.game);
       if (out.err) return quiet(out.err);
+      d.next = out.d.id; await store(save(d));
       return json({ type: 4, data: view(out.d) });
     }
     return json({ type: 6 });

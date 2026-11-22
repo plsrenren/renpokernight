@@ -122,7 +122,7 @@ function view(g, bal) {
     dh: done ? `${g.dlHand}${g.qualifies ? ' · qualifies' : " · doesn't qualify"}` : '', r: done ? g.res : '', v: g.id + g.step });
   const bets = [`Ante **${money(g.ante)}**`, `Blind **${money(g.ante)}**`, ...(g.play ? [`Play **${money(g.play)}**`] : []), ...(g.trips ? [`Trips **${money(g.trips)}**`] : [])].join(' · ');
   let title, description = bets, color, footer;
-  const btn = (label, emoji, act, style, disabled = false) => ({ type: 2, style, label, ...(emoji ? { emoji: { name: emoji } } : {}), custom_id: `uth:${act}:${g.id}`, disabled });
+  const btn = (label, emoji, act, style, disabled = false) => ({ type: 2, style, label, ...(emoji ? { emoji: { name: emoji } } : {}), custom_id: `uth:${act}:${g.id}:${g.step}`, disabled }); // the step makes a stale or repeated press harmless
   let row;
   if (!done) {
     title = `♠️ Ultimate Hold'em · ${g.name}`; color = 0x6e52c8;
@@ -181,8 +181,10 @@ export async function uthCommand(i, opts, s) {
 }
 
 /** A decision on a hand in progress (b4 chk | b2 chk | b1 fold). Shared by the Discord buttons and the site.
- *  Returns { g, bal }, { err }, { gone }, { notYours }, or { busy }. */
-export async function uthAction(me, gid, act) {
+ *  step = the hand step the button was drawn for (Discord); a press from an older step changes nothing and returns { stale, g, bal }
+ *  so the message can be redrawn. (Without it, a press on a message Discord never updated, after a slow answer, landed on the NEXT street.)
+ *  Returns { g, bal }, { err }, { gone }, { notYours }, { stale, g, bal } or { busy }. */
+export async function uthAction(me, gid, act, step) {
   // one trip to read the hand, take the lock and read the balance; one trip to write and unlock
   const [raw, lock, balRaw] = await kv(['GET', 'uth:g:' + gid], ['SET', 'uth:lock:' + gid, '1', 'NX', 'EX', 5], ['HGET', 'bj:bal', me.id]);
   let wrote = false;
@@ -192,8 +194,9 @@ export async function uthAction(me, gid, act) {
   if (g.uid !== me.id) { if (lock) await unlock(); return { notYours: g.name }; }
   if (!lock) return { busy: true };
   try {
-    if (g.stage === 'done') return { busy: true };
     let bal = +balRaw || 0;
+    if (step !== undefined && (+step !== g.step || g.stage === 'done')) return { stale: true, g, bal };
+    if (g.stage === 'done') return { busy: true };
     const ok = { pre: ['b4', 'chk'], flop: ['b2', 'chk'], river: ['b1', 'fold'] }[g.stage];
     if (!ok.includes(act)) return { busy: true };
     let refund = 0;
@@ -231,7 +234,7 @@ export { PAYTABLE as UTH_PAYTABLE };
 /** The buttons (custom_id uth:<action>:<hand id>). */
 export async function uthButton(i, s) {
   if (!kvUrl() || !kvToken()) return noStorage();
-  const [, act, gid] = String(i.data.custom_id).split(':');
+  const [, act, gid, step] = String(i.data.custom_id).split(':'); // step is missing on buttons drawn before it existed
   if (act === 'pay') return quiet(PAYTABLE);
   const me = whoIs(i, s);
   if (act === 'again') {
@@ -243,15 +246,24 @@ export async function uthButton(i, s) {
     if (!lock) return json({ type: 6 });
     try {
       if (g.stage !== 'done') return json({ type: 6 });
+      // a second Play again on the same message while the hand it dealt is still going (say, the first answer was too slow
+      // and never showed) shows that hand again instead of dealing and charging another one
+      if (g.next) {
+        const [nRaw, nBal] = await kv(['GET', 'uth:g:' + g.next], ['HGET', 'bj:bal', me.id]);
+        const n = nRaw && JSON.parse(nRaw);
+        if (n && n.uid === me.id && n.stage !== 'done') return json({ type: 4, data: view(n, +nBal || 0) });
+      }
       const out = await newHand(me, g.ante, g.trips);
       if (out.err) return quiet(out.err);
+      g.next = out.g.id; await kv(['SET', 'uth:g:' + g.id, JSON.stringify(g), 'KEEPTTL']);
       return json({ type: 4, data: view(out.g, out.bal) });
     } finally { await unlock(); }
   }
-  const r = await uthAction(me, gid, act);
+  const r = await uthAction(me, gid, act, step);
   if (r.gone) return quiet('This hand has expired. Start a new one with **/uth**.');
   if (r.notYours) return quiet(`That's ${r.notYours}'s hand. Start your own with **/uth**.`);
-  if (r.busy) return json({ type: 6 });
+  if (r.stale) return json({ type: 7, data: view(r.g, r.bal) }); // the message was behind: show where the hand really is, play nothing
+  if (r.busy) return quiet('Your last move is still going through. If the table looks behind, press any button to refresh it.');
   if (r.err) return quiet(r.err);
   return json({ type: 7, data: view(r.g, r.bal) });
 }

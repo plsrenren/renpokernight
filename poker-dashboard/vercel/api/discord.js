@@ -41,7 +41,7 @@ import { REWARD_LIST } from './_rewards.js';
 import { WEEKLY_CLAIM, DAILY, DAILY_RESET_UTC, RAKE, kvUrl, kvToken } from './_blackjack.js';
 import { SHOP_COMMANDS, shopCommand, shopInteraction } from './_shop.js';
 import { wrongChannel } from './_channels.js';
-import { withPicture, warmPictures } from './_attach.js';
+import { withPicture, warmPictures, attachPicture, discordBody } from './_attach.js';
 import { board as lotteryBoard, quarterOf, shownQuarter, drawable, drawQuarter, TICKET, LUCKY_ROLE, nextQuarter } from './_lottery.js';
 import { nightRows } from './_rewards.js';
 import { INFO_COMMAND, postInfo } from './_info.js';
@@ -128,9 +128,45 @@ export async function POST(req) {
   const pic = (i.type === 3 && i.data && PIC_BUTTONS.test(String(i.data.custom_id))) || (i.type === 2 && i.data && PIC_COMMANDS.includes(i.data.name));
   if (!pic) { const out = await answer(i); accoladesLater(); return out; }
   warmPictures().catch(e => console.error('picture code', e)); // loads while the game talks to chip storage
-  const out = withPicture(await answer(i), startedAt);
+  const raw = answer(i);
+  const out = await inTime(i, raw, raw.then(r => withPicture(r, startedAt)));
   accoladesLater();
   return out;
+}
+
+// Discord gives an interaction 3 seconds. A game reply that isn't ready by then (cold start, slow chip storage) used to be lost:
+// Discord said "the application did not respond" while the move still went through, so the table on screen fell behind.
+// Now, close to the limit, we tell Discord "working on it" (6 = update the clicked message later, 5 = a reply is coming)
+// and send the finished reply through the interaction's webhook once it's ready.
+const API = 'https://discord.com/api/v10';
+const sentAt = id => { try { return Number(BigInt(id) >> 22n) + 1420070400000; } catch (e) { return Date.now(); } }; // from the interaction's snowflake id
+async function inTime(i, raw, ready) {
+  let timer;
+  const wait = Math.max(0, Math.min(2400, sentAt(i.id) + 2400 - Date.now())); // counted from when Discord sent it, so a cold start counts too
+  const late = new Promise(ok => { timer = setTimeout(() => ok(null), wait); });
+  const res = await Promise.race([ready, late]);
+  clearTimeout(timer);
+  if (res) return res;
+  waitUntil(raw.then(r => finishLate(i, r)).catch(e => console.error('late reply', e)));
+  return json({ type: i.type === 3 ? 6 : 5 });
+}
+async function finishLate(i, res) {
+  if (!res || !(res.headers.get('content-type') || '').includes('application/json')) return;
+  const msg = await res.json();
+  if (!msg.data || (msg.type !== 4 && msg.type !== 7)) return; // nothing to show (6 = no change)
+  const hook = `${API}/webhooks/${i.application_id}/${i.token}`;
+  const send = async (url, method, data) => {
+    const pic = (await attachPicture(data, 5000)) || { data, png: null };
+    const r = await fetch(url, { method, ...discordBody(pic.data, pic.png) });
+    if (!r.ok) console.error('late reply', method, r.status, await r.text().catch(() => ''));
+  };
+  const hidden = msg.data.flags & 64;
+  if (msg.type === 7) return send(hook + '/messages/@original', 'PATCH', msg.data); // a button's table update: edit that message
+  if (i.type === 3) return send(hook, 'POST', msg.data); // a button's new message (Play again, a note): follow-up, stays private if it was
+  // a slash command: fill in the "thinking" message, or swap it for a private note
+  if (!hidden) return send(hook + '/messages/@original', 'PATCH', msg.data);
+  await fetch(hook + '/messages/@original', { method: 'DELETE' }).catch(() => {});
+  return send(hook, 'POST', msg.data);
 }
 
 async function answer(i) {
