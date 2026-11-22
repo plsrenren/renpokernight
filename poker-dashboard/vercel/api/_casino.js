@@ -4,6 +4,7 @@
 //   GET  /api/login              → sends you to Discord to sign in (scope "identify": name, pfp, ID only)
 //   GET  /api/login?code=…       ← Discord sends you back here; sets the session cookie, then goes to /casino
 //   GET  /api/casino             → who you are, your chips, daily, leaderboard, "just now" feed, any unfinished hand
+//   GET  /api/casino?jp=1        → just the casino jackpot (pot, cap, last win) for the lobby banner's refresh
 //   POST /api/casino {a: …}      → daily | bj (mode 'free' = Free Bet, side = Push 22) | bj-act | uth | uth-act | bac | logout
 //   GET/POST /api/shop           → the /shop page (Study Cards), handled by shopWeb in _shop.js
 //
@@ -17,6 +18,7 @@ import { newHand as uthStart, uthAction, publicUth, MAX_ANTE, MAX_TRIPS, UTH_PAY
 import { playHand } from './_baccarat.js';
 import { REWARD_LIST } from './_rewards.js';
 import { lotteryView } from './_lottery.js';
+import { jackpotView, readJackpot } from './_jackpot.js';
 import { shopWeb } from './_shop.js';
 import { sweepDuels } from './_duel.js';
 import { pokerWeb } from './_poker.js';
@@ -90,7 +92,7 @@ async function login(req, sheet) {
 }
 
 // ---------- the page's data ----------
-const SESSION_GAP = 10 * 60e3, SOLO = new Set(['daily', 'poker night', 'rakeback']), solo = g => SOLO.has(g) || /^tip /.test(g);
+const SESSION_GAP = 10 * 60e3, SOLO = new Set(['daily', 'poker night', 'rakeback', 'jackpot']), solo = g => SOLO.has(g) || /^tip /.test(g);
 /** "Just now" session lines: the same person playing the same game (same place), with no gap over 10 minutes, becomes one
  *  line with the total, hand count, wins/losses and when it started. Dailies and rewards stay single. Newest first, 10 lines. */
 export function groupFeed(feed, lines = 10) {
@@ -106,12 +108,12 @@ export function groupFeed(feed, lines = 10) {
 
 async function state(me, sheet) {
   // two storage trips: everything for the lobby at once, then any unfinished hands
-  const [bal, names, feedRaw, last, cur, wkNet, wkVol] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['LRANGE', 'cas:feed', 0, FEED_KEEP - 1],
+  const [bal, names, feedRaw, last, cur, wkNet, wkVol, jp] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['LRANGE', 'cas:feed', 0, FEED_KEEP - 1],
     ['HGET', 'bj:last', me ? me.id : '-'], ['HGETALL', 'cas:cur:' + (me ? me.id : '-')],
-    ['HGET', 'rb:wk:' + weekKey(), me ? me.id : '-'], ['HGET', 'rb:vol:' + weekKey(), me ? me.id : '-']);
+    ['HGET', 'rb:wk:' + weekKey(), me ? me.id : '-'], ['HGET', 'rb:vol:' + weekKey(), me ? me.id : '-'], ['HGETALL', 'jp']);
   const board = boardFrom(bal, names);
   const feed = groupFeed((feedRaw || []).map(x => { try { return JSON.parse(x); } catch (e) { return null; } }).filter(Boolean));
-  const body = { me: null, board: board.slice(0, 15), players: board.length, feed, maxBet: MAX_BET, maxPush22: MAX_PUSH22, maxAnte: MAX_ANTE, maxTrips: MAX_TRIPS, uthPaytable: plain(UTH_PAYTABLE), rewards: REWARD_LIST };
+  const body = { me: null, board: board.slice(0, 15), players: board.length, feed, maxBet: MAX_BET, maxPush22: MAX_PUSH22, maxAnte: MAX_ANTE, maxTrips: MAX_TRIPS, uthPaytable: plain(UTH_PAYTABLE), rewards: REWARD_LIST, jackpot: jackpotView(jp) };
   // the quarter lottery panel (needs the sheet; left out if it can't be read)
   try { const sh = sheet && await sheet(); if (sh && sh.csv) { const v = await lotteryView(sh.csv, null, sh.ids || {}); v.holders = v.holders.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); if (v.lastBoard) v.lastBoard = v.lastBoard.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); body.lottery = v; } } catch (e) { console.error('lottery view', e); }
   if (!me) return body;
@@ -181,6 +183,7 @@ export async function casinoWeb(req, what, sheet) {
     const me = readSession(req);
     if (what === 'shop' && req.method === 'GET') return await shopWeb(req, me, sheet, out);
     if (what === 'poker' && req.method === 'GET') return await pokerWeb(req, me, sheet, out);
+    if (req.method === 'GET' && new URL(req.url).searchParams.get('jp')) return out({ jackpot: await readJackpot() }); // the lobby banner's live refresh
     if (req.method === 'GET') return out(await state(me, sheet));
     if (req.method !== 'POST') return out({ err: 'Method not allowed.' }, 405);
     // same-site only: the cookie is SameSite=Lax already; this also refuses posts from other sites

@@ -37,6 +37,7 @@ import { BACCARAT_COMMAND, baccaratCommand, baccaratButton } from './_baccarat.j
 import { casinoWeb } from './_casino.js';
 import { checkAccolades } from './_accolades.js';
 import { houseEmbed } from './_rakeback.js';
+import { afterJackpot, withJackpotLine, readJackpot, jackpotEmbed, JP } from './_jackpot.js';
 import { REWARD_LIST } from './_rewards.js';
 import { WEEKLY_CLAIM, DAILY, DAILY_RESET_UTC, RAKE, kvUrl, kvToken } from './_blackjack.js';
 import { SHOP_COMMANDS, shopCommand, shopInteraction } from './_shop.js';
@@ -79,6 +80,7 @@ const COMMANDS = [
     { type: 1, name: 'odds', description: "The jackpot, your tickets and everyone's odds" },
     { type: 1, name: 'draw', description: "Draw last quarter's winner, live (host only)" }] },
   { name: 'earn', description: 'Every way to earn chips: daily, poker night rewards, rakeback, the lottery', type: 1 },
+  { name: 'jackpot', description: 'The casino jackpot: how big it is and when it must drop', type: 1 },
   { name: 'house', description: 'The casino books: what the house has won, by game (pitbosses only)', type: 1 },
 ];
 // /fish and /donkey ping this person when nobody is picked (their Discord user ID, in quotes). Empty = they ask who.
@@ -117,7 +119,15 @@ const webRoute = req => { const w = new URL(req.url).searchParams.get('web'); re
 // casino replies carry their table picture as an upload (see _attach.js), so it shows with the message instead of loading after it
 const PIC_BUTTONS = /^(bj|du|uth|ro|ba|sh):/, PIC_COMMANDS = ['blackjack', 'freebet', 'duel', 'uth', 'baccarat', 'roulette', 'pack'];
 // after an answer is sent: checks the players whose casino numbers just changed for new accolades (see _accolades.js)
-const accoladesLater = () => { if (kvUrl() && kvToken()) waitUntil(checkAccolades({ ids: cache.ids }).catch(e => console.error('accolades', e))); };
+const accoladesLater = () => { if (!kvUrl() || !kvToken()) return;
+  waitUntil(checkAccolades({ ids: cache.ids }).catch(e => console.error('accolades', e)));
+  waitUntil(afterJackpot().catch(e => console.error('jackpot', e))); }; // posts any jackpot win in #casino, refreshes the pot shown on replies
+// game replies get a "🎰 Jackpot $X · must drop by $2,000" footer line (from the pot kept in memory, so no extra wait)
+const jackpotLine = async r => {
+  if (!r || !(r.headers.get('content-type') || '').includes('application/json')) return r;
+  const msg = await r.clone().json().catch(() => null);
+  return msg && (msg.type === 4 || msg.type === 7) ? json(withJackpotLine(msg)) : r;
+};
 export async function POST(req) {
   if (webRoute(req)) { waitUntil(refreshNewestInvite()); const out = await casinoWeb(req, webRoute(req), sheet); accoladesLater(); return out; }
   const startedAt = Date.now();
@@ -128,7 +138,7 @@ export async function POST(req) {
   const pic = (i.type === 3 && i.data && PIC_BUTTONS.test(String(i.data.custom_id))) || (i.type === 2 && i.data && PIC_COMMANDS.includes(i.data.name));
   if (!pic) { const out = await answer(i); accoladesLater(); return out; }
   warmPictures().catch(e => console.error('picture code', e)); // loads while the game talks to chip storage
-  const raw = answer(i);
+  const raw = answer(i).then(jackpotLine);
   const out = await inTime(i, raw, raw.then(r => withPicture(r, startedAt)));
   accoladesLater();
   return out;
@@ -211,7 +221,7 @@ async function answer(i) {
   }
   // chip commands answer from the sheet copy already in memory (names only) instead of waiting on Google: a slow sheet read
   // could push the reply past Discord's 3 seconds after the bet was already taken. The copy refreshes in the background.
-  const CHIP = ['daily', 'blackjack', 'freebet', 'chips', 'pack', 'loadout', 'tip', 'duel', 'uth', 'baccarat', 'house', 'earn'];
+  const CHIP = ['daily', 'blackjack', 'freebet', 'chips', 'pack', 'loadout', 'tip', 'duel', 'uth', 'baccarat', 'house', 'earn', 'jackpot'];
   const chipCmd = CHIP.includes(i.data.name);
   if (chipCmd && (i.data.name === 'daily' || i.data.name === 'duel')) waitUntil(sweepDuels().catch(e => console.error('duel sweep', e))); // refunds stuck duels
   const s = chipCmd ? (cache.recs ? cache : null) : await sheet();
@@ -229,6 +239,10 @@ async function answer(i) {
     return json(no || startTourney(i, opts, s || { ids: {} }, waitUntil));
   }
   if (i.data.name === 'earn') return json({ type: 4, data: { allowed_mentions: { parse: [] }, embeds: [earnEmbed()] } });
+  if (i.data.name === 'jackpot') {
+    try { return json({ type: 4, data: { allowed_mentions: { parse: [] }, embeds: [jackpotEmbed(await readJackpot())] } }); }
+    catch (e) { console.error('jackpot', e); return say("Couldn't reach the chip storage just now."); }
+  }
   if (i.data.name === 'house') { // pitbosses only (plus Renato and admins), and only they see the answer
     const no = await inviteBlocked(i, s || { ids: {} }, HOST_ID, true);
     if (no) return json(no);
@@ -259,6 +273,7 @@ function earnEmbed() {
       { name: '🎁 /daily', value: `$${WEEKLY_CLAIM} your first claim each week, $${DAILY} the other days (resets ${DAILY_RESET_UTC}:00 UTC, weeks start Monday)` },
       { name: '🃏 Poker night', value: 'Paid automatically after every saved night:\n' + nights },
       { name: '💸 Weekly rakeback', value: `Every Monday you get a cut back on everything you played at the tables, up to $${RAKE.cap}. Paid straight into your balance; /chips shows yours so far.` },
+      { name: '🎰 Casino jackpot', value: `2% of every hand the house wins goes in the pot. It drops at a secret amount before $${JP.cap.toLocaleString('en-US')} on whoever's losing hand pushes it over. /jackpot shows it.` },
       { name: '🎟️ Quarter lottery', value: `Every $${TICKET} you buy in at poker night is a free ticket. One winner takes the whole quarter's buy-ins in chips. See /lottery odds.` },
       { name: '🤝 /tip', value: 'Any player can send you chips.' },
     ],
