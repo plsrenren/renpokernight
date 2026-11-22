@@ -70,7 +70,9 @@ poker-dashboard/
                        Late replies (Nov 22 2026): if a casino reply isn't ready ~2.4s after Discord sent the tap (timed from the interaction id, so cold
                        starts count), discord.js inTime() defers (6/5) and finishLate() edits/follows up through the webhook. Blackjack + UTH buttons
                        carry the hand step (bj|uth:<act>:<id>:<step>): an older step changes nothing and redraws the table; Play again twice re-shows
-                       the hand it already dealt (g.next) instead of charging another. Game code keeps
+                       the hand it already dealt (g.next) instead of charging another. Same idea in /duel (stale taps redraw, one rematch
+                       per duel via d.next) and packs (Open another = sh:a:<pack id>, p.next; repeat flips redraw). Baccarat + roulette taps are bets
+                       by design (each tap = a new hand/chip), covered only by the late-reply defer. Game code keeps
                        building the link URLs as before; discord.js POST wraps casino replies with withPicture(), roulette's spin edit uses attachPicture()
                        duel: _duel.js (/duel rock paper scissors or high card for the same chips; high card picture = bjcards?m=duel; both stakes taken in one Lua step;
                        RPS: "Call it off" refunds both after 3 min, sweepDuels refunds duels stuck 30+ min (run on /duel and /daily, du:live hash))
