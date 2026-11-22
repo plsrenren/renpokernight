@@ -85,11 +85,9 @@ function tokenRequest(clientId, guest) {
 
 // ---------- hosts ----------
 const hostCache = new Map();
-/** ids = () => Promise of the Members-tab Discord IDs; only waited on when the answer isn't known yet (it can mean a trip to Google) */
-async function isHost(id, ids) {
+async function isHost(id) {
   if (id === RENATO) return true;
   const c = hostCache.get(id); if (c && Date.now() - c.at < 600e3) return c.ok;
-  if (id === (await ids()).Renato) return true;
   let ok = false;
   const token = process.env.DISCORD_BOT_TOKEN;
   if (token) try {
@@ -107,20 +105,19 @@ async function isHost(id, ids) {
 }
 
 // ---------- the page's data ----------
-async function view(T, me, ids, t, extra = {}) {
+async function view(T, me, t, extra = {}) {
   const body = { table: E.publicView(T, t), ably: !!ablyKey(), ...extra };
   if (!me) return body;
   const i = E.seatOf(T, me.id), s = i >= 0 ? T.seats[i] : null;
   const [bal] = extra.bal !== undefined ? [extra.bal] : await kv(['HGET', 'bj:bal', me.id]);
-  body.me = { id: me.id, name: me.name, seat: i, cards: s && s.cards.length ? s.cards : [], bal: bal === null ? 0 : Math.floor(+bal * 100) / 100, host: await isHost(me.id, ids) };
+  body.me = { id: me.id, name: me.name, seat: i, cards: s && s.cards.length ? s.cards : [], bal: bal === null ? 0 : Math.floor(+bal * 100) / 100, host: await isHost(me.id) };
   delete body.bal;
   return body;
 }
 
-export async function pokerWeb(req, me, sheet, out) {
+// the poker room never reads the Google sheet (chips live in Redis); `_sheet` is only there because _casino.js passes it to every page
+export async function pokerWeb(req, me, _sheet, out) {
   const t = Date.now();
-  // the sheet is loaded only if a host check needs it: every move (bots' ticks too) used to wait on it, up to ~2s on a cold start
-  let idsP = null; const ids = () => idsP ||= sheet().then(s => (s && s.ids) || {}).catch(() => ({}));
   if (req.method === 'GET') {
     // signing in is optional: anyone can watch, and a guest gets a listen-only live token here
     if (new URL(req.url).searchParams.get('token')) return ablyKey() ? out({ token: tokenRequest(me ? me.id : 'guest-' + randomBytes(6).toString('hex'), !me) }) : out({ err: 'Live updates are not set up.' });
@@ -129,13 +126,13 @@ export async function pokerWeb(req, me, sheet, out) {
     if (T.open && ((T.at && t - T.at > 3 * 3600e3) || (!T.seats.some(s => s && !s.left) && T.emptyAt && t - T.emptyAt > 30 * 60e3))) {
       const r = await change((X, now) => E.tick(X, now) ? true : false, t); if (r.T) T = r.T;
     }
-    return out(await view(T, me, ids, t));
+    return out(await view(T, me, t));
   }
   let b; try { b = await req.json(); } catch (e) { return out({ err: 'Bad request.' }, 400); }
   const who = { id: me.id, name: me.name };
   const host = ['open', 'close', 'pause', 'resume', 'blinds', 'seatout', 'bomb', 'straddle', 'nit', 'bot'].includes(b.a);
-  if (host && !(await isHost(me.id, ids))) return out({ err: 'Only hosts can do that.' }, 403);
-  const done = async (r, extra = {}) => r.err ? out({ err: r.err, ...(r.T ? await view(r.T, me, ids, t) : {}) }) : out(await view(r.T, me, ids, t, extra));
+  if (host && !(await isHost(me.id))) return out({ err: 'Only hosts can do that.' }, 403);
+  const done = async (r, extra = {}) => r.err ? out({ err: r.err, ...(r.T ? await view(r.T, me, t) : {}) }) : out(await view(r.T, me, t, extra));
 
   switch (b.a) {
     case 'token': return ablyKey() ? out({ token: tokenRequest(me.id) }) : out({ err: 'Live updates are not set up.' });
