@@ -164,7 +164,9 @@ body.room .wrap { max-width: none; }
 .actbar.guest { grid-template-columns: minmax(0, 1fr) auto; }
 .mine { display: grid; gap: 6px; justify-items: center; }
 .mine .cards { display: flex; gap: 6px; }
-.mine .str { font: 600 11.5px var(--mono); color: var(--gold); white-space: nowrap; }
+.mine .str { font: 600 11.5px var(--mono); color: var(--gold); white-space: nowrap; display: flex; gap: 6px; align-items: center; justify-content: center; }
+.mine .str .hc { font-size: 13px; letter-spacing: .03em; } .mine .str .pos { font: 700 10px var(--mono); color: var(--ink); background: var(--gold); padding: 1px 5px; }
+.mine .str.made { margin-top: -3px; color: var(--soft); font-weight: 500; }
 .ctrls { display: grid; gap: 8px; min-width: 0; }
 .ctrls .btns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .ctrls .btns .cbtn { text-align: center; padding-inline: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -496,14 +498,27 @@ function tableHTML() {
     <div class="center"><div class="crow">${potLow ? '' : top}</div><div class="bd5${board2 ? ' r1' : ''}">${board}</div>${board2 ? `<div class="bd5 r2">${board2}</div>` : ''}<div class="crow">${potLow ? top : t.rabbit ? `<div class="banner sub rabt">Rabbit hunt by ${esc(t.rabbitBy)}</div>` : t.res && t.res.sub ? `<div class="banner sub">${esc(chipText(t.res.sub))}</div>` : ''}</div></div>
     ${t.seats.map(seatHTML).join('')}</div>`;
 }
+// your hand in poker shorthand: AKo / AKs / QQ (T = ten)
+const NOTE = 'xx23456789TJQKA';
+const handCode = cs => { const [a, b] = [rv(cs[0]), rv(cs[1])].sort((x, y) => y - x); return NOTE[a] + NOTE[b] + (a === b ? '' : cs[0][1] === cs[1][1] ? 's' : 'o'); };
+// your seat's position this hand, counted from the dealer button over the players dealt in
+const POS_MID = { 0: [], 1: ['UTG'], 2: ['UTG', 'CO'], 3: ['UTG', 'HJ', 'CO'], 4: ['UTG', 'MP', 'HJ', 'CO'], 5: ['UTG', 'UTG+1', 'MP', 'HJ', 'CO'] };
+function posOf(t, i) {
+  if (t.button < 0 || !(t.phase === 'hand' || t.phase === 'done')) return '';
+  const order = []; for (let k = 0; k < 8; k++) { const j = (t.button + k) % 8, q = t.seats[j]; if (q && q.dealt) order.push(j); }
+  const n = order.length, at = order.indexOf(i); if (at < 0 || n < 2) return '';
+  if (n === 2) return at === 0 ? 'BTN' : 'BB';
+  return ['BTN', 'SB', 'BB', ...POS_MID[n - 3]][at] || '';
+}
 function actHTML() {
   const t = T(), i = mySeat(), s = i >= 0 ? t.seats[i] : null;
   if (!S.me) return '';
   if (!s) return `<div class="actbar"><div class="mine"><div class="cards">${card(null, 'lg')}${card(null, 'lg')}</div></div><div class="wait">${t.open ? 'Tap SIT to join' : 'The room is closed'}</div></div>`;
   const cards = S.me.cards && S.me.cards.length && cardsFor === t.hid && s.dealt ? S.me.cards : null, folded = !!(cards && s.folded);
-  const hint = cards ? (t.board.length >= 3 ? describe(bestOf([...cards, ...t.board])) : cards[0][0] === cards[1][0] ? `Pocket ${PL[rv(cards[0])]}` : `${rn(Math.max(rv(cards[0]), rv(cards[1])))}-${rn(Math.min(rv(cards[0]), rv(cards[1])))}${cards[0][1] === cards[1][1] ? ' suited' : ''}`) : '';
+  const code = cards ? handCode(cards) : '', pos = s.dealt ? posOf(t, i) : '';
+  const hint = cards && t.board.length >= 3 ? describe(bestOf([...cards, ...t.board])) : '';
   const res = t.res, win = res && res.win.includes(i);
-  const mine = `<div class="mine"><div class="cards">${cards ? cards.map(c => card(c, 'lg', folded ? 'fold' : win && res.hl.includes(c) ? 'hl' : '')).join('') : card(null, 'lg') + card(null, 'lg')}</div>${hint ? `<div class="str">${folded ? 'Folded' : esc(hint)}</div>` : ''}</div>`;
+  const mine = `<div class="mine"><div class="cards">${cards ? cards.map(c => card(c, 'lg', folded ? 'fold' : win && res.hl.includes(c) ? 'hl' : '')).join('') : card(null, 'lg') + card(null, 'lg')}</div>${code || pos ? `<div class="str"><span class="hc">${folded ? 'Folded' : esc(code)}</span>${pos ? `<span class="pos">${pos}</span>` : ''}</div>` : ''}${hint && !folded ? `<div class="str made">${esc(hint)}</div>` : ''}</div>`;
   let right;
   if (s.out) right = `<div class="wait">You're sitting out<small>${s.stack > 0 ? 'Seat saved' : 'Out of chips'}</small>
       ${s.stack > 0 ? `<button class="cbtn up sm" data-a="back">I'm back</button>` : `<button class="cbtn up sm" data-a="top">Rebuy</button>`}</div>`;
