@@ -289,7 +289,7 @@ const DISCORD_SVG = '<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><pa
 const ERRS = { cancelled: 'Sign-in was cancelled.', setup: "Discord sign-in isn't set up yet.", expired: 'That sign-in link expired. Try again.', discord: "Discord didn't answer. Try again.", stranger: "That Discord account isn't one the club knows yet. Play a hand with the bot in the server first." };
 const STAKES = [[1, 2], [2, 5], [5, 10]], MIN_BUYS = [20, 40, 100], MAX_BUYS = [100, 200, 500, 1000], TURNS = [15, 20, 30], BOMBS = [2, 5, 10], NITS = [2, 5, 10];
 /** what the host has switched on, shown in the table bar */
-const extras = t => [t.seats.some(s => s && s.bot && !s.left) && 'Test table', t.cfg.straddle && 'Straddle', t.nit && `Nit ${money(t.nit.amt)}`, t.nitNext && 'Nit next', t.bomb && 'Bomb next'].filter(Boolean).map(x => ` · <span class="xtra">${x}</span>`).join('');
+const extras = t => [t.seats.some(s => s && !s.left && (s.bot || s.free)) && 'Test table', t.cfg.straddle && 'Straddle', t.nit && `Nit ${money(t.nit.amt)}`, t.nitNext && 'Nit next', t.bomb && 'Bomb next'].filter(Boolean).map(x => ` · <span class="xtra">${x}</span>`).join('');
 
 // ---------- cards (same ranking as the server, for the "what you have" line) ----------
 const RANKS = '23456789TJQKA', SYM = { s: '♠', h: '♥', d: '♦', c: '♣' }, RN = { 10: '10', 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
@@ -486,7 +486,7 @@ function popBar(t) {
 }
 function rulesHTML(c) {
   return `<ul class="rules"><li>No-limit Texas Hold'em, blinds ${money(c.sb)}/${money(c.bb)}.</li><li>Buy in for ${money(c.min)} to ${money(c.max)} in casino chips. They go back when you leave.</li>
-    <li>Sit down anytime; you're dealt in next hand.</li><li>${c.turn} seconds to act, then you check or fold. Time out twice in a row and you're sat out.</li><li>No rake. Pots are player vs player.</li>${c.straddle ? `<li>Straddle on: the player after the big blind posts ${money(2 * c.bb)} and acts last before the flop.</li>` : ''}${T().seats.some(s => s && s.bot && !s.left) ? '<li>Test table: bots play on fake chips. When you leave you get back what you had when the bots sat down (plus top-ups), win or lose.</li>' : ''}${T().nit ? `<li>Nit game: the last player to win a pot pays everyone ${money(T().nit.amt)}.</li>` : ''}<li>Bomb pot (host's call): everyone puts in the same amount and the cards start on the flop.</li></ul>`;
+    <li>Sit down anytime; you're dealt in next hand.</li><li>${c.turn} seconds to act, then you check or fold. Time out twice in a row and you're sat out.</li><li>No rake. Pots are player vs player.</li>${c.straddle ? `<li>Straddle on: the player after the big blind posts ${money(2 * c.bb)} and acts last before the flop.</li>` : ''}${T().seats.some(s => s && !s.left && (s.bot || s.free)) ? '<li>Test table: bots play on fake chips. Sitting down while bots are here is free. If you brought real chips, you get back what you had when the bots sat down (plus top-ups), win or lose.</li>' : ''}${T().nit ? `<li>Nit game: the last player to win a pot pays everyone ${money(T().nit.amt)}.</li>` : ''}<li>Bomb pot (host's call): everyone puts in the same amount and the cards start on the flop.</li></ul>`;
 }
 const opts = (list, cur, fmt = v => v) => list.map(v => `<option value="${v}" ${String(v) === String(cur) ? 'selected' : ''}>${fmt(v)}</option>`).join('');
 function hostHTML() {
@@ -704,14 +704,15 @@ function modal(kind, seat) {
   const t = T(), m = $('#modal'), i = mySeat(), s = i >= 0 ? t.seats[i] : null;
   if (kind === 'sit' || kind === 'top') {
     const room = kind === 'top' ? t.cfg.max - s.stack - (s.pend || 0) : t.cfg.max;
-    const max = Math.floor(Math.min(room, S.me.bal)), min = kind === 'top' ? 1 : t.cfg.min;
+    const free = kind === 'sit' ? t.seats.some(x => x && x.bot && !x.left) : !!(s && s.free); // test table: fake chips, nothing taken
+    const max = Math.floor(free ? room : Math.min(room, S.me.bal)), min = kind === 'top' ? 1 : t.cfg.min;
     if (max < min) return toast(kind === 'top' ? `You can have up to ${money(t.cfg.max)} in front of you.` : `You need ${money(t.cfg.min)} in chips to sit down. You have ${money(S.me.bal)}.`, true);
     m.innerHTML = `<div class="modal"><form class="box" id="buyF"><h3>${kind === 'top' ? (s.stack ? 'Top up' : 'Rebuy') : 'Buy in'}</h3>
       ${kind === 'top' ? `<p>Up to ${money(t.cfg.max)} in front of you.</p>` : ''}
       <div class="amt" id="buyAmt">${money(max)}</div><input type="range" id="buyR" min="${min}" max="${max}" step="1" value="${max}" aria-label="Amount">
-      <p style="font:500 12px var(--mono);color:var(--muted)">Casino chips after: <span id="buyLeft">${money(S.me.bal - max)}</span></p>
+      <p style="font:500 12px var(--mono);color:var(--muted)">${free ? 'Free: test table chips, your balance stays ' + money(S.me.bal) : `Casino chips after: <span id="buyLeft">${money(S.me.bal - max)}</span>`}</p>
       <div class="row"><button class="cbtn gold">${kind === 'top' ? 'Add chips' : 'Sit down'}</button><button type="button" class="cbtn ghost" data-close>Cancel</button></div></form></div>`;
-    const r = $('#buyR'); r.addEventListener('input', () => { $('#buyAmt').textContent = money(+r.value); $('#buyLeft').textContent = money(S.me.bal - r.value); });
+    const r = $('#buyR'); r.addEventListener('input', () => { $('#buyAmt').textContent = money(+r.value); if ($('#buyLeft')) $('#buyLeft').textContent = money(S.me.bal - r.value); });
     $('#buyF').onsubmit = e => { e.preventDefault(); m.innerHTML = ''; send(kind === 'sit' ? { a: 'sit', seat, amt: +r.value } : { a: 'top', amt: +r.value }); };
   } else if (kind === 'leave') {
     const amt = s.stack + (s.pend || 0), inHand = t.phase === 'hand' && s.dealt && !s.folded;

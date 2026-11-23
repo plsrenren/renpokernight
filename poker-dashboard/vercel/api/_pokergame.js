@@ -12,7 +12,9 @@
 //   T.nitNext ({ amt } = a nit game starts with the next hand).
 // Test players (host only): bot seats (s.bot, ids 'bot:N') play on fake chips and are never paid out. While a bot is at the table every
 //   real player's sitting is a test from the next hand (s.test): s.back = their stack then (+ top-ups), and that is exactly what they get when
-//   they leave, win or lose, so play against bots never moves a balance. Every extra kicks in at the start of a hand, never mid-hand.
+//   they leave, win or lose, so play against bots never moves a balance.
+//   Free seats (s.free): while a bot sits, buying in and topping up cost nothing (the caller skips takeChips) and leaving pays nothing.
+//   A free seat keeps the table a test table even after the bots leave, so nobody's real chips can end up with it. Every extra kicks in at the start of a hand, never mid-hand.
 import { randomInt } from 'node:crypto';
 
 export const SEATS = 8;
@@ -270,7 +272,8 @@ export function tick(T, now) {
 }
 const canStart = T => T.seats.filter(s => s && !s.left && !s.out && s.stack > 0).length >= 2;
 /** Someone sits down with `amt` chips (already taken from their balance by the caller). Returns an error or undefined. */
-export function sit(T, me, idx, amt, now) {
+export const testTable = T => T.seats.some(s => s && !s.left && (s.bot || s.free));
+export function sit(T, me, idx, amt, now, free = false) {
   if (!T.open) return 'The room is closed.';
   if (seatOf(T, me.id) >= 0) return "You're already sitting down.";
   if (!(idx >= 0 && idx < SEATS) || T.seats[idx]) return 'That seat is taken.';
@@ -278,8 +281,10 @@ export function sit(T, me, idx, amt, now) {
   T.seats[idx] = { id: me.id, name: me.name, stack: amt, pend: 0, buyins: amt, out: false, timeouts: 0, ...blank() };
   T.emptyAt = 0;
   if (T.nit && !T.nit.need.includes(me.id)) T.nit.need.push(me.id);
-  if (T.seats.some(s => s && s.bot && !s.left)) Object.assign(T.seats[idx], { test: true, back: amt });
-  log(T, `${me.name} sits down with ${$(amt)}`);
+  if (free && !T.seats.some(s => s && s.bot && !s.left)) { T.seats[idx] = null; return 'The test players just left. Try again.'; }
+  if (free) Object.assign(T.seats[idx], { test: true, free: true, back: 0 });
+  else if (testTable(T)) Object.assign(T.seats[idx], { test: true, back: amt });
+  log(T, `${me.name} sits down with ${$(amt)}${free ? ' (free test seat)' : ''}`);
   if (T.phase === 'idle' && canStart(T)) T.nextAt = now + 3000, T.phase = 'done';
 }
 /** Adds chips (already taken). Mid-hand they wait for the next hand. */
@@ -287,7 +292,7 @@ export function topUp(T, me, amt, t) {
   const i = seatOf(T, me.id); if (i < 0) return "You're not at the table.";
   const s = T.seats[i];
   if (amt < 1 || s.stack + (s.pend || 0) + amt > T.cfg.max) return `You can top up to ${$(T.cfg.max)} in front of you.`;
-  s.buyins += amt; if (s.test) s.back += amt;
+  s.buyins += amt; if (s.test && !s.free) s.back += amt;
   if (inHand(s) && !s.folded && T.phase === 'hand') { s.pend = (s.pend || 0) + amt; log(T, `${s.name} adds ${$(amt)} for next hand`); }
   else { s.stack += amt; if (s.out && s.timeouts < SIT_OUT_AFTER) s.out = false; log(T, `${s.name} tops up ${$(amt)}`); }
   if (T.phase === 'idle' && canStart(T)) T.nextAt = t + 3000, T.phase = 'done';
@@ -330,7 +335,7 @@ export function setBlinds(T, sb, bb) {
 }
 const BOT_NAMES = ['Bot Ace', 'Bot Deuce', 'Bot Trey', 'Bot Four', 'Bot Five', 'Bot Six', 'Bot Seven', 'Bot Eight'];
 // run between hands (and on sit): s.back = what the player would walk away with right now; their real result so far is kept
-function markTest(T) { if (T.seats.some(s => s && s.bot && !s.left)) T.seats.forEach(s => { if (s && !s.bot && !s.left && !s.test) { s.test = true; s.back = Math.round((s.stack + (s.pend || 0)) * 100) / 100; } }); }
+function markTest(T) { if (testTable(T)) T.seats.forEach(s => { if (s && !s.bot && !s.left && !s.test) { s.test = true; s.back = Math.round((s.stack + (s.pend || 0)) * 100) / 100; } }); }
 /** a simple bot: mostly calls and checks, sometimes bets or raises, folds to big bets now and then */
 function botMove(T, i) {
   const s = T.seats[i], toCall = T.curBet - s.bet, pot = potTotal(T), r = Math.random();
@@ -396,7 +401,7 @@ export function publicView(T, t = Date.now()) {
   return {
     v: T.v, now: t, open: T.open, cfg: T.cfg, hand: T.hand, hid: T.hid, button: T.button, board: T.board, pot: T.pot, curBet: T.curBet, minRaise: T.minRaise,
     toAct: T.toAct, street: T.street, phase: T.phase, runout: !!T.runout, bomb: T.bomb || 0, bombHand: !!T.bombHand, nit: T.nit || null, nitNext: T.nitNext || null, deadline: T.deadline, nextAt: T.nextAt, pauseReq: T.pauseReq, closeReq: T.closeReq, res: T.res, log: T.log.slice(-30),
-    seats: T.seats.map(s => s && { id: s.id, name: s.name, bot: !!s.bot, test: !!s.test, stack: s.stack, pend: s.pend || 0, bet: s.bet, last: s.last, folded: s.folded, allIn: s.allIn, out: s.out, left: !!s.left,
+    seats: T.seats.map(s => s && { id: s.id, name: s.name, bot: !!s.bot, test: !!s.test, free: !!s.free, stack: s.stack, pend: s.pend || 0, bet: s.bet, last: s.last, folded: s.folded, allIn: s.allIn, out: s.out, left: !!s.left,
       dealt: inHand(s), cards: s.show ? s.cards : undefined }),
   };
 }

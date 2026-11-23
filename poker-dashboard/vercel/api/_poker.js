@@ -141,9 +141,16 @@ export async function pokerWeb(req, me, _sheet, out) {
       if (!(amt >= 1)) return out({ err: 'Pick an amount.' });
       const pre = await load(); // quick checks before taking chips (the real ones run again inside the change)
       if (b.a === 'sit' && (!pre.open || amt < pre.cfg.min || amt > pre.cfg.max)) return done({ T: pre, err: pre.open ? `Buy in for ${$(pre.cfg.min)} to ${$(pre.cfg.max)}.` : 'The room is closed.' });
+      // free while bots sit (a test table): sitting costs nothing, leaving pays nothing; a free seat also tops up free
+      const mine = pre.seats.find(s => s && !s.left && s.id === me.id);
+      const free = b.a === 'sit' ? pre.seats.some(s => s && s.bot && !s.left) : !!(mine && mine.free);
+      if (free) {
+        const r = await change((T, now) => { if (b.a === 'sit') return E.sit(T, who, int(b.seat), amt, now, true); const i = E.seatOf(T, me.id); return i >= 0 && T.seats[i].free ? E.topUp(T, who, amt, now) : 'Try again.'; }, t);
+        return done(r);
+      }
       const paid = await takeChips(me.id, amt);
       if (paid.short) return done({ T: pre, err: `You only have ${$(paid.had || 0)} in chips.` });
-      const r = await change((T, now) => b.a === 'sit' ? E.sit(T, who, int(b.seat), amt, now) : E.topUp(T, who, amt, now), t);
+      const r = await change((T, now) => { if (b.a === 'sit') return E.sit(T, who, int(b.seat), amt, now); const i = E.seatOf(T, me.id); return i >= 0 && T.seats[i].free ? 'Try again.' : E.topUp(T, who, amt, now); }, t);
       if (r.err) { const [back] = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, amt]); return done(r, { bal: +back }); }
       await kv(['HSET', 'bj:name', me.id, me.name]).catch(() => {});
       return done(r, { bal: paid.bal });
