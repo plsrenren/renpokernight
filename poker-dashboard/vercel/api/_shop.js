@@ -79,6 +79,35 @@ export async function equippedAll() {
   return o;
 }
 
+/** who owns each cosmetic, for the "how many have this" tag on the /shop loadout:
+ *  { own: {item id: [user ids]}, people: {user id: name}, n: how many people own at least one }.
+ *  Looks through everyone with chips (bj:bal) or packs (sh:packs): pack cards (sh:own), casino/poker accolades (ac:own) and
+ *  champion borders (from the sheet copy sh = { ids, recs }). Kept in sh:cnt for 5 minutes and cleared when a pack is bought,
+ *  so a page view usually costs one GET. Cards still face down in someone's pack already count (not worth the extra reads). */
+const CNT_TTL = 300;
+export async function ownersAll(sh) {
+  const [hit] = await kv(['GET', 'sh:cnt']);
+  if (hit) { try { return JSON.parse(hit); } catch (e) {} }
+  const [bal, packs, names] = await kv(['HKEYS', 'bj:bal'], ['HKEYS', 'sh:packs'], ['HGETALL', 'bj:name']);
+  const uids = [...new Set([...(bal || []), ...(packs || [])])];
+  const res = uids.length ? await kv(...uids.flatMap(u => [['HGETALL', 'sh:own:' + u], ['HGETALL', 'ac:own:' + u]])) : [];
+  const own = {}, people = {}, add = (id, u) => { if (!itemFor(id)) return; const l = own[id] ||= []; if (!l.includes(u)) l.push(u); };
+  for (let k = 0; k < (names || []).length; k += 2) people[names[k]] = names[k + 1];
+  uids.forEach((u, j) => {
+    const o = hashObj(res[2 * j]);
+    for (const [id, n] of Object.entries(o)) if (n > 0) add(id, u);
+    for (const id of earnedIds(u, res[2 * j + 1])) add(id, u);
+  });
+  if (sh && sh.ids && sh.recs) for (const [name, ids] of Object.entries(championsFrom(sh.recs))) {
+    const u = sh.ids[name]; if (!u) continue; if (!people[u]) people[u] = name; ids.forEach(id => add(id, u));
+  }
+  const holders = new Set(Object.values(own).flat());
+  for (const u of Object.keys(people)) if (!holders.has(u)) delete people[u];
+  const body = { own, people, n: holders.size };
+  await kv(['SET', 'sh:cnt', JSON.stringify(body), 'EX', CNT_TTL]).catch(() => {});
+  return body;
+}
+
 /** buys one pack: { pack, bal, owned } or { err } / { busy }. me = { id, name, src? } */
 export async function buyPack(me) {
   if (!(await lock(me.id))) return { busy: true };
@@ -95,9 +124,9 @@ export async function buyPack(me) {
     const back = cards.reduce((s, [id, dup]) => s + (dup ? REFUND[BY_ID[id].tier] : 0), 0);
     const pack = { id: randomBytes(6).toString('hex'), uid: me.id, name: me.name, d: PACKS[randomInt(PACKS.length)].id, cards, f: [0, 0, 0], torn: false, back, at: Date.now() };
     const res = await kv(...cards.map(([id]) => ['HINCRBY', 'sh:own:' + me.id, id, 1]),
-      ['HINCRBYFLOAT', 'bj:bal', me.id, back], ['HINCRBY', 'sh:packs', me.id, 1], ['HSET', 'bj:name', me.id, me.name], ['HLEN', 'sh:own:' + me.id],
+      ['HINCRBYFLOAT', 'bj:bal', me.id, back], ['HINCRBY', 'sh:packs', me.id, 1], ['DEL', 'sh:cnt'], ['HSET', 'bj:name', me.id, me.name], ['HLEN', 'sh:own:' + me.id],
       ...feedCmds(me, 'study cards', back - PRICE));
-    pack.bal = +res[3]; pack.owned = +res[6];
+    pack.bal = +res[3]; pack.owned = +res[7];
     await kv(savePack(pack), ['SADD', 'sh:open:' + me.id, pack.id]);
     return { pack, bal: pack.bal, owned: pack.owned };
   } finally { await unlock(me.id); }
@@ -299,7 +328,11 @@ export async function shopWeb(req, me, sheet, out) {
     // by Discord id too, for lists keyed by id (the casino chip leaders, which include people not on the sheet)
     for (const [id, eq] of Object.entries(all)) if (eq && Object.keys(eq).length) byId[id] = eq;
     const body = { price: PRICE, byName, byId, me: null };
-    if (me) { const L = await loadout(me.id); body.me = { id: me.id, name: me.name, ...L, open: L.open ? sitePack(L.open) : null, champs: champsFor(me.id, sh) || [] }; }
+    if (me) {
+      const [L, O] = await Promise.all([loadout(me.id), ownersAll(sh).catch(e => { console.error('owners', e); return null; })]);
+      body.me = { id: me.id, name: me.name, ...L, open: L.open ? sitePack(L.open) : null, champs: champsFor(me.id, sh) || [] };
+      body.owners = O; // who has each cosmetic (the count tag on the loadout)
+    }
     return out(body);
   }
   if (!me) return out({ err: 'Sign in first.', signedOut: true }, 401);

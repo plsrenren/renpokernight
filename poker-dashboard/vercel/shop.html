@@ -792,6 +792,27 @@ a { color: inherit; }
 /* phones: the chips box gets its own full-width row so it never pushes past the screen edge */
 @media (max-width: 520px) { .hside { flex-wrap: wrap; } .hside .bal { width: 100%; min-width: 0; } .hside .bal span { flex: 1; min-width: 0; } .hside .bal b { font-size: 34px; } }
 @media (max-width: 640px) { .brand .lg { width: 74px; height: 64px; background-size: 46px, auto; } }
+/* how many people have each cosmetic: a tag in the tile corner (gold "Only you" when nobody else does); tap it for who */
+.own-a{position:absolute;top:6px;right:6px;z-index:6;display:inline-flex;align-items:center;gap:3px;font-family:'Bebas Neue',Impact,sans-serif;font-size:14px;line-height:1;letter-spacing:.04em;background:rgba(0,0,0,.66);color:#fff;padding:3px 6px 1px;cursor:pointer}
+.own-a svg{width:11px;height:11px;margin-top:-2px;fill:currentColor}
+.own-a.solo{background:var(--gold);color:#15132a}
+.own-a:hover{outline:1.5px solid #fff}
+.srt{display:flex;align-items:center;gap:6px;margin:-6px 0 12px;font-family:'Space Grotesk',system-ui,sans-serif;font-size:12.5px;color:var(--muted)}
+.srt button{font-family:'Bebas Neue',Impact,sans-serif;font-size:15px;letter-spacing:.06em;padding:4px 10px 2px;background:var(--panel2);color:var(--muted)}
+.srt button[aria-pressed="true"]{background:#3a3566;color:#fff}
+.whobg{position:fixed;inset:0;z-index:80;background:rgba(10,8,24,.6);display:flex;align-items:center;justify-content:center;padding:16px}
+.whobox{width:min(360px,100%);max-height:80vh;overflow:auto;background:#1d1a37;border-top:5px solid var(--c,#f0c75e);padding:16px 18px 18px;box-shadow:0 20px 50px rgba(0,0,0,.6)}
+.whobox h3{margin:0;font:400 28px/1 'Bebas Neue',Impact,sans-serif;letter-spacing:.04em;color:#fff}
+.whobox p{margin:4px 0 12px;font:500 13px/1.4 'Space Grotesk',system-ui,sans-serif;color:#a9a3cf}
+.whobox ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.whobox li{display:flex;align-items:center;gap:10px;background:#24204a;padding:6px 10px 6px 6px;font:500 14px 'Space Grotesk',system-ui,sans-serif;color:#ece9ff}
+.whobox li .pfp{width:30px;height:30px;flex:none;object-fit:cover}
+.whobox li .pfp-ini{display:grid;place-items:center;font:800 12px/1 Nunito,sans-serif}
+.whobox li span.n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.whobox li small{font:400 13px/1 'Bebas Neue',Impact,sans-serif;letter-spacing:.08em;padding:3px 6px 1px;background:var(--gold);color:#15132a}
+.whobox li small.you{background:#3a3566;color:#fff}
+.whobox .x{margin-top:14px;width:100%;font:400 18px/1 'Bebas Neue',Impact,sans-serif;letter-spacing:.08em;padding:9px 0 6px;background:#2a2550;color:#fff}
+@media (max-width:640px){.whobg{align-items:flex-end;padding:0}.whobox{width:100%;max-height:70vh;padding-bottom:calc(18px + env(safe-area-inset-bottom))}}
 </style>
 <link rel="stylesheet" href="/cosmetics.css">
 </head>
@@ -809,7 +830,7 @@ a { color: inherit; }
     <div class="rcol">
       <div id="ps"><div class="pstage" id="pstage"><div id="packslot"></div><div class="row" id="row"></div></div><div class="pbar" id="bar"></div></div>
       <div class="odds2" id="odds"></div>
-      <div class="lo" id="lo"><div class="slots" id="slots"></div><div class="items" id="items"></div></div>
+      <div class="lo" id="lo"><div class="slots" id="slots"></div><div class="srt hidden" id="srt">Sort <button data-s="rarity">Rarity</button><button data-s="few">Fewest owners</button></div><div class="items" id="items"></div></div>
     </div>
   </div>
 </div>
@@ -832,6 +853,8 @@ const ERRS = { cancelled: 'Sign-in was cancelled.', expired: 'That sign-in link 
 let ME = null;            // { id, name, owned: {itemId: n}, eq: {slot: itemId}, bal, packs } from /api/shop
 let IDS = {}, RECS = [];  // Members tab IDs, game rows
 let tab = 'Title', shownBal = null;
+let OWN = null, WEAR = {}; // who has each cosmetic ({ own: {item id: [user ids]}, people: {id: name}, n }) and what everyone has on (byId)
+let SORT = 'rarity'; try { if (localStorage.getItem('study-own-sort') === 'few') SORT = 'few'; } catch (e) {}
 // champion borders are earned from the Hall of Fame (ME.champs, worked out by the server), never bought
 const champs = () => ME ? (ME.champs || []).map(itemFor).filter(Boolean) : [];
 // casino accolades (titles, borders, a sticker) are earned by playing (ME.earned, from the server), never bought
@@ -923,6 +946,31 @@ function swatch(it) {
   if (it.slot === 'Sticker') return `<div class="stsw">${STICKERS[it.name] || ''}</div>`;
   return `<div class="ovsw"><div class="ovr ${ovc(it)}"><div class="o"><b style="font-size:22px">80</b></div><div class="s"><b style="font-size:15px">+$75</b></div></div></div>`;
 }
+// the people who have an item: the server's list (up to 5 minutes old) plus you, so a card you just pulled counts straight away
+const ownersOf = it => { const l = OWN ? [...(OWN.own[it.id] || [])] : []; if (ME && !l.includes(ME.id)) l.unshift(ME.id); else if (ME) { l.splice(l.indexOf(ME.id), 1); l.unshift(ME.id); } return l; };
+const PERSON = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="4.6" r="3.2"/><path d="M1.6 15.4c0-3.6 2.9-6 6.4-6s6.4 2.4 6.4 6z"/></svg>';
+function ownTag(it) {
+  if (!OWN) return '';
+  const n = ownersOf(it).length;
+  return n <= 1 ? `<span class="own-a solo" data-who="${esc(it.id)}" title="Only you have this">ONLY YOU</span>`
+    : `<span class="own-a" data-who="${esc(it.id)}" title="${n} people have this. Tap to see who">${PERSON}${n}</span>`;
+}
+function openWho(id) {
+  const it = itemFor(id); if (!it || !OWN) return;
+  const l = ownersOf(it), n = l.length, wears = u => (u === ME.id ? ME.eq : WEAR[u] || {})[it.slot] === it.id;
+  const name = u => u === ME.id ? ME.name : OWN.people[u] || 'Someone', w = l.filter(wears).length;
+  const bg = document.createElement('div'); bg.className = 'whobg';
+  bg.innerHTML = `<div class="whobox" style="--c:${TCOL[it.tier] || '#f0c75e'}" role="dialog" aria-label="Who has ${esc(it.name)}"><h3>${esc(it.name)}</h3>
+    <p>${n <= 1 ? 'Only you have this one.' : `${n} of the ${Math.max(n, OWN.n)} people with cosmetics have it${w ? `, ${w} wearing it` : ''}.`}</p>
+    <ul>${l.map(u => `<li>${pic(u, name(u))}<span class="n">${esc(name(u))}</span>${u === ME.id ? '<small class="you">YOU</small>' : ''}${wears(u) ? '<small>WEARING</small>' : ''}</li>`).join('')}</ul>
+    <button class="x">Close</button></div>`;
+  bg.onclick = e => { if (e.target === bg || e.target.classList.contains('x')) bg.remove(); };
+  document.body.appendChild(bg); bg.querySelector('.x').focus();
+}
+// the tag sits inside the tile button: catch the tap first so it opens the list instead of equipping
+document.addEventListener('click', e => { const w = e.target.closest && e.target.closest('[data-who]'); if (w) { e.stopPropagation(); e.preventDefault(); openWho(w.dataset.who); } }, true);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.whobg').forEach(b => b.remove()); });
+$('srt').querySelectorAll('button').forEach(b => b.onclick = () => { SORT = b.dataset.s; try { localStorage.setItem('study-own-sort', SORT); } catch (e) {} renderLoadout(); });
 function renderTop() {
   const me = $('me'), bb = $('balbox');
   if (!ME) { me.classList.add('hidden'); bb.classList.add('hidden'); return; }
@@ -946,11 +994,13 @@ function renderLoadout() {
   $('lo').classList.remove('hidden');
   $('slots').innerHTML = SLOT_NAMES.map(s => `<button aria-pressed="${s === tab}" data-s="${s}">${s}<small>${owned(s).filter(i => i.tier !== 'Champion' && i.tier !== 'Earned').length}/${ITEMS.filter(i => i.slot === s).length}</small></button>`).join('');
   $('slots').querySelectorAll('button').forEach(b => b.onclick = () => { tab = b.dataset.s; renderLoadout(); });
-  const list = owned(tab).sort((a, b) => tierRank(b.tier) - tierRank(a.tier) || a.name.localeCompare(b.name));
+  const list = owned(tab).sort((a, b) => (SORT === 'few' && OWN ? ownersOf(a).length - ownersOf(b).length : 0) || tierRank(b.tier) - tierRank(a.tier) || a.name.localeCompare(b.name));
+  $('srt').classList.toggle('hidden', !OWN || !list.length);
+  $('srt').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.s === SORT));
   if (!list.length) { $('items').innerHTML = `<p class="empty">No ${tab === 'Title' ? 'titles' : tab.toLowerCase() + 's'} yet. Open a pack.</p>`; return; }
   const none = `<button class="ti ${!ME.eq[tab] ? 'eq' : ''}" style="--c:#6f6996" data-n="" aria-pressed="${!ME.eq[tab]}"><div class="sw" style="color:var(--muted);font-size:13px">Default</div><div class="nm2">None</div><div class="rr w">Default look</div></button>`;
   morph($('items'), none + list.map(it => { const c = ME.owned[it.id], on = ME.eq[tab] === it.id;
-    return `<button class="ti ${on ? 'eq' : ''}" style="--c:${TCOL[it.tier]}" data-n="${esc(it.id)}" aria-pressed="${on}" title="${esc(it.why ? it.name + ': ' + it.why : it.tier + ' ' + it.slot.toLowerCase())}">${c > 1 ? `<span class="cnt">x${c}</span>` : ''}<div class="sw">${swatch(it)}</div><div class="nm2">${esc(it.name)}</div><div class="rr${it.why ? ' w' : ''}">${esc(it.why || it.tier)}</div></button>`; }).join(''));
+    return `<button class="ti ${on ? 'eq' : ''}" style="--c:${TCOL[it.tier]}" data-n="${esc(it.id)}" aria-pressed="${on}" title="${esc(it.why ? it.name + ': ' + it.why : it.tier + ' ' + it.slot.toLowerCase())}">${c > 1 ? `<span class="cnt">x${c}</span>` : ''}${ownTag(it)}<div class="sw">${swatch(it)}</div><div class="nm2">${esc(it.name)}</div><div class="rr${it.why ? ' w' : ''}">${esc(it.why || it.tier)}</div></button>`; }).join(''));
   $('items').querySelectorAll('button.ti').forEach(b => b.onclick = () => setEq(tab, b.dataset.n || null));
   fitText('#items .nm2,#items .ttlsw');
 }
@@ -1084,7 +1134,7 @@ const [j, csv, mem] = await Promise.all([api().catch(() => ({ err: "Couldn't rea
 try { RECS = csv ? gameRecords(csv) : []; } catch (e) { RECS = []; }
 try { IDS = mem ? memberIds(mem) : {}; } catch (e) { IDS = {}; }
 if (j.err && !qerr) note(j.err);
-ME = j.me || null;
+ME = j.me || null; OWN = j.owners || null; WEAR = j.byId || {};
 renderAll();
 if (ME && ME.open) resume(ME.open);
 </script>
