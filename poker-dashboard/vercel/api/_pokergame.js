@@ -112,7 +112,7 @@ export function startHand(T, now) {
   });
   const ok = (s) => s && !s.out && s.stack > 0;
   const live = T.seats.filter(ok);
-  T.res = null; T.board = []; T.pot = 0;
+  T.res = null; T.board = []; T.pot = 0; T.rabbit = null; T.rabbitBy = '';
   if (live.length < 2) { T.phase = 'idle'; T.toAct = -1; T.nextAt = 0; return; }
   if (T.nitNext) { T.nit = { amt: T.nitNext.amt, need: T.seats.filter(s => s && !s.left).map(s => s.id) }; T.nitNext = null; log(T, `Nit game on: the last player to win a pot pays everyone ${$(T.nit.amt)}`); }
   T.hand++; T.hid = Math.random().toString(36).slice(2, 10);
@@ -224,9 +224,27 @@ function winUncontested(T, now) {
   const w = alive(T)[0], amt = potTotal(T);
   T.seats.forEach(s => { if (s) s.bet = 0; }); T.pot = 0;
   w.stack += amt; w.last = 'Wins';
-  T.res = { banner: `${w.name} takes ${$(amt)}`, sub: 'Everyone else folded', hl: [], win: [T.seats.indexOf(w)] };
+  T.res = { banner: `${w.name} takes ${$(amt)}`, sub: 'Everyone else folded', hl: [], win: [T.seats.indexOf(w)], fold: true };
   log(T, `${w.name} takes ${$(amt)}`);
-  finish(T, now, 3500);
+  // rabbit hunt: the board that would have come, dealt the normal way (burn + card) from what's left; only shown if someone asks
+  if (T.board.length < 5 && !T.bombHand) { const d = T.deck.slice(), r = []; let n = T.board.length; while (n < 5) { d.pop(); if (n === 0) { r.push(d.pop(), d.pop(), d.pop()); n = 3; } else { r.push(d.pop()); n++; } } T.rabbit = r; }
+  finish(T, now, 4500);
+}
+/** After everyone folded to you: turn your cards up for the table (you won, so you choose; mucking = doing nothing). */
+export function showCards(T, i, now) {
+  const s = T.seats[i];
+  if (T.phase !== 'done' || !T.res || !T.res.fold || !s || !T.res.win.includes(i)) return 'Nothing to show right now.';
+  if (s.show) return;
+  s.show = true; log(T, `${s.name} shows ${s.cards.map(cardText).join(' ')}`);
+  T.nextAt = Math.max(T.nextAt, now + 3000);
+}
+/** Rabbit hunt: anyone who was dealt in can turn up the board that never came (once per hand, for everyone). */
+export function rabbitHunt(T, i, now) {
+  const s = T.seats[i];
+  if (T.phase !== 'done' || !T.rabbit || !s || !s.cards.length) return 'No rabbit to hunt this hand.';
+  if (T.rabbitBy) return;
+  T.rabbitBy = s.name; log(T, `${s.name} rabbit hunts: ${T.rabbit.map(cardText).join(' ')}`);
+  T.nextAt = Math.max(T.nextAt, now + 3500);
 }
 function showdown(T, now) {
   const live = alive(T);
@@ -401,6 +419,7 @@ export function publicView(T, t = Date.now()) {
   return {
     v: T.v, now: t, open: T.open, cfg: T.cfg, hand: T.hand, hid: T.hid, button: T.button, board: T.board, pot: T.pot, curBet: T.curBet, minRaise: T.minRaise,
     toAct: T.toAct, street: T.street, phase: T.phase, runout: !!T.runout, bomb: T.bomb || 0, bombHand: !!T.bombHand, nit: T.nit || null, nitNext: T.nitNext || null, deadline: T.deadline, nextAt: T.nextAt, pauseReq: T.pauseReq, closeReq: T.closeReq, res: T.res, log: T.log.slice(-30),
+    canRabbit: !!T.rabbit && !T.rabbitBy, rabbit: T.rabbitBy ? T.rabbit : null, rabbitBy: T.rabbitBy || '',
     seats: T.seats.map(s => s && { id: s.id, name: s.name, bot: !!s.bot, test: !!s.test, free: !!s.free, stack: s.stack, pend: s.pend || 0, bet: s.bet, last: s.last, folded: s.folded, allIn: s.allIn, out: s.out, left: !!s.left,
       dealt: inHand(s), cards: s.show ? s.cards : undefined }),
   };

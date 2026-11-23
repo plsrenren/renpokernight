@@ -69,6 +69,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .tbar .info { font: 400 20px var(--title); letter-spacing: .06em; color: var(--soft); margin-right: auto; white-space: nowrap; }
 .tbar .info b { color: var(--gold); font-weight: 400; }
 .tbtns { display: flex; gap: 8px; align-items: center; }
+.cbtn.unit { display: inline-flex; gap: 0; padding-left: 4px; padding-right: 8px; } .cbtn.unit span { padding: 0 5px; opacity: .45; } .cbtn.unit span.on { opacity: 1; color: var(--gold, #f2c14e); }
 .live { font: 600 10.5px var(--mono); padding: 2px 6px; background: var(--panel2); color: var(--muted); vertical-align: middle; margin-left: 6px; letter-spacing: 0; }
 .live.on { background: rgba(142,224,176,.18); color: var(--up); }
 .game { display: grid; gap: 16px; margin-top: 12px; }
@@ -174,6 +175,14 @@ body.room .wrap { max-width: none; }
 .wait { font: 400 22px var(--title); letter-spacing: .05em; color: var(--soft); }
 .wait small { display: block; font: 500 12px var(--body); color: var(--muted); letter-spacing: 0; margin-top: 4px; }
 .wait .cbtn { margin-top: 8px; }
+.wait.sm { font-size: 16px; }
+.endb { display: flex; gap: 8px; } .btns.endb .cbtn { flex: 0 0 auto; padding-left: 22px; padding-right: 26px; }
+.cd.rab { opacity: .55; filter: grayscale(.35); outline: 1px dashed rgba(255,255,255,.45); outline-offset: 2px; }
+.prea { display: flex; gap: 6px; flex-wrap: wrap; }
+.prea button { display: flex; align-items: center; gap: 7px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.18); color: var(--soft); font: 600 13px var(--body); padding: 8px 11px; cursor: pointer; }
+.prea button::before { content: ""; width: 12px; height: 12px; border: 1.5px solid currentColor; flex: none; }
+.prea button.on { border-color: var(--gold); color: #fff; background: rgba(240,192,64,.14); }
+.prea button.on::before { background: var(--gold); border-color: var(--gold); box-shadow: inset 0 0 0 2px var(--ink); }
 .err { color: var(--down); font-size: 13px; }
 
 .side { display: grid; gap: 16px; min-width: 0; }
@@ -287,6 +296,10 @@ details.fold > summary + * { margin-top: 10px; }
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const money = n => '$' + (Math.round(n * 100) / 100).toLocaleString('en-US');
+// $ / BB switch (table bar): amounts ON the table (stacks, bets, pot, action buttons, results, hand log) can show in big blinds; remembered per browser
+let unitBB = false; try { unitBB = localStorage.getItem('pk:unit') === 'bb'; } catch (e) {}
+const chip = n => { const bb = S && S.table && S.table.cfg.bb; return unitBB && bb ? (Math.round(n / bb * 10) / 10).toLocaleString('en-US') + ' BB' : money(n); };
+const chipText = x => unitBB ? String(x).replace(/\$(\d[\d,]*(?:\.\d+)?)/g, (_, d) => chip(+d.replace(/,/g, ''))) : x;
 const hue = n => [...String(n)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
 const initials = n => String(n).split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
 const av = (id, name) => `<span class="av" style="--h:${hue(name)}">${esc(initials(name))}${id && !String(id).startsWith('bot:') ? `<img src="/api/avatar?id=${esc(id)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
@@ -356,7 +369,18 @@ function needCards() {
   cardsReq = t.hid;
   api().catch(() => {}).finally(() => { if (cardsReq === t.hid) cardsReq = ''; if (cardsFor !== t.hid && S.table.hid === t.hid) setTimeout(needCards, 600); });
 }
-function after() { render(); scheduleTick(); }
+function after() { runPre(); render(); scheduleTick(); }
+// ---------- pre-actions: a box ticked while waiting plays itself when the turn comes; it clears on a new street or hand,
+// and "Check" / "Call $X" also clears if the bet changes before your turn ----------
+let preAct = null;
+function runPre() {
+  const t = S && S.table, i = mySeat(); if (!preAct) return;
+  const s = t && i >= 0 ? t.seats[i] : null;
+  if (!s || t.phase !== 'hand' || t.hid !== preAct.hid || t.street !== preAct.street || s.folded || s.allIn || (preAct.k === 'chk' && t.curBet !== preAct.bet)) { preAct = null; return; }
+  if (t.toAct !== i || busy) return;
+  const toCall = t.curBet - s.bet, k = preAct.k; preAct = null;
+  send({ a: 'act', do: toCall > 0 ? (k === 'cf' ? 'fold' : 'call') : 'check', to: 0 });
+}
 
 // ---------- time: whoever is at the table nudges the server when a turn runs out or the next hand is due ----------
 function scheduleTick() {
@@ -419,7 +443,7 @@ function seatHTML(s, i) {
   const b = plateOf(s.id), size = PHONE.matches ? 38 : 48;
   const lastCls = /^Fold/.test(s.last) ? 'fold' : /^All/.test(s.last) ? 'allin' : /^(Raise|Bet)/.test(s.last) ? 'raise' : s.last === 'Wins' ? 'win' : '';
   const left = Math.max(0, (t.deadline - serverNow()) / 1000), dur = t.cfg.turn;
-  const stack = s.left ? 'left' : s.out && !s.stack ? 'out' : money(s.stack) + (s.pend ? '+' : '');
+  const stack = s.left ? 'left' : s.out && !s.stack ? 'out' : chip(s.stack) + (s.pend ? '+' : '');
   return `<div class="${cls}" data-peek="${i}" style="left:${pos.x}%;top:${pos.y}%">
     <div class="st-row"><div class="pfw">${b.face(av(s.id, s.name), size)}${i === t.button && t.hand ? '<i class="dmark">D</i>' : ''}${t.nit && t.nit.need.includes(s.id) ? '<i class="nitmark">NIT</i>' : ''}</div><div class="st-cards">${hc}</div></div>
     <div class="st-name${b.bar ? ' pl-wash' : ''}">${b.bar ? `<span class="pl-bg ${b.bar}" aria-hidden="true"></span>` : ''}<b>${esc(s.name)}</b><span class="sk">${stack}</span></div>${b.sticker ? `<span class="st-stk">${b.sticker}</span>` : ''}
@@ -437,18 +461,18 @@ function stacksHTML(a, cols = 2) {
 }
 const betKind = last => /^(Raise|Bet)/.test(last || '') ? 'raise' : /^All/.test(last || '') ? 'allin' : /^Call/.test(last || '') ? 'call' : 'blind';
 const BETTY = /^(SB|BB|Straddle|Bomb|Call|Raise|Bet|All in)/;
-const betInner = (amt, last) => { const l = BETTY.test(last || '') ? String(last).replace(/\s*\$.*/, '') : ''; return `<span class="stks">${stacksHTML(amt)}</span><span class="tag">${l ? `<span>${esc(l)}</span>` : ''}<b>${money(amt)}</b></span>`; };
+const betInner = (amt, last) => { const l = BETTY.test(last || '') ? String(last).replace(/\s*\$.*/, '') : ''; return `<span class="stks">${stacksHTML(amt)}</span><span class="tag">${l ? `<span>${esc(l)}</span>` : ''}<b>${chip(amt)}</b></span>`; };
 function tableHTML() {
   const t = T();
   const bets = t.seats.map((s, i) => s && s.bet > 0 ? `<div class="bet ${betKind(s.last)}" style="left:${toward(seatPos(i), .54).x}%;top:${toward(seatPos(i), .54).y}%">${betInner(s.bet, s.last)}</div>` : '').join('');
   const dp = t.button >= 0 && t.hand ? toward(seatPos(t.button), .8) : null;
   const hl = t.res && t.res.hl || [];
-  const board = Array.from({ length: 5 }, (_, k) => { const c = t.board[k]; return card(c, '', c && hl.length ? (hl.includes(c) ? 'hl' : 'dim') : ''); }).join('');
+  const board = Array.from({ length: 5 }, (_, k) => { const c = t.board[k], rb = !c && t.rabbit ? t.rabbit[k - t.board.length] : null; return rb ? card(rb, '', 'rab') : card(c, '', c && hl.length ? (hl.includes(c) ? 'hl' : 'dim') : ''); }).join('');
   const pot = t.pot + t.seats.reduce((a, s) => a + (s ? s.bet : 0), 0);
-  const top = t.allinShow ? '<div class="banner allin">All in</div>' : t.phase === 'paused' ? '<div class="banner">Paused by the host</div>' : t.res ? `<div class="banner">${esc(t.res.banner)}</div>`
-    : t.phase === 'idle' ? `<div class="banner sub">Waiting for players</div>` : `<div class="pot">${t.bombHand ? 'Bomb pot' : 'Pot'} ${money(pot)}</div>`;
+  const top = t.allinShow ? '<div class="banner allin">All in</div>' : t.phase === 'paused' ? '<div class="banner">Paused by the host</div>' : t.res ? `<div class="banner">${esc(chipText(t.res.banner))}</div>`
+    : t.phase === 'idle' ? `<div class="banner sub">Waiting for players</div>` : `<div class="pot">${t.bombHand ? 'Bomb pot' : 'Pot'} ${chip(pot)}</div>`;
   return `<div class="felt"><div class="oval"></div>${dp ? `<div class="dbtn2" style="left:${dp.x - 7}%;top:${dp.y}%">D</div>` : ''}${bets}
-    <div class="center"><div class="crow">${top}</div><div class="bd5">${board}</div><div class="crow">${t.res && t.res.sub ? `<div class="banner sub">${esc(t.res.sub)}</div>` : ''}</div></div>
+    <div class="center"><div class="crow">${top}</div><div class="bd5">${board}</div><div class="crow">${t.rabbit ? `<div class="banner sub rabt">Rabbit hunt by ${esc(t.rabbitBy)}</div>` : t.res && t.res.sub ? `<div class="banner sub">${esc(chipText(t.res.sub))}</div>` : ''}</div></div>
     ${t.seats.map(seatHTML).join('')}</div>`;
 }
 function actHTML() {
@@ -470,24 +494,36 @@ function actHTML() {
     const pre = f => Math.min(maxTo, Math.max(minTo, Math.round(t.curBet + f * (pot + toCall))));
     right = `<div class="ctrls">
       ${canRaise ? `<div class="presets">${t.street === 'pre' && t.curBet <= t.cfg.bb ? `<button data-to="${Math.min(maxTo, 3 * t.cfg.bb)}">3 BB</button><button data-to="${Math.min(maxTo, 4 * t.cfg.bb)}">4 BB</button>` : `<button data-to="${pre(.5)}">½ pot</button><button data-to="${pre(.75)}">¾ pot</button>`}<button data-to="${pre(1)}">Pot</button><button data-to="${maxTo}">All in</button></div>
-      <div class="slide"><input type="range" id="raise" min="${minTo}" max="${maxTo}" step="1" value="${minTo}" aria-label="Raise amount"><output id="raiseOut">${money(minTo)}</output></div>` : ''}
+      <div class="slide"><input type="range" id="raise" min="${minTo}" max="${maxTo}" step="1" value="${minTo}" aria-label="Raise amount"><output id="raiseOut">${chip(minTo)}</output></div>` : ''}
       <div class="btns"><button class="cbtn ghost" data-act="fold">Fold</button>
-        <button class="cbtn up" data-act="${toCall > 0 ? 'call' : 'check'}">${toCall > 0 ? (toCall >= s.stack ? 'Call all in' : 'Call ' + money(toCall)) : 'Check'}</button>
-        <button class="cbtn" data-act="raise" id="raiseBtn" ${canRaise ? '' : 'disabled'}>${minTo >= maxTo ? 'All in' : (t.curBet === 0 ? 'Bet ' : 'Raise ') + money(minTo)}</button></div>
+        <button class="cbtn up" data-act="${toCall > 0 ? 'call' : 'check'}">${toCall > 0 ? (toCall >= s.stack ? 'Call all in' : 'Call ' + chip(toCall)) : 'Check'}</button>
+        <button class="cbtn" data-act="raise" id="raiseBtn" ${canRaise ? '' : 'disabled'}>${minTo >= maxTo ? 'All in' : (t.curBet === 0 ? 'Bet ' : 'Raise ') + chip(minTo)}</button></div>
 </div>`;
   } else {
     const who = t.phase === 'hand' && t.toAct >= 0 && t.seats[t.toAct] ? t.seats[t.toAct].name : '';
+    if (t.phase === 'hand' && !t.allinShow && s.dealt && !s.folded && !s.allIn && who) { // pre-action boxes (2B): pick now, it plays when your turn comes
+      const toCall = t.curBet - s.bet, on = k => preAct && preAct.k === k ? ' on' : '';
+      right = `<div class="ctrls"><div class="wait sm">Waiting on ${esc(who)}</div><div class="prea">
+        <button data-pre="cf" class="${on('cf')}">${toCall > 0 ? 'Fold' : 'Check / Fold'}</button>
+        <button data-pre="chk" class="${on('chk')}">${toCall > 0 ? (toCall >= s.stack ? 'Call all in' : 'Call ' + chip(toCall)) : 'Check'}</button>
+        <button data-pre="any" class="${on('any')}">Call any</button></div></div>`;
+      return `<div class="actbar">${mine}${right}</div>`;
+    }
+    if (t.phase === 'done' && s.dealt && res && res.fold) { // 7A show or muck (winner) + 7B rabbit hunt (anyone dealt in)
+      const canShow = win && !s.cards, btns = (canShow ? `<button class="cbtn up sm" data-a="show">Show cards</button>` : '') + (t.canRabbit ? `<button class="cbtn ghost sm" data-a="rabbit">Rabbit hunt</button>` : '');
+      if (btns) return `<div class="actbar">${mine}<div class="ctrls"><div class="wait sm">${canShow ? 'Everyone folded. Show or muck?' : 'Next hand coming up'}${canShow ? '<small>Do nothing to muck</small>' : ''}</div><div class="btns endb">${btns}</div></div></div>`;
+    }
     right = `<div class="wait">${t.allinShow ? 'All in' : t.phase === 'paused' ? 'Paused' : who ? `Waiting on ${esc(who)}` : t.phase === 'done' ? 'Next hand coming up' : 'Waiting for players'}</div>`;
   }
   return `<div class="actbar">${mine}${right}</div>`;
 }
-const logHTML = t => `<div class="panel pop" id="pop"><div class="hlog">${t.log.map(l => /^Hand #/.test(l) ? `<div class="h">${esc(l)}</div>` : `<div>${esc(l)}</div>`).join('')}</div></div>`;
+const logHTML = t => `<div class="panel pop" id="pop"><div class="hlog">${t.log.map(l => /^Hand #/.test(l) ? `<div class="h">${esc(l)}</div>` : `<div>${esc(chipText(l))}</div>`).join('')}</div></div>`;
 /** the buttons at the top right (Hand log, House rules, and Host for hosts); each drops down its panel, one at a time */
 function popBar(t) {
   const btn = (k, label, cls = 'ghost') => `<button class="cbtn sm popbtn ${cls} ${pop === k ? 'on' : ''}" data-pop="${k}" aria-expanded="${pop === k}">${label} ${pop === k ? '▴' : '▾'}</button>`;
   const host = S.me && S.me.host;
   const panel = pop === 'log' ? logHTML(t) : pop === 'rules' ? `<div class="panel pop" id="pop">${rulesHTML(t.cfg)}</div>` : pop === 'host' && host ? hostHTML() : '';
-  return `<span class="popbar">${btn('log', '<span class="wide">Hand </span>log')}${btn('rules', 'Rules')}${host ? btn('host', 'Host', 'hostbtn') : ''}</span>${panel}`;
+  return `<span class="popbar">${btn('log', '<span class="wide">Hand </span>log')}${btn('rules', 'Rules')}${host ? btn('host', 'Host', 'hostbtn') : ''}<button class="cbtn sm ghost unit" data-unit title="Show amounts in dollars or big blinds"><span class="${unitBB ? '' : 'on'}">$</span><span class="${unitBB ? 'on' : ''}">BB</span></button></span>${panel}`;
 }
 function rulesHTML(c) {
   return `<ul class="rules"><li>No-limit Texas Hold'em, blinds ${money(c.sb)}/${money(c.bb)}.</li><li>Buy in for ${money(c.min)} to ${money(c.max)} in casino chips. They go back when you leave.</li>
@@ -636,7 +672,7 @@ function fxAfter(t) {
         if (el < 650) { const c = document.createElement('div'); c.className = 'potfly'; c.innerHTML = '<span class="pchip"></span><span class="pchip"></span><span class="pchip"></span>'; c.style.left = src.x + 'px'; c.style.top = src.y + 'px'; felt.appendChild(c);
           play(c, [{ transform: 'translate(-50%,-50%) scale(1.2)', opacity: 1 }, { transform: `translate(calc(-50% + ${p.x - src.x}px), calc(-50% + ${p.y - src.y}px)) scale(.8)`, opacity: .9 }], 600, winFx.start, { easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'forwards' }).finished.then(() => c.remove()).catch(() => {}); }
         const sk = st.querySelector('.sk'), from = winFx.from[s.id], to = s.stack; if (!sk || from === undefined || from === to) return;
-        const tick = () => { const q = Math.min(1, Math.max(0, (nowMs() - winFx.start - 600) / 650)); if (!sk.isConnected) return; sk.textContent = money(Math.round(from + (to - from) * q)); if (q < 1) requestAnimationFrame(tick); };
+        const tick = () => { const q = Math.min(1, Math.max(0, (nowMs() - winFx.start - 600) / 650)); if (!sk.isConnected) return; sk.textContent = chip(Math.round(from + (to - from) * q)); if (q < 1) requestAnimationFrame(tick); };
         tick(); });
     }
   }
@@ -703,7 +739,7 @@ function draw() {
   const r = $('#raise');
   if (r) {
     if (raiseKeep.k === turnKey(t)) r.value = raiseKeep.v;
-    const show = () => { raiseKeep = { k: turnKey(T()), v: +r.value }; $('#raiseOut').textContent = money(+r.value); const s2 = T().seats[mySeat()]; $('#raiseBtn').textContent = +r.value >= s2.bet + s2.stack ? 'All in ' + money(+r.value) : (T().curBet === 0 ? 'Bet ' : 'Raise ') + money(+r.value); };
+    const show = () => { raiseKeep = { k: turnKey(T()), v: +r.value }; $('#raiseOut').textContent = chip(+r.value); const s2 = T().seats[mySeat()]; $('#raiseBtn').textContent = +r.value >= s2.bet + s2.stack ? 'All in ' + chip(+r.value) : (T().curBet === 0 ? 'Bet ' : 'Raise ') + chip(+r.value); };
     r.addEventListener('input', show); show(); if (raiseFocus) r.focus();
   }
   keepLog();
@@ -743,6 +779,7 @@ async function send(body) {
     else if (body.a === 'sit') toast("You're in. You'll be dealt in next hand.");
   } catch (e) { toast("Couldn't reach the table. Try again.", true); }
   busy = false;
+  runPre(); // a pre-action that came due while this request was out
 }
 
 // ---------- clicks ----------
@@ -757,11 +794,14 @@ document.addEventListener('click', e => {
   if (b.dataset.sit !== undefined) return modal('sit', +b.dataset.sit);
   if (b.dataset.say) return say(b.dataset.say);
   if (b.dataset.to) { const r = $('#raise'); if (r) { r.value = b.dataset.to; r.dispatchEvent(new Event('input')); } return; }
+  if (b.hasAttribute('data-unit')) { unitBB = !unitBB; try { localStorage.setItem('pk:unit', unitBB ? 'bb' : 'usd'); } catch (e) {} return render(); }
+  if (b.dataset.pre) { const t = S.table, k = b.dataset.pre; preAct = preAct && preAct.k === k ? null : { k, bet: t.curBet, hid: t.hid, street: t.street }; return render(); }
   if (b.dataset.act) { const r = $('#raise'); return send({ a: 'act', do: b.dataset.act, to: b.dataset.act === 'raise' ? +(r ? r.value : 0) : 0 }); }
   const a = b.dataset.a;
   if (a === 'top') return modal('top');
   if (a === 'leave') return modal('leave');
   if (a === 'sitout') return send({ a: 'sitout', on: true });
+  if (a === 'show' || a === 'rabbit') return send({ a });
   if (a === 'back') return send({ a: 'sitout', on: false });
   if (b.dataset.seatout !== undefined) return send({ a: 'seatout', seat: +b.dataset.seatout, on: !!b.dataset.on });
   const hx = b.dataset.hx;
