@@ -757,22 +757,26 @@ function tone(f, at, dur, { type = 'sine', vol = .18, to = 0 } = {}) {
   g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + .008); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
   o.connect(g).connect(c.destination); o.start(t0); o.stop(t0 + dur + .02);
 }
-function noise(at, dur, { vol = .2, hp = 1500, lp = 9000 } = {}) {
-  const c = actx, n = Math.floor(c.sampleRate * dur), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
-  for (let k = 0; k < n; k++) d[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / n, 3);
-  const src = c.createBufferSource(), h = c.createBiquadFilter(), l = c.createBiquadFilter(), g = c.createGain(), t0 = c.currentTime + at;
-  src.buffer = buf; h.type = 'highpass'; h.frequency.value = hp; l.type = 'lowpass'; l.frequency.value = lp; g.gain.value = vol;
-  src.connect(h).connect(l).connect(g).connect(c.destination); src.start(t0);
+function noise(at, dur, { vol = .2, hp = 1500, lp = 9000, bp = 0, q = 1, curve = 3 } = {}) {
+  const c = actx, n = Math.max(1, Math.floor(c.sampleRate * dur)), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+  for (let k = 0; k < n; k++) d[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / n, curve);
+  const src = c.createBufferSource(), g = c.createGain(), t0 = c.currentTime + at; src.buffer = buf; g.gain.value = vol;
+  let node = src;
+  if (bp) { const b = c.createBiquadFilter(); b.type = 'bandpass'; b.frequency.value = bp; b.Q.value = q; node.connect(b); node = b; } // bp = one ringing band (clay chip clack)
+  else { const h = c.createBiquadFilter(), l = c.createBiquadFilter(); h.type = 'highpass'; h.frequency.value = hp; l.type = 'lowpass'; l.frequency.value = lp; node.connect(h); h.connect(l); node = l; }
+  node.connect(g).connect(c.destination); src.start(t0);
 }
+const jit = (x, j) => x + (Math.random() - .5) * j;
 const SND = {
   card: (at = 0) => noise(at, .07, { vol: .32, hp: 2200 }),
   flip: (at = 0) => { noise(at, .05, { vol: .28, hp: 1800 }); tone(900, at + .01, .05, { type: 'triangle', vol: .05 }); },
-  chips: (at = 0) => { [0, .045, .1].forEach((d, k) => { tone(2600 + k * 380, at + d, .06, { type: 'triangle', vol: .07 }); noise(at + d, .03, { vol: .12, hp: 4000 }); }); },
+  // "clay clack" (Renato's pick from the sound mockup, option B): n chips knocking together, slightly out of time
+  chips: (at = 0, n = 2) => { for (let k = 0; k < n; k++) { const d = at + k * jit(.055, .03); noise(d, .025, { vol: .55, bp: jit(3300, 500), q: 6, curve: 4 }); noise(d, .05, { vol: .18, bp: jit(5200, 600), q: 14, curve: 2 }); tone(jit(2400, 300), d, .045, { vol: .04 }); } },
   check: (at = 0) => { tone(180, at, .09, { type: 'sine', vol: .3, to: 90 }); tone(180, at + .12, .08, { type: 'sine', vol: .22, to: 90 }); },
   fold: (at = 0) => noise(at, .22, { vol: .16, hp: 600, lp: 3000 }),
   turn: (at = 0) => { tone(660, at, .16, { vol: .14 }); tone(990, at + .14, .26, { vol: .14 }); },
-  win: (at = 0) => { [523, 659, 784, 1047].forEach((f, k) => tone(f, at + k * .09, .3, { type: 'triangle', vol: .12 })); SND.chips(at + .35); SND.chips(at + .5); },
-  pot: (at = 0) => { SND.chips(at); SND.chips(at + .12); },
+  win: (at = 0) => { [523, 659, 784, 1047].forEach((f, k) => tone(f, at + k * .09, .3, { type: 'triangle', vol: .12 })); SND.chips(at + .4, 8); },
+  pot: (at = 0) => SND.chips(at, 10),
 };
 function sounds(t) {
   const prev = sndPrev, i = mySeat();
@@ -782,9 +786,9 @@ function sounds(t) {
   else if (t.hid === prev.hid) {
     for (let k = prev.board; k < t.board.length; k++) SND.flip((k - prev.board) * .14);
     for (let k = prev.b2; k < (t.board2 || []).length; k++) SND.flip((k - prev.b2) * .14);
-    let chip = false, chk = false, fold = false;
-    t.seats.forEach((s, j) => { const q = prev.seats[j]; if (!s || !q || q.id !== s.id) return; if (s.bet > q.bet) chip = true; else if (s.last !== q.last && s.last === 'Check') chk = true; if (s.folded && !q.folded) fold = true; });
-    if (chip) SND.chips(); if (chk) SND.check(); if (fold) SND.fold();
+    let chip = 0, chk = false, fold = false;
+    t.seats.forEach((s, j) => { const q = prev.seats[j]; if (!s || !q || q.id !== s.id) return; if (s.bet > q.bet) chip = Math.max(chip, s.allIn ? 7 : s.bet - q.bet >= 10 * t.cfg.bb ? 5 : 2); else if (s.last !== q.last && s.last === 'Check') chk = true; if (s.folded && !q.folded) fold = true; });
+    if (chip) SND.chips(0, chip); if (chk) SND.check(); if (fold) SND.fold();
     if (t.res && !prev.res) { if (i >= 0 && t.res.win.includes(i)) SND.win(.25); else SND.pot(.25); }
   }
   if (i >= 0 && t.phase === 'hand' && t.toAct === i && (prev.toAct !== i || prev.hid !== t.hid)) SND.turn(.1);
