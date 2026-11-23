@@ -3,6 +3,7 @@
 //
 //   GET  /api/poker            → the table (public), plus for a signed-in person: your seat, your two cards, your chips, host or not
 //   GET  /api/poker?token=1    → Ably token request; guests (not signed in) get listen-only, so watching needs no sign-in
+//   GET  /api/poker?hands=1    → your hand history (signed in): your sessions of the last 90 days + the hands of one (&from=&to= ms, default the latest)
 //   POST /api/poker {a: …}     → token (Ably sign-in for live updates) | sit {seat, amt, gift (take the host's free seat)} | top {amt} | leave | sitout {on}
 //                                | act {do: fold|check|call|raise, to} | tick | host: open {cfg} | close | pause | resume | blinds {sb, bb} | seatout {seat, on} | bomb {x} | straddle {on} | nit {x} | gift {x} (free seat $, 0 = off) | bot {on} (add one test player / remove them all)
 //
@@ -15,6 +16,8 @@
 // Hosts = Renato, server admins and the pitboss role (same people as /house).
 // Free seats (host's gift): only people in the Discord server (checked with the bot, a yes is kept a day in pk:mem:<id>). The house's cost
 // goes in the house books as 'free seat' (hs:all / hs:wk) and the casino feed gets a "free seat" line.
+// Hand histories: every finished hand (_pokergame.js T.rec) is saved once as pk:h:<hand id> (90 days), and each real player dealt in gets it
+// in their own list pk:hp:<id> (sorted set, score = time). Reading gives you back only your own cards plus the ones shown to the table.
 import { createHmac, randomBytes } from 'node:crypto';
 import { kv, takeChips, FEED_KEEP, weekKey } from './_blackjack.js';
 import { postChannel } from './_rewards.js';
@@ -41,9 +44,11 @@ async function change(fn, t = Date.now()) {
     if (r === false) return { T, same: true };
     T.at = t; T.v = was + 1;
     const out = T._out || []; delete T._out;
+    const hands = T._hands || []; delete T._hands;
     const [ok] = await kv(['EVAL', CAS, 2, VER, KEY, String(was), String(T.v), JSON.stringify(T)]);
     if (+ok === 1) {
       if (out.length) await payOut(out).catch(e => console.error('poker payout', e, JSON.stringify(out)));
+      if (hands.length) await saveHands(hands).catch(e => console.error('poker hands', e));
       await publish(T, t);
       return { T, out };
     }
@@ -61,6 +66,39 @@ async function payOut(list) {
   }
   cmds.push(['LTRIM', 'cas:feed', 0, FEED_KEEP - 1]);
   await kv(...cmds);
+}
+
+// ---------- hand histories ----------
+const HAND_DAYS = 90, HAND_MS = HAND_DAYS * 86400e3, SESSION_GAP = 2 * 3600e3, SESSION_MAX = 800;
+export async function saveHands(list) {
+  const cmds = [], ex = HAND_DAYS * 86400;
+  for (const h of list) {
+    const people = h.seats.filter(s => !s.bot);
+    if (!people.length) continue; // bots only: nobody to give it to
+    cmds.push(['SET', 'pk:h:' + h.hid, JSON.stringify(h), 'EX', ex]);
+    for (const s of people) cmds.push(['ZADD', 'pk:hp:' + s.id, h.at, h.hid], ['EXPIRE', 'pk:hp:' + s.id, ex]);
+  }
+  if (cmds.length) await kv(...cmds);
+}
+/** one hand as one player may see it: their own cards, nobody else's (shown cards are in the 'show' events), no ids but theirs */
+export function handFor(h, id) {
+  const me = h.seats.find(s => s.id === id);
+  return { ...h, me: me ? me.i : -1, cards: me && h.cards[me.i] ? { [me.i]: h.cards[me.i] } : {}, seats: h.seats.map(({ id: _, ...s }) => s) };
+}
+/** your sessions (runs of hands with under 2 hours between them, newest first) and the hands of the one asked for */
+export async function myHands(id, from, to, t) {
+  const key = 'pk:hp:' + id;
+  const [, list] = await kv(['ZREMRANGEBYSCORE', key, 0, t - HAND_MS], ['ZRANGE', key, 0, -1, 'WITHSCORES']);
+  const rows = []; for (let k = 0; k + 1 < (list || []).length; k += 2) rows.push([list[k], +list[k + 1]]);
+  const sessions = [];
+  rows.forEach(([hid, at]) => { const s = sessions[sessions.length - 1]; if (s && at - s.to < SESSION_GAP) { s.to = at; s.n++; } else sessions.push({ from: at, to: at, n: 1 }); });
+  sessions.reverse();
+  const pick = from ? sessions.find(s => s.from <= from && from <= s.to) || sessions.find(s => s.from >= from && s.from <= (to || from)) : sessions[0];
+  if (!pick) return { sessions, hands: [] };
+  const ids = rows.filter(([, at]) => at >= pick.from && at <= pick.to).map(([hid]) => hid).slice(-SESSION_MAX);
+  const raw = ids.length ? (await kv(['MGET', ...ids.map(h => 'pk:h:' + h)]))[0] : [];
+  const hands = (raw || []).map(r => { try { return r && handFor(JSON.parse(r), id); } catch (e) { return null; } }).filter(Boolean);
+  return { sessions, session: pick, hands };
 }
 
 // ---------- Ably ----------
@@ -139,6 +177,8 @@ export async function pokerWeb(req, me, _sheet, out) {
   const t = Date.now();
   if (req.method === 'GET') {
     // signing in is optional: anyone can watch, and a guest gets a listen-only live token here
+    const q = new URL(req.url).searchParams;
+    if (q.get('hands')) return me ? out(await myHands(me.id, +q.get('from') || 0, +q.get('to') || 0, t)) : out({ err: 'Sign in to see your hands.' }, 401);
     if (new URL(req.url).searchParams.get('token')) return ablyKey() ? out({ token: tokenRequest(me ? me.id : 'guest-' + randomBytes(6).toString('hex'), !me) }) : out({ err: 'Live updates are not set up.' });
     let T = await load();
     // nobody ticks a room that everyone walked away from; the next visit does (closes it, pays everyone)

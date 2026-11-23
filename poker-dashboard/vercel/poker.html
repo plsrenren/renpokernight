@@ -243,6 +243,65 @@ details.fold > summary + * { margin-top: 10px; }
 .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--up); color: #0e2a1c; font: 700 14px var(--body); padding: 10px 16px; z-index: 70; max-width: calc(100% - 32px); }
 .toast.bad { background: var(--down); color: #3a0d18; }
 
+/* My hands (hand histories, Nov 23 2026: options A + B): your sessions of the last 90 days, a list of your hands, a replayer on a small felt,
+   and downloads for trackers (PokerStars-style text) or easy reading. Text + replay steps come from /pokerhands.js. */
+.hh { position: fixed; inset: 0; z-index: 65; background: rgba(10,9,24,.78); overflow-y: auto; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px)); }
+.hh-box { max-width: 1180px; margin: 0 auto; background: var(--panel); border-left: 6px solid var(--gold); padding: 0 18px 18px; }
+.hh-top { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding-top: 14px; }
+.hh-top h2 { font: 400 40px/.9 var(--title); letter-spacing: .02em; margin: 0; }
+.hh-top .x { margin-left: auto; width: 38px; height: 34px; background: var(--panel2); font: 400 20px var(--title); }
+.hh select { font: 600 13px var(--mono); background: var(--panel2); color: var(--fg); border: 0; padding: 7px 8px; max-width: 100%; }
+.hh-sum { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; margin: 12px 0; color: var(--muted); font-size: 13px; }
+.hh-sum b { font: 400 22px var(--title); letter-spacing: .05em; color: var(--fg); font-weight: 400; }
+.hh-dl { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.hh-grid { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.hh-list { display: grid; gap: 3px; max-height: min(620px, calc(100vh - 230px)); overflow-y: auto; padding-right: 4px; align-content: start; }
+.hh-row { display: grid; grid-template-columns: 44px 54px 44px minmax(0, 1fr) 62px; gap: 8px; align-items: center; padding: 5px 8px; background: var(--panel2); text-align: left; width: 100%; border-left: 3px solid transparent; }
+.hh-row:hover { background: #342e63; } .hh-row.on { border-left-color: var(--gold); background: #3a3370; }
+.hh-row .no { font: 500 11px var(--mono); color: var(--muted); }
+.hh-row .ps { font: 400 15px var(--title); letter-spacing: .08em; color: var(--vio); }
+.hh-row .bd { display: flex; gap: 2px; min-width: 0; overflow: hidden; color: var(--muted); font-size: 11px; }
+.hh-row .nt { text-align: right; }
+.hh .mini { display: flex; gap: 2px; }
+.hh .cd.xs { width: 21px; height: 29px; font-size: 12px; box-shadow: none; } .hh .cd.xs i { font-size: 10px; margin-top: 0; }
+.hh .cd.xxs { width: 16px; height: 22px; font-size: 10px; box-shadow: none; } .hh .cd.xxs i { font-size: 8px; margin-top: 0; }
+.hh .nt, .hh-sum .nt { font: 600 13px var(--mono); font-variant-numeric: tabular-nums; }
+.hh .up { color: var(--up); } .hh .dn { color: var(--down); } .hh .ev { color: var(--muted); }
+.hh-felt { position: relative; aspect-ratio: 16 / 10; width: 100%; }
+.hh-felt .oval { inset: 10% 8%; }
+.hh-seat { position: absolute; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 3px; width: 96px; z-index: 2; }
+.hh-seat .cs { display: flex; min-height: 50px; } .hh-seat .cs .cd + .cd { margin-left: -10px; }
+.hh-seat .cd { width: 36px; height: 50px; font-size: 17px; } .hh-seat .cd i { font-size: 14px; }
+.hh-seat .pl { background: var(--ink); border-left: 3px solid var(--vio); padding: 3px 8px 2px; width: 100%; text-align: center; clip-path: polygon(0 0,100% 0,calc(100% - 6px) 100%,0 100%); }
+.hh-seat .pl b { display: block; font: 400 15px/1 var(--title); letter-spacing: .05em; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hh-seat .pl span { font: 600 11px var(--mono); color: var(--gold); font-variant-numeric: tabular-nums; }
+.hh-seat.me .pl { border-left-color: var(--gold); }
+.hh-seat.act .pl { box-shadow: 0 0 0 2px var(--gold); }
+.hh-seat.fold { opacity: .4; }
+.hh-seat .lb { position: absolute; top: -12px; font: 400 13px var(--title); letter-spacing: .07em; background: var(--pink); color: #fff; padding: 2px 7px 0; white-space: nowrap; clip-path: polygon(0 0,100% 0,calc(100% - 5px) 100%,0 100%); z-index: 3; }
+.hh-seat .lb.w { background: var(--gold); color: var(--ink); }
+.hh-seat .dm { position: absolute; right: -4px; top: 30px; width: 18px; height: 18px; border-radius: 50%; background: #fff; color: var(--ink); font: 900 10px/18px var(--round); text-align: center; }
+.hh-bet { position: absolute; transform: translate(-50%, -50%); font: 600 12px var(--mono); background: rgba(21,19,42,.85); padding: 2px 7px; border-left: 3px solid var(--pink); white-space: nowrap; z-index: 2; }
+.hh-mid { position: absolute; left: 50%; top: 47%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 6px; }
+.hh-mid .bd5 { min-height: 0; gap: 4px; } .hh-mid .bd5 .cd { width: 44px; height: 62px; font-size: 21px; } .hh-mid .bd5 .cd i { font-size: 17px; }
+.hh-mid .pot { font-size: 17px; padding: 4px 10px 2px; }
+.hh-ctrl { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.hh-ctrl .ib { width: 40px; height: 34px; background: var(--panel2); font: 400 17px var(--title); }
+.hh-ctrl .ib:hover { background: #3a3370; }
+.hh-ctrl .msg { flex: 1 1 220px; min-width: 0; font-size: 13px; color: var(--soft); padding-left: 6px; }
+.hh-ctrl .msg b { color: var(--fg); font-weight: 600; }
+.hh-prog { height: 3px; background: var(--panel2); margin-top: 8px; } .hh-prog i { display: block; height: 100%; background: var(--gold); }
+.hh-empty { padding: 30px 0; color: var(--soft); line-height: 1.5; }
+.hh-note { font-size: 12px; color: var(--muted); margin: 12px 0 0; line-height: 1.45; }
+@media (max-width: 900px) { .hh-grid { grid-template-columns: minmax(0, 1fr); } .hh-list { max-height: 260px; } }
+@media (max-width: 640px) {
+  .hh { padding-left: 8px; padding-right: 8px; } .hh-box { padding: 0 12px 14px; border-left-width: 4px; }
+  .hh-top h2 { font-size: 32px; } .hh-dl { margin-left: 0; }
+  .hh-row { grid-template-columns: 34px 46px 34px minmax(0, 1fr) 68px; gap: 5px; padding: 5px 6px; } .hh-row .nt { font-size: 12px; }
+  .hh-felt { aspect-ratio: 10 / 12; } .hh-felt .oval { inset: 8% 12%; }
+  .hh-seat { width: 74px; } .hh-seat .pl b { font-size: 13px; } .hh-seat .cd { width: 28px; height: 39px; font-size: 14px; } .hh-seat .cd i { font-size: 11px; } .hh-seat .cs { min-height: 39px; }
+  .hh-mid { top: 46%; } .hh-mid .bd5 { gap: 3px; } .hh-mid .bd5 .cd { width: 29px; height: 41px; font-size: 14px; } .hh-mid .bd5 .cd i { font-size: 11px; } .hh-mid .pot { font-size: 14px; }
+}
 @media (max-width: 900px) { .lobby { grid-template-columns: minmax(0, 1fr); } .felt { aspect-ratio: 16 / 10; width: min(100%, calc(max(260px, 100vh - 370px) * 1.6)); } .hero { grid-template-columns: 1fr; } }
 @media (max-width: 640px) {
   .wrap { padding: 14px 14px 30px; }
@@ -309,6 +368,7 @@ details.fold > summary + * { margin-top: 10px; }
   <main id="view"><p class="loading">Shuffling…</p></main>
 </div>
 <div id="modal"></div>
+<div id="hh"></div>
 
 <script>
 const $ = s => document.querySelector(s);
@@ -570,7 +630,7 @@ function popBar(t) {
   const btn = (k, label, cls = 'ghost') => `<button class="cbtn sm popbtn ${cls} ${pop === k ? 'on' : ''}" data-pop="${k}" aria-expanded="${pop === k}">${label} ${pop === k ? '▴' : '▾'}</button>`;
   const host = S.me && S.me.host;
   const panel = pop === 'log' ? logHTML(t) : pop === 'rules' ? `<div class="panel pop" id="pop">${rulesHTML(t.cfg)}</div>` : pop === 'host' && host ? hostHTML() : '';
-  return `<span class="popbar">${btn('log', '<span class="wide">Hand </span>log')}${btn('rules', 'Rules')}${host ? btn('host', 'Host', 'hostbtn') : ''}</span>${panel}`;
+  return `<span class="popbar">${S.me ? '<button class="cbtn sm ghost" data-hh="open"><span class="wide">My </span>hands</button>' : ''}${btn('log', '<span class="wide">Hand </span>log')}${btn('rules', 'Rules')}${host ? btn('host', 'Host', 'hostbtn') : ''}</span>${panel}`;
 }
 function rulesHTML(c) {
   return `<ul class="rules"><li>No-limit Texas Hold'em, blinds ${money(c.sb)}/${money(c.bb)}.</li><li>Buy in for ${money(c.min)} to ${money(c.max)} in casino chips. They go back when you leave.</li>
@@ -842,7 +902,7 @@ function draw() {
     return;
   }
   if (!t.open) {
-    v.innerHTML = `<div class="lobby"><div class="tcard"><h3>The room is closed</h3><p>A host opens it on game night, and it gets posted in #the-table. You have ${money(S.me.bal)} in casino chips.</p></div>
+    v.innerHTML = `<div class="lobby"><div class="tcard"><h3>The room is closed</h3><p>A host opens it on game night, and it gets posted in #the-table. You have ${money(S.me.bal)} in casino chips.</p><div><button class="cbtn ghost sm" data-hh="open">My hands</button></div></div>
       <div class="side">${hostHTML()}<div class="panel"><h2 class="g">How it works</h2>${rulesHTML(t.cfg)}</div></div></div>`;
     return;
   }
@@ -907,9 +967,106 @@ async function send(body) {
   runPre(); // a pre-action that came due while this request was out
 }
 
+// ---------- My hands (hand histories): sessions of the last 90 days, hand list, replayer, downloads (text from /pokerhands.js) ----------
+const HH = { open: false, data: null, sess: 0, at: 0, step: 0, timer: 0, kind: '', err: '', loading: false, rep: [] };
+let hhLib = null;
+const hhLoadLib = () => hhLib || (hhLib = new Promise((ok, no) => { if (window.PokerHands) return ok(); const sc = document.createElement('script'); sc.src = '/pokerhands.js'; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); }));
+async function hhOpen(from) {
+  HH.open = true; HH.loading = true; HH.err = ''; hhStop(); hhDraw();
+  try {
+    await hhLoadLib();
+    const r = await fetch('/api/poker?hands=1' + (from ? '&from=' + from : ''), { credentials: 'same-origin', cache: 'no-store' });
+    const j = await r.json();
+    if (j.err) throw new Error(j.err);
+    HH.data = j; HH.rep = j.hands.map(h => PokerHands.replay(h)); HH.at = Math.max(0, j.hands.length - 1); HH.step = 0;
+    HH.sess = Math.max(0, j.sessions.findIndex(s => j.session && s.from === j.session.from));
+  } catch (e) { HH.err = e.message && !/fetch|JSON/i.test(e.message) ? e.message : "Couldn't load your hands. Try again."; }
+  HH.loading = false; hhDraw();
+}
+function hhClose() { HH.open = false; hhStop(); $('#hh').innerHTML = ''; document.body.style.overflow = ''; }
+function hhStop() { clearInterval(HH.timer); HH.timer = 0; }
+const hhNet = n => `<span class="nt ${n > 0 ? 'up' : n < 0 ? 'dn' : 'ev'}">${n > 0 ? '+' : n < 0 ? '−' : ''}${money(Math.abs(n))}</span>`;
+const hhWhen = (ms, o) => new Date(ms).toLocaleString('en-US', o);
+function hhSeatPos(h, i) {
+  const k = h.me >= 0 ? (i - h.me + 8) % 8 : i;
+  if (PHONE.matches) { const P = [[50, 91], [13, 76], [12, 50], [13, 22], [50, 8], [87, 22], [88, 50], [87, 76]]; return { x: P[k][0], y: P[k][1] }; }
+  const a = (90 + k * 45) * Math.PI / 180; return { x: 50 + 40 * Math.cos(a), y: 50 + 40 * Math.sin(a) };
+}
+function hhFelt() {
+  const h = HH.data.hands[HH.at], r = HH.rep[HH.at], s = r.steps[HH.step], last = HH.step === r.steps.length - 1;
+  const seats = h.seats.map(q => {
+    const p = hhSeatPos(h, q.i), fold = s.folded[q.i], cs = s.shown[q.i];
+    const cards = fold && q.i !== h.me ? '' : cs ? cs.map(c => card(c, '', fold ? 'fold' : '')).join('') : '<div class="cd back"></div><div class="cd back"></div>';
+    const lb = s.label[q.i];
+    return `<div class="hh-seat${q.i === h.me ? ' me' : ''}${fold ? ' fold' : ''}${s.act === q.i ? ' act' : ''}" style="left:${p.x}%;top:${p.y}%">${lb ? `<span class="lb${/^Wins/.test(lb) ? ' w' : ''}">${esc(chipText(lb))}</span>` : ''}<div class="cs">${cards}</div><div class="pl"><b>${esc(q.name)}${q.i === h.me ? ' (you)' : ''}</b><span>${chip(s.st[q.i])}</span></div>${q.i === h.btn ? '<i class="dm">D</i>' : ''}</div>`;
+  }).join('');
+  const bets = Object.entries(s.bet).filter(([, v]) => v > 0).map(([i, v]) => { const p = toward(hhSeatPos(h, +i), .56); return `<div class="hh-bet" style="left:${p.x}%;top:${p.y}%">${chip(v)}</div>`; }).join('');
+  const rab = s.rabbit && s.board.length < 5 ? s.rabbit : [];
+  const board = Array.from({ length: 5 }, (_, k) => s.board[k] ? card(s.board[k]) : rab[k - s.board.length] ? card(rab[k - s.board.length], '', 'rab') : card(null)).join('');
+  const b2 = s.board2 ? `<div class="bd5">${s.board2.map((c, k) => card(c, '', s.board[k] === c ? 'dim' : '')).join('')}</div>` : '';
+  const potNow = s.pot + Object.values(s.bet).reduce((a, b) => a + b, 0);
+  const pot = last && r.winners.length ? `${r.winners.join(' & ')} ${r.winners.length > 1 ? 'split' : 'wins'} ${chip(r.pot)}` : `Pot ${chip(potNow)}`;
+  return `<div class="hh-felt"><div class="oval"></div>${seats}${bets}<div class="hh-mid"><div class="bd5">${board}</div>${b2}<div class="pot">${esc(pot)}</div></div></div>
+    <div class="hh-ctrl"><button class="ib" data-hh="first" aria-label="Start of the hand">|◀</button><button class="ib" data-hh="prev" aria-label="Step back">◀</button><button class="ib" data-hh="play" aria-label="${HH.timer ? 'Pause' : 'Play'}">${HH.timer ? '❚❚' : '▶'}</button><button class="ib" data-hh="next" aria-label="Step forward">▶|</button><button class="ib" data-hh="last" aria-label="End of the hand">▶▶</button>
+      <span class="msg"><b>${HH.step + 1}/${r.steps.length}</b> · ${esc(chipText(s.msg))}</span>
+      <button class="cbtn ghost sm" data-hh="prevhand" ${HH.at ? '' : 'disabled'}>Prev hand</button><button class="cbtn ghost sm" data-hh="nexthand" ${HH.at < HH.data.hands.length - 1 ? '' : 'disabled'}>Next hand</button></div>
+    <div class="hh-prog"><i style="width:${r.steps.length > 1 ? HH.step / (r.steps.length - 1) * 100 : 100}%"></i></div>`;
+}
+function hhDraw() {
+  const el = $('#hh'); if (!HH.open) { el.innerHTML = ''; return; }
+  document.body.style.overflow = 'hidden';
+  const top = (x = '') => `<div class="hh-top"><h2>My hands</h2>${x}<button class="x" data-hh="close" aria-label="Close">✕</button></div>`;
+  if (HH.loading) { el.innerHTML = `<div class="hh" data-hhbg><div class="hh-box">${top()}<p class="hh-empty">Getting your hands…</p></div></div>`; return; }
+  if (HH.err || !HH.data || !HH.data.hands.length) {
+    el.innerHTML = `<div class="hh" data-hhbg><div class="hh-box">${top()}<p class="hh-empty">${esc(HH.err || "No hands yet. Every hand you're dealt in the poker room shows up here for 90 days.")}</p></div></div>`; return;
+  }
+  const d = HH.data, hs = d.hands, net = HH.rep.reduce((a, r) => a + r.net, 0);
+  const big = HH.rep.reduce((a, r, k) => r.pot > a.pot ? { pot: r.pot, k } : a, { pot: 0, k: 0 });
+  const opts2 = d.sessions.map((s, k) => `<option value="${s.from}" ${k === HH.sess ? 'selected' : ''}>${hhWhen(s.from, { weekday: 'short', month: 'short', day: 'numeric' })} · ${hhWhen(s.from, { hour: 'numeric', minute: '2-digit' })} · ${s.n} hand${s.n === 1 ? '' : 's'}</option>`).join('');
+  const rows = hs.map((h, k) => { const r = HH.rep[k];
+    return `<button class="hh-row${k === HH.at ? ' on' : ''}" data-hhi="${k}"><span class="no">#${h.n}</span><span class="mini">${(r.mine || []).map(c => card(c, 'xs')).join('')}</span><span class="ps">${r.pos}</span><span class="bd">${r.board.length ? r.board.map(c => card(c, 'xxs')).join('') : 'no flop'}</span>${hhNet(r.net)}</button>`; }).join('');
+  el.innerHTML = `<div class="hh" data-hhbg><div class="hh-box">${top(`<select id="hhSess" aria-label="Session">${opts2}</select>`)}
+    <div class="hh-sum"><b>${hs.length} hand${hs.length === 1 ? '' : 's'}</b><span>${hhWhen(hs[0].at, { hour: 'numeric', minute: '2-digit' })} to ${hhWhen(hs[hs.length - 1].at, { hour: 'numeric', minute: '2-digit' })}</span><span>Result ${hhNet(Math.round(net * 100) / 100)}</span><span>Biggest pot ${chip(big.pot)} (#${hs[big.k].n})</span>
+      <span class="hh-dl"><button class="cbtn gold sm" data-hh="dl" data-kind="stars" title="PokerStars-style hand history: PokerTracker 4, Hold'em Manager 3, GTO Wizard, Hand2Note">Download for trackers</button><button class="cbtn ghost sm" data-hh="dl" data-kind="plain">Download easy read</button></span></div>
+    <div class="hh-grid"><div class="hh-list">${rows}</div><div>${hhFelt()}</div></div>
+    <p class="hh-note">You only ever see your own cards, plus any the table saw (a showdown or a Show cards tap). Hands stay here for 90 days.${hs.some(h => h.test) ? ' Test table hands (bots) are included.' : ''}</p></div></div>`;
+  const on = el.querySelector('.hh-row.on'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
+}
+function hhDownload(kind) {
+  const hs = HH.data.hands, text = PokerHands.file(hs, kind);
+  const day = hhWhen(hs[0].at, { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+  a.download = `the-study-poker-${day}${kind === 'plain' ? '-easy-read' : ''}.txt`; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  toast(kind === 'plain' ? 'Downloaded your hands' : 'Downloaded. Import it in your tracker as PokerStars hands');
+}
+function hhClick(b) {
+  const k = b.dataset.hh, r = HH.rep[HH.at];
+  if (k === 'close') return hhClose();
+  if (k === 'dl') return hhDownload(b.dataset.kind);
+  if (k === 'play') {
+    if (HH.timer) hhStop();
+    else { if (HH.step >= r.steps.length - 1) HH.step = 0; HH.timer = setInterval(() => { const rr = HH.rep[HH.at]; if (!HH.open || HH.step >= rr.steps.length - 1) return hhStop(), hhDraw(); HH.step++; hhDraw(); }, 900); }
+    return hhDraw();
+  }
+  hhStop();
+  if (k === 'first') HH.step = 0; else if (k === 'prev') HH.step = Math.max(0, HH.step - 1); else if (k === 'next') HH.step = Math.min(r.steps.length - 1, HH.step + 1); else if (k === 'last') HH.step = r.steps.length - 1;
+  else if (k === 'prevhand' && HH.at > 0) { HH.at--; HH.step = 0; } else if (k === 'nexthand' && HH.at < HH.data.hands.length - 1) { HH.at++; HH.step = 0; }
+  hhDraw();
+}
+document.addEventListener('keydown', e => { if (!HH.open) return; if (e.key === 'Escape') hhClose(); else if (HH.data && HH.data.hands.length && (e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !/SELECT|INPUT/.test(document.activeElement.tagName)) hhClick({ dataset: { hh: e.key === 'ArrowRight' ? 'next' : 'prev' } }); });
+addEventListener('resize', () => { if (HH.open && HH.data) hhDraw(); });
+
 // ---------- clicks ----------
 document.addEventListener('click', e => {
   const b = e.target.closest('button');
+  if (HH.open) { // My hands is on top of everything: its own buttons, a tap on the dark backdrop closes it
+    if (b && b.dataset.hh) return hhClick(b);
+    if (b && b.dataset.hhi !== undefined) { hhStop(); HH.at = +b.dataset.hhi; HH.step = 0; return hhDraw(); }
+    if (e.target.hasAttribute('data-hhbg')) return hhClose();
+    return;
+  }
+  if (b && b.dataset.hh === 'open') { if (pop) pop = ''; render(); return hhOpen(); }
   if (pop && !e.target.closest('#pop') && !(b && b.dataset.pop)) { pop = ''; render(); if (!b) return; } // tap outside closes it
   if (b && b.dataset.pop) { pop = pop === b.dataset.pop ? '' : b.dataset.pop; logScroll = null; return render(); }
   if (!b) { const st = e.target.closest('[data-peek]'); if (st) { const i = +st.dataset.peek; peek = peek === i ? -1 : i; render(); } return; }
@@ -939,6 +1096,7 @@ document.addEventListener('click', e => {
   if (h === 'open') { const [sb, bb] = $('#hBlinds').value.split('/').map(Number); return send({ a: 'open', post: $('#hPost').checked, cfg: { sb, bb, min: +$('#hMin').value, max: +$('#hMax').value, turn: +$('#hTurn').value, straddle: $('#hStrO').checked, bomb: +$('#hBombO').value, nit: +$('#hNitO').value, gift: +$('#hGiftO').value || 0 } }); }
   if (h) return send({ a: h });
 });
+document.addEventListener('change', e => { if (e.target.id === 'hhSess') return hhOpen(+e.target.value); });
 document.addEventListener('change', e => { const id = e.target.id; if (['hBlinds', 'hMin', 'hMax', 'hTurn', 'hBomb', 'hNit', 'hBombO', 'hNitO', 'hGiftO', 'hGift'].includes(id)) hostDraft[id] = e.target.value; if (id === 'hPost' || id === 'hStrO') hostDraft[id] = e.target.checked; if (e.target.id === 'hBlinds2') { const [sb, bb] = e.target.value.split('/').map(Number); send({ a: 'blinds', sb, bb }); } });
 document.addEventListener('input', e => { if (e.target.id === 'hGift' || e.target.id === 'hGiftO') hostDraft[e.target.id] = e.target.value; });
 document.addEventListener('submit', e => { if (e.target.id === 'sayF') { e.preventDefault(); const i = $('#sayIn'); say(i.value); i.value = ''; } });

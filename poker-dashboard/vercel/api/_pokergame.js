@@ -18,6 +18,12 @@
 //   leaving pays the whole stack like any other seat. One per person per room opening (T.gifted = ids who took one); never at a test table.
 //   s.gift = what the house put in (shows a FREE tag). The caller checks server membership and skips takeChips.
 //   A free seat keeps the table a test table even after the bots leave, so nobody's real chips can end up with it. Every extra kicks in at the start of a hand, never mid-hand.
+// Hand histories: each hand is written down as it's played (T.rec: who sat where with what, everyone's cards, then events in order).
+//   When the next hand starts (or the room closes) the finished record moves to T._hands and _poker.js saves it for 90 days.
+//   Events: ['post', seat, amt, 'sb'|'bb'|'straddle'|'bomb'], ['act', seat, 'f'|'x'|'c'|'b'|'r', amt, allIn] (c: chips added; b/r: total
+//   bet this street), ['board', cards], ['board2', cards] (run it twice), ['ret', seat, amt] (uncalled), ['show', seat, cards, hand name],
+//   ['win', seat, amt, 'main'|'side'|'run1'|'run2'|'', hand name], ['rabbit', cards, name], ['note', text]. Hidden cards stay on the server:
+//   each player only ever gets their own cards back, plus the ones that were shown to the table.
 import { randomInt } from 'node:crypto';
 
 export const SEATS = 8;
@@ -33,7 +39,7 @@ const LOG_KEEP = 40, SIT_OUT_AFTER = 2; // timeouts in a row before you're sat o
 
 export const fresh = () => ({ v: 0, open: false, cfg: { ...DEFAULT_CFG }, gifted: [], seats: Array(SEATS).fill(null), hand: 0, hid: '', button: -1,
   board: [], deck: [], pot: 0, curBet: 0, minRaise: 2, toAct: -1, street: '', phase: 'idle', deadline: 0, nextAt: 0,
-  pauseReq: false, closeReq: false, res: null, log: [], at: 0, emptyAt: 0, bomb: 0, bombHand: false, nit: null, nitNext: null });
+  pauseReq: false, closeReq: false, res: null, log: [], rec: null, at: 0, emptyAt: 0, bomb: 0, bombHand: false, nit: null, nitNext: null });
 
 // ---------- cards ----------
 const RANKS = '23456789TJQKA';
@@ -87,6 +93,10 @@ const alive = T => T.seats.filter(s => inHand(s) && !s.folded);
 export const potTotal = T => T.pot + T.seats.reduce((a, s) => a + (s ? s.bet : 0), 0);
 export const seatOf = (T, id) => T.seats.findIndex(s => s && !s.left && s.id === id);
 function nextSeat(T, from, pred) { for (let k = 1; k <= SEATS; k++) { const j = (from + k + SEATS) % SEATS; if (pred(T.seats[j], j)) return j; } return -1; }
+/** adds an event to the hand being written down */
+const rec = (T, ...ev) => { if (T.rec) T.rec.ev.push(ev); };
+/** the hand that just finished goes out to be saved (a hand cut off half way is dropped) */
+function flushRec(T) { if (T.rec && T.phase !== 'hand' && T.rec.ev.some(e => e[0] === 'win')) (T._hands ||= []).push(T.rec); T.rec = null; }
 function log(T, text) { T.log.push(text); if (T.log.length > LOG_KEEP) T.log.splice(0, T.log.length - LOG_KEEP); }
 function move(s, a) { a = Math.max(0, Math.min(a, s.stack)); s.stack -= a; s.bet += a; s.total += a; if (s.stack === 0) s.allIn = true; return a; }
 const blank = () => ({ cards: [], bet: 0, total: 0, folded: false, allIn: false, acted: false, last: '', show: false });
@@ -104,6 +114,7 @@ function cashOut(T, s, why) {
 // ---------- hands ----------
 /** Starts the next hand if it can (or pauses / closes the room if the host asked). */
 export function startHand(T, now) {
+  flushRec(T);
   T.seats = T.seats.map(s => s && s.left ? null : s);
   if (T.closeReq) return closeRoom(T, now);
   if (T.pauseReq) { T.pauseReq = false; T.phase = 'paused'; T.toAct = -1; T.res = null; T.board = []; T.seats.forEach(s => s && Object.assign(s, blank())); log(T, 'The host paused the game'); return; }
@@ -126,18 +137,21 @@ export function startHand(T, now) {
   const sb = heads ? T.button : nextSeat(T, T.button, ok), bb = nextSeat(T, sb, ok);
   log(T, `Hand #${T.hand}`);
   for (let r = 0; r < 2; r++) for (let k = 0; k < SEATS; k++) { const s = T.seats[(sb + k) % SEATS]; if (ok(s)) s.cards.push(T.deck.pop()); }
+  T.rec = { n: T.hand, hid: T.hid, at: now, sb: T.cfg.sb, bb: T.cfg.bb, btn: T.button, test: testTable(T), cards: {}, ev: [],
+    seats: T.seats.map((s, i) => inHand(s) ? { i, id: s.id, name: s.name, stack: s.stack, ...(s.bot ? { bot: true } : {}) } : null).filter(Boolean) };
+  T.seats.forEach((s, i) => { if (inHand(s)) T.rec.cards[i] = s.cards.slice(); });
   T.bombHand = T.bomb > 0;
   if (T.bombHand) { // bomb pot: no blinds, everyone puts the same in and the cards start on the flop
     const amt = T.bomb * T.cfg.bb; T.bomb = 0;
     log(T, `Bomb pot: everyone puts in ${$(amt)}`);
-    T.seats.forEach(s => { if (inHand(s)) { move(s, amt); s.last = 'Bomb'; s.acted = true; } });
+    T.seats.forEach((s, i) => { if (inHand(s)) { rec(T, 'post', i, move(s, amt), 'bomb'); s.last = 'Bomb'; s.acted = true; } });
     T.curBet = Math.max(...T.seats.filter(inHand).map(s => s.bet));
     return endStreet(T, now);
   }
-  move(T.seats[sb], T.cfg.sb); T.seats[sb].last = 'SB';
-  move(T.seats[bb], T.cfg.bb); T.seats[bb].last = 'BB';
+  rec(T, 'post', sb, move(T.seats[sb], T.cfg.sb), 'sb'); T.seats[sb].last = 'SB';
+  rec(T, 'post', bb, move(T.seats[bb], T.cfg.bb), 'bb'); T.seats[bb].last = 'BB';
   let last = bb;
-  if (T.cfg.straddle && live.length >= 3) { const st = nextSeat(T, bb, ok); move(T.seats[st], 2 * T.cfg.bb); T.seats[st].last = 'Straddle'; last = st; }
+  if (T.cfg.straddle && live.length >= 3) { const st = nextSeat(T, bb, ok); rec(T, 'post', st, move(T.seats[st], 2 * T.cfg.bb), 'straddle'); T.seats[st].last = 'Straddle'; last = st; }
   T.curBet = Math.max(T.cfg.bb, ...T.seats.map(s => s ? s.bet : 0));
   T.minRaise = T.curBet;
   return nextTurn(T, last, now);
@@ -168,15 +182,16 @@ export function act(T, i, kind, to, now, auto = false) {
   if (!['fold', 'check', 'call', 'raise'].includes(kind)) return 'Unknown move.';
   if (!auto) s.timeouts = 0;
   const tag = auto && !s.out ? ' (timed out)' : '';
-  if (kind === 'fold') { s.folded = true; s.last = 'Fold'; log(T, `${s.name} folds${tag}`); }
-  else if (kind === 'check') { s.last = 'Check'; log(T, `${s.name} checks${tag}`); }
-  else if (kind === 'call') { const a = move(s, toCall); s.last = s.allIn ? 'All in' : `Call ${$(a)}`; log(T, `${s.name} calls ${$(a)}${s.allIn ? ' and is all in' : ''}`); }
+  if (kind === 'fold') { s.folded = true; s.last = 'Fold'; log(T, `${s.name} folds${tag}`); rec(T, 'act', i, 'f'); }
+  else if (kind === 'check') { s.last = 'Check'; log(T, `${s.name} checks${tag}`); rec(T, 'act', i, 'x'); }
+  else if (kind === 'call') { const a = move(s, toCall); rec(T, 'act', i, 'c', a, s.allIn ? 1 : 0); s.last = s.allIn ? 'All in' : `Call ${$(a)}`; log(T, `${s.name} calls ${$(a)}${s.allIn ? ' and is all in' : ''}`); }
   else {
     const by = to - T.curBet, wasBet = T.curBet === 0;
     move(s, to - s.bet);
     if (by >= T.minRaise) { T.minRaise = by; T.seats.forEach((q, j) => { if (j !== i && canAct(q)) q.acted = false; }); }
     else T.seats.forEach((q, j) => { if (j !== i && canAct(q) && q.bet < to) q.acted = false; }); // short all-in: only re-opens for people who still owe chips
     T.curBet = Math.max(T.curBet, to);
+    rec(T, 'act', i, wasBet ? 'b' : 'r', to, s.allIn ? 1 : 0);
     s.last = s.allIn ? `All in ${$(to)}` : wasBet ? `Bet ${$(to)}` : `Raise ${$(to)}`;
     log(T, `${s.name} ${s.allIn ? 'is all in for' : wasBet ? 'bets' : 'raises to'} ${$(to)}`);
   }
@@ -187,8 +202,8 @@ export function act(T, i, kind, to, now, auto = false) {
 function collect(T) { T.seats.forEach(s => { if (!s) return; T.pot += s.bet; s.bet = 0; s.acted = false; if (inHand(s) && !s.folded) s.last = s.allIn ? 'All in' : ''; }); T.curBet = 0; T.minRaise = T.cfg.bb; }
 function deal(T) {
   T.deck.pop();
-  if (T.street === 'pre') { T.board.push(T.deck.pop(), T.deck.pop(), T.deck.pop()); T.street = 'flop'; log(T, `Flop: ${T.board.map(cardText).join(' ')}`); }
-  else { T.board.push(T.deck.pop()); T.street = T.street === 'flop' ? 'turn' : 'river'; log(T, `${T.street === 'turn' ? 'Turn' : 'River'}: ${cardText(T.board[T.board.length - 1])}`); }
+  if (T.street === 'pre') { T.board.push(T.deck.pop(), T.deck.pop(), T.deck.pop()); T.street = 'flop'; log(T, `Flop: ${T.board.map(cardText).join(' ')}`); rec(T, 'board', T.board.slice()); }
+  else { T.board.push(T.deck.pop()); T.street = T.street === 'flop' ? 'turn' : 'river'; log(T, `${T.street === 'turn' ? 'Turn' : 'River'}: ${cardText(T.board[T.board.length - 1])}`); rec(T, 'board', T.board.slice(-1)); }
 }
 function endStreet(T, now) {
   T.toAct = -1;
@@ -225,13 +240,14 @@ function ritDone(T, twice, now) { T.rit = null; return runOut(T, now, twice); }
 function runOut(T, now, twice) {
   T.runout = true;
   if (!twice) { while (T.street !== 'river') deal(T); return showdown(T, now); }
-  const start = T.board.slice(), street = T.street;
+  const start = T.board.slice(), street = T.street, evAt = T.rec ? T.rec.ev.length : 0, n0 = start.length;
   while (T.street !== 'river') deal(T);
   const first = T.board.slice();
   T.board = start; T.street = street;
   while (T.street !== 'river') deal(T);
   const second = T.board.slice();
   T.board = first; T.board2 = second;
+  if (T.rec) { T.rec.ev.length = evAt; rec(T, 'board', first.slice(n0)); rec(T, 'board2', second.slice(n0)); } // (start itself grew during run 2)
   log(T, `Run it twice. Second board: ${second.map(cardText).join(' ')}`);
   return showdown(T, now, second);
 }
@@ -246,7 +262,7 @@ function nitCheck(T) {
   if (!nit || !others.length) { log(T, 'The nit game is over'); return; }
   const each = Math.min(N.amt, Math.floor(nit.stack / others.length));
   others.forEach(s => s.stack += each); nit.stack -= each * others.length;
-  log(T, `${nit.name} is the last nit and pays everyone ${$(each)}`);
+  log(T, `${nit.name} is the last nit and pays everyone ${$(each)}`); rec(T, 'note', `${nit.name} is the last nit and pays everyone ${$(each)}`);
   T.res.sub = `${nit.name} is the nit: pays ${$(each)} each`;
 }
 function finish(T, now, ms) {
@@ -256,7 +272,10 @@ function finish(T, now, ms) {
   T.seats.forEach(s => { if (s && !s.left && s.stack <= 0 && !s.pend) { s.out = true; } });
 }
 function winUncontested(T, now) {
-  const w = alive(T)[0], amt = potTotal(T);
+  const w = alive(T)[0], amt = potTotal(T), wi = T.seats.indexOf(w);
+  const unc = Math.max(0, w.bet - Math.max(0, ...T.seats.map((s, j) => s && j !== wi ? s.bet : 0))); // the part of the last bet nobody called
+  if (unc > 0) rec(T, 'ret', wi, unc);
+  rec(T, 'win', wi, amt - unc, '');
   T.seats.forEach(s => { if (s) s.bet = 0; }); T.pot = 0;
   w.stack += amt; w.last = 'Wins';
   T.res = { banner: `${w.name} takes ${$(amt)}`, sub: 'Everyone else folded', hl: [], win: [T.seats.indexOf(w)], fold: true };
@@ -270,7 +289,7 @@ export function showCards(T, i, now) {
   const s = T.seats[i];
   if (T.phase !== 'done' || !T.res || !T.res.fold || !s || !T.res.win.includes(i)) return 'Nothing to show right now.';
   if (s.show) return;
-  s.show = true; log(T, `${s.name} shows ${s.cards.map(cardText).join(' ')}`);
+  s.show = true; log(T, `${s.name} shows ${s.cards.map(cardText).join(' ')}`); rec(T, 'show', i, s.cards.slice());
   T.nextAt = Math.max(T.nextAt, now + 3000);
 }
 /** Rabbit hunt: anyone who was dealt in can turn up the board that never came (once per hand, for everyone). */
@@ -278,7 +297,7 @@ export function rabbitHunt(T, i, now) {
   const s = T.seats[i];
   if (T.phase !== 'done' || !T.rabbit || !s || !s.cards.length) return 'No rabbit to hunt this hand.';
   if (T.rabbitBy) return;
-  T.rabbitBy = s.name; log(T, `${s.name} rabbit hunts: ${T.rabbit.map(cardText).join(' ')}`);
+  T.rabbitBy = s.name; log(T, `${s.name} rabbit hunts: ${T.rabbit.map(cardText).join(' ')}`); rec(T, 'rabbit', T.rabbit.slice(), s.name);
   T.nextAt = Math.max(T.nextAt, now + 3500);
 }
 function showdown(T, now, board2 = null) {
@@ -295,7 +314,7 @@ function showdown(T, now, board2 = null) {
     const w = elig.filter(s => s.best.v === top).sort((a, b) => (dist(a) || SEATS) - (dist(b) || SEATS)); // odd chip: first left of the button
     const share = Math.floor(amt / w.length);
     w.forEach(s => s.stack += share); w[0].stack += amt - share * w.length;
-    if (amt > 0) pots.push({ amt, w, refund: elig.length === 1 && levels.length > 1 && li === levels.length - 1 });
+    if (amt > 0) pots.push({ amt, w, refund: elig.length === 1 && levels.length > 1 && li === levels.length - 1, got: w.map((s, k) => share + (k === 0 ? amt - share * w.length : 0)) });
     prev = L;
   });
   T.pot = 0;
@@ -305,6 +324,12 @@ function showdown(T, now, board2 = null) {
   const names = main.w.map(s => s.name).join(' & ');
   T.res = { banner: `${names} ${main.w.length > 1 ? 'split' : 'wins'} ${$(main.amt)}`, sub: describe(main.w[0].best), hl: main.w[0].best.cards, win: winners.map(s => T.seats.indexOf(s)) };
   live.forEach(s => log(T, `${s.name} shows ${s.cards.map(cardText).join(' ')} (${describe(s.best)})`));
+  if (T.rec) {
+    const ix = s => T.seats.indexOf(s);
+    pots.filter(p => p.refund).forEach(p => rec(T, 'ret', ix(p.w[0]), p.amt));
+    live.forEach(s => rec(T, 'show', ix(s), s.cards.slice(), describe(s.best)));
+    real.forEach((p, k) => p.w.forEach((s, j) => rec(T, 'win', ix(s), p.got[j], real.length > 1 ? (k === 0 ? 'main' : 'side') : '', describe(s.best))));
+  }
   pots.forEach((p, k) => log(T, p.refund ? `${p.w[0].name} gets ${$(p.amt)} back (uncalled)`
     : `${p.w.map(s => s.name).join(' & ')} ${p.w.length > 1 ? 'split' : 'wins'} ${real.length > 1 ? (k === 0 ? 'the main pot' : 'a side pot') + ' of ' : ''}${$(p.amt)}`));
   live.forEach(s => delete s.best);
@@ -321,13 +346,13 @@ function showdown2(T, now, board2) {
     let amt = 0; T.seats.forEach(s => { if (s) amt += Math.max(0, Math.min(s.total, L) - prev); });
     if (li === levels.length - 1) T.seats.forEach(s => { if (s && s.total > L) amt += s.total - L; });
     const elig = live.filter(s => s.total >= L);
-    if (elig.length === 1) { elig[0].stack += amt; if (amt > 0) log(T, `${elig[0].name} gets ${$(amt)} back (uncalled)`); prev = L; return; }
+    if (elig.length === 1) { elig[0].stack += amt; if (amt > 0) { log(T, `${elig[0].name} gets ${$(amt)} back (uncalled)`); rec(T, 'ret', T.seats.indexOf(elig[0]), amt); } prev = L; return; }
     [Math.ceil(amt / 2), Math.floor(amt / 2)].forEach((half, r) => {
       const top = Math.max(...elig.map(s => s.bests[r].v));
       const w = elig.filter(s => s.bests[r].v === top).sort((a, b) => (dist(a) || SEATS) - (dist(b) || SEATS));
       const share = Math.floor(half / w.length);
-      w.forEach((s, k) => { const g = share + (k === 0 ? half - share * w.length : 0); s.stack += g; won.set(s, (won.get(s) || 0) + g); });
-      if (half > 0) runs[r].push({ amt: half, w });
+      const got = w.map((s, k) => { const g = share + (k === 0 ? half - share * w.length : 0); s.stack += g; won.set(s, (won.get(s) || 0) + g); return g; });
+      if (half > 0) runs[r].push({ amt: half, w, got });
     });
     prev = L;
   });
@@ -339,6 +364,8 @@ function showdown2(T, now, board2) {
   T.res = { banner: n1 === n2 ? `${n1} wins both runs` : `Run 1: ${n1} · Run 2: ${n2}`, sub: `Pot split over two boards`, hl: [], win: winners.map(s => T.seats.indexOf(s)), twice: true,
     runs: [0, 1].map(r => ({ names: name(r), hand: runs[r].length ? describe(runs[r][0].w[0].bests[r]) : '' })) };
   live.forEach(s => log(T, `${s.name} shows ${s.cards.map(cardText).join(' ')}`));
+  live.forEach(s => rec(T, 'show', T.seats.indexOf(s), s.cards.slice(), describe(s.bests[0])));
+  [0, 1].forEach(r => runs[r].forEach(p => p.w.forEach((s, j) => rec(T, 'win', T.seats.indexOf(s), p.got[j], 'run' + (r + 1), describe(s.bests[r])))));
   [0, 1].forEach(r => runs[r].forEach(p => log(T, `Run ${r + 1}: ${p.w.map(s => s.name).join(' & ')} ${p.w.length > 1 ? 'split' : 'wins'} ${$(p.amt)} (${describe(p.w[0].bests[r])})`)));
   live.forEach(s => delete s.bests);
   finish(T, now, 10000);
@@ -394,7 +421,7 @@ export function leave(T, me, t) {
   const i = seatOf(T, me.id); if (i < 0) return "You're not at the table.";
   const s = T.seats[i];
   if (T.phase === 'hand' && inHand(s) && !s.folded) {
-    if (T.toAct === i) act(T, i, 'fold', 0, t); else { s.folded = true; s.last = 'Fold'; log(T, `${s.name} folds`); if (T.rit) { T.rit.need = T.rit.need.filter(id => id !== s.id); if (alive(T).length === 1) T.rit = null; else if (T.rit.need.every(id => T.rit.yes.includes(id))) ritDone(T, T.rit.need.length > 0, t); } if (alive(T).length === 1) winUncontested(T, t); }
+    if (T.toAct === i) act(T, i, 'fold', 0, t); else { s.folded = true; s.last = 'Fold'; log(T, `${s.name} folds`); rec(T, 'act', i, 'f'); if (T.rit) { T.rit.need = T.rit.need.filter(id => id !== s.id); if (alive(T).length === 1) T.rit = null; else if (T.rit.need.every(id => T.rit.yes.includes(id))) ritDone(T, T.rit.need.length > 0, t); } if (alive(T).length === 1) winUncontested(T, t); }
   }
   cashOut(T, s, 'leaves the table');
   if (T.phase === 'hand' && inHand(s)) s.left = true; else T.seats[i] = null;
@@ -499,10 +526,11 @@ export function requestClose(T, t) {
   closeRoom(T, t);
 }
 export function closeRoom(T, t) {
+  flushRec(T);
   T.seats.forEach(s => { if (s && !s.left) cashOut(T, s, 'cashes out'); });
-  const keep = T.log, out = T._out;
+  const keep = T.log, out = T._out, hands = T._hands;
   Object.assign(T, fresh(), { v: T.v, log: keep, at: t });
-  T._out = out;
+  T._out = out; if (hands) T._hands = hands;
   log(T, 'The room is closed');
 }
 
