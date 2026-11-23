@@ -401,7 +401,7 @@ function say(text) {
 
 // ---------- drawing ----------
 // once you sit down the table turns so your seat is always the one at the bottom (seat order and dealing don't change)
-function seatPos(i) { const me = mySeat(), k = me >= 0 ? (i - me + 8) % 8 : i, a = (90 + k * 45) * Math.PI / 180, rx = PHONE.matches ? 31 : 38; return { x: 47 + rx * Math.cos(a), y: 50 + 39 * Math.sin(a) + (PHONE.matches && k % 4 === 2 ? 13 : 0) }; }
+function seatPos(i) { const me = mySeat(), k = me >= 0 ? (i - me + 8) % 8 : i, a = (90 + k * 45) * Math.PI / 180, rx = PHONE.matches ? 31 : 38; return { x: 50 + rx * Math.cos(a), y: 50 + 39 * Math.sin(a) + (PHONE.matches && k % 4 === 2 ? 13 : 0) }; }
 const toward = (p, f) => ({ x: 50 + (p.x - 50) * f, y: 50 + (p.y - 50) * f });
 function seatHTML(s, i) {
   const t = T(), pos = seatPos(i), me = mySeat();
