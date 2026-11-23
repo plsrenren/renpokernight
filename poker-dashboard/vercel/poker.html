@@ -205,7 +205,11 @@ details.fold:not([open]) { padding-bottom: 0; }
 details.fold > summary + * { margin-top: 10px; }
 .hlog { max-height: 220px; overflow-y: auto; font-size: 12.5px; color: var(--soft); line-height: 1.4; }
 .hlog div.h { font: 400 15px var(--title); letter-spacing: .08em; color: var(--vio); margin-top: 6px; }
-.host select { font: 600 13px var(--mono); background: var(--panel2); color: var(--fg); border: 0; padding: 6px 8px; margin-top: 4px; width: 100%; }
+.host select, .host input.num { font: 600 13px var(--mono); background: var(--panel2); color: var(--fg); border: 0; padding: 6px 8px; margin-top: 4px; width: 100%; }
+.hx input.num { margin: 0; width: 64px; flex: none; }
+.giftmark { position: absolute; right: -8px; bottom: -6px; background: var(--up); color: var(--ink); font: 800 8.5px/1 var(--round); font-style: normal; letter-spacing: .04em; padding: 3px 4px 2px; z-index: 4; box-shadow: 0 2px 4px rgba(0,0,0,.5); pointer-events: none; }
+.giftbox { background: rgba(142,224,176,.1); border: 1px solid var(--up); padding: 10px 12px; margin: 4px 0 12px; display: grid; gap: 8px; }
+.giftbox p { margin: 0; font-size: 13px; }
 .hgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
 .host label { font: 500 12px var(--mono); color: var(--muted); display: grid; }
 .host label.chk { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
@@ -321,7 +325,7 @@ const DISCORD_SVG = '<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><pa
 const ERRS = { cancelled: 'Sign-in was cancelled.', setup: "Discord sign-in isn't set up yet.", expired: 'That sign-in link expired. Try again.', discord: "Discord didn't answer. Try again.", stranger: "That Discord account isn't one the club knows yet. Play a hand with the bot in the server first." };
 const STAKES = [[1, 2], [2, 5], [5, 10]], MIN_BUYS = [20, 40, 100], MAX_BUYS = [100, 200, 500, 1000], TURNS = [15, 20, 30], BOMBS = [2, 5, 10], NITS = [2, 5, 10];
 /** what the host has switched on, shown in the table bar */
-const extras = t => [t.seats.some(s => s && !s.left && (s.bot || s.free)) && 'Test table', t.cfg.straddle && 'Straddle', t.nit && `Nit ${money(t.nit.amt)}`, t.nitNext && 'Nit next', t.bomb && 'Bomb next'].filter(Boolean).map(x => ` · <span class="xtra">${x}</span>`).join('');
+const extras = t => [t.seats.some(s => s && !s.left && (s.bot || s.free)) && 'Test table', t.cfg.gift && `Free seat ${money(t.cfg.gift)}`, t.cfg.straddle && 'Straddle', t.nit && `Nit ${money(t.nit.amt)}`, t.nitNext && 'Nit next', t.bomb && 'Bomb next'].filter(Boolean).map(x => ` · <span class="xtra">${x}</span>`).join('');
 
 // ---------- cards (same ranking as the server, for the "what you have" line) ----------
 const RANKS = '23456789TJQKA', SYM = { s: '♠', h: '♥', d: '♦', c: '♣' }, RN = { 10: '10', 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
@@ -466,7 +470,7 @@ function seatHTML(s, i) {
   const left = Math.max(0, (t.deadline - serverNow()) / 1000), dur = t.cfg.turn;
   const stack = s.left ? 'left' : s.out && !s.stack ? 'out' : chip(s.stack) + (s.pend ? '+' : '');
   return `<div class="${cls}" data-peek="${i}" style="left:${pos.x}%;top:${pos.y}%">
-    <div class="st-row"><div class="pfw">${b.face(av(s.id, s.name), size)}${i === t.button && t.hand ? '<i class="dmark">D</i>' : ''}${t.nit && t.nit.need.includes(s.id) ? '<i class="nitmark">NIT</i>' : ''}</div><div class="st-cards">${hc}</div></div>
+    <div class="st-row"><div class="pfw">${b.face(av(s.id, s.name), size)}${i === t.button && t.hand ? '<i class="dmark">D</i>' : ''}${t.nit && t.nit.need.includes(s.id) ? '<i class="nitmark">NIT</i>' : ''}${s.gift ? '<i class="giftmark" title="Free seat from the house">FREE</i>' : ''}</div><div class="st-cards">${hc}</div></div>
     <div class="st-name${b.bar ? ' pl-wash' : ''}">${b.bar ? `<span class="pl-bg ${b.bar}" aria-hidden="true"></span>` : ''}<b>${esc(s.name)}</b><span class="sk">${stack}</span></div>${b.sticker ? `<span class="st-stk">${b.sticker}</span>` : ''}
     ${s.last && !(s.bet > 0 && BETTY.test(s.last)) ? `<div class="act ${lastCls}">${esc(s.last)}</div>` : s.out && !s.left && s.stack ? '<div class="act fold">Sitting out</div>' : ''}
     ${t.toAct === i && t.phase === 'hand' ? `<div class="tmr"><i style="animation-duration:${dur}s;animation-delay:-${Math.max(0, dur - left).toFixed(2)}s"></i></div>` : ''}
@@ -570,7 +574,7 @@ function popBar(t) {
 }
 function rulesHTML(c) {
   return `<ul class="rules"><li>No-limit Texas Hold'em, blinds ${money(c.sb)}/${money(c.bb)}.</li><li>Buy in for ${money(c.min)} to ${money(c.max)} in casino chips. They go back when you leave.</li>
-    <li>Sit down anytime; you're dealt in next hand.</li><li>${c.turn} seconds to act, then you check or fold. Time out twice in a row and you're sat out.</li><li>No rake. Pots are player vs player.</li>${c.straddle ? `<li>Straddle on: the player after the big blind posts ${money(2 * c.bb)} and acts last before the flop.</li>` : ''}${T().seats.some(s => s && !s.left && (s.bot || s.free)) ? '<li>Test table: bots play on fake chips. Sitting down while bots are here is free. If you brought real chips, you get back what you had when the bots sat down (plus top-ups), win or lose.</li>' : ''}${T().nit ? `<li>Nit game: the last player to win a pot pays everyone ${money(T().nit.amt)}.</li>` : ''}<li>Bomb pot (host's call): everyone puts in the same amount and the cards start on the flop.</li></ul>`;
+    <li>Sit down anytime; you're dealt in next hand.</li><li>${c.turn} seconds to act, then you check or fold. Time out twice in a row and you're sat out.</li><li>No rake. Pots are player vs player.</li>${c.gift ? `<li>Free seat: the house gives everyone one ${money(c.gift)} buy-in in this room. No strings: leave any time and it's all yours.</li>` : ''}${c.straddle ? `<li>Straddle on: the player after the big blind posts ${money(2 * c.bb)} and acts last before the flop.</li>` : ''}${T().seats.some(s => s && !s.left && (s.bot || s.free)) ? '<li>Test table: bots play on fake chips. Sitting down while bots are here is free. If you brought real chips, you get back what you had when the bots sat down (plus top-ups), win or lose.</li>' : ''}${T().nit ? `<li>Nit game: the last player to win a pot pays everyone ${money(T().nit.amt)}.</li>` : ''}<li>Bomb pot (host's call): everyone puts in the same amount and the cards start on the flop.</li></ul>`;
 }
 const opts = (list, cur, fmt = v => v) => list.map(v => `<option value="${v}" ${String(v) === String(cur) ? 'selected' : ''}>${fmt(v)}</option>`).join('');
 function hostHTML() {
@@ -584,6 +588,8 @@ function hostHTML() {
       <label>Turn timer<select id="hTurn">${opts(TURNS, D.hTurn || t.cfg.turn, v => v + ' sec')}</select></label></div>
     <div class="hgrid"><label>1st hand bomb<select id="hBombO"><option value="0">No</option>${BOMBS.map(x => `<option value="${x}" ${String(x) === D.hBombO ? 'selected' : ''}>${x} BB each</option>`).join('')}</select></label>
       <label>Nit game<select id="hNitO"><option value="0">Off</option>${NITS.map(x => `<option value="${x}" ${String(x) === D.hNitO ? 'selected' : ''}>${x} BB each</option>`).join('')}</select></label></div>
+    <div class="hgrid"><label>Free seat $ (blank = off)<input class="num" type="number" id="hGiftO" min="0" step="5" inputmode="numeric" placeholder="Off" value="${D.hGiftO || ''}"></label>
+      <label style="align-self:end;font-size:11px">One each, from $10 up to the max buy-in. The house pays, no strings.</label></div>
     <label class="chk"><input type="checkbox" id="hStrO" ${D.hStrO ? 'checked' : ''}> Straddle (2× BB)</label>
     <label class="chk"><input type="checkbox" id="hPost" ${D.hPost === false ? '' : 'checked'}> Post "The poker room is open" in #the-table</label>
     <button class="cbtn up" data-host="open">Open the room</button></div>`;
@@ -595,6 +601,7 @@ function hostHTML() {
       <div><b>Bomb pot</b>${t.bomb ? `<small>Next hand, ${money(t.bomb * t.cfg.bb)} each</small><button class="cbtn ghost sm" data-hx="bomb" data-x="0">Call off</button>`
         : `<select id="hBomb">${BOMBS.map(x => `<option value="${x}" ${x === (+hostDraft.hBomb || 5) ? 'selected' : ''}>${money(x * t.cfg.bb)} each</option>`).join('')}</select><button class="cbtn up sm" data-hx="bomb">Next hand</button>`}</div>
       <div><b>Straddle</b><small>${t.phase === 'hand' ? 'From next hand' : `${money(2 * t.cfg.bb)} after the BB`}</small><button class="cbtn ${t.cfg.straddle ? 'up' : 'ghost'} sm" data-hx="straddle" data-on="${t.cfg.straddle ? '' : '1'}">${t.cfg.straddle ? 'On' : 'Off'}</button></div>
+      <div><b style="flex:1;display:grid">Free seat<small style="white-space:normal">${t.cfg.gift ? `${money(t.cfg.gift)} each, ${(t.gifted || []).length} taken` : 'Off'}</small></b><input class="num" type="number" id="hGift" min="0" step="5" inputmode="numeric" placeholder="$" value="${hostDraft.hGift || t.cfg.gift || 40}" aria-label="Free seat amount"><button class="cbtn up sm" data-hx="gift">Set</button>${t.cfg.gift ? '<button class="cbtn ghost sm" data-hx="gift" data-x="0">Off</button>' : ''}</div>
       <div><b>Bots</b><small>Fake chips</small>${t.seats.some(s => s && s.bot && !s.left) ? `<button class="cbtn ghost sm" data-hx="bot" data-on="">Remove</button>` : ''}<button class="cbtn up sm" data-hx="bot" data-on="1" ${t.seats.every(Boolean) ? 'disabled' : ''}>Add bot</button></div>
       <div><b>Nit game</b>${t.nit || t.nitNext ? `<small>${t.nit ? `${money(t.nit.amt)} each, ${t.nit.need.length} left` : `Next hand, ${money(t.nitNext.amt)} each`}</small><button class="cbtn ghost sm" data-hx="nit" data-x="0">${t.nit ? 'End' : 'Call off'}</button>`
         : `<select id="hNit">${NITS.map(x => `<option value="${x}" ${x === (+hostDraft.hNit || 5) ? 'selected' : ''}>${money(x * t.cfg.bb)} each</option>`).join('')}</select><button class="cbtn up sm" data-hx="nit">Next hand</button>`}</div>
@@ -741,7 +748,9 @@ const snap = t => ({ hid: t.hid, board: t.board.slice(), res: !!t.res, pot: t.po
 function render() {
   clearTimeout(fxT);
   const raw = S && S.table; disp = raw && raw.open ? holdView(raw) : null;
+  const ae = document.activeElement, keepId = ae && (ae.id === 'hGift' || ae.id === 'hGiftO') ? ae.id : ''; // typing an amount survives table updates
   draw(); if (disp) markDim(disp); fitTable();
+  if (keepId) { const el = $('#' + keepId); if (el) { el.focus(); try { const v = el.value; el.value = ''; el.value = v; } catch (e) {} } }
   if (disp) { sounds(disp); fxAfter(disp); } else { prevView = null; sndPrev = null; }
 }
 // ---------- sounds (on by default; the speaker button in the table bar mutes them, remembered per browser) ----------
@@ -863,8 +872,15 @@ function modal(kind, seat) {
     const room = kind === 'top' ? t.cfg.max - s.stack - (s.pend || 0) : t.cfg.max;
     const free = kind === 'sit' ? t.seats.some(x => x && x.bot && !x.left) : !!(s && s.free); // test table: fake chips, nothing taken
     const max = Math.floor(free ? room : Math.min(room, S.me.bal)), min = kind === 'top' ? 1 : t.cfg.min;
+    const gift = kind === 'sit' && !free && t.cfg.gift > 0 && !(t.gifted || []).includes(S.me.id) && !t.seats.some(x => x && !x.left && (x.bot || x.free)) ? t.cfg.gift : 0;
+    if (gift && max < min) { // can't afford a buy-in: the free seat is the only way in
+      m.innerHTML = `<div class="modal"><div class="box"><h3>Free seat</h3><div class="giftbox"><div class="amt">${money(gift)}</div><p>On the house, no strings. Leave any time and it's all yours.</p></div>
+        <div class="row"><button class="cbtn gold" data-gift="${seat}">Take the free seat</button><button type="button" class="cbtn ghost" data-close>Cancel</button></div></div></div>`;
+      return;
+    }
     if (max < min) return toast(kind === 'top' ? `You can have up to ${money(t.cfg.max)} in front of you.` : `You need ${money(t.cfg.min)} in chips to sit down. You have ${money(S.me.bal)}.`, true);
     m.innerHTML = `<div class="modal"><form class="box" id="buyF"><h3>${kind === 'top' ? (s.stack ? 'Top up' : 'Rebuy') : 'Buy in'}</h3>
+      ${gift ? `<div class="giftbox"><p><b>Free seat: ${money(gift)}</b> on the house, no strings. One per person in this room.</p><button type="button" class="cbtn up" data-gift="${seat}">Take the free ${money(gift)} seat</button></div><p>Or buy in with your own chips:</p>` : ''}
       ${kind === 'top' ? `<p>Up to ${money(t.cfg.max)} in front of you.</p>` : ''}
       <div class="amt" id="buyAmt">${money(max)}</div><input type="range" id="buyR" min="${min}" max="${max}" step="1" value="${max}" aria-label="Amount">
       <p style="font:500 12px var(--mono);color:var(--muted)">${free ? 'Free: test table chips, your balance stays ' + money(S.me.bal) : `Casino chips after: <span id="buyLeft">${money(S.me.bal - max)}</span>`}</p>
@@ -885,7 +901,7 @@ async function send(body) {
     const j = await api(body);
     if (j.err) { toast(j.err, true); render(); }
     else if (body.a === 'leave') toast(`${money(j.me.bal - before)} went back to your casino chips`);
-    else if (body.a === 'sit') toast("You're in. You'll be dealt in next hand.");
+    else if (body.a === 'sit') toast(body.gift ? "Free seat taken. You'll be dealt in next hand." : "You're in. You'll be dealt in next hand.");
   } catch (e) { toast("Couldn't reach the table. Try again.", true); }
   busy = false;
   runPre(); // a pre-action that came due while this request was out
@@ -901,6 +917,7 @@ document.addEventListener('click', e => {
   if (b.hasAttribute('data-close')) { $('#modal').innerHTML = ''; return; }
   if (b.dataset.confirm === 'leave') { $('#modal').innerHTML = ''; return send({ a: 'leave' }); }
   if (b.dataset.sit !== undefined) return modal('sit', +b.dataset.sit);
+  if (b.dataset.gift !== undefined) { $('#modal').innerHTML = ''; return send({ a: 'sit', seat: +b.dataset.gift, gift: 1 }); }
   if (b.dataset.say) return say(b.dataset.say);
   if (b.dataset.to) { const r = $('#raise'); if (r) { r.value = b.dataset.to; r.dispatchEvent(new Event('input')); } return; }
   if (b.hasAttribute('data-snd')) { sndOn = !sndOn; try { localStorage.setItem('pk:snd', sndOn ? 'on' : 'off'); } catch (e) {} if (sndOn && audio()) SND.chips(); return render(); }
@@ -917,12 +934,13 @@ document.addEventListener('click', e => {
   if (b.dataset.seatout !== undefined) return send({ a: 'seatout', seat: +b.dataset.seatout, on: !!b.dataset.on });
   const hx = b.dataset.hx;
   if (hx === 'straddle' || hx === 'bot') return send({ a: hx, on: !!b.dataset.on });
-  if (hx) return send({ a: hx, x: b.dataset.x !== undefined ? +b.dataset.x : +$(hx === 'bomb' ? '#hBomb' : '#hNit').value });
+  if (hx) return send({ a: hx, x: b.dataset.x !== undefined ? +b.dataset.x : +$(hx === 'bomb' ? '#hBomb' : hx === 'gift' ? '#hGift' : '#hNit').value });
   const h = b.dataset.host;
-  if (h === 'open') { const [sb, bb] = $('#hBlinds').value.split('/').map(Number); return send({ a: 'open', post: $('#hPost').checked, cfg: { sb, bb, min: +$('#hMin').value, max: +$('#hMax').value, turn: +$('#hTurn').value, straddle: $('#hStrO').checked, bomb: +$('#hBombO').value, nit: +$('#hNitO').value } }); }
+  if (h === 'open') { const [sb, bb] = $('#hBlinds').value.split('/').map(Number); return send({ a: 'open', post: $('#hPost').checked, cfg: { sb, bb, min: +$('#hMin').value, max: +$('#hMax').value, turn: +$('#hTurn').value, straddle: $('#hStrO').checked, bomb: +$('#hBombO').value, nit: +$('#hNitO').value, gift: +$('#hGiftO').value || 0 } }); }
   if (h) return send({ a: h });
 });
-document.addEventListener('change', e => { const id = e.target.id; if (['hBlinds', 'hMin', 'hMax', 'hTurn', 'hBomb', 'hNit', 'hBombO', 'hNitO'].includes(id)) hostDraft[id] = e.target.value; if (id === 'hPost' || id === 'hStrO') hostDraft[id] = e.target.checked; if (e.target.id === 'hBlinds2') { const [sb, bb] = e.target.value.split('/').map(Number); send({ a: 'blinds', sb, bb }); } });
+document.addEventListener('change', e => { const id = e.target.id; if (['hBlinds', 'hMin', 'hMax', 'hTurn', 'hBomb', 'hNit', 'hBombO', 'hNitO', 'hGiftO', 'hGift'].includes(id)) hostDraft[id] = e.target.value; if (id === 'hPost' || id === 'hStrO') hostDraft[id] = e.target.checked; if (e.target.id === 'hBlinds2') { const [sb, bb] = e.target.value.split('/').map(Number); send({ a: 'blinds', sb, bb }); } });
+document.addEventListener('input', e => { if (e.target.id === 'hGift' || e.target.id === 'hGiftO') hostDraft[e.target.id] = e.target.value; });
 document.addEventListener('submit', e => { if (e.target.id === 'sayF') { e.preventDefault(); const i = $('#sayIn'); say(i.value); i.value = ''; } });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) api().catch(() => {}); });
 

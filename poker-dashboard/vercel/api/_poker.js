@@ -3,8 +3,8 @@
 //
 //   GET  /api/poker            → the table (public), plus for a signed-in person: your seat, your two cards, your chips, host or not
 //   GET  /api/poker?token=1    → Ably token request; guests (not signed in) get listen-only, so watching needs no sign-in
-//   POST /api/poker {a: …}     → token (Ably sign-in for live updates) | sit {seat, amt} | top {amt} | leave | sitout {on}
-//                                | act {do: fold|check|call|raise, to} | tick | host: open {cfg} | close | pause | resume | blinds {sb, bb} | seatout {seat, on} | bomb {x} | straddle {on} | nit {x} | bot {on} (add one test player / remove them all)
+//   POST /api/poker {a: …}     → token (Ably sign-in for live updates) | sit {seat, amt, gift (take the host's free seat)} | top {amt} | leave | sitout {on}
+//                                | act {do: fold|check|call|raise, to} | tick | host: open {cfg} | close | pause | resume | blinds {sb, bb} | seatout {seat, on} | bomb {x} | straddle {on} | nit {x} | gift {x} (free seat $, 0 = off) | bot {on} (add one test player / remove them all)
 //
 // Storage: the whole table is one JSON value (pk:t) with a version number (pk:v). Each change reads it, applies the rules
 // (_pokergame.js) and writes it back only if nobody else wrote in between (one Lua compare-and-set), else tries again.
@@ -13,8 +13,10 @@
 // Live updates: after each change the public table is published to the Ably channel "poker:table" (env ABLY_API_KEY, kept
 // server-side; browsers get short-lived tokens that can only listen there and chat on "poker:chat"). Without Ably the page polls.
 // Hosts = Renato, server admins and the pitboss role (same people as /house).
+// Free seats (host's gift): only people in the Discord server (checked with the bot, a yes is kept a day in pk:mem:<id>). The house's cost
+// goes in the house books as 'free seat' (hs:all / hs:wk) and the casino feed gets a "free seat" line.
 import { createHmac, randomBytes } from 'node:crypto';
-import { kv, takeChips, FEED_KEEP } from './_blackjack.js';
+import { kv, takeChips, FEED_KEEP, weekKey } from './_blackjack.js';
 import { postChannel } from './_rewards.js';
 import * as E from './_pokergame.js';
 
@@ -104,6 +106,23 @@ async function isHost(id) {
   return ok;
 }
 
+/** Is this person in the Discord server? (site sign-in alone doesn't say) A yes is kept a day; a no is re-checked next time. */
+const memberCache = new Map();
+async function isMember(id) {
+  if (id === RENATO) return true;
+  const c = memberCache.get(id); if (c && Date.now() - c < 3600e3) return true;
+  const [seen] = await kv(['GET', 'pk:mem:' + id]).catch(() => [null]);
+  if (seen) { memberCache.set(id, Date.now()); return true; }
+  const token = process.env.DISCORD_BOT_TOKEN; if (!token) return false;
+  try {
+    const get = p => fetch(API + p, { headers: { Authorization: `Bot ${token}` } }).then(r => r.ok ? r.json() : null);
+    for (const g of ((await get('/users/@me/guilds')) || []).slice(0, 3)) {
+      if (await get(`/guilds/${g.id}/members/${id}`)) { memberCache.set(id, Date.now()); await kv(['SET', 'pk:mem:' + id, '1', 'EX', 86400]).catch(() => {}); return true; }
+    }
+  } catch (e) { console.error('poker member check', e); }
+  return false;
+}
+
 // ---------- the page's data ----------
 async function view(T, me, t, extra = {}) {
   const body = { table: E.publicView(T, t), ably: !!ablyKey(), ...extra };
@@ -130,13 +149,25 @@ export async function pokerWeb(req, me, _sheet, out) {
   }
   let b; try { b = await req.json(); } catch (e) { return out({ err: 'Bad request.' }, 400); }
   const who = { id: me.id, name: me.name };
-  const host = ['open', 'close', 'pause', 'resume', 'blinds', 'seatout', 'bomb', 'straddle', 'nit', 'bot'].includes(b.a);
+  const host = ['open', 'close', 'pause', 'resume', 'blinds', 'seatout', 'bomb', 'straddle', 'nit', 'gift', 'bot'].includes(b.a);
   if (host && !(await isHost(me.id))) return out({ err: 'Only hosts can do that.' }, 403);
   const done = async (r, extra = {}) => r.err ? out({ err: r.err, ...(r.T ? await view(r.T, me, t) : {}) }) : out(await view(r.T, me, t, extra));
 
   switch (b.a) {
     case 'token': return ablyKey() ? out({ token: tokenRequest(me.id) }) : out({ err: 'Live updates are not set up.' });
-    case 'sit': case 'top': {
+    case 'sit': if (b.gift) {
+      // the host's free seat: no chips taken, no strings (leaving pays the whole stack like any seat)
+      const pre = await load(), why = E.giftBlock(pre, me.id);
+      if (why) return done({ T: pre, err: why });
+      if (!(await isMember(me.id))) return done({ T: pre, err: 'Free seats are for people in the Poker Club Discord. Join the server, then try again.' });
+      const r = await change((T, now) => E.sit(T, who, int(b.seat), 0, now, false, true), t);
+      if (r.err) return done(r);
+      const amt = r.T.seats[E.seatOf(r.T, me.id)].gift, wk = weekKey(t);
+      await kv(['HSET', 'bj:name', me.id, me.name], ['HINCRBYFLOAT', 'hs:wk:' + wk, 'free seat', -amt], ['EXPIRE', 'hs:wk:' + wk, 120 * 86400], ['HINCRBYFLOAT', 'hs:all', 'free seat', -amt],
+        ['LPUSH', 'cas:feed', JSON.stringify({ id: me.id, name: me.name, game: 'free seat', why: 'poker room, on the house', net: amt, src: 'site', at: Date.now() })], ['LTRIM', 'cas:feed', 0, FEED_KEEP - 1]).catch(e => console.error('poker gift books', e));
+      return done(r);
+    } // fall through: a normal buy-in
+    case 'top': {
       const amt = int(b.amt);
       if (!(amt >= 1)) return out({ err: 'Pick an amount.' });
       const pre = await load(); // quick checks before taking chips (the real ones run again inside the change)
@@ -166,7 +197,7 @@ export async function pokerWeb(req, me, _sheet, out) {
       const r = await change((T, now) => E.openRoom(T, b.cfg || {}, now), t);
       if (!r.err && b.post !== false) {
         const c = r.T.cfg, origin = `https://${req.headers.get('x-forwarded-host') || new URL(req.url).host}`;
-        const x = [c.straddle && 'Straddle on.', r.T.nitNext && `Nit game: last to win a pot pays everyone ${$(r.T.nitNext.amt)}.`, r.T.bomb && `First hand is a ${$(r.T.bomb * c.bb)} bomb pot.`].filter(Boolean).join(' ');
+        const x = [c.gift && `\n🎟️ **Free seat tonight:** your first ${$(c.gift)} buy-in is on the house, yours to keep.`, c.straddle && 'Straddle on.', r.T.nitNext && `Nit game: last to win a pot pays everyone ${$(r.T.nitNext.amt)}.`, r.T.bomb && `First hand is a ${$(r.T.bomb * c.bb)} bomb pot.`].filter(Boolean).join(' ');
         await postChannel({ content: `🃏 **The poker room is open.** No-limit Hold'em, blinds ${$(c.sb)}/${$(c.bb)}, buy in ${$(c.min)} to ${$(c.max)} with your casino chips.${x ? ' ' + x : ''}\n${origin}/poker`, allowed_mentions: { parse: [] } }, 'table').catch(e => console.error('poker open post', e));
       }
       return done(r);
@@ -179,6 +210,7 @@ export async function pokerWeb(req, me, _sheet, out) {
     case 'bomb': return done(await change(T => E.setBomb(T, int(b.x)), t));
     case 'straddle': return done(await change(T => E.setStraddle(T, !!b.on), t));
     case 'nit': return done(await change(T => E.setNit(T, int(b.x)), t));
+    case 'gift': return done(await change(T => E.setGift(T, int(b.x)), t));
     case 'bot': return done(await change((T, now) => b.on ? E.addBot(T, now) : E.removeBots(T, now), t));
   }
   return out({ err: 'Unknown action.' }, 400);

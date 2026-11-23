@@ -14,6 +14,9 @@
 //   real player's sitting is a test from the next hand (s.test): s.back = their stack then (+ top-ups), and that is exactly what they get when
 //   they leave, win or lose, so play against bots never moves a balance.
 //   Free seats (s.free): while a bot sits, buying in and topping up cost nothing (the caller skips takeChips) and leaving pays nothing.
+//   Free seat (host's gift, cfg.gift = $ amount, 0 = off): a real seat bought by the house, no strings: the chips are the player's and
+//   leaving pays the whole stack like any other seat. One per person per room opening (T.gifted = ids who took one); never at a test table.
+//   s.gift = what the house put in (shows a FREE tag). The caller checks server membership and skips takeChips.
 //   A free seat keeps the table a test table even after the bots leave, so nobody's real chips can end up with it. Every extra kicks in at the start of a hand, never mid-hand.
 import { randomInt } from 'node:crypto';
 
@@ -24,10 +27,11 @@ export const MAX_BUYS = [100, 200, 500, 1000];
 export const TURNS = [15, 20, 30];
 export const BOMBS = [2, 5, 10];   // bomb pot, x the big blind
 export const NITS = [2, 5, 10];    // nit game payment to each player, x the big blind
-export const DEFAULT_CFG = { sb: 1, bb: 2, min: 40, max: 200, turn: 20, straddle: false };
+export const DEFAULT_CFG = { sb: 1, bb: 2, min: 40, max: 200, turn: 20, straddle: false, gift: 0 };
+export const GIFT_MIN = 10;        // a host's free seat: any whole amount from $10 up to the max buy-in
 const LOG_KEEP = 40, SIT_OUT_AFTER = 2; // timeouts in a row before you're sat out
 
-export const fresh = () => ({ v: 0, open: false, cfg: { ...DEFAULT_CFG }, seats: Array(SEATS).fill(null), hand: 0, hid: '', button: -1,
+export const fresh = () => ({ v: 0, open: false, cfg: { ...DEFAULT_CFG }, gifted: [], seats: Array(SEATS).fill(null), hand: 0, hid: '', button: -1,
   board: [], deck: [], pot: 0, curBet: 0, minRaise: 2, toAct: -1, street: '', phase: 'idle', deadline: 0, nextAt: 0,
   pauseReq: false, closeReq: false, res: null, log: [], at: 0, emptyAt: 0, bomb: 0, bombHand: false, nit: null, nitNext: null });
 
@@ -357,18 +361,22 @@ export function tick(T, now) {
 const canStart = T => T.seats.filter(s => s && !s.left && !s.out && s.stack > 0).length >= 2;
 /** Someone sits down with `amt` chips (already taken from their balance by the caller). Returns an error or undefined. */
 export const testTable = T => T.seats.some(s => s && !s.left && (s.bot || s.free));
-export function sit(T, me, idx, amt, now, free = false) {
+export function sit(T, me, idx, amt, now, free = false, gift = false) {
   if (!T.open) return 'The room is closed.';
   if (seatOf(T, me.id) >= 0) return "You're already sitting down.";
   if (!(idx >= 0 && idx < SEATS) || T.seats[idx]) return 'That seat is taken.';
-  if (amt < T.cfg.min || amt > T.cfg.max) return `Buy in for ${$(T.cfg.min)} to ${$(T.cfg.max)}.`;
+  if (gift) {
+    const why = giftBlock(T, me.id); if (why) return why;
+    amt = T.cfg.gift;
+  } else if (amt < T.cfg.min || amt > T.cfg.max) return `Buy in for ${$(T.cfg.min)} to ${$(T.cfg.max)}.`;
   T.seats[idx] = { id: me.id, name: me.name, stack: amt, pend: 0, buyins: amt, out: false, timeouts: 0, ...blank() };
   T.emptyAt = 0;
   if (T.nit && !T.nit.need.includes(me.id)) T.nit.need.push(me.id);
   if (free && !T.seats.some(s => s && s.bot && !s.left)) { T.seats[idx] = null; return 'The test players just left. Try again.'; }
   if (free) Object.assign(T.seats[idx], { test: true, free: true, back: 0 });
   else if (testTable(T)) Object.assign(T.seats[idx], { test: true, back: amt });
-  log(T, `${me.name} sits down with ${$(amt)}${free ? ' (free test seat)' : ''}`);
+  if (gift) { T.seats[idx].gift = amt; (T.gifted ||= []).push(me.id); }
+  log(T, `${me.name} sits down with ${$(amt)}${free ? ' (free test seat)' : gift ? ' (free seat from the house)' : ''}`);
   if (T.phase === 'idle' && canStart(T)) T.nextAt = now + 3000, T.phase = 'done';
 }
 /** Adds chips (already taken). Mid-hand they wait for the next hand. */
@@ -407,9 +415,10 @@ export function openRoom(T, cfg, t) {
   const keep = T.log;
   Object.assign(T, fresh(), { v: T.v, open: true, cfg: { sb: st[0], bb: st[1], min, max, turn: TURNS.includes(+cfg.turn) ? +cfg.turn : DEFAULT_CFG.turn, straddle: false }, log: keep, at: t, emptyAt: t });
   T.cfg.straddle = !!cfg.straddle;
+  T.cfg.gift = giftAmt(cfg.gift, max);
   if (BOMBS.includes(+cfg.bomb)) T.bomb = +cfg.bomb;
   if (NITS.includes(+cfg.nit)) T.nitNext = { amt: +cfg.nit * st[1] };
-  const on = [T.cfg.straddle && 'straddle on', T.nitNext && `nit game ${$(T.nitNext.amt)}`, T.bomb && `first hand a ${$(T.bomb * st[1])} bomb pot`].filter(Boolean);
+  const on = [T.cfg.gift && `free seats ${$(T.cfg.gift)}`, T.cfg.straddle && 'straddle on', T.nitNext && `nit game ${$(T.nitNext.amt)}`, T.bomb && `first hand a ${$(T.bomb * st[1])} bomb pot`].filter(Boolean);
   log(T, `The host opened the room: ${$(st[0])}/${$(st[1])}, buy-in ${$(min)} to ${$(max)}${on.length ? ', ' + on.join(', ') : ''}`);
 }
 export function setBlinds(T, sb, bb) {
@@ -453,6 +462,23 @@ export function setStraddle(T, on) {
   T.cfg.straddle = !!on;
   log(T, `The host turned the straddle ${on ? 'on' : 'off'} from the next hand`);
 }
+/** Why this person can't take a free seat right now ('' = they can). */
+export function giftBlock(T, id) {
+  if (!T.open) return 'The room is closed.';
+  if (!(T.cfg.gift > 0)) return 'No free seats right now.';
+  if ((T.gifted || []).includes(id)) return 'You already took your free seat in this room.';
+  if (testTable(T)) return 'No free seats at a test table.';
+  return '';
+}
+const giftAmt = (x, max) => { x = Math.floor(+x); return Number.isFinite(x) && x >= GIFT_MIN ? Math.min(x, max) : 0; };
+/** Host: free seat amount (0 = off). Changing it only affects people who sit down after this. */
+export function setGift(T, x) {
+  const amt = giftAmt(x, T.cfg.max);
+  if (+x && !amt) return `A free seat is at least ${$(GIFT_MIN)}.`;
+  if (amt === (T.cfg.gift || 0)) return false;
+  T.cfg.gift = amt;
+  log(T, amt ? `The host set free seats to ${$(amt)} (one each)` : 'The host turned free seats off');
+}
 export function setNit(T, x) {
   x = +x;
   if (!x) { if (T.nit || T.nitNext) { T.nit = null; T.nitNext = null; log(T, 'The host ended the nit game'); } return; }
@@ -484,9 +510,9 @@ export function closeRoom(T, t) {
 export function publicView(T, t = Date.now()) {
   return {
     v: T.v, now: t, open: T.open, cfg: T.cfg, hand: T.hand, hid: T.hid, button: T.button, board: T.board, pot: T.pot, curBet: T.curBet, minRaise: T.minRaise,
-    toAct: T.toAct, street: T.street, phase: T.phase, runout: !!T.runout, bomb: T.bomb || 0, bombHand: !!T.bombHand, nit: T.nit || null, nitNext: T.nitNext || null, deadline: T.deadline, nextAt: T.nextAt, pauseReq: T.pauseReq, closeReq: T.closeReq, res: T.res, log: T.log.slice(-30),
+    toAct: T.toAct, street: T.street, phase: T.phase, runout: !!T.runout, bomb: T.bomb || 0, bombHand: !!T.bombHand, nit: T.nit || null, nitNext: T.nitNext || null, gifted: T.gifted || [], deadline: T.deadline, nextAt: T.nextAt, pauseReq: T.pauseReq, closeReq: T.closeReq, res: T.res, log: T.log.slice(-30),
     rit: T.rit ? { need: T.rit.need, yes: T.rit.yes } : null, board2: T.board2 || null, canRabbit: !!T.rabbit && !T.rabbitBy, rabbit: T.rabbitBy ? T.rabbit : null, rabbitBy: T.rabbitBy || '',
-    seats: T.seats.map(s => s && { id: s.id, name: s.name, bot: !!s.bot, test: !!s.test, free: !!s.free, stack: s.stack, pend: s.pend || 0, bet: s.bet, last: s.last, folded: s.folded, allIn: s.allIn, out: s.out, left: !!s.left,
+    seats: T.seats.map(s => s && { id: s.id, name: s.name, bot: !!s.bot, test: !!s.test, free: !!s.free, gift: s.gift || 0, stack: s.stack, pend: s.pend || 0, bet: s.bet, last: s.last, folded: s.folded, allIn: s.allIn, out: s.out, left: !!s.left,
       dealt: inHand(s), cards: s.show ? s.cards : undefined }),
   };
 }
