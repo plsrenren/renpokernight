@@ -74,7 +74,11 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .game { display: grid; gap: 16px; margin-top: 12px; }
 /* the open room uses the whole browser width; log, rules and host controls drop down from buttons at the top right */
 body.room .wrap { max-width: none; }
-.felt { position: relative; aspect-ratio: 2 / 1; width: 100%; max-height: max(360px, calc(100vh - 400px)); margin-block: 14px; }
+.felt { position: relative; aspect-ratio: 2 / 1; width: min(100%, calc(max(260px, 100vh - 370px) * 2)); margin: 14px auto; }
+/* the table keeps one shape at every window size (it used to stretch flat on wide screens and squash on narrow ones);
+   seats, bets, the board and the dealer button scale with it through --k (fitTable), set from the table's width */
+.felt .st, .felt .bet, .felt .dbtn2 { scale: var(--k, 1); transform-origin: 0 0; }
+.felt .center { scale: var(--k, 1); transform-origin: 0 0; width: calc(56% / var(--k, 1)); }
 .oval { position: absolute; inset: 9% 7%; border-radius: 50%; background: radial-gradient(120% 90% at 50% 20%, var(--felt1), var(--felt2) 72%); border: 10px solid #3a2a6e; outline: 3px solid var(--gold); box-shadow: inset 0 0 40px rgba(0,0,0,.45); }
 .oval::after { content: "THE STUDY"; position: absolute; left: 50%; top: 70%; transform: translateX(-50%); font: 400 22px var(--title); letter-spacing: .4em; color: rgba(255,255,255,.07); white-space: nowrap; }
 .center { position: absolute; left: 50%; top: 47%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 8px; width: 56%; }
@@ -220,12 +224,13 @@ details.fold > summary + * { margin-top: 10px; }
 .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--up); color: #0e2a1c; font: 700 14px var(--body); padding: 10px 16px; z-index: 70; max-width: calc(100% - 32px); }
 .toast.bad { background: var(--down); color: #3a0d18; }
 
-@media (max-width: 900px) { .lobby { grid-template-columns: minmax(0, 1fr); } .felt { aspect-ratio: 16 / 10; } .hero { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .lobby { grid-template-columns: minmax(0, 1fr); } .felt { aspect-ratio: 16 / 10; width: min(100%, calc(max(260px, 100vh - 370px) * 1.6)); } .hero { grid-template-columns: 1fr; } }
 @media (max-width: 640px) {
   .wrap { padding: 14px 14px 30px; }
   .brand .lg { width: 70px; height: 60px; } .brand h1 { font-size: 38px; margin-top: 4px; }
   .links { display: none; } .me { margin-top: 4px; } .me .nm { display: none; }
-  .felt { aspect-ratio: 10 / 13.5; max-height: none; }
+  .felt { aspect-ratio: 10 / 13.5; width: 100%; }
+  .felt .st, .felt .bet, .felt .dbtn2, .felt .center { scale: none; } .felt .center { width: 66%; }
   .oval { inset: 7% 11%; border-width: 7px; } .oval::after { top: 74%; font-size: 16px; }
   .center { width: 66%; top: 43%; }
   .tbar .info { flex: 1 0 100%; font-size: 17px; overflow: hidden; text-overflow: ellipsis; }
@@ -649,9 +654,16 @@ const snap = t => ({ hid: t.hid, board: t.board.slice(), res: !!t.res, pot: t.po
 function render() {
   clearTimeout(fxT);
   const raw = S && S.table; disp = raw && raw.open ? holdView(raw) : null;
-  draw();
+  draw(); fitTable();
   if (disp) fxAfter(disp); else prevView = null;
 }
+/** seats, cards and chips are sized for a ~1000px-wide table; bigger or smaller tables scale them (phones have their own sizes) */
+function fitTable() {
+  const f = $('.felt'); if (!f) return;
+  const k = innerWidth <= 640 ? 1 : Math.min(1.25, Math.max(.6, f.clientWidth / 1000));
+  document.documentElement.style.setProperty('--k', k.toFixed(3));
+}
+addEventListener('resize', () => fitTable());
 function draw() {
   if (!S || !S.table) return;
   document.body.classList.toggle('seated', mySeat() >= 0);
