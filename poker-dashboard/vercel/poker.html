@@ -741,7 +741,7 @@ const snap = t => ({ hid: t.hid, board: t.board.slice(), res: !!t.res, pot: t.po
 function render() {
   clearTimeout(fxT);
   const raw = S && S.table; disp = raw && raw.open ? holdView(raw) : null;
-  draw(); fitTable();
+  draw(); if (disp) markDim(disp); fitTable();
   if (disp) { sounds(disp); fxAfter(disp); } else { prevView = null; sndPrev = null; }
 }
 // ---------- sounds (on by default; the speaker button in the table bar mutes them, remembered per browser) ----------
@@ -792,6 +792,15 @@ function sounds(t) {
     if (t.res && !prev.res) { if (i >= 0 && t.res.win.includes(i)) SND.win(.25); else SND.pot(.25); }
   }
   if (i >= 0 && t.phase === 'hand' && t.toAct === i && (prev.toAct !== i || prev.hid !== t.hid)) SND.turn(.1);
+}
+/** the all-in run out and the winner moment dim the table and light the players. draw() rebuilds the felt, so put those classes back
+ *  BEFORE anything measures the page (fitTable, fxAfter): added after a measure, the .35s filter transition replays from bright on
+ *  every update and the table flashes (Renato, Nov 23). */
+function markDim(t) {
+  const felt = $('.felt'); if (!felt) return;
+  const lit = is => { felt.classList.add('dim'); is.forEach(i => { const e = $(`.st[data-peek="${i}"]`); if (e) e.classList.add('lit'); }); };
+  if (t.allinShow) lit(t.seats.map((s, i) => s && s.dealt && !s.folded ? i : -1).filter(i => i >= 0));
+  else if (winFx && winFx.hid === t.hid && t.res && nowMs() - winFx.start < 2600) lit(t.res.win || []);
 }
 /** seats, cards and chips are sized for a ~1000px-wide table; bigger or smaller tables scale them (phones have their own sizes) */
 function fitTable() {
