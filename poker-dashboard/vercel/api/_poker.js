@@ -158,6 +158,9 @@ export async function pokerWeb(req, me, _sheet, out) {
     case 'leave': return done(await change((T, now) => E.leave(T, who, now), t));
     case 'sitout': return done(await change((T, now) => { const i = E.seatOf(T, me.id); return i < 0 ? "You're not at the table." : E.sitOut(T, i, !!b.on, now); }, t));
     case 'act': return done(await change((T, now) => { const i = E.seatOf(T, me.id); return i < 0 ? "You're not at the table." : E.act(T, i, String(b.do), int(b.to), now); }, t));
+    case 'show': return done(await change((T, now) => { const i = E.seatOf(T, me.id); return i < 0 ? "You're not at the table." : E.showCards(T, i, now); }, t));
+    case 'rit': return done(await change((T, now) => { const i = E.seatOf(T, me.id); return i < 0 ? "You're not at the table." : E.ritVote(T, i, !!b.yes, now); }, t));
+    case 'rabbit': return done(await change((T, now) => { const i = E.seatOf(T, me.id); return i < 0 ? "You're not at the table." : E.rabbitHunt(T, i, now); }, t));
     case 'tick': return done(await change((T, now) => E.tick(T, now) ? true : false, t));
     case 'open': {
       const r = await change((T, now) => E.openRoom(T, b.cfg || {}, now), t);

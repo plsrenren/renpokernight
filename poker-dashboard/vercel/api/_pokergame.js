@@ -112,7 +112,7 @@ export function startHand(T, now) {
   });
   const ok = (s) => s && !s.out && s.stack > 0;
   const live = T.seats.filter(ok);
-  T.res = null; T.board = []; T.pot = 0;
+  T.res = null; T.board = []; T.pot = 0; T.rabbit = null; T.rabbitBy = ''; T.rit = null; T.board2 = null;
   if (live.length < 2) { T.phase = 'idle'; T.toAct = -1; T.nextAt = 0; return; }
   if (T.nitNext) { T.nit = { amt: T.nitNext.amt, need: T.seats.filter(s => s && !s.left).map(s => s.id) }; T.nitNext = null; log(T, `Nit game on: the last player to win a pot pays everyone ${$(T.nit.amt)}`); }
   T.hand++; T.hid = Math.random().toString(36).slice(2, 10);
@@ -190,15 +190,46 @@ function endStreet(T, now) {
   T.toAct = -1;
   collect(T);
   if (T.street === 'river') return showdown(T, now);
-  deal(T);
   if (T.seats.filter(canAct).length <= 1) { // nobody left to bet: turn everyone's cards up and run the board out
     alive(T).forEach(s => s.show = true);
-    while (T.street !== 'river') deal(T);
-    T.runout = true;
-    return showdown(T, now);
+    // run it twice: everyone still in gets asked (bots answer at once); all yes = two boards, each worth half of every pot
+    if (T.cfg.rit !== false && !T.bombHand) {
+      const live = alive(T), bots = live.filter(s => s.bot), yesBots = bots.filter(() => Math.random() < .7).map(s => s.id);
+      T.rit = { need: live.filter(s => !s.bot).map(s => s.id), yes: yesBots };
+      if (yesBots.length < bots.length) { log(T, 'A test player wants it once'); return ritDone(T, false, now); }
+      if (!T.rit.need.length) return ritDone(T, true, now); // only bots, and they all said yes
+      T.toAct = -1; T.deadline = now + RIT_MS;
+      log(T, 'All in: run it twice?');
+      return;
+    }
+    return runOut(T, now, false);
   }
+  deal(T);
   T.runout = false;
   return nextTurn(T, T.button, now);
+}
+const RIT_MS = 9000;
+/** an all-in player's answer to "run it twice?" (any no, or the timer running out, = once) */
+export function ritVote(T, i, yes, now) {
+  const s = T.seats[i];
+  if (T.phase !== 'hand' || !T.rit || !s || !T.rit.need.includes(s.id)) return 'Nothing to answer right now.';
+  if (!yes) { log(T, `${s.name} wants it once`); return ritDone(T, false, now); }
+  if (!T.rit.yes.includes(s.id)) { T.rit.yes.push(s.id); log(T, `${s.name} wants it twice`); }
+  if (T.rit.need.every(id => T.rit.yes.includes(id))) return ritDone(T, true, now);
+}
+function ritDone(T, twice, now) { T.rit = null; return runOut(T, now, twice); }
+function runOut(T, now, twice) {
+  T.runout = true;
+  if (!twice) { while (T.street !== 'river') deal(T); return showdown(T, now); }
+  const start = T.board.slice(), street = T.street;
+  while (T.street !== 'river') deal(T);
+  const first = T.board.slice();
+  T.board = start; T.street = street;
+  while (T.street !== 'river') deal(T);
+  const second = T.board.slice();
+  T.board = first; T.board2 = second;
+  log(T, `Run it twice. Second board: ${second.map(cardText).join(' ')}`);
+  return showdown(T, now, second);
 }
 /** nit game: pot winners are safe; when one player is left without a win, they pay everyone else and the nit game ends */
 function nitCheck(T) {
@@ -224,11 +255,30 @@ function winUncontested(T, now) {
   const w = alive(T)[0], amt = potTotal(T);
   T.seats.forEach(s => { if (s) s.bet = 0; }); T.pot = 0;
   w.stack += amt; w.last = 'Wins';
-  T.res = { banner: `${w.name} takes ${$(amt)}`, sub: 'Everyone else folded', hl: [], win: [T.seats.indexOf(w)] };
+  T.res = { banner: `${w.name} takes ${$(amt)}`, sub: 'Everyone else folded', hl: [], win: [T.seats.indexOf(w)], fold: true };
   log(T, `${w.name} takes ${$(amt)}`);
-  finish(T, now, 3500);
+  // rabbit hunt: the board that would have come, dealt the normal way (burn + card) from what's left; only shown if someone asks
+  if (T.board.length < 5 && !T.bombHand) { const d = T.deck.slice(), r = []; let n = T.board.length; while (n < 5) { d.pop(); if (n === 0) { r.push(d.pop(), d.pop(), d.pop()); n = 3; } else { r.push(d.pop()); n++; } } T.rabbit = r; }
+  finish(T, now, 4500);
 }
-function showdown(T, now) {
+/** After everyone folded to you: turn your cards up for the table (you won, so you choose; mucking = doing nothing). */
+export function showCards(T, i, now) {
+  const s = T.seats[i];
+  if (T.phase !== 'done' || !T.res || !T.res.fold || !s || !T.res.win.includes(i)) return 'Nothing to show right now.';
+  if (s.show) return;
+  s.show = true; log(T, `${s.name} shows ${s.cards.map(cardText).join(' ')}`);
+  T.nextAt = Math.max(T.nextAt, now + 3000);
+}
+/** Rabbit hunt: anyone who was dealt in can turn up the board that never came (once per hand, for everyone). */
+export function rabbitHunt(T, i, now) {
+  const s = T.seats[i];
+  if (T.phase !== 'done' || !T.rabbit || !s || !s.cards.length) return 'No rabbit to hunt this hand.';
+  if (T.rabbitBy) return;
+  T.rabbitBy = s.name; log(T, `${s.name} rabbit hunts: ${T.rabbit.map(cardText).join(' ')}`);
+  T.nextAt = Math.max(T.nextAt, now + 3500);
+}
+function showdown(T, now, board2 = null) {
+  if (board2) return showdown2(T, now, board2);
   const live = alive(T);
   live.forEach(s => { s.show = true; s.best = best([...s.cards, ...T.board]); });
   const levels = [...new Set(live.map(s => s.total))].sort((a, b) => a - b);
@@ -256,6 +306,39 @@ function showdown(T, now) {
   live.forEach(s => delete s.best);
   finish(T, now, T.runout ? 8000 : 6000);
 }
+/** run it twice: every pot is split in half (odd chip to run 1) and each half goes to the best hand on its own board */
+function showdown2(T, now, board2) {
+  const live = alive(T), boards = [T.board, board2];
+  live.forEach(s => { s.show = true; s.bests = boards.map(b => best([...s.cards, ...b])); });
+  const levels = [...new Set(live.map(s => s.total))].sort((a, b) => a - b);
+  const dist = s => (T.seats.indexOf(s) - T.button + SEATS) % SEATS;
+  let prev = 0; const won = new Map(), runs = [[], []];
+  levels.forEach((L, li) => {
+    let amt = 0; T.seats.forEach(s => { if (s) amt += Math.max(0, Math.min(s.total, L) - prev); });
+    if (li === levels.length - 1) T.seats.forEach(s => { if (s && s.total > L) amt += s.total - L; });
+    const elig = live.filter(s => s.total >= L);
+    if (elig.length === 1) { elig[0].stack += amt; if (amt > 0) log(T, `${elig[0].name} gets ${$(amt)} back (uncalled)`); prev = L; return; }
+    [Math.ceil(amt / 2), Math.floor(amt / 2)].forEach((half, r) => {
+      const top = Math.max(...elig.map(s => s.bests[r].v));
+      const w = elig.filter(s => s.bests[r].v === top).sort((a, b) => (dist(a) || SEATS) - (dist(b) || SEATS));
+      const share = Math.floor(half / w.length);
+      w.forEach((s, k) => { const g = share + (k === 0 ? half - share * w.length : 0); s.stack += g; won.set(s, (won.get(s) || 0) + g); });
+      if (half > 0) runs[r].push({ amt: half, w });
+    });
+    prev = L;
+  });
+  T.pot = 0;
+  const winners = [...won.keys()];
+  winners.forEach(s => s.last = 'Wins');
+  const name = r => runs[r].length ? [...new Set(runs[r][0].w.map(s => s.name))].join(' & ') : '';
+  const n1 = name(0), n2 = name(1);
+  T.res = { banner: n1 === n2 ? `${n1} wins both runs` : `Run 1: ${n1} · Run 2: ${n2}`, sub: `Pot split over two boards`, hl: [], win: winners.map(s => T.seats.indexOf(s)), twice: true,
+    runs: [0, 1].map(r => ({ names: name(r), hand: runs[r].length ? describe(runs[r][0].w[0].bests[r]) : '' })) };
+  live.forEach(s => log(T, `${s.name} shows ${s.cards.map(cardText).join(' ')}`));
+  [0, 1].forEach(r => runs[r].forEach(p => log(T, `Run ${r + 1}: ${p.w.map(s => s.name).join(' & ')} ${p.w.length > 1 ? 'split' : 'wins'} ${$(p.amt)} (${describe(p.w[0].bests[r])})`)));
+  live.forEach(s => delete s.bests);
+  finish(T, now, 10000);
+}
 
 // ---------- the room ----------
 /** Moves time forward: overdue turns time out, the next hand starts when it's due, an empty room closes after 30 min,
@@ -265,6 +348,7 @@ export function tick(T, now) {
   const seated = T.seats.filter(s => s && !s.left).length;
   if (seated === 0 && T.phase !== 'hand') { if (!T.emptyAt) { T.emptyAt = now; return true; } if (now - T.emptyAt > 30 * 60e3) { closeRoom(T, now); return true; } }
   if (T.at && now - T.at > 3 * 3600e3) { closeRoom(T, now); return true; }
+  if (T.phase === 'hand' && T.rit && now >= T.deadline) { log(T, 'No answer: running it once'); ritDone(T, false, now); return true; }
   if (T.phase === 'hand' && T.toAct >= 0 && now >= T.deadline && T.seats[T.toAct].bot) { const [k, to] = botMove(T, T.toAct); if (act(T, T.toAct, k, to, now)) act(T, T.toAct, T.curBet > T.seats[T.toAct].bet ? 'call' : 'check', 0, now); return true; }
   if (T.phase === 'hand' && T.toAct >= 0 && now >= T.deadline) { const s = T.seats[T.toAct]; act(T, T.toAct, T.curBet > s.bet ? 'fold' : 'check', 0, now, true); return true; }
   if ((T.phase === 'done' || T.phase === 'idle') && (T.closeReq || T.pauseReq || T.phase === 'done' ? now >= T.nextAt : canStart(T))) { startHand(T, now); return true; }
@@ -302,7 +386,7 @@ export function leave(T, me, t) {
   const i = seatOf(T, me.id); if (i < 0) return "You're not at the table.";
   const s = T.seats[i];
   if (T.phase === 'hand' && inHand(s) && !s.folded) {
-    if (T.toAct === i) act(T, i, 'fold', 0, t); else { s.folded = true; s.last = 'Fold'; log(T, `${s.name} folds`); if (alive(T).length === 1) winUncontested(T, t); }
+    if (T.toAct === i) act(T, i, 'fold', 0, t); else { s.folded = true; s.last = 'Fold'; log(T, `${s.name} folds`); if (T.rit) { T.rit.need = T.rit.need.filter(id => id !== s.id); if (alive(T).length === 1) T.rit = null; else if (T.rit.need.every(id => T.rit.yes.includes(id))) ritDone(T, T.rit.need.length > 0, t); } if (alive(T).length === 1) winUncontested(T, t); }
   }
   cashOut(T, s, 'leaves the table');
   if (T.phase === 'hand' && inHand(s)) s.left = true; else T.seats[i] = null;
@@ -401,6 +485,7 @@ export function publicView(T, t = Date.now()) {
   return {
     v: T.v, now: t, open: T.open, cfg: T.cfg, hand: T.hand, hid: T.hid, button: T.button, board: T.board, pot: T.pot, curBet: T.curBet, minRaise: T.minRaise,
     toAct: T.toAct, street: T.street, phase: T.phase, runout: !!T.runout, bomb: T.bomb || 0, bombHand: !!T.bombHand, nit: T.nit || null, nitNext: T.nitNext || null, deadline: T.deadline, nextAt: T.nextAt, pauseReq: T.pauseReq, closeReq: T.closeReq, res: T.res, log: T.log.slice(-30),
+    rit: T.rit ? { need: T.rit.need, yes: T.rit.yes } : null, board2: T.board2 || null, canRabbit: !!T.rabbit && !T.rabbitBy, rabbit: T.rabbitBy ? T.rabbit : null, rabbitBy: T.rabbitBy || '',
     seats: T.seats.map(s => s && { id: s.id, name: s.name, bot: !!s.bot, test: !!s.test, free: !!s.free, stack: s.stack, pend: s.pend || 0, bet: s.bet, last: s.last, folded: s.folded, allIn: s.allIn, out: s.out, left: !!s.left,
       dealt: inHand(s), cards: s.show ? s.cards : undefined }),
   };
