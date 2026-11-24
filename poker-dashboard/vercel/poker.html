@@ -10,7 +10,9 @@
 <link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <style>
 /* Practice tables (/poker?bots=1, PRACTICE below): your own table against bots, play money, any time. Same page and table code;
-   the API gets ?bots=1 / {bots: 1}, there's no Ably (every change is an answer to your own request), and you run the table.
+   it runs entirely in the browser for everyone, signed in or not (LOCAL below: /pokergame.js = the real rules + bots, table and last
+   300 hands in localStorage pk:guest / pk:guesth). No server calls at all, so practice never uses Redis, functions or sign-in (by request:
+   only real games use Redis). You show up as "Hero" (the hand-history word for yourself).
    Poker room: one host-run no-limit Hold'em table for casino chips. Talks to /api/poker (api/_poker.js, rules in _pokergame.js),
    live updates through Ably (/ably.min.js, self-hosted), polling when Ably isn't there. Seat look = mockup style B (nameplate)
    with angled broadcast cards; each seat wears the player's border, bar wash and sticker (plates.js); tap a seat for the title. */
@@ -390,7 +392,7 @@ const chip = n => { const bb = S && S.table && S.table.cfg.bb; return unitBB && 
 const chipText = x => unitBB ? String(x).replace(/\$(\d[\d,]*(?:\.\d+)?)/g, (_, d) => chip(+d.replace(/,/g, ''))) : x;
 const hue = n => [...String(n)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
 const initials = n => String(n).split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
-const av = (id, name) => `<span class="av" style="--h:${hue(name)}">${esc(initials(name))}${id && !String(id).startsWith('bot:') ? `<img src="/api/avatar?id=${esc(id)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
+const av = (id, name) => `<span class="av" style="--h:${hue(name)}">${esc(initials(name))}${id && !String(id).startsWith('bot:') && id !== 'guest' ? `<img src="/api/avatar?id=${esc(id)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
 const DISCORD_SVG = '<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M20.3 4.4A19.6 19.6 0 0 0 15.4 3l-.6 1.3a18 18 0 0 0-5.6 0L8.6 3a19.6 19.6 0 0 0-4.9 1.5C.6 9-.3 13.6.1 18.1A19.8 19.8 0 0 0 6.1 21l1.3-2.1a12.8 12.8 0 0 1-2-1l.5-.4a14 14 0 0 0 12.2 0l.5.4c-.6.4-1.3.7-2 1l1.3 2.1a19.7 19.7 0 0 0 6-3c.5-5.2-.9-9.8-3.6-13.7zM8.3 15.3c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4zm7.4 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4z"/></svg>';
 const ERRS = { cancelled: 'Sign-in was cancelled.', setup: "Discord sign-in isn't set up yet.", expired: 'That sign-in link expired. Try again.', discord: "Discord didn't answer. Try again.", stranger: "That Discord account isn't one the club knows yet. Play a hand with the bot in the server first." };
 const STAKES = [[1, 2], [2, 5], [5, 10]], MIN_BUYS = [20, 40, 100], MAX_BUYS = [100, 200, 500, 1000], TURNS = [15, 20, 30], BOMBS = [2, 5, 10], NITS = [2, 5, 10];
@@ -419,7 +421,7 @@ function card(c, size = '', extra = '') { if (!c) return `<div class="cd ph ${si
 let S = null;               // { table, me, ably }
 let chat = [], peek = -1, skew = 0, err = '', tickT = 0, pollT = 0, cardsFor = '', busy = false;
 let PLATES = null;          // nameplates (plates.js): borders, bars, stickers, titles
-import('/plates.js').then(m => m.loadouts().then(lo => { PLATES = { ...lo, bits: m.bits }; render(); })).catch(() => {});
+if (!new URLSearchParams(location.search).has('bots')) import('/plates.js').then(m => m.loadouts().then(lo => { PLATES = { ...lo, bits: m.bits }; render(); })).catch(() => {});
 const plateOf = id => (PLATES && PLATES.L && PLATES.bits(PLATES.L, PLATES.byId[id])) || { any: false, bar: '', title: '', sticker: '', face: h => h };
 const PHONE = matchMedia('(max-width: 640px)');
 PHONE.addEventListener?.('change', () => render());
@@ -429,7 +431,56 @@ const mySeat = () => S && S.me && T() ? T().seats.findIndex(s => s && !s.left &&
 
 const PRACTICE = new URLSearchParams(location.search).has('bots'); // your own table against bots
 if (PRACTICE) { document.title = 'Practice Table · Poker Club @ The Study'; }
+// ---------- guest practice: the whole table runs here, on this device ----------
+let LOCAL = null; // { E (the rules), T (the table), hands }
+const GUEST = { id: 'guest', name: 'Hero' };
+async function localStart() {
+  const E = await import('/pokergame.js');
+  let T = null, hands = [];
+  try { T = JSON.parse(localStorage.getItem('pk:guest') || 'null'); hands = JSON.parse(localStorage.getItem('pk:guesth') || '[]'); } catch (e) {}
+  LOCAL = { E, T: T && T.practice ? { ...E.fresh(), ...T } : E.fresh(), hands: Array.isArray(hands) ? hands : [] };
+}
+function localSave() { try { localStorage.setItem('pk:guest', JSON.stringify(LOCAL.T)); localStorage.setItem('pk:guesth', JSON.stringify(LOCAL.hands.slice(-300))); } catch (e) {} }
+function localView(err) {
+  const { E, T } = LOCAL, i = E.seatOf(T, GUEST.id), s = i >= 0 ? T.seats[i] : null;
+  return { ...(err ? { err } : {}), table: E.publicView(T, Date.now()), ably: false, me: { id: GUEST.id, name: GUEST.name, seat: i, cards: s && s.cards.length ? s.cards : [], bal: 0, host: true, guest: true } };
+}
+/** the same actions as practiceWeb() in api/_poker.js, on the table kept here */
+function localAct(b) {
+  const { E } = LOCAL, int = v => Math.floor(+v);
+  const change = fn => { const T = LOCAL.T, r = fn(T, Date.now()); if (typeof r === 'string') return r; if (r === false) return; T.v++; T.at = Date.now(); delete T._out;
+    if (T._hands) { LOCAL.hands.push(...T._hands); delete T._hands; LOCAL.hands = LOCAL.hands.slice(-300); } localSave(); };
+  const mine = fn => change((T, now) => { if (!T.open) return 'Your practice table is closed.'; const i = E.seatOf(T, GUEST.id); return i < 0 ? "You're not at the table." : fn(T, i, now); });
+  const open = fn => change((T, now) => T.open ? fn(T, now) : 'Your practice table is closed.');
+  switch (b.a) {
+    case 'open': return change((T, now) => E.openPractice(T, GUEST, b.cfg || {}, now));
+    case 'close': case 'leave': return change((T, now) => T.open ? E.closeRoom(T, now) : false);
+    case 'top': return int(b.amt) >= 1 ? mine((T, i, now) => E.topUp(T, GUEST, int(b.amt), now)) : 'Pick an amount.';
+    case 'sitout': return mine((T, i, now) => E.sitOut(T, i, !!b.on, now));
+    case 'act': return mine((T, i, now) => E.act(T, i, String(b.do), int(b.to), now));
+    case 'show': return mine((T, i, now) => E.showCards(T, i, now));
+    case 'rit': return mine((T, i, now) => E.ritVote(T, i, !!b.yes, now));
+    case 'rabbit': return mine((T, i, now) => E.rabbitHunt(T, i, now));
+    case 'tick': return change((T, now) => E.tick(T, now) ? true : false);
+    case 'blinds': return open(T => E.setBlinds(T, int(b.sb), int(b.bb)));
+    case 'bomb': return open(T => E.setBomb(T, int(b.x)));
+    case 'straddle': return open(T => E.setStraddle(T, !!b.on));
+    case 'nit': return open(T => E.setNit(T, int(b.x)));
+    case 'level': return open(T => E.setLevel(T, String(b.x)));
+    case 'bot': return open((T, now) => b.on ? E.addBot(T, now) : E.removeBots(T, now, Number.isInteger(b.seat) ? b.seat : -1));
+  }
+  return 'Unknown action.';
+}
+/** My hands for a guest: one session per run of hands under 2 hours apart, like the server */
+function localHands(from) {
+  const rows = LOCAL.hands.map(h => { const me = h.seats.find(q => q.id === GUEST.id); return { ...h, me: me ? me.i : -1, cards: me && h.cards[me.i] ? { [me.i]: h.cards[me.i] } : {}, seats: h.seats.map(({ id: _, ...q }) => q) }; });
+  const sessions = []; rows.forEach(h => { const x = sessions[sessions.length - 1]; if (x && h.at - x.to < 2 * 3600e3) { x.to = h.at; x.n++; } else sessions.push({ from: h.at, to: h.at, n: 1 }); });
+  sessions.reverse();
+  const pick = from ? sessions.find(x => x.from <= from && from <= x.to) : sessions[0];
+  return pick ? { sessions, session: pick, hands: rows.filter(h => h.at >= pick.from && h.at <= pick.to) } : { sessions, hands: [] };
+}
 async function api(body) {
+  if (LOCAL) { const err = body ? localAct(body) : ''; const j = localView(err); take(j); return j; }
   if (body && PRACTICE) body = { ...body, bots: 1 };
   const r = await fetch('/api/poker' + (PRACTICE && !body ? '?bots=1' : ''), body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' } : { credentials: 'same-origin', cache: 'no-store' });
   let j = null; try { j = await r.json(); } catch (e) {}
@@ -643,12 +694,12 @@ function popBar(t) {
   const btn = (k, label, cls = 'ghost') => `<button class="cbtn sm popbtn ${cls} ${pop === k ? 'on' : ''}" data-pop="${k}" aria-expanded="${pop === k}">${label} ${pop === k ? '▴' : '▾'}</button>`;
   const host = S.me && S.me.host;
   const panel = pop === 'log' ? logHTML(t) : pop === 'rules' ? `<div class="panel pop" id="pop">${rulesHTML(t.cfg)}</div>` : pop === 'host' && host ? hostHTML() : '';
-  const prac = !PRACTICE && S.me && mySeat() < 0 ? '<a class="cbtn sm ghost" href="/poker?bots=1">Practice<span class="wide"> vs bots</span></a>' : '';
+  const prac = !PRACTICE && mySeat() < 0 ? '<a class="cbtn sm ghost" href="/poker?bots=1">Practice<span class="wide"> vs bots</span></a>' : '';
   return `<span class="popbar">${prac}${S.me ? '<button class="cbtn sm ghost" data-hh="open"><span class="wide">My </span>hands</button>' : ''}${btn('log', '<span class="wide">Hand </span>log')}${btn('rules', 'Rules')}${host ? btn('host', t.practice ? 'Table' : 'Host', 'hostbtn') : ''}</span>${panel}`;
 }
 function rulesHTML(c) {
   if (PRACTICE) return `<ul class="rules"><li>Your own no-limit Hold'em table against bots, any time. Nobody else sits here.</li><li>Play money: everyone starts with ${money(c.max)}, rebuys are free, and your casino chips never move.</li>
-    <li>Bots play their cards. Fish and Stations call too much, Maniacs bet everything, Rocks only play strong hands, Regs and Sharks play solid.</li><li>${c.turn} seconds to act. Time out twice and you're sat out (the bots wait for you).</li><li>Hands show up in My hands, marked practice. They don't count for anything.</li><li>Use Table to add or remove bots, change blinds, or try a bomb pot, straddle or nit game.</li></ul>`;
+    <li>Bots play their cards. Fish and Stations call too much, Maniacs bet everything, Rocks only play strong hands, Regs and Sharks play solid.</li><li>${c.turn} seconds to act. Time out twice and you're sat out (the bots wait for you).</li><li>Your last 300 practice hands stay in My hands on this device. They don't count for anything.</li><li>Use Table to add or remove bots, change blinds, or try a bomb pot, straddle or nit game.</li></ul>`;
   return `<ul class="rules"><li>No-limit Texas Hold'em, blinds ${money(c.sb)}/${money(c.bb)}.</li><li>Buy in for ${money(c.min)} to ${money(c.max)} in casino chips. They go back when you leave.</li>
     <li>Sit down anytime; you're dealt in next hand.</li><li>${c.turn} seconds to act, then you check or fold. Time out twice in a row and you're sat out.</li><li>No rake. Pots are player vs player.</li>${c.gift ? `<li>Free seat: the house gives everyone one ${money(c.gift)} buy-in in this room. No strings: leave any time and it's all yours.</li>` : ''}${c.straddle ? `<li>Straddle on: the player after the big blind posts ${money(2 * c.bb)} and acts last before the flop.</li>` : ''}${T().seats.some(s => s && !s.left && (s.bot || s.free)) ? '<li>Test table: bots play on fake chips. Sitting down while bots are here is free. If you brought real chips, you get back what you had when the bots sat down (plus top-ups), win or lose.</li>' : ''}${T().nit ? `<li>Nit game: the last player to win a pot pays everyone ${money(T().nit.amt)}.</li>` : ''}<li>Bomb pot (host's call): everyone puts in the same amount and the cards start on the flop.</li></ul>`;
 }
@@ -659,7 +710,7 @@ const STYLE_NAMES = { fish: 'Fish', station: 'Station', maniac: 'Maniac', rock: 
 function practiceSetupHTML() {
   const D = hostDraft, lvl = D.pLvl || 'mixed';
   return `<div class="panel host psetup"><h2 class="p">Practice vs bots</h2>
-    <p class="hint" style="margin-top:0">Your own table, any time. Play money only: rebuys are free and your ${money(S.me.bal)} in casino chips stays put.</p>
+    <p class="hint" style="margin-top:0">Your own table, any time, no sign-in. Play money only (rebuys are free, casino chips never move), and it all runs on this device.</p>
     <label style="font:500 12px var(--mono);color:var(--muted)">Bots</label>
     <div class="lvl">${LEVELS.map(([k, n, d]) => `<button type="button" data-plvl="${k}" class="${lvl === k ? 'on' : ''}">${n}<small>${d}</small></button>`).join('')}</div>
     <div class="hgrid"><label>How many bots<select id="pBots">${opts([1, 2, 3, 4, 5, 6, 7], D.pBots || 5)}</select></label>
@@ -683,7 +734,7 @@ function practiceHTML() {
     </div>
     <label class="hl1">Blinds<select id="hBlinds2">${STAKES.map(([a, b]) => `<option value="${a}/${b}" ${a === t.cfg.sb && b === t.cfg.bb ? 'selected' : ''}>${money(a)}/${money(b)}</option>`).join('')}</select></label>
     <div class="plist">${bots || '<p class="hint">No bots left. Add one to keep playing.</p>'}</div>
-    <p class="hint">Changes apply next hand. Play money: nothing here touches your casino chips.</p></div>`;
+    <p class="hint">Changes apply next hand. Play money${S.me.guest ? ' only.' : ': nothing here touches your casino chips.'}</p></div>`;
 }
 function hostHTML() {
   const t = T();
@@ -723,7 +774,7 @@ function header() {
   const el = $('#me');
   if (!S || !S.me) { el.classList.add('hidden'); return; }
   el.classList.remove('hidden');
-  el.innerHTML = `<span class="bal">${money(S.me.bal)}</span>${av(S.me.id, S.me.name)}<span class="nm">${esc(S.me.name)}</span>`;
+  el.innerHTML = S.me.guest ? `<a class="cbtn ghost sm" href="/poker" style="text-decoration:none">Poker room</a>` : `<span class="bal">${money(S.me.bal)}</span>${av(S.me.id, S.me.name)}<span class="nm">${esc(S.me.name)}</span>`;
 }
 let pop = '';                 // which top-right panel is open: '' | 'log' | 'rules' | 'host' (kept while the table updates)
 let logScroll = null;         // where you scrolled the hand log to (null = follow the newest line)
@@ -937,11 +988,6 @@ function draw() {
   const qerr = new URLSearchParams(location.search).get('err');
   $('#note').innerHTML = qerr && ERRS[qerr] ? `<div class="note">${esc(ERRS[qerr])}</div>` : '';
   const t = T(), v = $('#view');
-  if (PRACTICE && !S.me) {
-    v.innerHTML = `<section class="hero"><div><h2>Practice vs bots</h2><p>Your own table against bots, any time, even when the room is closed. Play money only. Sign in with Discord to start one.</p></div>
-      <div><a class="dbtn" href="/api/login?to=poker">${DISCORD_SVG}Sign in with Discord</a></div></section>`;
-    return;
-  }
   if (PRACTICE && !t.open) {
     v.innerHTML = `<div class="lobby"><div>${practiceSetupHTML()}</div><div class="side"><div class="panel"><h2 class="g">How it works</h2>${rulesHTML({ ...t.cfg, max: +(hostDraft.pStack || 200) })}</div><p><a class="cbtn ghost sm" href="/poker" style="text-decoration:none">Back to the poker room</a></p></div></div>`;
     return;
@@ -949,14 +995,14 @@ function draw() {
   if (!S.me && t.open) { // signing in is optional: guests watch the table and the chat live
     v.innerHTML = `<div class="tbar"><div class="info${extras(t) ? ' hasx' : ''}">${money(t.cfg.sb)}/${money(t.cfg.bb)}<span class="hno"> · Hand <b>#${t.hand || 0}</b></span>${extras(t)}<span class="live" id="live"></span>${unitBtn()}${sndBtn()}</div>
         <div class="tbtns">${popBar(t)}</div></div>
-      <div class="game"><div>${tableHTML()}<div class="actbar guest"><div class="wait">You're watching</div><a class="dbtn" href="/api/login?to=poker">${DISCORD_SVG}Sign in with Discord</a></div></div></div>`;
+      <div class="game"><div>${tableHTML()}<div class="actbar guest"><div class="wait">You're watching<small><a href="/poker?bots=1">Practice vs bots</a> while you wait, no sign-in</small></div><a class="dbtn" href="/api/login?to=poker">${DISCORD_SVG}Sign in with Discord</a></div></div></div>`;
     keepLog();
     renderLive();
     return;
   }
   if (!S.me) {
-    v.innerHTML = `<section class="hero"><div><h2>${t.open ? 'The poker room is open' : 'The poker room'}</h2><p>${t.open ? `No-limit Hold'em, blinds ${money(t.cfg.sb)}/${money(t.cfg.bb)}. ${t.seats.filter(s => s && !s.left).length} of 8 seats taken. ` : 'A host opens it on game night, and anyone can watch. '}Sign in with Discord to sit down with your casino chips, or to practice against bots any time.</p></div>
-      <div><a class="dbtn" href="/api/login?to=poker">${DISCORD_SVG}Sign in with Discord</a></div></section>`;
+    v.innerHTML = `<section class="hero"><div><h2>${t.open ? 'The poker room is open' : 'The poker room'}</h2><p>${t.open ? `No-limit Hold'em, blinds ${money(t.cfg.sb)}/${money(t.cfg.bb)}. ${t.seats.filter(s => s && !s.left).length} of 8 seats taken. ` : 'A host opens it on game night, and anyone can watch. '}Sign in with Discord to sit down with your casino chips. Or practice against bots any time, no sign-in needed.</p></div>
+      <div style="display:grid;gap:10px"><a class="dbtn" href="/api/login?to=poker">${DISCORD_SVG}Sign in with Discord</a><a class="cbtn up" href="/poker?bots=1" style="text-decoration:none;text-align:center">Practice vs bots</a></div></section>`;
     return;
   }
   if (!t.open) {
@@ -1002,13 +1048,13 @@ function modal(kind, seat) {
       ${gift ? `<div class="giftbox"><p><b>Free seat: ${money(gift)}</b> on the house, no strings. One per person in this room.</p><button type="button" class="cbtn up" data-gift="${seat}">Take the free ${money(gift)} seat</button></div><p>Or buy in with your own chips:</p>` : ''}
       ${kind === 'top' ? `<p>Up to ${money(t.cfg.max)} in front of you.</p>` : ''}
       <div class="amt" id="buyAmt">${money(max)}</div><input type="range" id="buyR" min="${min}" max="${max}" step="1" value="${max}" aria-label="Amount">
-      <p style="font:500 12px var(--mono);color:var(--muted)">${free ? (t.practice ? 'Free: play money, your casino chips stay ' : 'Free: test table chips, your balance stays ') + money(S.me.bal) : `Casino chips after: <span id="buyLeft">${money(S.me.bal - max)}</span>`}</p>
+      <p style="font:500 12px var(--mono);color:var(--muted)">${free ? (S.me.guest ? 'Free: play money' : (t.practice ? 'Free: play money, your casino chips stay ' : 'Free: test table chips, your balance stays ') + money(S.me.bal)) : `Casino chips after: <span id="buyLeft">${money(S.me.bal - max)}</span>`}</p>
       <div class="row"><button class="cbtn gold">${kind === 'top' ? 'Add chips' : 'Sit down'}</button><button type="button" class="cbtn ghost" data-close>Cancel</button></div></form></div>`;
     const r = $('#buyR'); r.addEventListener('input', () => { $('#buyAmt').textContent = money(+r.value); if ($('#buyLeft')) $('#buyLeft').textContent = money(S.me.bal - r.value); });
     $('#buyF').onsubmit = e => { e.preventDefault(); m.innerHTML = ''; send(kind === 'sit' ? { a: 'sit', seat, amt: +r.value } : { a: 'top', amt: +r.value }); };
   } else if (kind === 'leave') {
     const amt = s.stack + (s.pend || 0), inHand = t.phase === 'hand' && s.dealt && !s.folded;
-    if (t.practice) { m.innerHTML = `<div class="modal"><div class="box"><h3>End practice?</h3><p>The table closes and the bots go home. Your ${money(amt)} here is play money, so nothing changes in your casino chips.</p>
+    if (t.practice) { m.innerHTML = `<div class="modal"><div class="box"><h3>End practice?</h3><p>The table closes and the bots go home. Your ${money(amt)} here is play money${S.me.guest ? '.' : ', so nothing changes in your casino chips.'}</p>
       <div class="row"><button class="cbtn" data-confirm="leave">End practice</button><button class="cbtn ghost" data-close>Keep playing</button></div></div></div>`; return; }
     m.innerHTML = `<div class="modal"><div class="box"><h3>Leave the table?</h3><p>${inHand ? 'You are in a hand, so leaving folds your cards. ' : ''}Your ${money(amt)} goes back to your casino chips.</p>
       <div class="row"><button class="cbtn" data-confirm="leave">Leave and cash out</button><button class="cbtn ghost" data-close>Stay</button></div></div></div>`;
@@ -1036,8 +1082,7 @@ async function hhOpen(from) {
   HH.open = true; HH.loading = true; HH.err = ''; hhStop(); hhDraw();
   try {
     await hhLoadLib();
-    const r = await fetch('/api/poker?hands=1' + (from ? '&from=' + from : ''), { credentials: 'same-origin', cache: 'no-store' });
-    const j = await r.json();
+    const j = LOCAL ? localHands(from) : await (await fetch('/api/poker?hands=1' + (from ? '&from=' + from : ''), { credentials: 'same-origin', cache: 'no-store' })).json();
     if (j.err) throw new Error(j.err);
     HH.data = j; HH.rep = j.hands.map(h => PokerHands.replay(h)); HH.at = Math.max(0, j.hands.length - 1); HH.step = 0;
     HH.sess = Math.max(0, j.sessions.findIndex(s => j.session && s.from === j.session.from));
@@ -1167,6 +1212,10 @@ document.addEventListener('submit', e => { if (e.target.id === 'sayF') { e.preve
 document.addEventListener('visibilitychange', () => { if (!document.hidden) api().catch(() => {}); });
 
 (async function start() {
+  if (PRACTICE) { // practice runs right here: no server, no sign-in
+    try { await localStart(); await api(); } catch (e) { $('#view').innerHTML = '<p class="loading">Couldn\'t load the practice table. Refresh to try again.</p>'; return; }
+    return;
+  }
   try { await api(); } catch (e) { $('#view').innerHTML = '<p class="loading">Couldn\'t reach the table. Refresh to try again.</p>'; return; }
   poll();
   if (S.ably && !PRACTICE) { const sc = document.createElement('script'); sc.src = '/ably.min.js'; sc.onload = connectLive; document.head.appendChild(sc); }
