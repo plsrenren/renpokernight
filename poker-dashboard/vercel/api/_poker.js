@@ -5,7 +5,11 @@
 //   GET  /api/poker?token=1    → Ably token request; guests (not signed in) get listen-only, so watching needs no sign-in
 //   GET  /api/poker?hands=1    → your hand history (signed in): your sessions of the last 90 days + the hands of one (&from=&to= ms, default the latest)
 //   POST /api/poker {a: …}     → token (Ably sign-in for live updates) | sit {seat, amt, gift (take the host's free seat)} | top {amt} | leave | sitout {on}
-//                                | act {do: fold|check|call|raise, to} | tick | host: open {cfg} | close | pause | resume | blinds {sb, bb} | seatout {seat, on} | bomb {x} | straddle {on} | nit {x} | gift {x} (free seat $, 0 = off) | bot {on} (add one test player / remove them all)
+//                                | act {do: fold|check|call|raise, to} | tick | host: open {cfg} | close | pause | resume | blinds {sb, bb} | seatout {seat, on} | bomb {x} | straddle {on} | nit {x} | gift {x} (free seat $, 0 = off) | bot {on: ''} (clears bots left over from before practice tables)
+//   ?bots=1 (GET) / {bots: 1} (POST) → your own practice table instead (signed in only): open {cfg: sb, bb, stack, bots, level, turn} | close | leave (= close) | top {amt}
+//                                | sitout | act | show | rit | rabbit | tick | blinds | bomb | straddle | nit | bot {on, seat} (add one / remove one or all) | level {x}
+//   A practice table is play money: pk:bt:<id> + version pk:bv:<id>, expires 3 days after the last move, never published on Ably
+//   (every change there is an answer to the owner's own request), nothing is ever paid out. Hands still go to My hands, marked practice.
 //
 // Storage: the whole table is one JSON value (pk:t) with a version number (pk:v). Each change reads it, applies the rules
 // (_pokergame.js) and writes it back only if nobody else wrote in between (one Lua compare-and-set), else tries again.
@@ -23,30 +27,37 @@ import { kv, takeChips, FEED_KEEP, weekKey } from './_blackjack.js';
 import { postChannel } from './_rewards.js';
 import * as E from './_pokergame.js';
 
-const KEY = 'pk:t', VER = 'pk:v', CHAN = 'poker:table', CHAT = 'poker:chat';
+const CHAN = 'poker:table', CHAT = 'poker:chat';
+const ROOM = { key: 'pk:t', ver: 'pk:v' };
+const practiceRef = id => ({ key: 'pk:bt:' + id, ver: 'pk:bv:' + id, ttl: 3 * 86400, practice: true });
 const RENATO = '147939795400654848', API = 'https://discord.com/api/v10';
 const CAS = "local v=redis.call('GET',KEYS[1]) or '0' if v~=ARGV[1] then return 0 end redis.call('SET',KEYS[2],ARGV[3]) redis.call('SET',KEYS[1],ARGV[2]) return 1";
+const CAS_EX = "local v=redis.call('GET',KEYS[1]) or '0' if v~=ARGV[1] then return 0 end redis.call('SET',KEYS[2],ARGV[3],'EX',ARGV[4]) redis.call('SET',KEYS[1],ARGV[2],'EX',ARGV[4]) return 1";
 const $ = n => '$' + Math.round(n).toLocaleString('en-US');
 const int = v => { const n = Math.floor(+v); return Number.isFinite(n) ? n : NaN; };
 
-async function load() {
-  const [raw] = await kv(['GET', KEY]);
+async function load(ref = ROOM) {
+  const [raw] = await kv(['GET', ref.key]);
   if (!raw) return E.fresh();
   try { return { ...E.fresh(), ...JSON.parse(raw) }; } catch (e) { return E.fresh(); }
 }
 /** Applies fn(T) and saves, retrying if someone else saved first. fn returns an error string to refuse (nothing saved),
  *  or false for "nothing changed". Returns { T, err } after paying any cash-outs and publishing the new table. */
-async function change(fn, t = Date.now()) {
+async function change(fn, t = Date.now(), ref = ROOM) {
   for (let k = 0; k < 8; k++) {
-    const T = await load(), was = T.v;
+    const T = await load(ref), was = T.v;
     const r = fn(T, t);
     if (typeof r === 'string') return { T, err: r };
     if (r === false) return { T, same: true };
     T.at = t; T.v = was + 1;
     const out = T._out || []; delete T._out;
     const hands = T._hands || []; delete T._hands;
-    const [ok] = await kv(['EVAL', CAS, 2, VER, KEY, String(was), String(T.v), JSON.stringify(T)]);
+    const [ok] = await kv(ref.ttl ? ['EVAL', CAS_EX, 2, ref.ver, ref.key, String(was), String(T.v), JSON.stringify(T), String(ref.ttl)] : ['EVAL', CAS, 2, ref.ver, ref.key, String(was), String(T.v), JSON.stringify(T)]);
     if (+ok === 1) {
+      if (ref.practice) { // play money: nothing to pay, nobody watching live
+        if (hands.length) await saveHands(hands).catch(e => console.error('poker hands', e));
+        return { T, out: [] };
+      }
       if (out.length) await payOut(out).catch(e => console.error('poker payout', e, JSON.stringify(out)));
       if (hands.length) await saveHands(hands).catch(e => console.error('poker hands', e));
       await publish(T, t);
@@ -163,6 +174,15 @@ async function isMember(id) {
 
 // ---------- the page's data ----------
 async function view(T, me, t, extra = {}) {
+  if (T.practice || extra.practice) { // your own practice table: you run it, no Ably
+    delete extra.practice;
+    const body = { table: E.publicView(T, t), ably: false, ...extra };
+    const i = E.seatOf(T, me.id), s = i >= 0 ? T.seats[i] : null;
+    const [bal] = extra.bal !== undefined ? [extra.bal] : await kv(['HGET', 'bj:bal', me.id]);
+    body.me = { id: me.id, name: me.name, seat: i, cards: s && s.cards.length ? s.cards : [], bal: bal === null ? 0 : Math.floor(+bal * 100) / 100, host: true };
+    delete body.bal;
+    return body;
+  }
   const body = { table: E.publicView(T, t), ably: !!ablyKey(), ...extra };
   if (!me) return body;
   const i = E.seatOf(T, me.id), s = i >= 0 ? T.seats[i] : null;
@@ -179,6 +199,10 @@ export async function pokerWeb(req, me, _sheet, out) {
     // signing in is optional: anyone can watch, and a guest gets a listen-only live token here
     const q = new URL(req.url).searchParams;
     if (q.get('hands')) return me ? out(await myHands(me.id, +q.get('from') || 0, +q.get('to') || 0, t)) : out({ err: 'Sign in to see your hands.' }, 401);
+    if (q.get('bots')) {
+      if (!me) return out({ table: E.publicView({ ...E.fresh(), practice: true }, t), ably: false, me: null });
+      return out(await view(await load(practiceRef(me.id)), me, t, { practice: true }));
+    }
     if (new URL(req.url).searchParams.get('token')) return ablyKey() ? out({ token: tokenRequest(me ? me.id : 'guest-' + randomBytes(6).toString('hex'), !me) }) : out({ err: 'Live updates are not set up.' });
     let T = await load();
     // nobody ticks a room that everyone walked away from; the next visit does (closes it, pays everyone)
@@ -189,6 +213,7 @@ export async function pokerWeb(req, me, _sheet, out) {
   }
   let b; try { b = await req.json(); } catch (e) { return out({ err: 'Bad request.' }, 400); }
   const who = { id: me.id, name: me.name };
+  if (b.bots) return practiceWeb(b, me, who, t, out);
   const host = ['open', 'close', 'pause', 'resume', 'blinds', 'seatout', 'bomb', 'straddle', 'nit', 'gift', 'bot'].includes(b.a);
   if (host && !(await isHost(me.id))) return out({ err: 'Only hosts can do that.' }, 403);
   const done = async (r, extra = {}) => r.err ? out({ err: r.err, ...(r.T ? await view(r.T, me, t) : {}) }) : out(await view(r.T, me, t, extra));
@@ -251,14 +276,40 @@ export async function pokerWeb(req, me, _sheet, out) {
     case 'straddle': return done(await change(T => E.setStraddle(T, !!b.on), t));
     case 'nit': return done(await change(T => E.setNit(T, int(b.x)), t));
     case 'gift': return done(await change(T => E.setGift(T, int(b.x)), t));
-    case 'bot': return done(await change((T, now) => b.on ? E.addBot(T, now) : E.removeBots(T, now), t));
+    case 'bot': return b.on ? out({ err: 'Bots play at practice tables now: anyone can start one from the poker page.' }) : done(await change((T, now) => E.removeBots(T, now), t));
+  }
+  return out({ err: 'Unknown action.' }, 400);
+}
+
+/** Your own practice table against bots (play money, so no chips are ever taken or paid). */
+async function practiceWeb(b, me, who, t, out) {
+  const ref = practiceRef(me.id);
+  const go = fn => change(fn, t, ref);
+  const done = async r => r.err ? out({ err: r.err, ...(r.T ? await view(r.T, me, t, { practice: true }) : {}) }) : out(await view(r.T, me, t, { practice: true }));
+  const mine = fn => go((T, now) => { if (!T.open) return 'Your practice table is closed.'; const i = E.seatOf(T, me.id); return i < 0 ? "You're not at the table." : fn(T, i, now); });
+  switch (b.a) {
+    case 'open': return done(await go((T, now) => E.openPractice(T, who, b.cfg || {}, now)));
+    case 'close': case 'leave': return done(await go((T, now) => T.open ? E.closeRoom(T, now) : false));
+    case 'top': { const amt = int(b.amt); if (!(amt >= 1)) return out({ err: 'Pick an amount.' }); return done(await mine((T, i, now) => E.topUp(T, who, amt, now))); }
+    case 'sitout': return done(await mine((T, i, now) => E.sitOut(T, i, !!b.on, now)));
+    case 'act': return done(await mine((T, i, now) => E.act(T, i, String(b.do), int(b.to), now)));
+    case 'show': return done(await mine((T, i, now) => E.showCards(T, i, now)));
+    case 'rit': return done(await mine((T, i, now) => E.ritVote(T, i, !!b.yes, now)));
+    case 'rabbit': return done(await mine((T, i, now) => E.rabbitHunt(T, i, now)));
+    case 'tick': return done(await go((T, now) => E.tick(T, now) ? true : false));
+    case 'blinds': return done(await go(T => T.open ? E.setBlinds(T, int(b.sb), int(b.bb)) : 'Your practice table is closed.'));
+    case 'bomb': return done(await go(T => T.open ? E.setBomb(T, int(b.x)) : 'Your practice table is closed.'));
+    case 'straddle': return done(await go(T => T.open ? E.setStraddle(T, !!b.on) : 'Your practice table is closed.'));
+    case 'nit': return done(await go(T => T.open ? E.setNit(T, int(b.x)) : 'Your practice table is closed.'));
+    case 'level': return done(await go(T => T.open ? E.setLevel(T, String(b.x)) : 'Your practice table is closed.'));
+    case 'bot': return done(await go((T, now) => !T.open ? 'Your practice table is closed.' : b.on ? E.addBot(T, now) : E.removeBots(T, now, Number.isInteger(b.seat) ? b.seat : -1)));
   }
   return out({ err: 'Unknown action.' }, 400);
 }
 
 /** For the Monday cron: closes a room nobody touched for 3 hours so nobody's chips sit on a dead table. */
 export async function pokerSweep() {
-  const T = await load();
+  const T = await load(ROOM);
   if (!T.open || !T.at || Date.now() - T.at < 3 * 3600e3) return 'nothing to do';
   const r = await change((X, now) => E.tick(X, now) ? true : false);
   return r.err || 'closed';
