@@ -6,7 +6,9 @@
 //   GET  /api/poker?hands=1    → your hand history (signed in): your sessions of the last 90 days + the hands of one (&from=&to= ms, default the latest)
 //   POST /api/poker {a: …}     → token (Ably sign-in for live updates) | sit {seat, amt, gift (take the host's free seat)} | top {amt} | leave | sitout {on}
 //                                | act {do: fold|check|call|raise, to} | tick | host: open {cfg} | close | pause | resume | blinds {sb, bb} | seatout {seat, on} | bomb {x} | straddle {on} | nit {x} | gift {x} (free seat $, 0 = off) | bot {on: ''} (clears bots left over from before practice tables)
-//   Practice tables against bots never come here: they run entirely in the browser (poker.html LOCAL + /pokergame.js), so only real games use Redis.
+//                                | practice (counts one bot game toward the Beta Tester title; see the case below)
+//   Practice tables against bots never come here while playing: they run entirely in the browser (poker.html LOCAL + /pokergame.js), so only real
+//   games use Redis. The one exception is the bot-game counter: one 'practice' post per practice table opening (after 10 hands, signed-in members).
 //
 // Storage: the whole table is one JSON value (pk:t) with a version number (pk:v). Each change reads it, applies the rules
 // (_pokergame.js) and writes it back only if nobody else wrote in between (one Lua compare-and-set), else tries again.
@@ -79,8 +81,29 @@ export async function saveHands(list) {
     if (!people.length) continue; // bots only: nobody to give it to
     cmds.push(['SET', 'pk:h:' + h.hid, JSON.stringify(h), 'EX', ex]);
     for (const s of people) cmds.push(['ZADD', 'pk:hp:' + s.id, h.at, h.hid], ['EXPIRE', 'pk:hp:' + s.id, ex]);
+    if (!h.test && !h.practice) for (const [id, got] of Object.entries(roomStats(h))) {
+      for (const [k, n] of Object.entries(got)) cmds.push(['HINCRBY', 'ac:n:' + id, k, n]);
+      cmds.push(['SADD', 'ac:dirty', id]); // the next request checks their titles (_accolades.js)
+    }
   }
   if (cmds.length) await kv(...cmds);
+}
+/** the poker room titles (Bomb Squad, Straddle Daddy, Nit Tax, Run It Back, Rabbit Season, AFK, Showboat; ACC in loot.js) from one
+ *  finished hand: { player id: { ac:n field: +n } }. Only the rare moments count, so most hands add no Redis commands at all. */
+export function roomStats(h) {
+  const out = {}, ev = h.ev || [], seat = i => h.seats.find(s => s.i === i), byName = n => h.seats.find(s => s.name === n);
+  const add = (s, k) => { if (s && !s.bot) (out[s.id] ||= {})[k] = ((out[s.id] || {})[k] || 0) + 1; };
+  const wins = ev.filter(e => e[0] === 'win'), won = new Set(wins.map(e => e[1]));
+  if (ev.some(e => e[0] === 'post' && e[3] === 'bomb')) won.forEach(i => add(seat(i), 'bomb'));
+  ev.filter(e => e[0] === 'post' && e[3] === 'straddle' && won.has(e[1])).forEach(e => add(seat(e[1]), 'straddle'));
+  const r1 = new Set(wins.filter(e => e[3] === 'run1').map(e => e[1]));
+  [...new Set(wins.filter(e => e[3] === 'run2' && r1.has(e[1])).map(e => e[1]))].forEach(i => add(seat(i), 'rit2'));
+  ev.filter(e => e[0] === 'rabbit').forEach(e => add(byName(e[2]), 'rabbit'));
+  ev.filter(e => e[0] === 'note' && / is the last nit and pays everyone /.test(e[1])).forEach(e => add(byName(e[1].split(' is the last nit')[0]), 'nit'));
+  (h.afk || []).forEach(i => add(seat(i), 'afk'));
+  // shown after everyone folded: a 'show' with no hand name (showdown shows carry one)
+  ev.filter(e => e[0] === 'show' && !e[3]).forEach(e => add(seat(e[1]), 'showboat'));
+  return out;
 }
 /** one hand as one player may see it: their own cards, nobody else's (shown cards are in the 'show' events), no ids but theirs */
 export function handFor(h, id) {
@@ -195,7 +218,18 @@ export async function pokerWeb(req, me, _sheet, out) {
   if (host && !(await isHost(me.id))) return out({ err: 'Only hosts can do that.' }, 403);
   const done = async (r, extra = {}) => r.err ? out({ err: r.err, ...(r.T ? await view(r.T, me, t) : {}) }) : out(await view(r.T, me, t, extra));
 
+  // Keyboard Warrior: the first time someone sits at the hosted table (stamped by checkAccolades from ac:n joined)
+  const joined = async r => { if (!r.err && b.a === 'sit' && r.T && !E.testTable(r.T)) await kv(['HSETNX', 'ac:n:' + me.id, 'joined', String(t)], ['SADD', 'ac:dirty', me.id]).catch(e => console.error('poker joined', e)); };
   switch (b.a) {
+    // a practice game against the bots (played in the browser) counts toward the Beta Tester title (5 games): the page sends this once per practice
+    // table opening, after 10 hands. Server members only; at most one count every 15 minutes, so reloading or spamming can't run it up.
+    case 'practice': {
+      if (!(await isMember(me.id))) return out({ ok: false, why: 'not in the server' });
+      const [fresh] = await kv(['SET', 'pk:pc:' + me.id, '1', 'NX', 'EX', 900]);
+      if (!fresh) return out({ ok: false, why: 'too soon' });
+      const [n] = await kv(['HINCRBY', 'ac:n:' + me.id, 'practice', 1], ['SADD', 'ac:dirty', me.id]); // ac:dirty: the next request checks the titles
+      return out({ ok: true, n: +n || 0 });
+    }
     case 'token': return ablyKey() ? out({ token: tokenRequest(me.id) }) : out({ err: 'Live updates are not set up.' });
     case 'sit': if (b.gift) {
       // the host's free seat: no chips taken, no strings (leaving pays the whole stack like any seat)
@@ -204,6 +238,7 @@ export async function pokerWeb(req, me, _sheet, out) {
       if (!(await isMember(me.id))) return done({ T: pre, err: 'Free seats are for people in the Poker Club Discord. Join the server, then try again.' });
       const r = await change((T, now) => E.sit(T, who, int(b.seat), 0, now, false, true), t);
       if (r.err) return done(r);
+      await joined(r);
       const amt = r.T.seats[E.seatOf(r.T, me.id)].gift, wk = weekKey(t);
       await kv(['HSET', 'bj:name', me.id, me.name], ['HINCRBYFLOAT', 'hs:wk:' + wk, 'free seat', -amt], ['EXPIRE', 'hs:wk:' + wk, 120 * 86400], ['HINCRBYFLOAT', 'hs:all', 'free seat', -amt],
         ['LPUSH', 'cas:feed', JSON.stringify({ id: me.id, name: me.name, game: 'free seat', why: 'poker room, on the house', net: amt, src: 'site', at: Date.now() })], ['LTRIM', 'cas:feed', 0, FEED_KEEP - 1]).catch(e => console.error('poker gift books', e));
@@ -226,6 +261,7 @@ export async function pokerWeb(req, me, _sheet, out) {
       const r = await change((T, now) => { if (b.a === 'sit') return E.sit(T, who, int(b.seat), amt, now); const i = E.seatOf(T, me.id); return i >= 0 && T.seats[i].free ? 'Try again.' : E.topUp(T, who, amt, now); }, t);
       if (r.err) { const [back] = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, amt]); return done(r, { bal: +back }); }
       await kv(['HSET', 'bj:name', me.id, me.name]).catch(() => {});
+      await joined(r);
       return done(r, { bal: paid.bal });
     }
     case 'leave': return done(await change((T, now) => E.leave(T, who, now), t));

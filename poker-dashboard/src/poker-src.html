@@ -11,7 +11,8 @@
 <style>
 /* Practice tables (/poker?bots=1, PRACTICE below): your own table against bots, play money, any time. Same page and table code;
    it runs entirely in the browser for everyone, signed in or not (LOCAL below: /pokergame.js = the real rules + bots, table and last
-   300 hands in localStorage pk:guest / pk:guesth). No server calls at all, so practice never uses Redis, functions or sign-in (by request:
+   300 hands in localStorage pk:guest / pk:guesth). No server calls during play (the only one: countGame() tells the site once per
+   table opening, after 10 hands, for the Beta Tester title; signed-in only), so practice play never uses Redis, functions or sign-in (by request:
    only real games use Redis). You show up as "Hero" (the hand-history word for yourself).
    Poker room: one host-run no-limit Hold'em table for casino chips. Talks to /api/poker (api/_poker.js, rules in _pokergame.js),
    live updates through Ably (/ably.min.js, self-hosted), polling when Ably isn't there. Seat look = mockup style B (nameplate)
@@ -490,11 +491,11 @@ function localView(err) {
 function localAct(b) {
   const { E } = LOCAL, int = v => Math.floor(+v);
   const change = fn => { const T = LOCAL.T, r = fn(T, Date.now()); if (typeof r === 'string') return r; if (r === false) return; T.v++; T.at = Date.now(); delete T._out;
-    if (T._hands) { LOCAL.hands.push(...T._hands); delete T._hands; LOCAL.hands = LOCAL.hands.slice(-300); } localSave(); };
+    if (T._hands) { T.pc = (T.pc || 0) + T._hands.length; LOCAL.hands.push(...T._hands); delete T._hands; LOCAL.hands = LOCAL.hands.slice(-300); } countGame(); localSave(); };
   const mine = fn => change((T, now) => { if (!T.open) return 'Your practice table is closed.'; const i = E.seatOf(T, GUEST.id); return i < 0 ? "You're not at the table." : fn(T, i, now); });
   const open = fn => change((T, now) => T.open ? fn(T, now) : 'Your practice table is closed.');
   switch (b.a) {
-    case 'open': return change((T, now) => E.openPractice(T, GUEST, b.cfg || {}, now));
+    case 'open': return change((T, now) => { const r = E.openPractice(T, GUEST, b.cfg || {}, now); if (typeof r !== 'string') { T.pc = 0; delete T.counted; } return r; });
     case 'close': case 'leave': return change((T, now) => T.open ? E.closeRoom(T, now) : false);
     case 'top': return int(b.amt) >= 1 ? mine((T, i, now) => E.topUp(T, GUEST, int(b.amt), now)) : 'Pick an amount.';
     case 'sitout': return mine((T, i, now) => E.sitOut(T, i, !!b.on, now));
@@ -511,6 +512,14 @@ function localAct(b) {
     case 'bot': return open((T, now) => b.on ? E.addBot(T, now) : E.removeBots(T, now, Number.isInteger(b.seat) ? b.seat : -1));
   }
   return 'Unknown action.';
+}
+/** the Beta Tester title (5 bot games): once a practice table opening reaches 10 hands, a signed-in player's page
+ *  tells the site once (POST {a:'practice'}). The site checks they're in the Discord server and counts it (ac:n practice). Fire and forget. */
+function countGame() {
+  const T = LOCAL.T;
+  if (T.counted || (T.pc || 0) < 10 || !(PLATES && PLATES.me)) return;
+  T.counted = true;
+  fetch('/api/poker', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ a: 'practice' }), credentials: 'same-origin' }).catch(() => {});
 }
 /** My hands for a guest: one session per run of hands under 2 hours apart, like the server */
 function localHands(from) {

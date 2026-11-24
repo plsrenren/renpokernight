@@ -245,6 +245,18 @@ export const ACC = [
   { k: 'switchhitter', slot: 'Title', name: 'Switch Hitter', why: 'Won cash and a tourney', need: 'win at least one cash night and one tournament', poker: 1 },
   { k: 'gotmilk', slot: 'Title', name: 'Got the Milk', why: 'Back from the store', need: 'play again after missing 5+ nights in a row (only nights from Sep 19, 2026 count, so nobody gets it for the past)', poker: 1 },
   { k: 'doubleup', slot: 'Title', name: 'Double Up', why: 'Doubled up at cash', need: 'cash out at least double your Cash_In on a cash night', poker: 1 },
+  // poker practice tables vs bots (Nov 24 2026, Renato: play a bot game 5 times = Beta Tester): ac:n practice = bot games played, counted by
+  // api/_poker.js (POST {a:'practice'} once per practice table opening after 10 hands, Discord server members only)
+  { k: 'betatester', slot: 'Title', name: 'Beta Tester', why: 'Played 5 bot games', need: '5 practice games against the bots' },
+  // the hosted poker room (Nov 24 2026, Renato's picks): counted by api/_poker.js (roomStats() from each saved hand, 'joined' when you first sit), ac:n fields
+  { k: 'keyboard', slot: 'Title', name: 'Keyboard Warrior', why: 'Joined the poker room', need: 'sit down at the hosted poker table for the first time' },
+  { k: 'bombsquad', slot: 'Title', name: 'Bomb Squad', why: 'Won a bomb pot', need: 'win (or split) a bomb pot in the poker room' },
+  { k: 'straddle', slot: 'Title', name: 'Straddle Daddy', why: 'Won a straddled hand', need: 'win a pot in a hand you straddled' },
+  { k: 'nittax', slot: 'Title', name: 'Nit Tax', why: 'Paid the nit game', need: 'be the last nit in a nit game (you pay everyone)' },
+  { k: 'runitback', slot: 'Title', name: 'Run It Back', why: 'Won both boards', need: 'run it twice and win on both boards' },
+  { k: 'rabbitseason', slot: 'Title', name: 'Rabbit Season', why: '25 rabbit hunts', need: 'rabbit hunt 25 times in the poker room' },
+  { k: 'afk', slot: 'Title', name: 'AFK', why: 'Timed out 10 times', need: 'get folded by the turn timer 10 times' },
+  { k: 'showboat', slot: 'Title', name: 'Showboat', why: 'Showed 10 times', need: 'show your cards after everyone folded, 10 times' },
   // earned overall bars (Nov 2026, Renato's 10 picks). Site look = .cbar-acc-<k> in cosmetics.css (shine: 1 = the slow shimmer,
   // only on the 4 hardest, by request); look = the simpler version for the Discord images (same fields as LOOK.bar)
   { k: 'hotstreak', slot: 'Overall bar', name: 'Hot Streak', why: 'Up 3 nights in a row', need: 'finish up on 3 nights you play in a row', poker: 1,
