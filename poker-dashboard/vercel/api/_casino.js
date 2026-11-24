@@ -61,10 +61,10 @@ const originOf = req => { const u = new URL(req.url); return `https://${req.head
 
 async function login(req, sheet) {
   const u = new URL(req.url), origin = originOf(req), redirect = origin + '/api/login', code = u.searchParams.get('code');
-  // ?to=shop brings you back to /shop instead of /casino (kept next to the state in the same short cookie)
+  // ?to=shop (or poker, collection) brings you back there instead of /casino (kept next to the state in the same short cookie)
   const [wantState, to] = String(readCookie(req, 'cas_state') || '').split('.');
   const want = code || u.searchParams.get('error') ? to : u.searchParams.get('to');
-  const back = want === 'shop' ? '/shop' : want === 'poker' ? '/poker' : '/casino';
+  const back = want === 'shop' ? '/shop' : want === 'poker' ? '/poker' : want === 'collection' ? '/collection' : '/casino';
   const fail = why => go(`${back}?err=${encodeURIComponent(why)}`, [cookie('cas_state', '', 0)]);
   if (u.searchParams.get('error')) return fail('cancelled');
   if (!code) { // step 1: off to Discord
