@@ -35,8 +35,8 @@ poker-dashboard/
     index.html recap.html hall.html h2h.html casino.html shop.html poker.html entry.html (entry = redirect to the Apps Script page; casino.html = copy of src/casino-src.html;
                        shop.html = copy of src/shop-src.html, which is built from the shop mockup CSS and does NOT link lateshow.css)
     collection.html    Public cosmetics collection (Nov 24 2026, Renato's ask): every cosmetic like the vault, but ones the signed-in player
-                       doesn't own are blurred with no name (titles drawn as dots; earned/champion items keep their unlock line, pack items say
-                       "From packs"); signed out = all blurred. Owned/earned/champs from GET /api/shop; sign-in = /api/login?to=collection. Linked
+                       doesn't own are blurred with no name (titles drawn as dots; locked tiles only say WHERE it comes from, never how, by request:
+                       From packs / Hall of Fame / Earned in the casino|shop|poker room / at poker night / with /beg, lists in where()); signed out = all blurred. Owned/earned/champs from GET /api/shop; sign-in = /api/login?to=collection. Linked
                        from the /shop loadout ("See your whole collection"). Blur is a look only (loot.js is public). vault-r7q2.html stays
                        unblurred + unlinked for Renato.
     poker.html         Poker room (Nov 2026) = copy of src/poker-src.html. Host-run no-limit Hold'em, one table, 8 seats, casino chips (bj:bal).

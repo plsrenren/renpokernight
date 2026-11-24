@@ -107,7 +107,7 @@ function allItems() {
   const mine = ME ? (ME.champs || []).map(itemFor).filter(it => it && it.tier === 'Champion') : [];
   const stand = Object.keys(CHAMP).flatMap(k => [['Q4-2026', 'a quarter'], ['2026', 'a year']]
     .filter(([, span]) => !mine.some(m => m.kind === k && m.year === (span === 'a year')))
-    .map(([w, span]) => ({ ...champItem(`c:${k}:${w}`), why: `${{ ovr: 'Top net', cash: 'Top cash net', tour: 'Top tourney net' }[k]} for ${span}` })));
+    .map(([w]) => champItem(`c:${k}:${w}`)));
   return [...ITEMS, ...ACC_ITEMS, ...mine, ...stand];
 }
 
@@ -121,10 +121,18 @@ function preview(it, own) {
   if (it.slot === 'Sticker') return `<div class="stk-big">${STICKERS[it.name] || ''}</div>`;
   return `<div class="strip cbar-${esc(it.key)}"><div class="rc-ovr"><b>82</b><i>OVR</i></div><div class="rc-foot"><div><b>+$240</b><span>Net</span></div><div><b>3</b><span>Wins</span></div><div><b>#2</b><span>of 14</span></div></div></div>`;
 }
-// locked: blurred picture, no name. Earned + champion items keep their how-to-unlock line, pack items just say "From packs"
+// locked tiles only say WHERE an item comes from, never how (Renato, Nov 24 2026); owned tiles keep the real line
+const NIGHT = 'firstblood hattrick backtoback laststanding payday comebackkid bubble usualsuspect centurion perfect mlm headhunter sponsor wiretowire monster switchhitter gotmilk doubleup hotstreak podium reel iron glow';
+const ROOM = 'betatester keyboard bombsquad straddle nittax runitback rabbitseason afk showboat';
+const BEG = 'beggar whalewatch pickpocket sugardaddy coldhearted rent charity leftonread penny patch rags';
+const SHOP = 'packrat epic coll';
+const has1 = (list, k) => list.split(' ').includes(k);
+const where = it => it.tier === 'Champion' ? 'Hall of Fame' : it.tier !== 'Earned' ? 'From packs'
+  : has1(NIGHT, it.k) ? 'Earned at poker night' : has1(ROOM, it.k) ? 'Earned in the poker room' : has1(BEG, it.k) ? 'Earned with /beg'
+  : has1(SHOP, it.k) ? 'Earned in the shop' : 'Earned in the casino';
 const tile = it => {
   const own = has(it), c = own && it.tier !== 'Earned' && it.tier !== 'Champion' ? ME.owned[it.id] : 0;
-  const why = own ? it.why : it.why || 'From packs';
+  const why = own ? it.why : where(it);
   return `<div class="ti${own ? '' : ' lk'}" style="--c:${COL[it.tier]}"><div class="sw">${preview(it, own)}${own ? '' : LOCK}</div><div class="meta"><div class="nm">${own ? esc(it.name) : '? ? ?'}</div><div class="tg">${esc(it.tier.toUpperCase())}${c > 1 ? ` <span class="have">x${c}</span>` : ''}</div>${why ? `<div class="why">${esc(why)}</div>` : ''}</div></div>`;
 };
 
@@ -142,8 +150,8 @@ function render() {
   for (const [s, title] of SLOTS) {
     if (slot !== 'all' && slot !== s) continue;
     const inSlot = ALL.filter(i => i.slot === s);
-    // search only matches names you can see (owned) or unlock hints, so it can't be used to find hidden names
-    const its = inSlot.filter(i => (show === 'all' || (show === 'own') === has(i)) && (!ql || (has(i) ? i.name : i.why || '').toLowerCase().includes(ql)));
+    // search only matches names you can see (owned) or the where-from line, so it can't be used to find hidden names
+    const its = inSlot.filter(i => (show === 'all' || (show === 'own') === has(i)) && (!ql || (has(i) ? i.name + ' ' + (i.why || '') : where(i)).toLowerCase().includes(ql)));
     if (!its.length) continue;
     const cs = inSlot.filter(i => i.tier !== 'Champion');
     h += `<h2>${esc(title)} <small>${ME ? `<em>${cs.filter(has).length}/${cs.length}</em>` : cs.length}</small></h2>`;
