@@ -257,6 +257,46 @@ export const wrapCardTree = withAssets((w, pics = {}) => {
 });
 
 // ---------- head to head (/api/h2h) ----------
+/** the one-line "X has the edge here, but Y can..." blurb under the h2h header: [[text, who], ...] (who = 'a' | 'b' | '' for colour) */
+export function h2hBlurb(p) {
+  const money = v => usd(Math.round(Math.abs(v)), { cents: false, sign: false });
+  // the same matchup split by game type: wins (finished ahead) and net for each side
+  const split = tour => { const g = p.games.filter(x => x.tour === tour);
+    return { n: g.length, a: g.filter(x => x.win === 'a').length, b: g.filter(x => x.win === 'b').length, an: g.reduce((t, x) => t + x.x, 0), bn: g.reduce((t, x) => t + x.y, 0) }; };
+  const S = { cash: split(false), tour: split(true) }, WORD = { cash: 'cash games', tour: 'tournaments' }, AT = { cash: 'at cash', tour: 'in tournaments' };
+  const rec = (s, k) => `${s[k]}–${s[k === 'a' ? 'b' : 'a']}`;
+  if (p.aw === p.bw) {
+    // tied overall but each takes a different game type
+    if (S.cash.n >= 2 && S.tour.n >= 2 && S.cash.a !== S.cash.b && S.tour.a !== S.tour.b && (S.cash.a > S.cash.b) !== (S.tour.a > S.tour.b)) { const c = S.cash.a > S.cash.b ? 'a' : 'b', t = c === 'a' ? 'b' : 'a';
+      return [['Dead even, but ', ''], [p[c], c], [` takes the cash games (${rec(S.cash, c)}) and `, ''], [p[t], t], [` the tournaments (${rec(S.tour, t)}).`, '']]; }
+    if (Math.abs(p.an - p.bn) >= 20) { const up = p.an > p.bn ? 'a' : 'b';
+      return [['Dead even on nights, but ', ''], [p[up], up], [` is ${money(p.an - p.bn)} better in these games.`, '']]; }
+    return [['Dead even. ', ''], ['Next game breaks the tie.', '']];
+  }
+  const L = p.aw > p.bw ? 'a' : 'b', T = L === 'a' ? 'b' : 'a', lw = p[L + 'w'], tw = p[T + 'w'], ln = p[L + 'n'], tn = p[T + 'n'];
+  const G = p.games, streak = (() => { let k = 0; for (let i = G.length - 1; i >= 0 && G[i].win === T; i--) k++; return k; })();
+  const gap = lw - tw, tUp = p[T + 'Up'];
+  const head = [[p[L], L], [gap >= 4 ? ' owns this matchup, but ' : gap === 3 ? ' is ahead here, but ' : ' has the edge here, but ', ''], [p[T], T]];
+  // 1. the trailer wins one game type outright (2+ games of it)
+  const tWins = ['tour', 'cash'].filter(k => S[k].n >= 2 && S[k][T] > S[k][L]).sort((x, y) => (S[y][T] - S[y][L]) - (S[x][T] - S[x][L]))[0];
+  if (tWins) return [...head, [` wins the ${WORD[tWins]} (${rec(S[tWins], T)}).`, '']];
+  // 2. the trailer is up more money; say where
+  if (tn > ln + 1) { const where = ['cash', 'tour'].filter(k => S[k].n).sort((x, y) => (S[y][T + 'n'] - S[y][L + 'n']) - (S[x][T + 'n'] - S[x][L + 'n']))[0];
+    const d = S[where][T + 'n'] - S[where][L + 'n'];
+    return [...head, [d > 1 && S.cash.n && S.tour.n ? ` wins bigger ${AT[where]}: ${money(d)} more.` : ` wins bigger: ${money(tn - ln)} more in these games.`, '']]; }
+  // where the leader does their damage, when it's mostly one type
+  const lMost = ['tour', 'cash'].find(k => S[k].n >= 2 && S[k][L] - S[k][T] >= Math.max(2, gap));
+  if (streak >= 2) { const last = G.slice(-streak), one = last.every(g => g.tour) ? 'tour' : last.every(g => !g.tour) ? 'cash' : '';
+    return [...head, [` has taken the last ${streak}${one ? ' ' + WORD[one] : ''}.`, '']]; }
+  if (gap === 1) return [...head, [' can tie it up next game.', '']];
+  if (gap >= 4 && lMost) return tUp * 2 >= p.n ? [[p[L], L], [` owns the ${WORD[lMost]} (${rec(S[lMost], L)}), but `, ''], [p[T], T], [` still finished up ${tUp} of ${p.n}.`, '']]
+    : [[p[L], L], [` owns this matchup, ${rec(S[lMost], L)} ${AT[lMost]}. `, ''], [p[T], T], [' needs a heater.', '']];
+  if (p.best && p.best.who === p[T]) return [...head, [` had the biggest night (${money(p.best.gap)} clear on ${p.best.date.replace(/, \d{4}$/, '')}).`, '']];
+  if (gap >= 4) return tUp * 2 >= p.n ? [...head, [` still finished up ${tUp} of ${p.n}.`, '']] : [[p[L], L], [' owns this matchup. ', ''], [p[T], T], [' needs a heater.', '']];
+  if (lMost) return [[p[L], L], [` is ahead on the ${WORD[lMost]} (${rec(S[lMost], L)}), but `, ''], [p[T], T], [` can cut it to ${gap - 1} next game.`, '']];
+  return [...head, [` can cut it to ${gap - 1} next game.`, '']];
+}
+
 export const h2hCardTree = withAssets((p, pics = {}, art = {}) => {
   const banners = art.banners || {}, colors = art.colors || {}, lead = p.aw === p.bw ? 'All square' : `${p.bw > p.aw ? p.b : p.a} leads`;
   // each player's banner fills their side, wall to wall; the sides meet on a slash through the middle that fades a little
@@ -280,30 +320,31 @@ export const h2hCardTree = withAssets((p, pics = {}, art = {}) => {
     + `<line x1="${seam[0]}" y1="-2" x2="${seam[1]}" y2="${TH + 2}" stroke="url(#f)" stroke-width="7"/></svg>`;
   // rasterised here with resvg: pictures nested inside an SVG image don't survive satori
   const backdrop = img('data:image/png;base64,' + Buffer.from(new Resvg(topSvg, { fitTo: { mode: 'width', value: W * 2 } }).render().asPng()).toString('base64'), W, TH, { position: 'absolute', left: 0, top: 0 });
-  // Study Cards loadouts (art.eq = { name: {slot: item id} }), Renato's pick A (Nov 24 2026): pfp in its border (champion
-  // borders too), sticker on the pfp's outer corner (the inner one hits the score label), the name on a slanted plate painted in
-  // their overall bar, title under it in its rarity colour. Nothing equipped = the plain look.
+  // Study Cards loadouts (art.eq = { name: {slot: item id} }), Renato's pick D (Nov 24 2026) = the /poker seat look: pfp in its
+  // border (champion borders too), sticker on the pfp's outer corner (the inner one hits the score label), the name on a dark
+  // nameplate with their overall bar washing in from the left, title as a slanted tab in its rarity colour under it.
+  // Every piece sits in a fixed-size slot (pfp box, plate, title row, blurb band) so nothing moves whatever is equipped.
   const kit = name => { const eq = (art.eq || {})[name] || {}, pick = sl => { const it = itemFor(eq[sl]); return it && it.slot === sl ? it : null; };
     const title = pick('Title'), border = pick('Pfp border'), barIt = pick('Overall bar'), stkIt = pick('Sticker');
     return { title, border, bar: barIt ? LOOK.bar[barIt.key] : null, stk: stkIt ? stickerPng(stkIt.name, border ? 46 : 50, 4) : null }; };
-  const face = (name, k, out) => h({ position: 'relative' },
-    k.border ? borderBox(k.border.key, 90, pics[name] || initialsUri(name), lookFor(k.border)) : sq(pics, name, 104),
+  const face = (name, k, out) => h({ position: 'relative', width: 108, height: 108, alignItems: 'center', justifyContent: 'center' },
+    k.border ? borderBox(k.border.key, 94, pics[name] || initialsUri(name), lookFor(k.border)) : sq(pics, name, 104),
     k.border && !pics[name] ? h({ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }, B(initials(name), 52, `hsl(${hueFor(name)}, 45%, 25%)`)) : null,
     k.stk ? h({ position: 'absolute', [out ? 'right' : 'left']: k.border ? -18 : -22, bottom: k.border ? -12 : -14, transform: `rotate(${out ? -10 : 10}deg)` }, img(k.stk.src, k.stk.w, k.stk.ht)) : null);
-  const plate = (name, color, k) => {
-    const sz = name.length > 8 ? 32 : 40;
-    if (!k.bar) return B(name.toUpperCase(), sz, color, { marginTop: k.border ? 18 : 22 });
-    return h({ marginTop: 16, transform: 'skewX(-12deg)', ...(k.bar.bg.includes('gradient') ? { backgroundImage: k.bar.bg } : { backgroundColor: k.bar.bg }), padding: '0 14px', border: `2px solid ${k.bar.ovr}` },
-      B(name.toUpperCase(), sz, k.bar.fg, { transform: 'skewX(12deg)' }));
-  };
-  const who = (name, x, color) => { const k = kit(name);
-    return h({ position: 'absolute', left: x, top: 22, width: 200, flexDirection: 'column', alignItems: 'center' }, face(name, k, x > W / 2), plate(name, color, k),
-      k.title ? B(k.title.name.toUpperCase(), 16, TCOL[k.title.tier], { letterSpacing: 1.6, marginTop: k.bar ? 6 : 2 }) : null); };
+  const plate = (name, k) => h({ marginTop: 14, width: 180, height: 46, position: 'relative', backgroundColor: L.panel2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+    k.bar ? h({ position: 'absolute', left: 0, top: 0, width: 180, height: 46, ...(k.bar.bg.includes('gradient') ? { backgroundImage: k.bar.bg } : { backgroundColor: k.bar.bg }), opacity: 0.75,
+      maskImage: 'linear-gradient(90deg, rgba(0,0,0,1), rgba(0,0,0,0) 85%)' }) : null,
+    B(name.toUpperCase(), name.length > 8 ? 30 : 34, '#fff', { position: 'relative' }));
+  const tab = k => h({ height: 24, alignSelf: 'stretch' }, k.title ? h({ marginLeft: 10 },
+    h({ backgroundColor: TCOL[k.title.tier], padding: '0 6px 0 8px' }, B(k.title.name.toUpperCase(), 15, L.night, { letterSpacing: 1.4 })),
+    img(svgUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 20" width="20" height="40" preserveAspectRatio="none"><polygon points="0,0 10,0 0,20" fill="${TCOL[k.title.tier]}"/></svg>`), 9, 19)) : null);
+  const who = (name, x) => { const k = kit(name);
+    return h({ position: 'absolute', left: x, top: 22, width: 200, flexDirection: 'column', alignItems: 'center' }, face(name, k, x > W / 2), plate(name, k), tab(k)); };
   const top = h({ position: 'relative', height: 245 },
     backdrop,
     // darker fade behind the names so they read on busy banners
     banners[p.a] || banners[p.b] ? h({ position: 'absolute', left: 0, top: 0, width: W, height: TH, backgroundImage: 'linear-gradient(180deg, rgba(21,19,42,0) 45%, rgba(21,19,42,0.85) 85%)' }) : null,
-    who(p.a, 30, '#fff'), who(p.b, W - 230, L.gold),
+    who(p.a, 30), who(p.b, W - 230),
     h({ position: 'absolute', left: 0, width: W, top: 50, flexDirection: 'column', alignItems: 'center' },
       h({ alignItems: 'center', backgroundColor: L.night, border: `2px solid ${L.gold}`, padding: '0 14px' }, B(String(p.aw), 64), B('VS', 22, L.muted, { marginLeft: 8, marginRight: 8 }), B(String(p.bw), 64, L.gold)),
       h({ backgroundColor: L.gold, padding: '0 10px' }, B(`${p.label} · ${lead} · ${p.n} game${p.n === 1 ? '' : 's'}${p.ties ? ` · ${p.ties} tie${p.ties === 1 ? '' : 's'}` : ''}`.toUpperCase(), 16, L.night, { letterSpacing: 1.5 }))));
@@ -329,7 +370,11 @@ export const h2hCardTree = withAssets((p, pics = {}, art = {}) => {
     h({ width: 5, height: 38, backgroundColor: g.x > g.y ? A : 'rgba(0,0,0,0)' }), h({ flex: 1, paddingLeft: 10 }, money(g.x, 14)),
     h({ flex: 1.2, justifyContent: 'center' }, B(`${g.date} · ${g.tour ? 'Tourney' : 'Cash'}`.toUpperCase(), 19)),
     h({ flex: 1, justifyContent: 'flex-end', paddingRight: 10 }, money(g.y, 14)), h({ width: 5, height: 38, backgroundColor: g.y > g.x ? Bc : 'rgba(0,0,0,0)' }));
-  return frame(top,
+  // the one-line blurb ("X has the edge here, but Y wins the cash games"), in a fixed two-line band; long lines shrink, never grow
+  const bl = h2hBlurb(p), blLen = bl.reduce((n, x) => n + x[0].length, 0), blFs = blLen > 120 ? 12.5 : blLen > 95 ? 13.5 : 15;
+  const blurb = h({ height: 52, marginTop: 6, marginBottom: -14, paddingLeft: PAD, paddingRight: PAD, justifyContent: 'center', alignItems: 'center', alignContent: 'center', flexWrap: 'wrap' },
+    ...bl.map(([t, w]) => T(t, { fontSize: blFs, whiteSpace: 'pre-wrap', fontWeight: w ? 700 : 500, color: w === 'a' ? '#c9bcff' : w === 'b' ? '#ff9ab8' : L.soft })));
+  return frame(top, blurb,
     chy('The race', `running total in ${p.n} shared game${p.n === 1 ? '' : 's'}`, 'gold'),
     pad(h({ backgroundColor: L.panel, paddingTop: 10, paddingBottom: 8, flexDirection: 'column' }, chart,
         h({ justifyContent: 'space-between', paddingLeft: Lp, paddingRight: Rp }, T(G[0].date, { fontSize: 11, color: L.muted }), G.length > 1 ? T(last.date, { fontSize: 11, color: L.muted }) : null)),
