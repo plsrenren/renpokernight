@@ -59,6 +59,7 @@ poker-dashboard/
                        the page's own <style> (which sits in <body>)
     recap-core.js      Shared logic (browser + API): parsing, recap stories, Hall of Fame, player cards, h2h, quarter wrap
     api/               Serverless functions: recap/card/hall/h2h/wrap (PNG cards via satori + resvg, all drawn by _late.js = Late Show design),
+                       h2h card wears both players' Study Cards loadouts (Nov 24 2026, Renato's pick A: border + outer-corner sticker, name on a slanted plate in the overall bar, title under it; _h2h.js HMGETs sh:eq),
                        ALL picture endpoints (recap/card/hall/h2h/wrap/bjcards/seats/roulette) are ONE function, api/img.js, reached by vercel.json rewrites
                        (/api/recap -> /api/img?fn=recap); the code sits in _recap.js _card.js _hall.js _h2h.js _wrap.js _bjcards.js _seatsimg.js _wheel.js.
                        Why (Nov 20 2026): every deployment stores each function with its own satori+resvg copy; 203 deployments hit 75% of Hobby's
