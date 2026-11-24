@@ -542,7 +542,13 @@ function lottery() {
         ${past ? `<div class="sub">Past winners</div>${past}` : ''}</div></div></div>`;
 }
 const POKER_LINK = `<a class="shopln" href="/poker" style="border-left-color:var(--up)"><div class="ic">♠️</div><div><b>Poker Room</b><span>No-limit Hold'em against the group with your chips. Open on game night.</span></div><div class="go" style="color:var(--up)">Take a seat →</div></a>`;
-const SHOP_LINK = `<a class="shopln" href="/shop"><div class="ic">🃏</div><div><b>Study Cards</b><span>Open packs, equip titles, borders and stickers.</span></div><div class="go">Shop →</div></a>`;
+// live tables (/live): the line says when one is open (read once when the lobby loads)
+let LIVE = null;
+fetch('/api/live', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.json()).then(j => { LIVE = j.table || null; render(); }).catch(() => {});
+const LIVE_NAMES = { bj: 'Blackjack', fb: 'Free Bet', uth: "Ultimate Hold'em" };
+const liveLink = () => { const t = LIVE && LIVE.open ? LIVE : null, n = t ? t.seats.filter(Boolean).length : 0;
+  return `<a class="shopln" href="/live" style="border-left-color:var(--pink)"><div class="ic">🎰</div><div><b>Live Tables${t ? ' <span style="font:600 11px var(--mono);background:var(--pink);color:#fff;padding:2px 6px;vertical-align:4px">OPEN</span>' : ''}</b><span>${t ? `${esc(LIVE_NAMES[t.game])} with ${esc(t.host ? t.host.name : 'the group')}, ${n} of 5 seats taken, $${t.cfg.min} to $${t.betMax}.` : 'Blackjack, Free Bet or UTH with the group: everyone plays at once against one dealer. Anyone in the Discord can open one.'}</span></div><div class="go" style="color:var(--pink)">${t ? 'Take a seat →' : 'Open a table →'}</div></a>`; };
+const SHOP_LINK =`<a class="shopln" href="/shop"><div class="ic">🃏</div><div><b>Study Cards</b><span>Open packs, equip titles, borders and stickers.</span></div><div class="go">Shop →</div></a>`;
 // ---------- casino jackpot banner (data from /api/casino, refreshed every 15s while the lobby is open) ----------
 const jpAgo = ms => { const m = Math.round((Date.now() - ms) / 60e3); return m < 60 ? `${Math.max(1, m)} min ago` : m < 2880 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`; };
 const cents = n => money(Math.round(n * 100) / 100).replace(/(\.\d)$/, '$10').replace(/^(\D*\d[\d,]*)$/, '$1.00');
@@ -596,6 +602,7 @@ function lobby() {
         <div class="game soon" style="--c:var(--up)"><div class="ic">🎡</div><b>Roulette</b><span>Play it with /roulette in the Discord server.</span><div class="go">Discord only</div></div>
         <div class="game soon" style="--c:#7fb6ff"><div class="ic">⚔️</div><b>Duel</b><span>Challenge someone with /duel in the Discord server.</span><div class="go">Discord only</div></div>
       </div></div>
+    ${liveLink()}
     ${POKER_LINK}
     ${SHOP_LINK}
     ${lottery()}

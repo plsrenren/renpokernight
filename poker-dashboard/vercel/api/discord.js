@@ -21,7 +21,7 @@
 //   /seats                  random seat order for everyone in on the latest invite (see _seats.js)
 //   /pack /loadout /tip     Study Cards (cosmetics for your player card) and giving chips to someone (see _shop.js)
 // Casino commands only run in #casino and poker commands only in #the-table; elsewhere they point there (_channels.js).
-// Also serves the site's casino and shop: /api/login, /api/casino and /api/shop are rewritten here with ?web= (see _casino.js).
+// Also serves the site's casino and shop: /api/login, /api/casino, /api/shop, /api/poker and /api/live are rewritten here with ?web= (see _casino.js).
 // One-time setup: open /api/discord?setup=1 in a browser. It registers the command and shows the "add to server" link.
 // Needs Vercel env vars DISCORD_BOT_TOKEN (already there) and DISCORD_PUBLIC_KEY (from the Developer Portal).
 import { createPublicKey, verify } from 'node:crypto';
@@ -114,7 +114,7 @@ async function sheet() {
 // names for the invite list come from the sheet copy in memory (no wait on Google); Discord names when there's none yet
 const refreshNewestInvite = () => refreshInvite(async () => Object.fromEntries(Object.entries(cache.ids || {}).map(([n, id]) => [id, n])))
   .catch(e => console.error('invite refresh', e));
-const webRoute = req => { const w = new URL(req.url).searchParams.get('web'); return w === 'login' || w === 'casino' || w === 'shop' || w === 'poker' ? w : null; };
+const webRoute = req => { const w = new URL(req.url).searchParams.get('web'); return w === 'login' || w === 'casino' || w === 'shop' || w === 'poker' || w === 'live' ? w : null; };
 
 // casino replies carry their table picture as an upload (see _attach.js), so it shows with the message instead of loading after it
 const PIC_BUTTONS = /^(bj|du|uth|ro|ba|sh):/, PIC_COMMANDS = ['blackjack', 'freebet', 'duel', 'uth', 'baccarat', 'roulette', 'pack'];

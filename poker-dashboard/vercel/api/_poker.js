@@ -150,7 +150,7 @@ function tokenRequest(clientId, guest) {
 
 // ---------- hosts ----------
 const hostCache = new Map();
-async function isHost(id) {
+export async function isHost(id) {
   if (id === RENATO) return true;
   const c = hostCache.get(id); if (c && Date.now() - c.at < 600e3) return c.ok;
   let ok = false;
@@ -171,7 +171,7 @@ async function isHost(id) {
 
 /** Is this person in the Discord server? (site sign-in alone doesn't say) A yes is kept a day; a no is re-checked next time. */
 const memberCache = new Map();
-async function isMember(id) {
+export async function isMember(id) {
   if (id === RENATO) return true;
   const c = memberCache.get(id); if (c && Date.now() - c < 3600e3) return true;
   const [seen] = await kv(['GET', 'pk:mem:' + id]).catch(() => [null]);
