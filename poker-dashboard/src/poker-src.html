@@ -192,9 +192,14 @@ body.room .wrap { max-width: none; }
 .wait .cbtn { margin-top: 8px; }
 .wait.sm { font-size: 16px; }
 .endb { display: flex; gap: 8px; } .btns.endb .cbtn { flex: 0 0 auto; padding-left: 22px; padding-right: 26px; }
-.bd5.r1, .bd5.r2 { position: relative; } .bd5.r2 { margin-top: 6px; }
-.bd5.r1::before, .bd5.r2::before { position: absolute; left: -22px; top: 50%; translate: 0 -50%; font: 400 15px var(--title); color: var(--gold); }
-.bd5.r1::before { content: "1"; } .bd5.r2::before { content: "2"; }
+/* run it twice (A): the shared cards once, the two run-outs stacked beside them, marked 1 and 2 */
+.bd5.rit { align-items: center; } .bd5.rit .sh { display: flex; gap: inherit; }
+.bd5.rit .runs { display: grid; gap: 6px; padding-left: 8px; border-left: 2px dashed rgba(241,199,91,.45); }
+.bd5.rit.ns0 .runs { padding-left: 0; border-left: 0; }
+.bd5.rit .run { display: flex; gap: inherit; position: relative; }
+.bd5.rit .run::after { position: absolute; right: -18px; top: 50%; translate: 0 -50%; font: 400 15px var(--title); color: var(--gold); }
+.bd5.rit .r1::after { content: "1"; } .bd5.rit .r2::after { content: "2"; }
+.hh-mid .bd5.rit .runs { gap: 4px; padding-left: 6px; } .hh-mid .bd5.rit .run::after { right: -14px; font-size: 12px; }
 .cd.rab { opacity: .55; filter: grayscale(.35); outline: 1px dashed rgba(255,255,255,.45); outline-offset: 2px; }
 .prea { display: flex; gap: 6px; flex-wrap: wrap; }
 .prea button { display: flex; align-items: center; gap: 7px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.18); color: var(--soft); font: 600 13px var(--body); padding: 8px 11px; cursor: pointer; }
@@ -202,6 +207,13 @@ body.room .wrap { max-width: none; }
 .prea button.on { border-color: var(--gold); color: #fff; background: rgba(240,192,64,.14); }
 .prea button.on::before { background: var(--gold); border-color: var(--gold); box-shadow: inset 0 0 0 2px var(--ink); }
 .err { color: var(--down); font-size: 13px; }
+/* desktop: a compact dock centered under the table, one fixed size in every state (turn, waiting, run it twice, show/muck) */
+@media (min-width: 641px) {
+  .actbar { width: min(100%, 720px); height: 136px; margin: 0 auto; padding: 10px 18px; gap: 16px; border-top: 3px solid var(--gold); clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 100%, 0 100%); }
+  .actbar .cd.lg { width: 52px; height: 72px; font-size: 24px; } .actbar .cd.lg i { font-size: 19px; } .actbar .mine { gap: 4px; }
+  .actbar .ctrls .btns .cbtn { font-size: 18px; padding: 9px 8px 7px; }
+  .actbar .presets { flex-wrap: nowrap; } .actbar .presets button { flex: 1 1 0; }
+}
 
 .side { display: grid; gap: 16px; min-width: 0; }
 .chat { height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; font-size: 13px; line-height: 1.35; padding-right: 4px; }
@@ -392,7 +404,7 @@ const chip = n => { const bb = S && S.table && S.table.cfg.bb; return unitBB && 
 const chipText = x => unitBB ? String(x).replace(/\$(\d[\d,]*(?:\.\d+)?)/g, (_, d) => chip(+d.replace(/,/g, ''))) : x;
 const hue = n => [...String(n)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
 const initials = n => String(n).split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
-const av = (id, name) => `<span class="av" style="--h:${hue(name)}">${esc(initials(name))}${id && !String(id).startsWith('bot:') && id !== 'guest' ? `<img src="/api/avatar?id=${esc(id)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
+const av = (id, name) => (id = realId(id), `<span class="av" style="--h:${hue(name)}">${esc(initials(name))}${id && !String(id).startsWith('bot:') && id !== 'guest' ? `<img src="/api/avatar?id=${esc(id)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`);
 const DISCORD_SVG = '<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M20.3 4.4A19.6 19.6 0 0 0 15.4 3l-.6 1.3a18 18 0 0 0-5.6 0L8.6 3a19.6 19.6 0 0 0-4.9 1.5C.6 9-.3 13.6.1 18.1A19.8 19.8 0 0 0 6.1 21l1.3-2.1a12.8 12.8 0 0 1-2-1l.5-.4a14 14 0 0 0 12.2 0l.5.4c-.6.4-1.3.7-2 1l1.3 2.1a19.7 19.7 0 0 0 6-3c.5-5.2-.9-9.8-3.6-13.7zM8.3 15.3c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4zm7.4 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4z"/></svg>';
 const ERRS = { cancelled: 'Sign-in was cancelled.', setup: "Discord sign-in isn't set up yet.", expired: 'That sign-in link expired. Try again.', discord: "Discord didn't answer. Try again.", stranger: "That Discord account isn't one the club knows yet. Play a hand with the bot in the server first." };
 const STAKES = [[1, 2], [2, 5], [5, 10]], MIN_BUYS = [20, 40, 100], MAX_BUYS = [100, 200, 500, 1000], TURNS = [15, 20, 30], BOMBS = [2, 5, 10], NITS = [2, 5, 10];
@@ -416,13 +428,20 @@ function score5(cs) {
 function bestOf(cs) { let b = null; const n = cs.length; for (let a = 0; a < n; a++) for (let b1 = a + 1; b1 < n; b1++) for (let c = b1 + 1; c < n; c++) for (let d = c + 1; d < n; d++) for (let e = d + 1; e < n; e++) { const s = score5([cs[a], cs[b1], cs[c], cs[d], cs[e]]); if (!b || s.v > b.v) b = s; } return b; }
 const describe = h => { const k = h.ks; return [`${rn(k[0])} high`, `Pair of ${PL[k[0]]}`, `Two pair, ${PL[k[0]]} and ${PL[k[1]]}`, `Three ${PL[k[0]]}`, `Straight, ${rn(k[0])} high`, `Flush, ${rn(k[0])} high`, `Full house, ${PL[k[0]]} full of ${PL[k[1]]}`, `Four ${PL[k[0]]}`, k[0] === 14 ? 'Royal flush' : `Straight flush, ${rn(k[0])} high`][h.cat]; };
 function card(c, size = '', extra = '') { if (!c) return `<div class="cd ph ${size}"></div>`; return `<div class="cd face su-${c[1]} ${size} ${extra}"><b>${rn(rv(c))}</b><i>${SYM[c[1]]}</i></div>`; }
+/** run it twice: how many cards both boards share from the start */
+const sharedN = (a, b) => { let n = 0; while (n < 5 && a[n] && a[n] === b[n]) n++; return n; };
+/** run it twice (A): b1, b2 = the two boards as 5 card HTML strings each; the shared cards show once, only the run-outs are doubled.
+ *  Board 1's cards stay in board order inside .bd5 (shared, then run 1), so the deal animation finds them by index. */
+const ritHTML = (b1, b2, ns) => `<div class="bd5 rit${ns ? '' : ' ns0'}">${ns ? `<div class="sh">${b1.slice(0, ns).join('')}</div>` : ''}<div class="runs"><div class="run r1">${b1.slice(ns).join('')}</div><div class="run r2">${b2.slice(ns).join('')}</div></div></div>`;
 
 // ---------- state ----------
 let S = null;               // { table, me, ably }
 let chat = [], peek = -1, skew = 0, err = '', tickT = 0, pollT = 0, cardsFor = '', busy = false;
 let PLATES = null;          // nameplates (plates.js): borders, bars, stickers, titles
-if (!new URLSearchParams(location.search).has('bots')) import('/plates.js').then(m => m.loadouts().then(lo => { PLATES = { ...lo, bits: m.bits }; render(); })).catch(() => {});
-const plateOf = id => (PLATES && PLATES.L && PLATES.bits(PLATES.L, PLATES.byId[id])) || { any: false, bar: '', title: '', sticker: '', face: h => h };
+// practice tables load these too (a read only, by request): signed in with Discord, your seat wears your own loadout and picture
+import('/plates.js').then(m => m.loadouts().then(lo => { PLATES = { ...lo, bits: m.bits }; if (lo.me && !(LOCAL && LOCAL.T.open)) GUEST.name = lo.me.name; render(); })).catch(() => {});
+const realId = id => id === 'guest' && PLATES && PLATES.me ? PLATES.me.id : id; // practice: the local 'guest' seat is you
+const plateOf = id => (PLATES && PLATES.L && PLATES.bits(PLATES.L, PLATES.byId[realId(id)])) || { any: false, bar: '', title: '', sticker: '', face: h => h };
 const PHONE = matchMedia('(max-width: 640px)');
 PHONE.addEventListener?.('change', () => render());
 const T = () => disp || (S && S.table);
@@ -616,14 +635,14 @@ function tableHTML() {
   const bets = t.seats.map((s, i) => s && s.bet > 0 ? `<div class="bet ${betKind(s.last)}" style="left:${betPos(i).x}%;top:${betPos(i).y}%">${betInner(s.bet, s.last)}</div>` : '').join('');
   const dp = t.button >= 0 && t.hand ? toward(seatPos(t.button), .8) : null;
   const hl = t.res && t.res.hl || [];
-  const board = Array.from({ length: 5 }, (_, k) => { const c = t.board[k], rb = !c && t.rabbit ? t.rabbit[k - t.board.length] : null; return rb ? card(rb, '', 'rab') : card(c, '', c && hl.length ? (hl.includes(c) ? 'hl' : 'dim') : ''); }).join('');
+  const cells = Array.from({ length: 5 }, (_, k) => { const c = t.board[k], rb = !c && t.rabbit ? t.rabbit[k - t.board.length] : null; return rb ? card(rb, '', 'rab') : card(c, '', c && hl.length ? (hl.includes(c) ? 'hl' : 'dim') : ''); });
   const pot = t.pot + t.seats.reduce((a, s) => a + (s ? s.bet : 0), 0);
-  const board2 = t.board2 ? Array.from({ length: 5 }, (_, k) => card(t.board2[k] || null, '', t.board2[k] && k < 5 && t.board[k] === t.board2[k] ? 'dim' : '')).join('') : '';
+  const boardHTML = t.board2 ? ritHTML(cells, Array.from({ length: 5 }, (_, k) => card(t.board2[k] || null)), sharedN(t.board, t.board2)) : `<div class="bd5">${cells.join('')}</div>`;
   const top = t.rit ? '<div class="banner allin">Run it twice?</div>' : t.allinShow ? `<div class="banner allin">${t.board2 && t.board.length >= 5 ? 'Run it twice' : 'All in'}</div>` : t.phase === 'paused' ? '<div class="banner">Paused by the host</div>' : t.res ? `<div class="banner">${esc(chipText(t.res.banner))}</div>`
     : t.phase === 'idle' ? `<div class="banner sub">Waiting for players</div>` : `<div class="pot">${t.bombHand ? 'Bomb pot' : 'Pot'} ${chip(pot)}</div>`;
   const potLow = PHONE.matches && t.phase === 'hand' && !t.res && !t.rit && !t.allinShow; // phones: the pot sits under the board during a hand, clear of the upper seats' bets
   return `<div class="felt"><div class="oval"></div>${dp ? `<div class="dbtn2" style="left:${dp.x - 7}%;top:${dp.y}%">D</div>` : ''}${bets}
-    <div class="center"><div class="crow">${potLow ? '' : top}</div><div class="bd5${board2 ? ' r1' : ''}">${board}</div>${board2 ? `<div class="bd5 r2">${board2}</div>` : ''}<div class="crow">${potLow ? top : t.rabbit ? `<div class="banner sub rabt">Rabbit hunt by ${esc(t.rabbitBy)}</div>` : t.res && t.res.sub ? `<div class="banner sub">${esc(chipText(t.res.sub))}</div>` : ''}</div></div>
+    <div class="center"><div class="crow">${potLow ? '' : top}</div>${boardHTML}<div class="crow">${potLow ? top : t.rabbit ? `<div class="banner sub rabt">Rabbit hunt by ${esc(t.rabbitBy)}</div>` : t.res && t.res.sub ? `<div class="banner sub">${esc(chipText(t.res.sub))}</div>` : ''}</div></div>
     ${t.seats.map(seatHTML).join('')}</div>`;
 }
 // your hand in poker shorthand: AKo / AKs / QQ (T = ten)
@@ -843,7 +862,7 @@ function fxAfter(t) {
   const bd = $('.bd5');
   boardFx = boardFx.filter(f => now < f.start + SLIDE + FLIP * f.slow + 50);
   boardFx.forEach(f => {
-    const el = bd && bd.children[f.k]; if (!el || !el.classList.contains('face')) return;
+    const el = bd && bd.querySelectorAll('.cd')[f.k]; if (!el || !el.classList.contains('face')) return;
     const dur = SLIDE + FLIP * f.slow, s1 = SLIDE / dur, mid = (SLIDE + FLIP * f.slow / 2) / dur, { dx, dy } = fromDealer(el, t);
     el.classList.add('fxing');
     play(el, [{ transform: `translate(${dx}px, ${dy}px) rotate(-18deg)`, opacity: 0, offset: 0 }, { opacity: 1, offset: Math.min(.2, s1 / 2) }, { transform: 'none', offset: s1, easing: 'ease-in' }, { transform: 'scaleX(0)', offset: mid, easing: 'ease-out' }, { transform: 'scaleX(1)', offset: 1 }], dur, f.start, { easing: 'linear' }).finished.then(() => el.classList.remove('fxing')).catch(() => {});
@@ -1108,11 +1127,11 @@ function hhFelt() {
   }).join('');
   const bets = Object.entries(s.bet).filter(([, v]) => v > 0).map(([i, v]) => { const p = toward(hhSeatPos(h, +i), .56); return `<div class="hh-bet" style="left:${p.x}%;top:${p.y}%">${chip(v)}</div>`; }).join('');
   const rab = s.rabbit && s.board.length < 5 ? s.rabbit : [];
-  const board = Array.from({ length: 5 }, (_, k) => s.board[k] ? card(s.board[k]) : rab[k - s.board.length] ? card(rab[k - s.board.length], '', 'rab') : card(null)).join('');
-  const b2 = s.board2 ? `<div class="bd5">${s.board2.map((c, k) => card(c, '', s.board[k] === c ? 'dim' : '')).join('')}</div>` : '';
+  const cells = Array.from({ length: 5 }, (_, k) => s.board[k] ? card(s.board[k]) : rab[k - s.board.length] ? card(rab[k - s.board.length], '', 'rab') : card(null));
+  const boardHTML = s.board2 ? ritHTML(cells, s.board2.map(c => card(c)), sharedN(s.board, s.board2)) : `<div class="bd5">${cells.join('')}</div>`;
   const potNow = s.pot + Object.values(s.bet).reduce((a, b) => a + b, 0);
   const pot = last && r.winners.length ? `${r.winners.join(' & ')} ${r.winners.length > 1 ? 'split' : 'wins'} ${chip(r.pot)}` : `Pot ${chip(potNow)}`;
-  return `<div class="hh-felt"><div class="oval"></div>${seats}${bets}<div class="hh-mid"><div class="bd5">${board}</div>${b2}<div class="pot">${esc(pot)}</div></div></div>
+  return `<div class="hh-felt"><div class="oval"></div>${seats}${bets}<div class="hh-mid">${boardHTML}<div class="pot">${esc(pot)}</div></div></div>
     <div class="hh-ctrl"><button class="ib" data-hh="first" aria-label="Start of the hand">|◀</button><button class="ib" data-hh="prev" aria-label="Step back">◀</button><button class="ib" data-hh="play" aria-label="${HH.timer ? 'Pause' : 'Play'}">${HH.timer ? '❚❚' : '▶'}</button><button class="ib" data-hh="next" aria-label="Step forward">▶|</button><button class="ib" data-hh="last" aria-label="End of the hand">▶▶</button>
       <span class="msg"><b>${HH.step + 1}/${r.steps.length}</b> · ${esc(chipText(s.msg))}</span>
       <button class="cbtn ghost sm" data-hh="prevhand" ${HH.at ? '' : 'disabled'}>Prev hand</button><button class="cbtn ghost sm" data-hh="nexthand" ${HH.at < HH.data.hands.length - 1 ? '' : 'disabled'}>Next hand</button></div>
