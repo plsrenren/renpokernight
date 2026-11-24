@@ -442,9 +442,24 @@ let PLATES = null;          // nameplates (plates.js): borders, bars, stickers, 
 // practice tables load these too (a read only, by request): signed in with Discord, your seat wears your own loadout and picture
 import('/plates.js').then(m => m.loadouts().then(lo => { PLATES = { ...lo, bits: m.bits }; if (lo.me && !(LOCAL && LOCAL.T.open)) GUEST.name = lo.me.name; render(); })).catch(() => {});
 const realId = id => id === 'guest' && PLATES && PLATES.me ? PLATES.me.id : id; // practice: the local 'guest' seat is you
+/** practice bots wear random pack cosmetics (by request): each slot is filled 3 times in 4, its tier rolled with the pack odds
+ *  (loot.js ODDS: 55/30/11/4), then any pack item of that slot and tier. A bot keeps its look (kept on this device by id + name). */
+let BOTLOOK = {}; try { BOTLOOK = JSON.parse(localStorage.getItem('pk:botlook') || '{}') || {}; } catch (e) {}
+function botLook(s) {
+  const L = PLATES && PLATES.L; if (!L || !L.ITEMS) return null;
+  const k = s.id + '|' + s.name; if (BOTLOOK[k]) return BOTLOOK[k];
+  const tier = () => { let r = Math.random() * 100; for (const t of L.TIERS) { if ((r -= L.ODDS[t]) < 0) return t; } return L.TIERS[0]; };
+  const eq = {};
+  for (const slot of L.SLOT_NAMES) { if (Math.random() < .25) continue; const t = tier(), pool = L.ITEMS.filter(i => i.slot === slot && i.tier === t); if (pool.length) eq[slot] = pool[Math.floor(Math.random() * pool.length)].id; }
+  if (Object.keys(BOTLOOK).length > 200) BOTLOOK = {};
+  BOTLOOK[k] = eq; try { localStorage.setItem('pk:botlook', JSON.stringify(BOTLOOK)); } catch (e) {}
+  return eq;
+}
+/** someone's equipped items ({ 'Title': id, ... }) or null; bots get their random look */
+const eqOf = id => { if (!PLATES || !PLATES.L) return null; if (String(id).startsWith('bot:')) { const t = T(), s = t && t.seats.find(q => q && q.id === id); return s ? botLook(s) : null; } return PLATES.byId[realId(id)] || null; };
 /** the title someone has equipped: { name, col } in its rarity color, or null */
-const titleOf = id => { const eq = PLATES && PLATES.L && PLATES.byId[realId(id)], it = eq && eq['Title'] && PLATES.L.itemFor(eq['Title']); return it ? { name: it.name, col: PLATES.L.TCOL[it.tier] || '#a9a3c9' } : null; };
-const plateOf = id => (PLATES && PLATES.L && PLATES.bits(PLATES.L, PLATES.byId[realId(id)])) || { any: false, bar: '', title: '', sticker: '', face: h => h };
+const titleOf = id => { const eq = eqOf(id), it = eq && eq['Title'] && PLATES.L.itemFor(eq['Title']); return it ? { name: it.name, col: PLATES.L.TCOL[it.tier] || '#a9a3c9' } : null; };
+const plateOf = id => (PLATES && PLATES.L && PLATES.bits(PLATES.L, eqOf(id))) || { any: false, bar: '', title: '', sticker: '', face: h => h };
 const PHONE = matchMedia('(max-width: 640px)');
 PHONE.addEventListener?.('change', () => render());
 const T = () => disp || (S && S.table);
