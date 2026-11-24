@@ -92,7 +92,7 @@ async function login(req, sheet) {
 }
 
 // ---------- the page's data ----------
-const SESSION_GAP = 10 * 60e3, SOLO = new Set(['daily', 'poker night', 'rakeback', 'jackpot', 'free seat']), solo = g => SOLO.has(g) || /^tip /.test(g);
+const SESSION_GAP = 10 * 60e3, SOLO = new Set(['daily', 'poker night', 'rakeback', 'jackpot', 'free seat', 'beg', 'beg flip']), solo = g => SOLO.has(g) || /^tip /.test(g);
 /** "Just now" session lines: the same person playing the same game (same place), with no gap over 10 minutes, becomes one
  *  line with the total, hand count, wins/losses and when it started. Dailies and rewards stay single. Newest first, 10 lines. */
 export function groupFeed(feed, lines = 10) {

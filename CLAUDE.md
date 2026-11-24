@@ -113,6 +113,13 @@ poker-dashboard/
                        touch rakeback or accolade counts. Wins go to jp:news; afterJackpot() (after every bot/site answer + after roulette spins) posts them in
                        #casino. Game replies do NOT mention the jackpot (removed Nov 22 by request). /jackpot command, /earn line, site lobby banner
                        (GET /api/casino?jp=1 every 15s), feed game 'jackpot'
+                       beg: _beg.js (Nov 24 2026, mockup https://claude.ai/artifact/RmvzYgAXX5C7Wx8FooM8Uf): /beg alone = beg the house (50% nothing, 33% $1-5,
+                       12% $6-12, 3% $20, 1% $50 whale, 1% pickpocket -$1-5, ~$3 avg; 1h apart, 3 a day from the daily reset, only under $250; house books 'beg',
+                       no rakeback/jackpot; "nothing" lines can @ random bj:name players with allowed_mentions parse [] = no ping). /beg who amount note =
+                       ask a player ($10 default, $100 max): buttons bg:<give|gamble|toss|no>:<ask id>, only the target presses; Give/Toss $1 = MOVE like /tip
+                       (feed 'tip to/from'); Gamble = one single-zero roulette spin on random red/black for the ask (giver's chips taken first; hit = refunded +
+                       house pays the beggar, miss/0 = house keeps them; house books 'beg flip'); 10 min to answer (checked on press, no timer), one open ask,
+                       3 a day per pair. Keys bg:last, bg:n:<reset>, bg:p:<reset>, bg:a:<id>, bg:open:<id>, bg:done:<id>, bg:lock:<id>
                        lottery: _lottery.js (quarter lottery: 1 ticket per $10 of Cash_In in the quarter, jackpot = all buy-ins 1:1 in chips;
                        drawn by hand with /lottery draw (host only, live ticket roll in Discord, draws the last finished quarter once), Lucky Ticket role (_roles.js);
                        /lottery odds|draw, lobby prize wheel with pfps (spins to the winner once per viewer), lobby panel, card at /api/wrap?lottery=<quarter>, spinning wheel GIF at /api/wrap?lottery=<quarter>&spin=1 (_wheelgif.js; no spare function slot). Some names are shown
