@@ -67,8 +67,11 @@ export const FX = {
   matrix: SV('<defs><pattern id="m" width="100" height="7" patternUnits="userSpaceOnUse"><rect width="100" height="1.8" fill="rgba(142,224,176,0.3)"/></pattern><pattern id="v" width="12.5" height="100" patternUnits="userSpaceOnUse"><rect x="10.8" width="1.7" height="100" fill="rgba(47,154,99,0.26)"/></pattern></defs><rect width="100" height="100" fill="url(#m)"/><rect width="100" height="100" fill="url(#v)"/>'),
 };
 export const UNDER = {
+  'acc-patch': SV('<path d="M50 50L50.0 -30.0L77.4 -25.2L101.4 -11.3Z" fill="#8a6b4f"/><line x1="50" y1="50" x2="101.4" y2="-11.3" stroke="#f2dcae" stroke-width="1.6" stroke-dasharray="3 3"/><path d="M50 50L101.4 -11.3L119.3 10.0L128.8 36.1Z" fill="#5a6e8a"/><line x1="50" y1="50" x2="128.8" y2="36.1" stroke="#f2dcae" stroke-width="1.6" stroke-dasharray="3 3"/><path d="M50 50L128.8 36.1L128.8 63.9L119.3 90.0Z" fill="#9a4f4f"/><line x1="50" y1="50" x2="119.3" y2="90.0" stroke="#f2dcae" stroke-width="1.6" stroke-dasharray="3 3"/><path d="M50 50L119.3 90.0L101.4 111.3L77.4 125.2Z" fill="#6d7f52"/><line x1="50" y1="50" x2="77.4" y2="125.2" stroke="#f2dcae" stroke-width="1.6" stroke-dasharray="3 3"/><path d="M50 50L77.4 125.2L50.0 130.0L22.6 125.2Z" fill="#a08a5a"/><line x1="50" y1="50" x2="22.6" y2="125.2" stroke="#f2dcae" stroke-width="1.6" stroke-dasharray="3 3"/><path d="M50 50L22.6 125.2L-1.4 111.3L-19.3 90.0Z" fill="#6a5a7a"/><line x1="50" y1="50" x2="-19.3" y2="90.0" stroke="#f2dcae" stroke-width="1.6" stroke-dasharray="3 3"/><path d="M50 50L-19.3 90.0L-28.8 63.9L-28.8 36.1Z" fill="#8a6b4f"/><line x1="50" y1="50" x2="-28.8" y2="36.1" stroke="#f2dcae" stroke-width="1.6" stroke-dasharray="3 3"/><path d="M50 50L-28.8 36.1L-19.3 10.0L-1.4 -11.3Z" fill="#5a6e8a"/><line x1="50" y1="50" x2="-1.4" y2="-11.3" stroke="#f2dcae" stroke-width="1.6" stroke-dasharray="3 3"/><path d="M50 50L-1.4 -11.3L22.6 -25.2L50.0 -30.0Z" fill="#9a4f4f"/><line x1="50" y1="50" x2="50.0" y2="-30.0" stroke="#f2dcae" stroke-width="1.6" stroke-dasharray="3 3"/>'),
   checker: SV('<defs><pattern id="k" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="#1d1a37"/><rect width="5" height="5" fill="#8f78f0"/><rect x="5" y="5" width="5" height="5" fill="#8f78f0"/></pattern></defs><rect width="100" height="100" fill="url(#k)"/>'),
 };
+// earned sticker art (ACC, not in packs)
+STICKERS.Penny = '<svg viewBox="0 0 120 110"><g transform="rotate(-14 60 56)"><circle cx="60" cy="60" r="44" fill="#7a3f1c" stroke="#15132a" stroke-width="4"/><circle cx="60" cy="54" r="44" fill="#c8733a" stroke="#15132a" stroke-width="4"/><circle cx="60" cy="54" r="35" fill="none" stroke="#8a4520" stroke-width="3"/><circle cx="60" cy="54" r="35" fill="none" stroke="#e8a06a" stroke-width="1.5" stroke-dasharray="2 4"/><g fill="none" stroke-linecap="round" stroke-linejoin="round"><g stroke="#7a3f1c" stroke-width="6" transform="translate(2 2)"><path d="M41 42l9-6v34M42 70h16"/><path d="M83 46a10 10 0 1 0 0 16M76 38v32"/></g><g stroke="#f4c49a" stroke-width="6"><path d="M41 42l9-6v34M42 70h16"/><path d="M83 46a10 10 0 1 0 0 16M76 38v32"/></g></g><path d="M30 34q8-12 22-16" fill="none" stroke="#f4c49a" stroke-width="5" stroke-linecap="round"/></g><path d="M100 14l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" fill="#fff3c4" stroke="#15132a" stroke-width="2" stroke-linejoin="round"/></svg>';
 const fxSpan = k => `<span class="zd zfx">${FX[k].replace(' xmlns="http://www.w3.org/2000/svg"', '')}</span>`;
 for (const k of ['finder', 'rain', 'frost', 'censored']) DECO[k] = fxSpan(k);
 
@@ -279,6 +282,21 @@ export const ACC = [
     look: { bg: 'linear-gradient(90deg, #141218, #5a1018 50%, #b81c2a)', fg: '#fff', ovr: '#141218', ovrBg: '#f0c75e' } },
   { k: 'sweep', slot: 'Overall bar', name: 'Clean Sweep', why: 'Swept a 3-way split', need: 'split into 3+ hands at blackjack or free bet and win every one', shine: 1,
     look: { bg: 'linear-gradient(90deg, #4a3a28, #7a5e38 25%, #c99a2e 55%, #f0c75e 78%, #fff3c4)', fg: '#fff', ovr: '#f0c75e' } },
+  // /beg (Nov 24 2026, Renato's picks; counted in ac:n by api/_beg.js: beg = house begs, begzero = ones that paid nothing, begwhale,
+  // begpick, begave = full gives, begnah, beglost = lost Gamble spins, begin = chips got from players' begs, begread = asks left unanswered,
+  // beglast = when you last begged the house (Rags to Riches = $1,000 within 7 days of that)
+  { k: 'beggar', slot: 'Title', name: 'Professional Beggar', why: 'Begged 50 times', need: 'beg the house 50 times' },
+  { k: 'whalewatch', slot: 'Title', name: 'Whale Watcher', why: 'Got the $50 whale', need: 'get the $50 whale while begging the house' },
+  { k: 'pickpocket', slot: 'Title', name: 'Pickpocketed', why: 'Robbed while begging', need: 'get pickpocketed while begging the house' },
+  { k: 'sugardaddy', slot: 'Title', name: 'Sugar Daddy', why: 'Gave 10 full asks', need: 'press Give on 10 begs' },
+  { k: 'coldhearted', slot: 'Title', name: 'Cold Hearted', why: 'Said Nah 10 times', need: 'turn down 10 begs' },
+  { k: 'rent', slot: 'Title', name: 'Gambled Your Rent', why: 'Lost a beg gamble', need: "lose a Gamble spin on someone's beg" },
+  { k: 'charity', slot: 'Title', name: 'Charity Case', why: 'Got $250 from begs', need: '$250 in total from other players through /beg' },
+  { k: 'leftonread', slot: 'Title', name: 'Left on Read', why: 'Ignored 5 times', need: 'have 5 begs run out with no answer' },
+  { k: 'penny', slot: 'Sticker', name: 'Penny', why: '25 begs, got nothing', need: 'beg the house 25 times and get nothing' },
+  { k: 'patch', slot: 'Pfp border', name: 'Patchwork', why: 'Begged 100 times', need: 'beg the house 100 times', under: 1 },
+  { k: 'rags', slot: 'Overall bar', name: 'Rags to Riches', why: 'Begged, then hit $1,000', need: 'beg the house, then reach $1,000 in chips within 7 days',
+    look: { bg: 'linear-gradient(90deg, #3a2216, #7a4126 22%, #b87333 44%, #d9a441 66%, #f0c75e 84%, #fff3c4)', fg: '#fff', ovr: '#3a2216', ovrBg: '#fff3c4' } },
 ];
 // the earned bars' Discord looks sit in LOOK.bar like the pack bars (key acc-<k>)
 for (const a of ACC) if (a.look) LOOK.bar['acc-' + a.k] = a.look;
@@ -297,6 +315,7 @@ export const accDeco = it => { const a = ACC_BY[it.k]; return a && a.tab ? `<spa
 /** the simplified look the Discord images use for an accolade border (same fields as LOOK.border) */
 export function accLook(it) {
   const a = ACC_BY[it.k];
+  if (a && a.under) return { bg: '#1d140b', pad: 8, ring: '#15132a', under: 1 }; // art from UNDER['acc-<k>']
   return a && a.frame ? { bg: a.frame, pad: 5, ring: a.ring, glow: a.glow, badge: { t: a.tab, bg: a.plate, fg: a.fg, at: 'tl', icon: 'data:image/svg+xml;base64,' + btoa(ACC_ICON[a.icon]) } } : null;
 }
 /** any border's extra site markup (champion tab, accolade tab, or the pack border's DECO) */
