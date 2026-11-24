@@ -245,6 +245,9 @@ export const ACC = [
   { k: 'switchhitter', slot: 'Title', name: 'Switch Hitter', why: 'Won cash and a tourney', need: 'win at least one cash night and one tournament', poker: 1 },
   { k: 'gotmilk', slot: 'Title', name: 'Got the Milk', why: 'Back from the store', need: 'play again after missing 5+ nights in a row (only nights from Sep 19, 2026 count, so nobody gets it for the past)', poker: 1 },
   { k: 'doubleup', slot: 'Title', name: 'Double Up', why: 'Doubled up at cash', need: 'cash out at least double your Cash_In on a cash night', poker: 1 },
+  // poker practice tables vs bots (Nov 24 2026, Renato: play a bot game 5 times = Beta Tester): ac:n practice = bot games played, counted by
+  // api/_poker.js (POST {a:'practice'} once per practice table opening after 10 hands, Discord server members only)
+  { k: 'betatester', slot: 'Title', name: 'Beta Tester', why: 'Played 5 bot games', need: '5 practice games against the bots' },
   // earned overall bars (Nov 2026, Renato's 10 picks). Site look = .cbar-acc-<k> in cosmetics.css (shine: 1 = the slow shimmer,
   // only on the 4 hardest, by request); look = the simpler version for the Discord images (same fields as LOOK.bar)
   { k: 'hotstreak', slot: 'Overall bar', name: 'Hot Streak', why: 'Up 3 nights in a row', need: 'finish up on 3 nights you play in a row', poker: 1,

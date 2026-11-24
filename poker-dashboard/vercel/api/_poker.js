@@ -6,7 +6,9 @@
 //   GET  /api/poker?hands=1    → your hand history (signed in): your sessions of the last 90 days + the hands of one (&from=&to= ms, default the latest)
 //   POST /api/poker {a: …}     → token (Ably sign-in for live updates) | sit {seat, amt, gift (take the host's free seat)} | top {amt} | leave | sitout {on}
 //                                | act {do: fold|check|call|raise, to} | tick | host: open {cfg} | close | pause | resume | blinds {sb, bb} | seatout {seat, on} | bomb {x} | straddle {on} | nit {x} | gift {x} (free seat $, 0 = off) | bot {on: ''} (clears bots left over from before practice tables)
-//   Practice tables against bots never come here: they run entirely in the browser (poker.html LOCAL + /pokergame.js), so only real games use Redis.
+//                                | practice (counts one bot game toward the Beta Tester title; see the case below)
+//   Practice tables against bots never come here while playing: they run entirely in the browser (poker.html LOCAL + /pokergame.js), so only real
+//   games use Redis. The one exception is the bot-game counter: one 'practice' post per practice table opening (after 10 hands, signed-in members).
 //
 // Storage: the whole table is one JSON value (pk:t) with a version number (pk:v). Each change reads it, applies the rules
 // (_pokergame.js) and writes it back only if nobody else wrote in between (one Lua compare-and-set), else tries again.
@@ -196,6 +198,15 @@ export async function pokerWeb(req, me, _sheet, out) {
   const done = async (r, extra = {}) => r.err ? out({ err: r.err, ...(r.T ? await view(r.T, me, t) : {}) }) : out(await view(r.T, me, t, extra));
 
   switch (b.a) {
+    // a practice game against the bots (played in the browser) counts toward the Beta Tester title (5 games): the page sends this once per practice
+    // table opening, after 10 hands. Server members only; at most one count every 15 minutes, so reloading or spamming can't run it up.
+    case 'practice': {
+      if (!(await isMember(me.id))) return out({ ok: false, why: 'not in the server' });
+      const [fresh] = await kv(['SET', 'pk:pc:' + me.id, '1', 'NX', 'EX', 900]);
+      if (!fresh) return out({ ok: false, why: 'too soon' });
+      const [n] = await kv(['HINCRBY', 'ac:n:' + me.id, 'practice', 1], ['SADD', 'ac:dirty', me.id]); // ac:dirty: the next request checks the titles
+      return out({ ok: true, n: +n || 0 });
+    }
     case 'token': return ablyKey() ? out({ token: tokenRequest(me.id) }) : out({ err: 'Live updates are not set up.' });
     case 'sit': if (b.gift) {
       // the host's free seat: no chips taken, no strings (leaving pays the whole stack like any seat)
