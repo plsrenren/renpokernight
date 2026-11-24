@@ -53,7 +53,7 @@
   ],
   "functions": {
     "api/discord.js": {
-      "includeFiles": "{api/_assets/**,recap-core.js,loot.js}",
+      "includeFiles": "{api/_assets/**,recap-core.js,loot.js,pokergame.js}",
       "maxDuration": 60,
       "excludeFiles": "node_modules/@resvg/resvg-js-linux-x64-musl/**"
     },
@@ -65,7 +65,7 @@
       "maxDuration": 15
     },
     "api/roles.js": {
-      "includeFiles": "{recap-core.js,loot.js}",
+      "includeFiles": "{recap-core.js,loot.js,pokergame.js}",
       "maxDuration": 30
     },
     "api/img.js": {
