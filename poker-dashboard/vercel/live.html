@@ -199,7 +199,7 @@ const av = (id, name) => `<span class="av" style="--h:${hue(name)}">${esc(initia
 const DISCORD_SVG = '<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M20.3 4.4A19.6 19.6 0 0 0 15.4 3l-.6 1.3a18 18 0 0 0-5.6 0L8.6 3a19.6 19.6 0 0 0-4.9 1.5C.6 9-.3 13.6.1 18.1A19.8 19.8 0 0 0 6.1 21l1.3-2.1a12.8 12.8 0 0 1-2-1l.5-.4a14 14 0 0 0 12.2 0l.5.4c-.6.4-1.3.7-2 1l1.3 2.1a19.7 19.7 0 0 0 6-3c.5-5.2-.9-9.8-3.6-13.7zM8.3 15.3c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4zm7.4 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4z"/></svg>';
 const GAMES = { bj: 'Blackjack', fb: 'Free Bet Blackjack', uth: "Ultimate Texas Hold'em" }, SHORT = { bj: 'Blackjack', fb: 'Free Bet', uth: 'UTH' };
 const CARD_MS = 650;
-// bet stepper: $5 steps up to $50, $25 up to $200, then $50 (bets run $5 to $500)
+// bet stepper: $5 steps up to $50, $25 up to $200, then $50 (bets run $5 to $500, UTH ante $5 to $100)
 const upStep = b => b < 50 ? 5 : b < 200 ? 25 : 50, downStep = b => b <= 50 ? 5 : b <= 200 ? 25 : 50;
 const RULES = { bj: 'Blackjack pays 3 to 2 · dealer stands on 17', fb: 'Free doubles 9–11 · free splits · dealer 22 pushes', uth: 'Dealer needs a pair to open the ante' };
 const API = window.LIVE_API || '/api/live';

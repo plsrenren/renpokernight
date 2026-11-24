@@ -16,10 +16,10 @@
 // (feedCmds: casino feed, house, rakeback, jackpot, accolades), null for a plain refund.
 // Timers: deadlines in the table (s.dl, T.deadline, T.nextAt); browsers send "tick" when one has passed (same as the poker room).
 import { freshDeck, total, settle as bjSettle, moves, MAX_PUSH22 } from './_blackjack.js';
-import { settle as uthSettle, best, CAT } from './_uth.js';
+import { settle as uthSettle, best, CAT, MAX_ANTE, MAX_TRIPS } from './_uth.js';
 
 export const SEATS = 5;
-export const MIN_BET = 5, MAX_BET = 500, MAX_TRIPS = 100;  // every table, every game: $5 to $500 (the UTH ante too), no host setting (by request)
+export const MIN_BET = 5, MAX_BET = 500;  // every table: $5 to $500, UTH ante capped at $100 like /uth (MAX_ANTE), no host setting (by request)
 export const CLOCK = 15; // seconds for both clocks, deciding and betting (fixed by request: no host setting); side bets always on
 export const GAMES = { bj: 'Blackjack', fb: 'Free Bet', uth: "Ultimate Texas Hold'em" };
 export const FEED = { bj: 'blackjack', fb: 'free bet', uth: 'UTH' }; // names in the casino feed + house books (HOUSE_GAMES)
@@ -37,7 +37,7 @@ export const seatOf = (T, id) => T.seats.findIndex(s => s && s.id === id);
 const seated = T => T.seats.filter(Boolean);
 const inRound = T => T.seats.filter(s => s && s.g);
 export const sideMax = T => T.game === 'fb' ? MAX_PUSH22 : T.game === 'uth' ? MAX_TRIPS : 0;
-export const betMax = T => T.cfg.max;
+export const betMax = T => T.game === 'uth' ? Math.min(T.cfg.max, MAX_ANTE) : T.cfg.max;
 /** chips a bet takes: blackjack = bet (+ Push 22); UTH = ante + blind + 1x ante held for the river bet (+ Trips), like /uth */
 export const needFor = (T, bet, side) => T.game === 'uth' ? bet * 3 + side : bet + side;
 
