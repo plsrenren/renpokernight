@@ -18,6 +18,10 @@
 //   leaving pays the whole stack like any other seat. One per person per room opening (T.gifted = ids who took one); never at a test table.
 //   s.gift = what the house put in (shows a FREE tag). The caller checks server membership and skips takeChips.
 //   A free seat keeps the table a test table even after the bots leave, so nobody's real chips can end up with it. Every extra kicks in at the start of a hand, never mid-hand.
+// Practice tables (T.practice, T.owner): anyone signed in can start their own table against 1-7 bots, open room or not (openPractice).
+//   Play money only: everyone's chips are fake, rebuys are free, nothing is ever paid out, no feed lines, rewards or accolades.
+//   Only the owner is a real player, and hands only get dealt while they're in (no bots-only hands burning Redis commands).
+//   Bots play their cards (botMove: equity by quick simulation vs pot odds) in a style (STYLES) picked from the owner's level.
 // Hand histories: each hand is written down as it's played (T.rec: who sat where with what, everyone's cards, then events in order).
 //   When the next hand starts (or the room closes) the finished record moves to T._hands and _poker.js saves it for 90 days.
 //   Events: ['post', seat, amt, 'sb'|'bb'|'straddle'|'bomb'], ['act', seat, 'f'|'x'|'c'|'b'|'r', amt, allIn] (c: chips added; b/r: total
@@ -128,7 +132,7 @@ export function startHand(T, now) {
   const ok = (s) => s && !s.out && s.stack > 0;
   const live = T.seats.filter(ok);
   T.res = null; T.board = []; T.pot = 0; T.rabbit = null; T.rabbitBy = ''; T.rit = null; T.board2 = null;
-  if (live.length < 2) { T.phase = 'idle'; T.toAct = -1; T.nextAt = 0; return; }
+  if (live.length < 2 || (T.practice && !live.some(s => !s.bot))) { T.phase = 'idle'; T.toAct = -1; T.nextAt = 0; return; }
   if (T.nitNext) { T.nit = { amt: T.nitNext.amt, need: T.seats.filter(s => s && !s.left).map(s => s.id) }; T.nitNext = null; log(T, `Nit game on: the last player to win a pot pays everyone ${$(T.nit.amt)}`); }
   T.hand++; T.hid = Math.random().toString(36).slice(2, 10);
   T.deck = newDeck(); T.street = 'pre'; T.phase = 'hand'; T.runout = false;
@@ -137,7 +141,7 @@ export function startHand(T, now) {
   const sb = heads ? T.button : nextSeat(T, T.button, ok), bb = nextSeat(T, sb, ok);
   log(T, `Hand #${T.hand}`);
   for (let r = 0; r < 2; r++) for (let k = 0; k < SEATS; k++) { const s = T.seats[(sb + k) % SEATS]; if (ok(s)) s.cards.push(T.deck.pop()); }
-  T.rec = { n: T.hand, hid: T.hid, at: now, sb: T.cfg.sb, bb: T.cfg.bb, btn: T.button, test: testTable(T), cards: {}, ev: [],
+  T.rec = { n: T.hand, hid: T.hid, at: now, sb: T.cfg.sb, bb: T.cfg.bb, btn: T.button, test: testTable(T), ...(T.practice ? { practice: true } : {}), cards: {}, ev: [],
     seats: T.seats.map((s, i) => inHand(s) ? { i, id: s.id, name: s.name, stack: s.stack, ...(s.bot ? { bot: true } : {}) } : null).filter(Boolean) };
   T.seats.forEach((s, i) => { if (inHand(s)) T.rec.cards[i] = s.cards.slice(); });
   T.bombHand = T.bomb > 0;
@@ -161,7 +165,7 @@ function nextTurn(T, i, now) {
   if (alive(T).length === 1) return winUncontested(T, now);
   const n = nextSeat(T, i, s => canAct(s) && (!s.acted || s.bet < T.curBet));
   if (n < 0 || (T.seats.filter(canAct).length === 1 && T.seats[n].bet >= T.curBet)) return endStreet(T, now);
-  T.toAct = n; T.deadline = now + (T.seats[n].bot ? 900 + Math.random() * 1300 : T.cfg.turn * 1000);
+  T.toAct = n; T.deadline = now + (T.seats[n].bot ? (T.practice ? 600 + Math.random() * 700 : 900 + Math.random() * 1300) : T.cfg.turn * 1000); // bots think a bit quicker at practice tables
   if (T.seats[n].out) return act(T, n, T.seats[n].bet < T.curBet ? 'fold' : 'check', 0, now, true);
 }
 /** A player's move. kind = fold | check | call | raise (to = their total bet this street). Returns an error string or undefined. */
@@ -377,15 +381,15 @@ function showdown2(T, now, board2) {
 export function tick(T, now) {
   if (!T.open) return false;
   const seated = T.seats.filter(s => s && !s.left).length;
-  if (seated === 0 && T.phase !== 'hand') { if (!T.emptyAt) { T.emptyAt = now; return true; } if (now - T.emptyAt > 30 * 60e3) { closeRoom(T, now); return true; } }
-  if (T.at && now - T.at > 3 * 3600e3) { closeRoom(T, now); return true; }
+  if (seated === 0 && T.phase !== 'hand' && !T.practice) { if (!T.emptyAt) { T.emptyAt = now; return true; } if (now - T.emptyAt > 30 * 60e3) { closeRoom(T, now); return true; } }
+  if (T.at && now - T.at > 3 * 3600e3 && !T.practice) { closeRoom(T, now); return true; }
   if (T.phase === 'hand' && T.rit && now >= T.deadline) { log(T, 'No answer: running it once'); ritDone(T, false, now); return true; }
   if (T.phase === 'hand' && T.toAct >= 0 && now >= T.deadline && T.seats[T.toAct].bot) { const [k, to] = botMove(T, T.toAct); if (act(T, T.toAct, k, to, now)) act(T, T.toAct, T.curBet > T.seats[T.toAct].bet ? 'call' : 'check', 0, now); return true; }
   if (T.phase === 'hand' && T.toAct >= 0 && now >= T.deadline) { const s = T.seats[T.toAct]; act(T, T.toAct, T.curBet > s.bet ? 'fold' : 'check', 0, now, true); return true; }
   if ((T.phase === 'done' || T.phase === 'idle') && (T.closeReq || T.pauseReq || T.phase === 'done' ? now >= T.nextAt : canStart(T))) { startHand(T, now); return true; }
   return false;
 }
-const canStart = T => T.seats.filter(s => s && !s.left && !s.out && s.stack > 0).length >= 2;
+const canStart = T => { const ok = T.seats.filter(s => s && !s.left && !s.out && s.stack > 0); return ok.length >= 2 && (!T.practice || ok.some(s => !s.bot)); };
 /** Someone sits down with `amt` chips (already taken from their balance by the caller). Returns an error or undefined. */
 export const testTable = T => T.seats.some(s => s && !s.left && (s.bot || s.free));
 export function sit(T, me, idx, amt, now, free = false, gift = false) {
@@ -453,32 +457,112 @@ export function setBlinds(T, sb, bb) {
   T.cfg.sb = st[0]; T.cfg.bb = st[1]; if (T.phase !== 'hand') T.minRaise = st[1];
   log(T, `The host set the blinds to ${$(st[0])}/${$(st[1])} from the next hand`);
 }
-const BOT_NAMES = ['Bot Ace', 'Bot Deuce', 'Bot Trey', 'Bot Four', 'Bot Five', 'Bot Six', 'Bot Seven', 'Bot Eight'];
+const BOT_NAMES = ['Ace', 'Deuce', 'Trey', 'Four', 'Five', 'Six', 'Seven', 'Eight'];
 // run between hands (and on sit): s.back = what the player would walk away with right now; their real result so far is kept
 function markTest(T) { if (testTable(T)) T.seats.forEach(s => { if (s && !s.bot && !s.left && !s.test) { s.test = true; s.back = Math.round((s.stack + (s.pend || 0)) * 100) / 100; } }); }
-/** a simple bot: mostly calls and checks, sometimes bets or raises, folds to big bets now and then */
-function botMove(T, i) {
-  const s = T.seats[i], toCall = T.curBet - s.bet, pot = potTotal(T), r = Math.random();
-  const raiseTo = f => Math.max(T.curBet + T.minRaise, Math.round(T.curBet + f * (pot + toCall)));
-  if (toCall <= 0) return r < .7 ? ['check', 0] : ['raise', raiseTo(.5 + Math.random() * .5)];
-  if (toCall >= s.stack * .5 && r < .45) return ['fold', 0];
-  return r < .12 ? ['fold', 0] : r < .85 ? ['call', 0] : ['raise', raiseTo(.6 + Math.random() * .6)];
+
+// ---------- bots ----------
+// A style is how loose (play: share of starting hands played), aggressive (aggr: how often strength turns into a bet or raise),
+// tricky (bluff) and sticky (stick: calls this much worse than the pot odds say) a bot is.
+export const STYLES = {
+  fish:    { label: 'Fish',    play: .70, aggr: .15, bluff: .04, stick: .18 },
+  station: { label: 'Station', play: .55, aggr: .08, bluff: .02, stick: .28 },
+  maniac:  { label: 'Maniac',  play: .60, aggr: .70, bluff: .30, stick: .06 },
+  rock:    { label: 'Rock',    play: .14, aggr: .35, bluff: .02, stick: -.06 },
+  reg:     { label: 'Reg',     play: .26, aggr: .50, bluff: .10, stick: 0 },
+  shark:   { label: 'Shark',   play: .22, aggr: .60, bluff: .15, stick: -.03 },
+};
+export const LEVELS = { easy: ['fish', 'station', 'fish', 'maniac', 'station'], mixed: ['fish', 'station', 'rock', 'maniac', 'reg', 'shark'], tough: ['shark', 'reg', 'shark', 'rock', 'reg'] };
+const FULL = []; for (const r of RANKS) for (const u of 'shdc') FULL.push(r + u);
+/** your share of the pot against `opp` unknown hands if everyone went to showdown, by quick simulation.
+ *  Bots never peek: the unknown cards are the whole deck minus their own two and the board. */
+export function equity(hole, board, opp, sims) {
+  const known = new Set([...hole, ...board]), rest = FULL.filter(c => !known.has(c)), need = 5 - board.length;
+  let won = 0;
+  for (let n = 0; n < sims; n++) {
+    const d = rest.slice(), take = () => { const j = Math.floor(Math.random() * d.length), c = d[j]; d[j] = d[d.length - 1]; d.pop(); return c; };
+    const b = board.slice(); for (let k = 0; k < need; k++) b.push(take());
+    const mine = best([...hole, ...b]).v;
+    let top = 0, ties = 0, lost = false;
+    for (let o = 0; o < opp && !lost; o++) { const v = best([take(), take(), ...b]).v; if (v > mine) lost = true; else if (v === mine) ties++; top = Math.max(top, v); }
+    if (!lost) won += 1 / (ties + 1);
+  }
+  return won / sims;
 }
-export function addBot(T, t) {
+// heads-up equity of a starting hand -> about what share of starting hands are better than it
+const PCT = [[.30, 1], [.43, .75], [.50, .5], [.55, .3], [.58, .2], [.63, .1], [.70, .04], [.86, 0]];
+const better = e => { if (e <= PCT[0][0]) return 1; for (let k = 1; k < PCT.length; k++) if (e <= PCT[k][0]) { const [a, pa] = PCT[k - 1], [b, pb] = PCT[k]; return pa + (pb - pa) * (e - a) / (b - a); } return 0; };
+/** A bot's move: [kind, to]. Before the flop it plays the top `play` share of hands (tighter against big raises); after it
+ *  compares its equity with the pot odds. Bet sizes are half to most of the pot; a bet that would leave little behind goes all in. */
+export function botMove(T, i) {
+  const s = T.seats[i], st = STYLES[s.style] || STYLES.reg, toCall = T.curBet - s.bet, pot = potTotal(T), r = Math.random(), bb = T.cfg.bb;
+  const maxTo = s.bet + s.stack, minTo = Math.min(maxTo, T.curBet === 0 ? bb : T.curBet + T.minRaise);
+  const sized = f => { let to = Math.max(minTo, Math.round(T.curBet + f * (pot + toCall))); if (to >= maxTo * .7) to = maxTo; return ['raise', to]; };
+  const opp = Math.max(1, alive(T).length - 1);
+  if (T.street === 'pre') {
+    const top = better(equity(s.cards, [], 1, 160)), big = toCall / Math.max(1, s.stack + s.bet);
+    let play = st.play; if (toCall > 3 * bb) play *= .55; if (big > .3) play *= .45 + st.stick;
+    const strong = top < play * .4, ok = top < play;
+    if (strong && r < .35 + st.aggr * .6) return sized(T.curBet <= bb ? .9 : 1.1);
+    if (r < st.bluff * .5 && toCall <= 3 * bb) return sized(.8);
+    if (toCall <= 0) return ['check', 0];
+    if (ok || (toCall <= bb && top < play * 1.4)) return ['call', 0];
+    return ['fold', 0];
+  }
+  const e = equity(s.cards, T.board, opp, Math.max(60, Math.round(360 / (opp + 1)))), fair = 1 / (opp + 1);
+  if (toCall <= 0) {
+    if (e > Math.max(.62, fair * 1.7) && r < .45 + st.aggr * .5) return sized(.55 + Math.random() * .3);
+    if (e > fair * 1.15 && r < st.aggr * .45) return sized(.45 + Math.random() * .2);
+    if (r < st.bluff) return sized(.5);
+    return ['check', 0];
+  }
+  const odds = toCall / (pot + toCall);
+  if (e > Math.max(.7, odds + .3) && r < .25 + st.aggr * .6) return sized(.7 + Math.random() * .4);
+  if (e >= odds - st.stick) return ['call', 0];
+  if (r < st.bluff * .35) return sized(.8);
+  return ['fold', 0];
+}
+/** seats a bot (play money, never paid). style: a STYLES key, default one picked from the table's level */
+export function addBot(T, t, idx = -1, style = '') {
   if (!T.open) return 'Open the room first.';
-  const idx = T.seats.findIndex(s => !s); if (idx < 0) return 'The table is full.';
+  if (!T.practice) return 'Bots only play at practice tables now.';
+  if (idx < 0) idx = T.seats.findIndex(s => !s); if (idx < 0 || T.seats[idx]) return 'The table is full.';
   const used = new Set(T.seats.filter(Boolean).map(s => s.id));
   let k = 0; while (used.has('bot:' + k)) k++;
-  T.seats[idx] = { id: 'bot:' + k, name: BOT_NAMES[k % 8], bot: true, stack: T.cfg.max, pend: 0, buyins: 0, out: false, timeouts: 0, ...blank() };
-  T.emptyAt = 0; if (T.phase !== 'hand') markTest(T); // mid-hand: people are marked when the next hand starts
-  log(T, `The host added ${BOT_NAMES[k % 8]} (test player, fake chips)`);
+  const pool = LEVELS[T.cfg.level] || LEVELS.mixed;
+  if (!STYLES[style]) style = pool[Math.floor(Math.random() * pool.length)];
+  const name = `${STYLES[style].label} ${BOT_NAMES[k % 8]}`;
+  T.seats[idx] = { id: 'bot:' + k, name, bot: true, style, stack: T.cfg.max, pend: 0, buyins: 0, out: false, timeouts: 0, ...blank() };
+  T.emptyAt = 0; if (T.phase !== 'hand') markTest(T);
+  log(T, `${name} sits down`);
   if (T.phase === 'idle' && canStart(T)) T.nextAt = t + 2000, T.phase = 'done';
 }
-export function removeBots(T, t) {
-  const bots = T.seats.filter(s => s && s.bot && !s.left);
-  if (!bots.length) return 'No test players at the table.';
+/** takes one bot off (seat given) or all of them (no seat) */
+export function removeBots(T, t, seat = -1) {
+  const bots = T.seats.filter((s, j) => s && s.bot && !s.left && (seat < 0 || j === seat));
+  if (!bots.length) return seat < 0 ? 'No bots at the table.' : 'No bot in that seat.';
   bots.forEach(b => leave(T, { id: b.id }, t));
-  log(T, 'The host removed the test players');
+}
+export const PRACTICE_STACKS = [100, 200, 500, 1000];
+/** Starts someone's own practice table: blinds, starting stack (play money), 1-7 bots of a level, and the owner in seat 0. */
+export function openPractice(T, me, cfg, t) {
+  if (T.open) return 'Your practice table is already running.';
+  const st = STAKES.find(([a, b]) => a === +cfg.sb && b === +cfg.bb) || STAKES[0];
+  const stack = PRACTICE_STACKS.includes(+cfg.stack) ? +cfg.stack : 100 * st[1];
+  const n = Math.max(1, Math.min(SEATS - 1, Math.floor(+cfg.bots) || 4)), level = LEVELS[cfg.level] ? cfg.level : 'mixed';
+  Object.assign(T, fresh(), { v: T.v, open: true, practice: true, owner: me.id, log: [], at: t,
+    cfg: { ...DEFAULT_CFG, sb: st[0], bb: st[1], min: stack, max: stack, turn: TURNS.includes(+cfg.turn) ? +cfg.turn : DEFAULT_CFG.turn, level, rit: true } });
+  T.seats[0] = { id: me.id, name: me.name, stack, pend: 0, buyins: stack, out: false, timeouts: 0, test: true, free: true, back: 0, ...blank() };
+  // spread the bots round the table
+  const spots = { 1: [4], 2: [3, 5], 3: [2, 4, 6], 4: [2, 3, 5, 6], 5: [1, 2, 4, 6, 7], 6: [1, 2, 3, 5, 6, 7], 7: [1, 2, 3, 4, 5, 6, 7] }[n];
+  spots.forEach(j => addBot(T, t, j));
+  log(T, `${me.name} started a practice table: ${$(st[0])}/${$(st[1])}, ${$(stack)} stacks, ${n} bot${n > 1 ? 's' : ''} (${level})`);
+  T.phase = 'done'; T.nextAt = t + 1500;
+}
+export function setLevel(T, level) {
+  if (!T.practice || !LEVELS[level]) return 'Pick a level.';
+  if (T.cfg.level === level) return false;
+  T.cfg.level = level; log(T, `New bots will be ${level}`);
 }
 export function setBomb(T, x) {
   x = +x; if (x && !BOMBS.includes(x)) return 'Pick a bomb pot size from the list.';
@@ -537,10 +621,10 @@ export function closeRoom(T, t) {
 /** What everyone may see (no deck, no hidden cards). */
 export function publicView(T, t = Date.now()) {
   return {
-    v: T.v, now: t, open: T.open, cfg: T.cfg, hand: T.hand, hid: T.hid, button: T.button, board: T.board, pot: T.pot, curBet: T.curBet, minRaise: T.minRaise,
+    v: T.v, now: t, open: T.open, practice: !!T.practice, cfg: T.cfg, hand: T.hand, hid: T.hid, button: T.button, board: T.board, pot: T.pot, curBet: T.curBet, minRaise: T.minRaise,
     toAct: T.toAct, street: T.street, phase: T.phase, runout: !!T.runout, bomb: T.bomb || 0, bombHand: !!T.bombHand, nit: T.nit || null, nitNext: T.nitNext || null, gifted: T.gifted || [], deadline: T.deadline, nextAt: T.nextAt, pauseReq: T.pauseReq, closeReq: T.closeReq, res: T.res, log: T.log.slice(-30),
     rit: T.rit ? { need: T.rit.need, yes: T.rit.yes } : null, board2: T.board2 || null, canRabbit: !!T.rabbit && !T.rabbitBy, rabbit: T.rabbitBy ? T.rabbit : null, rabbitBy: T.rabbitBy || '',
-    seats: T.seats.map(s => s && { id: s.id, name: s.name, bot: !!s.bot, test: !!s.test, free: !!s.free, gift: s.gift || 0, stack: s.stack, pend: s.pend || 0, bet: s.bet, last: s.last, folded: s.folded, allIn: s.allIn, out: s.out, left: !!s.left,
+    seats: T.seats.map(s => s && { id: s.id, name: s.name, bot: !!s.bot, style: s.bot ? s.style || '' : undefined, test: !!s.test, free: !!s.free, gift: s.gift || 0, stack: s.stack, pend: s.pend || 0, bet: s.bet, last: s.last, folded: s.folded, allIn: s.allIn, out: s.out, left: !!s.left,
       dealt: inHand(s), cards: s.show ? s.cards : undefined }),
   };
 }

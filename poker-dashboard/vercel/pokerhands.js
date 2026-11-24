@@ -88,7 +88,7 @@
     let cur = 0, board = [], street = 0;
     h.ev.forEach(e => { if (e[0] === 'post' && e[3] === 'sb') role[e[1]] = 'small blind'; if (e[0] === 'post' && e[3] === 'bb') role[e[1]] = 'big blind'; });
     L.push(`PokerStars Hand #${Math.floor(h.at)}: Hold'em No Limit (${money(h.sb)}/${money(h.bb)} USD) - ${etStamp(h.at)}`);
-    L.push(`Table 'The Study' 8-max Seat #${h.btn + 1} is the button`);
+    L.push(`Table '${h.practice ? 'The Study Practice' : 'The Study'}' 8-max Seat #${h.btn + 1} is the button`);
     h.seats.forEach(s => L.push(`Seat ${s.i + 1}: ${s.name} (${money(s.stack)} in chips)`));
     const posts = h.ev.filter(e => e[0] === 'post');
     posts.forEach(e => { const i = e[1]; bet[i] = (bet[i] || 0) + e[2]; put[i] = (put[i] || 0) + e[2]; cur = Math.max(cur, bet[i]);
@@ -137,7 +137,7 @@
   function plain(h) {
     const r = replay(h), me = h.me, name = {}; h.seats.forEach(s => { name[s.i] = s.name; });
     const p = etParts(h.at), when = new Date(h.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    const L = [`HAND #${h.n} · ${when} · ${money(h.sb)}/${money(h.bb)}${h.test ? ' · test table' : ''}`];
+    const L = [`HAND #${h.n} · ${when} · ${money(h.sb)}/${money(h.bb)}${h.practice ? ' · practice vs bots' : h.test ? ' · test table' : ''}`];
     if (me >= 0 && h.cards[me]) L.push(`You (${r.pos}) were dealt ${h.cards[me].map(cardText).join(' ')}`);
     const mine = name[me];
     const you = m => mine && m.startsWith(mine + ' ') ? 'You ' + m.slice(mine.length + 1).replace(/^(posts|folds|checks|calls|bets|raises|gets|shows|wins|rabbit hunts)\b/, v => VERB[v]).replace(/^is all in/, 'are all in') : m;
