@@ -4,7 +4,7 @@
 //   GET  /api/live            → the table (public), plus for a signed-in person: your seat, your UTH cards, your chips, can you host
 //   GET  /api/live?token=1    → Ably token request; guests (not signed in) get listen-only, so watching needs no sign-in
 //   POST /api/live {a: …}     → token | sit {seat} | leave | bet {bet, side} | move {do: hit|stand|double|split | b4|b2|b1|chk|fold} | tick
-//                               | host: open {cfg: game, min, clock, betClock, side} | close | pause {on} | game {game} | cfg {min, clock, betClock, side}
+//                               | host: open {cfg: game, min} | close | pause {on} | game {game} | cfg {min}   (both clocks fixed at 15s, side bets always on)
 //
 // Same storage as the poker room: the whole table is one JSON value (lt:t) with a version (lt:v), saved with a Lua
 // compare-and-set (2 Redis commands per move). The rules are in _livegame.js.

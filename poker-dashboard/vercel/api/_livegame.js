@@ -21,7 +21,7 @@ import { settle as uthSettle, best, CAT } from './_uth.js';
 export const SEATS = 5;
 export const LIMITS = [[5, 100], [10, 250], [25, 500]];     // bet range choices (UTH ante tops out at MAX_ANTE like /uth)
 export const MAX_ANTE = 100, MAX_TRIPS = 100;
-export const CLOCKS = [10, 15, 20], BET_CLOCKS = [8, 10, 15];
+export const CLOCK = 15; // seconds for both clocks, deciding and betting (fixed by request: no host setting); side bets always on
 export const GAMES = { bj: 'Blackjack', fb: 'Free Bet', uth: "Ultimate Texas Hold'em" };
 export const FEED = { bj: 'blackjack', fb: 'free bet', uth: 'UTH' }; // names in the casino feed + house books (HOUSE_GAMES)
 const DONE_MS = 3800, CARD_MS = 650, STREET_MS = 1100, IDLE_ROUNDS = 5, LOG_KEEP = 14;
@@ -29,7 +29,7 @@ const draw = T => T.deck.pop();
 const natural = h => h.cards.length === 2 && !h.split && total(h.cards).t === 21;
 const r2 = n => Math.round(n * 100) / 100;
 
-export const fresh = () => ({ v: 0, open: false, game: 'bj', cfg: { min: 5, max: 100, clock: 15, betClock: 10, side: true },
+export const fresh = () => ({ v: 0, open: false, game: 'bj', cfg: { min: 5, max: 100, clock: CLOCK, betClock: CLOCK, side: true },
   seats: Array(SEATS).fill(null), phase: 'closed', round: 0, deadline: 0, nextAt: 0, dealer: [], board: [], street: '', log: [] });
 
 const log = (T, line) => { T.log.unshift(line); T.log.length = Math.min(T.log.length, LOG_KEEP); };
@@ -47,7 +47,7 @@ export function openTable(T, host, c, now) {
   if (T.open) return 'A table is already open.';
   const lim = LIMITS.find(l => l[0] === +c.min) || LIMITS[0];
   Object.assign(T, fresh(), { v: T.v, open: true, game: GAMES[c.game] ? c.game : 'bj', host: { id: host.id, name: host.name }, openedAt: now, phase: 'bet',
-    cfg: { min: lim[0], max: lim[1], clock: CLOCKS.includes(+c.clock) ? +c.clock : 15, betClock: BET_CLOCKS.includes(+c.betClock) ? +c.betClock : 10, side: c.side !== false } });
+    cfg: { min: lim[0], max: lim[1], clock: CLOCK, betClock: CLOCK, side: true } });
   log(T, `${host.name} opened a ${GAMES[T.game]} table`);
   return true;
 }
@@ -64,9 +64,6 @@ export function setCfg(T, c) {
   const lim = c.min !== undefined ? LIMITS.find(l => l[0] === +c.min) : null;
   if (lim && (lim[0] !== T.cfg.min) && !between(T)) return 'Change the bets between rounds.';
   if (lim) { T.cfg.min = lim[0]; T.cfg.max = lim[1]; }
-  if (CLOCKS.includes(+c.clock)) T.cfg.clock = +c.clock;
-  if (BET_CLOCKS.includes(+c.betClock)) T.cfg.betClock = +c.betClock;
-  if (c.side !== undefined) T.cfg.side = !!c.side;
   return true;
 }
 export function pause(T, on, now) {

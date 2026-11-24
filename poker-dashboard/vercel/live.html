@@ -198,7 +198,7 @@ const initials = n => String(n).split(/\s+/).map(w => w[0]).join('').slice(0, 2)
 const av = (id, name) => `<span class="av" style="--h:${hue(name)}">${esc(initials(name))}${id ? `<img src="/api/avatar?id=${esc(id)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
 const DISCORD_SVG = '<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M20.3 4.4A19.6 19.6 0 0 0 15.4 3l-.6 1.3a18 18 0 0 0-5.6 0L8.6 3a19.6 19.6 0 0 0-4.9 1.5C.6 9-.3 13.6.1 18.1A19.8 19.8 0 0 0 6.1 21l1.3-2.1a12.8 12.8 0 0 1-2-1l.5-.4a14 14 0 0 0 12.2 0l.5.4c-.6.4-1.3.7-2 1l1.3 2.1a19.7 19.7 0 0 0 6-3c.5-5.2-.9-9.8-3.6-13.7zM8.3 15.3c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4zm7.4 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4z"/></svg>';
 const GAMES = { bj: 'Blackjack', fb: 'Free Bet Blackjack', uth: "Ultimate Texas Hold'em" }, SHORT = { bj: 'Blackjack', fb: 'Free Bet', uth: 'UTH' };
-const LIMITS = [[5, 100], [10, 250], [25, 500]], CLOCKS = [10, 15, 20], BET_CLOCKS = [8, 10, 15], CARD_MS = 650;
+const LIMITS = [[5, 100], [10, 250], [25, 500]], CARD_MS = 650;
 const RULES = { bj: 'Blackjack pays 3 to 2 · dealer stands on 17', fb: 'Free doubles 9–11 · free splits · dealer 22 pushes', uth: 'Dealer needs a pair to open the ante' };
 const API = window.LIVE_API || '/api/live';
 
@@ -314,9 +314,6 @@ function closedHTML() {
     ${S.me ? `<div class="form">
       <label>Game<select id="oGame">${Object.entries(GAMES).map(([k, n]) => `<option value="${k}">${n}</option>`).join('')}</select></label>
       <label>Bets<select id="oMin">${LIMITS.map(([a, b]) => `<option value="${a}">$${a} – $${b}</option>`).join('')}</select></label>
-      <label>Decision clock<select id="oClock">${opt(CLOCKS, 15, x => x + ' seconds')}</select></label>
-      <label>Bets close after<select id="oBetClock">${opt(BET_CLOCKS, 10, x => x + ' seconds')}</select></label>
-      <label>Side bet<select id="oSide"><option value="1">On (Push 22 / Trips)</option><option value="0">Off</option></select></label>
     </div><button class="cbtn" id="oGo">Open the table</button><p class="hint" style="margin-top:10px">Opening posts a note in #casino. You run the table (pause, change the game between rounds, close) until you leave it.</p>` : signIn}
     ${err ? `<div class="err">${esc(err)}</div>` : ''}</section>
     <section class="panel"><h2 class="p">How it plays</h2><ul class="howto">
@@ -327,7 +324,7 @@ function closedHTML() {
 }
 function bindClosed() {
   const go = $('#oGo'); if (!go) return;
-  go.onclick = () => act({ a: 'open', cfg: { game: $('#oGame').value, min: +$('#oMin').value, clock: +$('#oClock').value, betClock: +$('#oBetClock').value, side: $('#oSide').value === '1' } });
+  go.onclick = () => act({ a: 'open', cfg: { game: $('#oGame').value, min: +$('#oMin').value } });
 }
 function barHTML(t) {
   const me = S.me, seated = mySeat() >= 0;
@@ -342,9 +339,6 @@ function hostHTML(t) {
   return `<div class="drop" id="drop">
     <div class="row"><label for="hGame">Game</label><select id="hGame"${between ? '' : ' disabled'}>${Object.entries(GAMES).map(([k, n]) => `<option value="${k}"${k === t.game ? ' selected' : ''}>${n}</option>`).join('')}</select></div>
     <div class="row"><label for="hMin">Bets</label><select id="hMin"${between ? '' : ' disabled'}>${LIMITS.map(([a, b]) => `<option value="${a}"${a === t.cfg.min ? ' selected' : ''}>$${a} – $${b}</option>`).join('')}</select></div>
-    <div class="row"><label for="hClock">Decision clock</label><select id="hClock">${opt(CLOCKS, t.cfg.clock, x => x + 's')}</select></div>
-    <div class="row"><label for="hBetClock">Bets close after</label><select id="hBetClock">${opt(BET_CLOCKS, t.cfg.betClock, x => x + 's')}</select></div>
-    <div class="row"><label for="hSide">Side bet</label><select id="hSide"><option value="1"${t.cfg.side ? ' selected' : ''}>On</option><option value="0"${t.cfg.side ? '' : ' selected'}>Off</option></select></div>
     <div class="hb"><button id="hPause">${t.pause ? 'Resume' : 'Pause after round'}</button><button class="go" id="hClose">Close table</button></div>
     <p class="note">${between ? 'Game and bets can change now.' : 'Game and bets change between rounds.'} Closing waits for the round to finish; bets not dealt yet go back.</p></div>`;
 }
@@ -478,9 +472,6 @@ function bindTable() {
     d.onclick = e => e.stopPropagation();
     $('#hGame').onchange = e => act({ a: 'game', game: e.target.value });
     $('#hMin').onchange = e => act({ a: 'cfg', cfg: { min: +e.target.value } });
-    $('#hClock').onchange = e => act({ a: 'cfg', cfg: { clock: +e.target.value } });
-    $('#hBetClock').onchange = e => act({ a: 'cfg', cfg: { betClock: +e.target.value } });
-    $('#hSide').onchange = e => act({ a: 'cfg', cfg: { side: e.target.value === '1' } });
     $('#hPause').onclick = () => act({ a: 'pause', on: !t.pause });
     $('#hClose').onclick = () => { drop = false; act({ a: 'close' }); };
   }
