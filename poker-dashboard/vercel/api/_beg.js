@@ -91,6 +91,8 @@ const bookCmds = (game, houseWon) => { const wk = weekKey();
 const lock = async id => { const [got] = await kv(['SET', 'bg:lock:' + id, '1', 'NX', 'PX', 3000]); return !!got; };
 const unlock = id => kv(['DEL', 'bg:lock:' + id]).catch(() => {});
 const rel = ms => `<t:${Math.ceil(ms / 1000)}:R>`;
+// counts for the /beg accolades (ACC in ../loot.js, checked by _accolades.js): HINCRBY ac:n:<id> field n, and flag them for a check
+const stat = (id, f, n = 1) => [['HINCRBYFLOAT', 'ac:n:' + id, f, n], ['SADD', 'ac:dirty', id]];
 
 export async function begHouse(me, now = Date.now()) {
   if (!(await lock(me.id))) return quiet('Hang on, your last beg is still going through.');
@@ -108,7 +110,9 @@ export async function begHouse(me, now = Date.now()) {
     let line = null;
     if (r.kind === 'nothing') { for (let k = 0; k < 10 && !line; k++) line = fill(pick(NOTHING), others); }
     else line = pick(r.kind === 'crumbs' ? CRUMBS : r.kind === 'regular' ? REGULAR : r.kind === 'whale' ? WHALE : PICKPOCKET).replace('$X', `**${money(Math.abs(r.amt))}**`);
-    const cmds = [['HSET', 'bg:last', me.id, now], ['HINCRBY', nKey, me.id, 1], ['EXPIRE', nKey, 2 * 86400], ['HSET', 'bj:name', me.id, me.name]];
+    const cmds = [['HSET', 'bg:last', me.id, now], ['HINCRBY', nKey, me.id, 1], ['EXPIRE', nKey, 2 * 86400], ['HSET', 'bj:name', me.id, me.name],
+      ...stat(me.id, 'beg'), ['HSET', 'ac:n:' + me.id, 'beglast', now],
+      ...(r.kind === 'nothing' ? stat(me.id, 'begzero') : r.kind === 'whale' ? stat(me.id, 'begwhale') : r.kind === 'pickpocket' ? stat(me.id, 'begpick') : [])];
     if (r.amt) cmds.push(['HINCRBYFLOAT', 'bj:bal', me.id, r.amt], ...bookCmds('beg', -r.amt), ...feedCmds(me, 'beg', r.amt));
     await kv(...cmds);
     const left = BEG.perDay - (+n || 0) - 1;
@@ -132,6 +136,15 @@ function askView(a, result, kind = 'open') {
     btn('Toss $1', '🪙', 'toss', a.id, 2), btn('Nah', '🙅', 'no', a.id, 4)] }] };
 }
 
+/** an ask that ran out with no answer: closed once (bg:done), counts toward Left on Read. True if this call closed it. */
+async function leftOnRead(a) {
+  const [got] = await kv(['SET', 'bg:done:' + a.id, '1', 'NX', 'EX', 86400]);
+  if (!got) return false;
+  a.done = true; a.kind = 'late'; a.result = `⌛ **${a.to.name}** left **${a.from.name}** on read.`;
+  await kv(['SET', 'bg:a:' + a.id, JSON.stringify(a), 'EX', 86400], ...stat(a.from.id, 'begread'));
+  return true;
+}
+
 export async function begPlayer(i, me, to, amt, note, now = Date.now()) {
   if (to.id === me.id) return quiet("You can't beg yourself. That's just counting.");
   if (to.bot) return quiet("Bots don't carry chips. Beg a person.");
@@ -141,6 +154,7 @@ export async function begPlayer(i, me, to, amt, note, now = Date.now()) {
     const [raw] = await kv(['GET', 'bg:a:' + open]);
     const o = raw && JSON.parse(raw);
     if (o && !o.done && now - o.at < BEG.answer) return quiet(`You already have a beg waiting on ${o.to.name}. Give them a minute.`);
+    if (o && !o.done) await leftOnRead(o);
   }
   if ((+n || 0) >= BEG.pairPerDay) return quiet(`You've begged ${to.name} ${BEG.pairPerDay} times today. Have some dignity, try again tomorrow.`);
   if ((+theirs || 0) < amt) return quiet(`${to.name} only has ${money(+theirs || 0)}. Beg someone who can afford it.`);
@@ -178,13 +192,14 @@ export async function begButton(i, s, now = Date.now()) {
   if (!got) { const [r2] = await kv(['GET', 'bg:a:' + id]); const b2 = r2 && JSON.parse(r2); return json(b2 && b2.done ? { type: 7, data: askView(b2, b2.result, b2.kind) } : { type: 6 }); }
   const release = () => kv(['DEL', 'bg:done:' + a.id]).catch(() => {});
   try {
-    if (now - a.at > BEG.answer) return await finish(`⌛ ${G} left **${a.from.name}** on read.`, 'late');
-    if (act === 'no') return await finish(pick(NAH).replace('{G}', G).replace('{B}', `**${a.from.name}**`), 'no');
+    if (now - a.at > BEG.answer) return await finish(`⌛ ${G} left **${a.from.name}** on read.`, 'late', stat(a.from.id, 'begread'));
+    if (act === 'no') return await finish(pick(NAH).replace('{G}', G).replace('{B}', `**${a.from.name}**`), 'no', stat(me.id, 'begnah'));
     if (act === 'give' || act === 'toss') {
       const amt = act === 'toss' ? 1 : a.amt;
       const [r] = await kv(['EVAL', MOVE, 1, 'bj:bal', a.to.id, a.from.id, amt]);
       if (String(r[0]) === '-1') { await release(); return quiet(`You only have ${money(+r[1])}.`); }
-      const feed = [...feedCmds(me, 'tip to ' + a.from.name, -amt), ...feedCmds(a.from, 'tip from ' + a.to.name, amt)];
+      const feed = [...feedCmds(me, 'tip to ' + a.from.name, -amt), ...feedCmds(a.from, 'tip from ' + a.to.name, amt), ...stat(a.from.id, 'begin', amt),
+        ...(act === 'give' ? stat(me.id, 'begave') : [])];
       return await finish(act === 'toss' ? `🪙 ${G} flicked a single **$1** chip at ${B}. Brutal.` : `💸 ${G} came through. ${B} got **${money(amt)}**. Say thank you.`, act, feed);
     }
     if (act === 'gamble') {
@@ -194,10 +209,10 @@ export async function begButton(i, s, now = Date.now()) {
       if (String(left) === '-1') { await release(); return quiet(`You need ${money(a.amt)} to gamble it.`); }
       if (c === bet) {
         return await finish(`${head}\n${G} keeps their ${money(a.amt)} and the house pays ${B} **${money(a.amt)}**.`, 'hit',
-          [['HINCRBYFLOAT', 'bj:bal', a.to.id, a.amt], ['HINCRBYFLOAT', 'bj:bal', a.from.id, a.amt], ...bookCmds('beg flip', -a.amt), ...feedCmds(a.from, 'beg flip', a.amt)]);
+          [['HINCRBYFLOAT', 'bj:bal', a.to.id, a.amt], ['HINCRBYFLOAT', 'bj:bal', a.from.id, a.amt], ...bookCmds('beg flip', -a.amt), ...feedCmds(a.from, 'beg flip', a.amt), ...stat(a.from.id, 'begin', a.amt)]);
       }
       return await finish(`${head}\n${n === 0 ? 'Green! ' : ''}The house keeps ${G}'s ${money(a.amt)}. ${a.from.name} gets nothing.`, 'miss',
-        [...bookCmds('beg flip', a.amt), ...feedCmds(me, 'beg flip', -a.amt)]);
+        [...bookCmds('beg flip', a.amt), ...feedCmds(me, 'beg flip', -a.amt), ...stat(me.id, 'beglost')]);
     }
     await release();
     return json({ type: 6 });

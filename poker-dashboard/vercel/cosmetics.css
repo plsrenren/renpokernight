@@ -216,3 +216,8 @@ html .zfx{inset:4px;line-height:0}
 html .cb-finder .zfx,html .cb-censored .zfx{inset:3px}
 html .zfx svg{width:100%;height:100%;display:block}
 @media (prefers-reduced-motion:reduce){html .cb-matrix:after{animation:none}}
+
+/* /beg earned items (Nov 2026): Patchwork border (rag patches with stitched seams) + Rags to Riches bar */
+html .cbw.cb-acc-patch{padding:7px;background:repeating-conic-gradient(from -.8deg,rgba(242,220,174,.9) 0 1.6deg,transparent 1.6deg 40deg),conic-gradient(#8a6b4f 0deg 40deg,#5a6e8a 40deg 80deg,#9a4f4f 80deg 120deg,#6d7f52 120deg 160deg,#a08a5a 160deg 200deg,#6a5a7a 200deg 240deg,#8a6b4f 240deg 280deg,#5a6e8a 280deg 320deg,#9a4f4f 320deg 360deg);box-shadow:0 0 0 1.5px #15132a,0 0 10px rgba(242,220,174,.25)}
+html .cbar-acc-rags{background:linear-gradient(90deg,#3a2216,#7a4126 22%,#b87333 44%,#d9a441 66%,#f0c75e 84%,#fff3c4) !important;color:#fff !important}
+html .cbar-acc-rags .o,html .cbar-acc-rags .rc-ovr{background:#fff3c4 !important;color:#3a2216 !important;outline-color:#fff3c4 !important}
