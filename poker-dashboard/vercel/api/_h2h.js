@@ -1,11 +1,12 @@
 // /api/h2h?a=Renato&b=Dong&period=Y2026   head-to-head card as a PNG (what /h2h posts in Discord): the "race" layout,
-// with both players' Discord banners across the top, then the race chart, tale of the tape and latest meetings.
+// with both players' Discord banners and Study Cards loadouts across the top, then the race chart, tale of the tape and latest meetings.
 // period is "Q4 2026", "Y2026" or "all". Only games both players were in count.
 import { SHEET_URL, MEMBERS_URL, gameRecords, findPlayer, pairStats, latestQuarter, memberIds } from '../recap-core.js';
 import { draw, h2hCardTree } from './_late.js';
 import { avatarPng, bannerPng, accentColor } from './_discord.js';
+import { kv, kvUrl, kvToken } from './_blackjack.js';
 
-export async function render(csv, qa, qb, period, membersCsv = '', getPic = id => avatarPng(id, 256), layout = 'race', getBanner = bannerPng, getColor = accentColor) {
+export async function render(csv, qa, qb, period, membersCsv = '', getPic = id => avatarPng(id, 256), layout = 'race', getBanner = bannerPng, getColor = accentColor, eqOver = null) {
   const recs = gameRecords(csv), a = findPlayer(recs, qa), b = findPlayer(recs, qb);
   if (!a.name || !b.name) return { error: `No player called "${!a.name ? qa : qb}"` };
   const q = latestQuarter(recs), p = /^(Q[1-4] \d{4}|Y\d{4}|all)$/.test(period || '') ? period : 'Y' + q.split(' ')[1];
@@ -20,7 +21,12 @@ export async function render(csv, qa, qb, period, membersCsv = '', getPic = id =
   const [bn, cl] = await Promise.all([
     Promise.all(both.map(async n => { const x = await safe(getBanner, ids[n]); return x ? [n, 'data:image/png;base64,' + Buffer.from(x).toString('base64')] : null; })),
     Promise.all(both.map(async n => { const c = await safe(getColor, ids[n]); return c ? [n, c] : null; }))]);
-  const art = { banners: Object.fromEntries(bn.filter(Boolean)), colors: Object.fromEntries(cl.filter(Boolean)) };
+  // both players' Study Cards loadouts (stored by Discord ID in sh:eq); eqOver = { name: {slot: id} } for tests
+  let eq = eqOver || {};
+  if (!eqOver && both.length && kvUrl() && kvToken()) {
+    try { const [raw] = await kv(['HMGET', 'sh:eq', ...both.map(n => ids[n])]); both.forEach((n, i) => { try { eq[n] = JSON.parse((raw || [])[i] || '{}'); } catch (e) {} }); } catch (e) { eq = {}; }
+  }
+  const art = { banners: Object.fromEntries(bn.filter(Boolean)), colors: Object.fromEntries(cl.filter(Boolean)), eq };
   return { png: await draw(h2hCardTree(st, pics, art)) };
 }
 

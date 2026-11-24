@@ -280,7 +280,25 @@ export const h2hCardTree = withAssets((p, pics = {}, art = {}) => {
     + `<line x1="${seam[0]}" y1="-2" x2="${seam[1]}" y2="${TH + 2}" stroke="url(#f)" stroke-width="7"/></svg>`;
   // rasterised here with resvg: pictures nested inside an SVG image don't survive satori
   const backdrop = img('data:image/png;base64,' + Buffer.from(new Resvg(topSvg, { fitTo: { mode: 'width', value: W * 2 } }).render().asPng()).toString('base64'), W, TH, { position: 'absolute', left: 0, top: 0 });
-  const who = (name, x, color) => h({ position: 'absolute', left: x, top: 26, width: 200, flexDirection: 'column', alignItems: 'center' }, sq(pics, name, 104), B(name.toUpperCase(), 40, color, { marginTop: 22 }));
+  // Study Cards loadouts (art.eq = { name: {slot: item id} }), Renato's pick A (Nov 24 2026): pfp in its border (champion
+  // borders too), sticker on the pfp's outer corner (the inner one hits the score label), the name on a slanted plate painted in
+  // their overall bar, title under it in its rarity colour. Nothing equipped = the plain look.
+  const kit = name => { const eq = (art.eq || {})[name] || {}, pick = sl => { const it = itemFor(eq[sl]); return it && it.slot === sl ? it : null; };
+    const title = pick('Title'), border = pick('Pfp border'), barIt = pick('Overall bar'), stkIt = pick('Sticker');
+    return { title, border, bar: barIt ? LOOK.bar[barIt.key] : null, stk: stkIt ? stickerPng(stkIt.name, border ? 46 : 50, 4) : null }; };
+  const face = (name, k, out) => h({ position: 'relative' },
+    k.border ? borderBox(k.border.key, 90, pics[name] || initialsUri(name), lookFor(k.border)) : sq(pics, name, 104),
+    k.border && !pics[name] ? h({ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }, B(initials(name), 52, `hsl(${hueFor(name)}, 45%, 25%)`)) : null,
+    k.stk ? h({ position: 'absolute', [out ? 'right' : 'left']: k.border ? -18 : -22, bottom: k.border ? -12 : -14, transform: `rotate(${out ? -10 : 10}deg)` }, img(k.stk.src, k.stk.w, k.stk.ht)) : null);
+  const plate = (name, color, k) => {
+    const sz = name.length > 8 ? 32 : 40;
+    if (!k.bar) return B(name.toUpperCase(), sz, color, { marginTop: k.border ? 18 : 22 });
+    return h({ marginTop: 16, transform: 'skewX(-12deg)', ...(k.bar.bg.includes('gradient') ? { backgroundImage: k.bar.bg } : { backgroundColor: k.bar.bg }), padding: '0 14px', border: `2px solid ${k.bar.ovr}` },
+      B(name.toUpperCase(), sz, k.bar.fg, { transform: 'skewX(12deg)' }));
+  };
+  const who = (name, x, color) => { const k = kit(name);
+    return h({ position: 'absolute', left: x, top: 22, width: 200, flexDirection: 'column', alignItems: 'center' }, face(name, k, x > W / 2), plate(name, color, k),
+      k.title ? B(k.title.name.toUpperCase(), 16, TCOL[k.title.tier], { letterSpacing: 1.6, marginTop: k.bar ? 6 : 2 }) : null); };
   const top = h({ position: 'relative', height: 245 },
     backdrop,
     // darker fade behind the names so they read on busy banners
