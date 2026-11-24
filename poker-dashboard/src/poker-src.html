@@ -139,9 +139,12 @@ body.room .wrap { max-width: none; }
 .st-name b { font: 700 12.5px/1.2 var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px; }
 .st-name span.sk { font: 600 12px/1.2 var(--mono); color: var(--gold); white-space: nowrap; }
 .st-name .pl-bg { opacity: .55; }
-/* the sticker sits just outside the nameplate's right end, so it never covers the stack */
-.st-stk { position: absolute; left: calc(100% + 2px); top: 50%; transform: translateY(-50%) rotate(8deg); z-index: 5; line-height: 0; pointer-events: none; }
+/* the sticker sits on the cards' corner, just above the nameplate's right end, so it never covers the stack */
+.st-stk { position: absolute; right: -8px; bottom: calc(100% + 1px); transform: rotate(8deg); z-index: 5; line-height: 0; pointer-events: none; }
 .st-stk .pl-stk { width: 26px; height: 26px; margin: 0; }
+/* wrapper so the sticker isn't clipped by the bar wash (.pl-wash hides overflow) */
+.st-np { position: relative; width: 100%; }
+.st.folded .st-stk { opacity: .45; } .st.out .st-stk { opacity: .32; }
 .st.active .st-name { box-shadow: 0 0 0 2px var(--gold); }
 .st.win .st-name { box-shadow: 0 0 0 2px var(--up); }
 .st.folded .st-row, .st.folded .st-name { opacity: .45; }
@@ -362,7 +365,7 @@ details.fold > summary + * { margin-top: 10px; }
   .st-cards { margin-left: -8px; } .st-cards .cd + .cd { margin-left: -13px; }
   .st-name { min-width: 0; padding: 2px 5px; gap: 4px; }
   .st-name b, .st-name span.sk { font-size: 10px; } .st-name b { max-width: 54px; }
-  .st-stk { left: auto; right: -6px; top: auto; bottom: calc(100% + 1px); transform: rotate(8deg); } .st-stk .pl-stk { width: 20px; height: 20px; }
+  .st-stk { right: -6px; } .st-stk .pl-stk { width: 20px; height: 20px; }
   .st.empty button { width: 48px; height: 38px; font-size: 13px; }
   .actbar { grid-template-columns: auto minmax(0, 1fr); gap: 10px; padding: 8px 10px; height: 136px; }
   .actbar.guest { grid-template-columns: minmax(0, 1fr); height: auto; }
@@ -633,7 +636,7 @@ function seatHTML(s, i) {
   const stack = s.left ? 'left' : s.out && !s.stack ? 'out' : chip(s.stack) + (s.pend ? '+' : '');
   return `<div class="${cls}" data-peek="${i}" style="left:${pos.x}%;top:${pos.y}%">
     <div class="st-row"><div class="pfw">${b.face(av(s.id, s.name), size)}${i === t.button && t.hand ? '<i class="dmark">D</i>' : ''}${t.nit && t.nit.need.includes(s.id) ? '<i class="nitmark">NIT</i>' : ''}${s.gift ? '<i class="giftmark" title="Free seat from the house">FREE</i>' : ''}</div><div class="st-cards">${hc}</div></div>
-    <div class="st-name${b.bar ? ' pl-wash' : ''}">${b.bar ? `<span class="pl-bg ${b.bar}" aria-hidden="true"></span>` : ''}<b>${esc(s.name)}</b><span class="sk">${stack}</span>${b.sticker ? `<span class="st-stk">${b.sticker}</span>` : ''}</div>${ttl ? `<div class="st-ttl" style="--tc:${ttl.col}">${esc(ttl.name)}</div>` : ''}
+    <div class="st-np"><div class="st-name${b.bar ? ' pl-wash' : ''}">${b.bar ? `<span class="pl-bg ${b.bar}" aria-hidden="true"></span>` : ''}<b>${esc(s.name)}</b><span class="sk">${stack}</span></div>${b.sticker ? `<span class="st-stk">${b.sticker}</span>` : ''}</div>${ttl ? `<div class="st-ttl" style="--tc:${ttl.col}">${esc(ttl.name)}</div>` : ''}
     ${s.last && !(s.bet > 0 && BETTY.test(s.last)) ? `<div class="act ${lastCls}">${esc(s.last)}</div>` : s.out && !s.left && s.stack ? '<div class="act fold">Sitting out</div>' : ''}
     ${t.toAct === i && t.phase === 'hand' ? `<div class="tmr"><i style="animation-duration:${dur}s;animation-delay:-${Math.max(0, dur - left).toFixed(2)}s"></i></div>` : ''}
   </div>`;
