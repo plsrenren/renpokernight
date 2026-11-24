@@ -404,7 +404,7 @@ const chip = n => { const bb = S && S.table && S.table.cfg.bb; return unitBB && 
 const chipText = x => unitBB ? String(x).replace(/\$(\d[\d,]*(?:\.\d+)?)/g, (_, d) => chip(+d.replace(/,/g, ''))) : x;
 const hue = n => [...String(n)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
 const initials = n => String(n).split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
-const av = (id, name) => `<span class="av" style="--h:${hue(name)}">${esc(initials(name))}${id && !String(id).startsWith('bot:') && id !== 'guest' ? `<img src="/api/avatar?id=${esc(id)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
+const av = (id, name) => (id = realId(id), `<span class="av" style="--h:${hue(name)}">${esc(initials(name))}${id && !String(id).startsWith('bot:') && id !== 'guest' ? `<img src="/api/avatar?id=${esc(id)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`);
 const DISCORD_SVG = '<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M20.3 4.4A19.6 19.6 0 0 0 15.4 3l-.6 1.3a18 18 0 0 0-5.6 0L8.6 3a19.6 19.6 0 0 0-4.9 1.5C.6 9-.3 13.6.1 18.1A19.8 19.8 0 0 0 6.1 21l1.3-2.1a12.8 12.8 0 0 1-2-1l.5-.4a14 14 0 0 0 12.2 0l.5.4c-.6.4-1.3.7-2 1l1.3 2.1a19.7 19.7 0 0 0 6-3c.5-5.2-.9-9.8-3.6-13.7zM8.3 15.3c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4zm7.4 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4z"/></svg>';
 const ERRS = { cancelled: 'Sign-in was cancelled.', setup: "Discord sign-in isn't set up yet.", expired: 'That sign-in link expired. Try again.', discord: "Discord didn't answer. Try again.", stranger: "That Discord account isn't one the club knows yet. Play a hand with the bot in the server first." };
 const STAKES = [[1, 2], [2, 5], [5, 10]], MIN_BUYS = [20, 40, 100], MAX_BUYS = [100, 200, 500, 1000], TURNS = [15, 20, 30], BOMBS = [2, 5, 10], NITS = [2, 5, 10];
@@ -438,8 +438,10 @@ const ritHTML = (b1, b2, ns) => `<div class="bd5 rit${ns ? '' : ' ns0'}">${ns ? 
 let S = null;               // { table, me, ably }
 let chat = [], peek = -1, skew = 0, err = '', tickT = 0, pollT = 0, cardsFor = '', busy = false;
 let PLATES = null;          // nameplates (plates.js): borders, bars, stickers, titles
-if (!new URLSearchParams(location.search).has('bots')) import('/plates.js').then(m => m.loadouts().then(lo => { PLATES = { ...lo, bits: m.bits }; render(); })).catch(() => {});
-const plateOf = id => (PLATES && PLATES.L && PLATES.bits(PLATES.L, PLATES.byId[id])) || { any: false, bar: '', title: '', sticker: '', face: h => h };
+// practice tables load these too (a read only, by request): signed in with Discord, your seat wears your own loadout and picture
+import('/plates.js').then(m => m.loadouts().then(lo => { PLATES = { ...lo, bits: m.bits }; if (lo.me && !(LOCAL && LOCAL.T.open)) GUEST.name = lo.me.name; render(); })).catch(() => {});
+const realId = id => id === 'guest' && PLATES && PLATES.me ? PLATES.me.id : id; // practice: the local 'guest' seat is you
+const plateOf = id => (PLATES && PLATES.L && PLATES.bits(PLATES.L, PLATES.byId[realId(id)])) || { any: false, bar: '', title: '', sticker: '', face: h => h };
 const PHONE = matchMedia('(max-width: 640px)');
 PHONE.addEventListener?.('change', () => render());
 const T = () => disp || (S && S.table);

@@ -56,12 +56,12 @@ if (typeof document !== 'undefined' && !document.getElementById('stkdefs')) {
   document.body ? add() : document.addEventListener('DOMContentLoaded', add);
 }
 let P = null;
-/** loot.js + everyone's equipped items, fetched once per page: { L, byName, byId } (empty when /api/shop can't be reached) */
+/** loot.js + everyone's equipped items, fetched once per page: { L, byName, byId, me } (empty when /api/shop can't be reached; me = the signed-in person or null) */
 export function loadouts() {
   return P ||= Promise.all([
     import('/loot.js'),
     fetch('/api/shop', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null),
-  ]).then(([L, j]) => ({ L, byName: (j && j.byName) || {}, byId: (j && j.byId) || {} })).catch(() => ({ L: null, byName: {}, byId: {} }));
+  ]).then(([L, j]) => ({ L, byName: (j && j.byName) || {}, byId: (j && j.byId) || {}, me: (j && j.me && j.me.id) ? { id: j.me.id, name: j.me.name } : null })).catch(() => ({ L: null, byName: {}, byId: {}, me: null }));
 }
 const jitter = eq => { const h = [...Object.values(eq).join('|')].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
   return `--rx:${h % 15}px;--ry:${(h >> 4) % 7 - 3}px;--rt:${(h >> 8) % 17 - 8}deg`; };
