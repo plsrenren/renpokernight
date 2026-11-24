@@ -188,7 +188,7 @@ export function act(T, i, kind, to, now, auto = false) {
   if (!['fold', 'check', 'call', 'raise'].includes(kind)) return 'Unknown move.';
   if (!auto) s.timeouts = 0;
   const tag = auto && !s.out ? ' (timed out)' : '';
-  if (kind === 'fold') { s.folded = true; s.last = 'Fold'; log(T, `${s.name} folds${tag}`); rec(T, 'act', i, 'f'); }
+  if (kind === 'fold') { s.folded = true; s.last = 'Fold'; log(T, `${s.name} folds${tag}`); rec(T, 'act', i, 'f'); if (auto && T.rec) (T.rec.afk ||= []).push(i); } // afk: timer folds (the AFK title)
   else if (kind === 'check') { s.last = 'Check'; log(T, `${s.name} checks${tag}`); rec(T, 'act', i, 'x'); }
   else if (kind === 'call') { const a = move(s, toCall); rec(T, 'act', i, 'c', a, s.allIn ? 1 : 0); s.last = s.allIn ? 'All in' : `Call ${$(a)}`; log(T, `${s.name} calls ${$(a)}${s.allIn ? ' and is all in' : ''}`); }
   else {

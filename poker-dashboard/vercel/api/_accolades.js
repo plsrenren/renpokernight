@@ -2,7 +2,7 @@
 // ACC in ../loot.js). Nobody sees the numbers behind them; an unlocked one just shows up in /loadout and /shop with a short
 // note on how it was earned, and the bot posts a one-line note in #casino.
 // Where the numbers come from:
-//   ac:n:<id>      hands per house game, practice (poker bot games, _poker.js), /daily claims, tips, blackjacks, royals, lone-number roulette wins (statCmds in _blackjack.js)
+//   ac:n:<id>      hands per house game, practice (poker bot games) + joined/bomb/straddle/nit/rit2/rabbit/afk/showboat (poker room, _poker.js), /daily claims, tips, blackjacks, royals, lone-number roulette wins (statCmds in _blackjack.js)
 //   du:rec         duel wins per pair of players (_duel.js)
 //   bj:bal         chips (minus tips received)
 //   sh:packs, sh:own:<id>   packs opened and the collection (_shop.js)
@@ -23,7 +23,7 @@ export const NEED = { wins3: 3, tourWins: 5, cashWins: 5, seconds: 5, nights25: 
   duelist: 10, gun: 50, nemesis: 10, whale: 10000, stacked: 5000, bigstack: 10000, mountain: 25000,
   packrat: 25, epic: 10, coll: 50, clockedin: 30, hands: 250, cardshark: 1000, natural: 25, regular: 4,
   hotstreak: 3, iron: 10, run: 5, heavy: 1000,
-  betatester: 5 };
+  betatester: 5, rabbit: 25, afk: 10, showboat: 10 };
 /** Got the Milk only counts nights from here on (Renato: not for the past; the count started 4 nights before launch) */
 export const MILK_FROM = '2026-09-19';
 /** the newest set of poker accolades (see checkPoker): 'bars' = the earned overall bars, Nov 2026 */
@@ -69,6 +69,9 @@ export function earnedFrom(st) {
   add('heavy', (n.heavy || 0) >= 1); add('sweep', (n.sweep || 0) >= 1);
   // bot games at the poker practice tables (ac:n practice, counted by api/_poker.js)
   add('betatester', (n.practice || 0) >= NEED.betatester);
+  // the hosted poker room (ac:n fields counted by api/_poker.js)
+  add('keyboard', (n.joined || 0) >= 1); add('bombsquad', (n.bomb || 0) >= 1); add('straddle', (n.straddle || 0) >= 1); add('nittax', (n.nit || 0) >= 1);
+  add('runitback', (n.rit2 || 0) >= 1); add('rabbitseason', (n.rabbit || 0) >= NEED.rabbit); add('afk', (n.afk || 0) >= NEED.afk); add('showboat', (n.showboat || 0) >= NEED.showboat);
   return out;
 }
 
