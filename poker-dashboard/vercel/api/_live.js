@@ -4,7 +4,7 @@
 //   GET  /api/live            → the table (public), plus for a signed-in person: your seat, your UTH cards, your chips, can you host
 //   GET  /api/live?token=1    → Ably token request; guests (not signed in) get listen-only, so watching needs no sign-in
 //   POST /api/live {a: …}     → token | sit {seat} | leave | bet {bet, side} | move {do: hit|stand|double|split | b4|b2|b1|chk|fold} | tick
-//                               | host: open {cfg: game, min} | close | pause {on} | game {game} | cfg {min}   (both clocks fixed at 15s, side bets always on)
+//                               | host: open {cfg: game} | close | pause {on} | game {game}   (bets $5-$500, both clocks 15s, side bets always on: all fixed)
 //
 // Same storage as the poker room: the whole table is one JSON value (lt:t) with a version (lt:v), saved with a Lua
 // compare-and-set (2 Redis commands per move). The rules are in _livegame.js.
@@ -99,7 +99,7 @@ export async function liveWeb(req, me, out) {
   let b; try { b = await req.json(); } catch (e) { return out({ err: 'Bad request.' }, 400); }
   const who = { id: me.id, name: me.name };
   const done = async (r, extra = {}) => r.err ? out({ err: r.err, ...(r.T ? await view(r.T, me, t) : {}) }) : out(await view(r.T, me, t, extra));
-  const HOST = ['close', 'pause', 'game', 'cfg'];
+  const HOST = ['close', 'pause', 'game'];
   if (b.a === 'open' && !(await isMember(me.id))) return out({ err: 'Tables are for people in the Poker Club Discord. Join the server, then try again.' }, 403);
   if (HOST.includes(b.a) && !(await canHost(await load(), me.id))) return out({ err: 'Only the host can do that.' }, 403);
 
@@ -138,7 +138,6 @@ export async function liveWeb(req, me, out) {
     case 'close': return done(await change((T, now) => E.requestClose(T, now), t));
     case 'pause': return done(await change((T, now) => E.pause(T, !!b.on, now), t));
     case 'game': return done(await change((T, now) => E.setGame(T, String(b.game), now), t));
-    case 'cfg': return done(await change(T => E.setCfg(T, b.cfg || {}), t));
   }
   return out({ err: 'Unknown action.' }, 400);
 }
