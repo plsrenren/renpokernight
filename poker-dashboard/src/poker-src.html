@@ -127,6 +127,8 @@ body.room .wrap { max-width: none; }
 }
 .cd.back { background: repeating-linear-gradient(45deg, #5a40ad 0 6px, #6e52c8 6px 12px); border: 3px solid var(--cardbg); }
 .cd.ph { background: rgba(0,0,0,.18); box-shadow: none; border: 2px dashed rgba(255,255,255,.12); }
+/* invisible stand-ins: a seat without cards keeps the same size, so its picture and nameplate never move when it folds */
+.cd.gh { visibility: hidden; }
 .cd.dim { opacity: .45; } .cd.fold { filter: brightness(.5) saturate(.5); opacity: .75; } .cd.hl { transform: translateY(-6px); box-shadow: 0 0 0 3px var(--gold), 0 6px 14px rgba(0,0,0,.5); }
 .cd.lg { width: 66px; height: 92px; font-size: 30px; } .cd.lg i { font-size: 25px; }
 .cd.sc { width: 42px; height: 59px; font-size: 21px; } .cd.sc i { font-size: 17px; margin-top: 1px; }
@@ -148,15 +150,16 @@ body.room .wrap { max-width: none; }
 .st.folded .st-stk { opacity: .45; } .st.out .st-stk { opacity: .32; }
 .st.active .st-name { box-shadow: 0 0 0 2px var(--gold); }
 .st.win .st-name { box-shadow: 0 0 0 2px var(--up); }
-.st.folded .st-row, .st.folded .st-name { opacity: .45; }
-.st.out .st-row, .st.out .st-name { opacity: .32; }
+.st.folded .pfw, .st.folded .st-cards .cd, .st.folded .st-name { opacity: .45; }
+.st.out .pfw, .st.out .st-cards .cd, .st.out .st-name { opacity: .32; } /* not the whole row, so a move label on the empty card spot stays readable */
 .st .act { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font: 900 10.5px var(--round); letter-spacing: .04em; background: var(--panel2); color: var(--fg); padding: 2px 6px; white-space: nowrap; z-index: 4; text-transform: uppercase; }
+.st .st-cards .act { top: 50%; transform: translate(-50%, -50%) rotate(-4deg); }
 .st .act.fold { background: #3a3560; color: var(--muted); } .st .act.raise { background: var(--pink); color: #fff; } .st .act.allin { background: var(--gold); color: var(--ink); } .st .act.win { background: var(--up); color: #0e2a1c; }
 /* the equipped title (picked Nov 24, "lower third"): a slanted tab in the title's rarity color, left-aligned under the nameplate */
 .st-ttl { justify-self: start; max-width: 100%; margin-top: -1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 12px/1 var(--title); letter-spacing: .09em; text-transform: uppercase; color: var(--ink); background: var(--tc); padding: 3px 12px 1px 7px; clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 100%, 0 100%); }
 .st.folded .st-ttl, .st.out .st-ttl { opacity: .45; }
 @media (max-width: 640px) { .st-ttl { font-size: 9.5px; padding: 2px 9px 1px 5px; } }
-.tmr { width: 100%; height: 4px; background: rgba(0,0,0,.35); margin-top: 3px; overflow: hidden; }
+.tmr { position: absolute; left: 0; top: calc(100% + 3px); width: 100%; height: 4px; background: rgba(0,0,0,.35); overflow: hidden; } /* out of the flow: showing it never nudges the seat */
 .tmr i { display: block; height: 100%; background: var(--gold); transform-origin: left; animation: tick linear forwards; }
 @keyframes tick { from { transform: scaleX(1); } 80% { background: var(--gold); } to { transform: scaleX(0); background: var(--pink); } }
 .st.empty { cursor: default; }
@@ -164,6 +167,8 @@ body.room .wrap { max-width: none; }
 .st.empty button:hover { border-color: var(--gold); color: var(--gold); }
 .st.empty .lbl { width: 54px; height: 44px; border: 2px dashed rgba(255,255,255,.12); }
 .bet { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: flex-end; gap: 4px; white-space: nowrap; z-index: 1; }
+.bet.bl-c .tag, .bet.bl-t .stks { visibility: hidden; }
+.bet.bl-t { z-index: 3; } /* move + amount tags ride above every chip stack (and a nameplate they run into), so the text always reads */
 .bet .stks { display: flex; align-items: flex-end; gap: 3px; }
 .stk { position: relative; width: 20px; display: block; }
 .stk i { position: absolute; left: 0; width: 20px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: inset 0 -1px 0 rgba(0,0,0,.35), 0 1px 0 rgba(0,0,0,.45); }
@@ -626,6 +631,7 @@ const toward = (p, f) => ({ x: 50 + (p.x - 50) * f, y: 50 + (p.y - 50) * f });
 // phones: [pull toward the middle, bet y] by seat y. Low side seats bet above themselves and further in, so your cards and the middle seats' bets never cover them
 const PBET = { 9: [0, 21], 24: [.36, 30], 56: [.5, 59], 78: [.22, 70] };
 const betPos = i => { const p = seatPos(i); if (!PHONE.matches) return p.y < 15 ? { x: 50 + (p.x - 50) * .54, y: 25 } : toward(p, .54); if (p.y === 90) return toward(p, .54); const [f, y] = PBET[p.y]; return { x: 50 + (p.x - 50) * f, y }; };
+const GHOST = '<div class="cd sc gh"></div><div class="cd sc gh"></div>';
 function seatHTML(s, i) {
   const t = T(), pos = seatPos(i), me = mySeat();
   if (!s) {
@@ -638,15 +644,17 @@ function seatHTML(s, i) {
   const mine = i === me && S.me.cards && S.me.cards.length && cardsFor === t.hid ? S.me.cards : null;
   const shown = s.cards || mine;
   const hc = s.dealt && !s.folded ? (shown ? shown.map(c => card(c, 'sc', hl(c))).join('') : '<div class="cd sc back"></div><div class="cd sc back"></div>')
-    : s.dealt && mine ? mine.map(c => card(c, 'sc', 'fold')).join('') : ''; // your own folded hand stays, faded and dark
+    : s.dealt && mine ? mine.map(c => card(c, 'sc', 'fold')).join('') : GHOST; // your own folded hand stays, faded and dark; no cards = invisible stand-ins, so the seat doesn't shift
   const b = plateOf(s.id), size = PHONE.matches ? 38 : 48, ttl = titleOf(s.id);
   const lastCls = /^Fold/.test(s.last) ? 'fold' : /^All/.test(s.last) ? 'allin' : /^(Raise|Bet)/.test(s.last) ? 'raise' : s.last === 'Wins' ? 'win' : '';
   const left = Math.max(0, (t.deadline - serverNow()) / 1000), dur = t.cfg.turn;
+  // the move label sits above the seat; with no cards in front of it (folded, sitting out) it sits on the empty card spot instead, clear of the seat above
+  const act = s.last && !(s.bet > 0 && BETTY.test(s.last)) ? `<div class="act ${lastCls}">${esc(s.last)}</div>` : s.out && !s.left && s.stack ? '<div class="act fold">Sitting out</div>' : '';
   const stack = s.left ? 'left' : s.out && !s.stack ? 'out' : chip(s.stack) + (s.pend ? '+' : '');
   return `<div class="${cls}" data-peek="${i}" style="left:${pos.x}%;top:${pos.y}%">
-    <div class="st-row"><div class="pfw">${b.face(av(s.id, s.name), size)}${i === t.button && t.hand ? '<i class="dmark">D</i>' : ''}${t.nit && t.nit.need.includes(s.id) ? '<i class="nitmark">NIT</i>' : ''}${s.gift ? '<i class="giftmark" title="Free seat from the house">FREE</i>' : ''}</div><div class="st-cards">${hc}</div></div>
+    <div class="st-row"><div class="pfw">${b.face(av(s.id, s.name), size)}${i === t.button && t.hand ? '<i class="dmark">D</i>' : ''}${t.nit && t.nit.need.includes(s.id) ? '<i class="nitmark">NIT</i>' : ''}${s.gift ? '<i class="giftmark" title="Free seat from the house">FREE</i>' : ''}</div><div class="st-cards">${hc}${hc === GHOST ? act : ''}</div></div>
     <div class="st-np"><div class="st-name${b.bar ? ' pl-wash' : ''}">${b.bar ? `<span class="pl-bg ${b.bar}" aria-hidden="true"></span>` : ''}<b>${esc(s.name)}</b><span class="sk">${stack}</span></div>${b.sticker ? `<span class="st-stk">${b.sticker}</span>` : ''}</div>${ttl ? `<div class="st-ttl" style="--tc:${ttl.col}">${esc(ttl.name)}</div>` : ''}
-    ${s.last && !(s.bet > 0 && BETTY.test(s.last)) ? `<div class="act ${lastCls}">${esc(s.last)}</div>` : s.out && !s.left && s.stack ? '<div class="act fold">Sitting out</div>' : ''}
+    ${hc === GHOST ? '' : act}
     ${t.toAct === i && t.phase === 'hand' ? `<div class="tmr"><i style="animation-duration:${dur}s;animation-delay:-${Math.max(0, dur - left).toFixed(2)}s"></i></div>` : ''}
   </div>`;
 }
@@ -662,7 +670,9 @@ const BETTY = /^(SB|BB|Straddle|Bomb|Call|Raise|Bet|All in)/;
 const betInner = (amt, last) => { const l = BETTY.test(last || '') ? String(last).replace(/\s*\$.*/, '') : ''; return `<span class="stks">${stacksHTML(amt)}</span><span class="tag">${l ? `<span>${esc(l)}</span>` : ''}<b>${chip(amt)}</b></span>`; };
 function tableHTML() {
   const t = T();
-  const bets = t.seats.map((s, i) => s && s.bet > 0 ? `<div class="bet ${betKind(s.last)}" style="left:${betPos(i).x}%;top:${betPos(i).y}%">${betInner(s.bet, s.last)}</div>` : '').join('');
+  // drawn twice in the same spot: all the chips first, then all the tags, so a Call/Bet tag always sits on top of chips it runs into
+  const betL = cls => t.seats.map((s, i) => s && s.bet > 0 ? `<div class="bet ${cls} ${betKind(s.last)}" style="left:${betPos(i).x}%;top:${betPos(i).y}%">${betInner(s.bet, s.last)}</div>` : '').join('');
+  const bets = betL('bl-c') + betL('bl-t');
   const dp = t.button >= 0 && t.hand ? toward(seatPos(t.button), .8) : null;
   const hl = t.res && t.res.hl || [];
   const cells = Array.from({ length: 5 }, (_, k) => { const c = t.board[k], rb = !c && t.rabbit ? t.rabbit[k - t.board.length] : null; return rb ? card(rb, '', 'rab') : card(c, '', c && hl.length ? (hl.includes(c) ? 'hl' : 'dim') : ''); });
@@ -1151,7 +1161,7 @@ function hhFelt() {
   const h = HH.data.hands[HH.at], r = HH.rep[HH.at], s = r.steps[HH.step], last = HH.step === r.steps.length - 1;
   const seats = h.seats.map(q => {
     const p = hhSeatPos(h, q.i), fold = s.folded[q.i], cs = s.shown[q.i];
-    const cards = fold && q.i !== h.me ? '' : cs ? cs.map(c => card(c, '', fold ? 'fold' : '')).join('') : '<div class="cd back"></div><div class="cd back"></div>';
+    const cards = fold && q.i !== h.me ? '<div class="cd gh"></div><div class="cd gh"></div>' : cs ? cs.map(c => card(c, '', fold ? 'fold' : '')).join('') : '<div class="cd back"></div><div class="cd back"></div>';
     const lb = s.label[q.i];
     return `<div class="hh-seat${q.i === h.me ? ' me' : ''}${fold ? ' fold' : ''}${s.act === q.i ? ' act' : ''}" style="left:${p.x}%;top:${p.y}%">${lb ? `<span class="lb${/^Wins/.test(lb) ? ' w' : ''}">${esc(chipText(lb))}</span>` : ''}<div class="cs">${cards}</div><div class="pl"><b>${esc(q.name)}${q.i === h.me ? ' (you)' : ''}</b><span>${chip(s.st[q.i])}</span></div>${q.i === h.btn ? '<i class="dm">D</i>' : ''}</div>`;
   }).join('');
