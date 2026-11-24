@@ -797,6 +797,8 @@ a { color: inherit; }
 .own-a svg{width:11px;height:11px;margin-top:-2px;fill:currentColor}
 .own-a.solo{background:var(--gold);color:#15132a}
 .own-a:hover{outline:1.5px solid #fff}
+.colink{display:inline-block;margin:-8px 0 12px;font-family:'Space Grotesk',system-ui,sans-serif;font-size:13px;color:var(--gold);text-decoration:none}
+.colink:hover{text-decoration:underline}
 .srt{display:flex;align-items:center;gap:6px;margin:-6px 0 12px;font-family:'Space Grotesk',system-ui,sans-serif;font-size:12.5px;color:var(--muted)}
 .srt button{font-family:'Bebas Neue',Impact,sans-serif;font-size:15px;letter-spacing:.06em;padding:4px 10px 2px;background:var(--panel2);color:var(--muted)}
 .srt button[aria-pressed="true"]{background:#3a3566;color:#fff}
@@ -830,7 +832,7 @@ a { color: inherit; }
     <div class="rcol">
       <div id="ps"><div class="pstage" id="pstage"><div id="packslot"></div><div class="row" id="row"></div></div><div class="pbar" id="bar"></div></div>
       <div class="odds2" id="odds"></div>
-      <div class="lo" id="lo"><div class="slots" id="slots"></div><div class="srt hidden" id="srt">Sort <button data-s="rarity">Rarity</button><button data-s="few">Fewest owners</button></div><div class="items" id="items"></div></div>
+      <div class="lo" id="lo"><div class="slots" id="slots"></div><a class="colink" href="/collection">See your whole collection &rarr;</a><div class="srt hidden" id="srt">Sort <button data-s="rarity">Rarity</button><button data-s="few">Fewest owners</button></div><div class="items" id="items"></div></div>
     </div>
   </div>
 </div>
