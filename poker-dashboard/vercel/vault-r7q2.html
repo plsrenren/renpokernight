@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Unlisted page for Renato (Nov 24 2026, by request): every Study Cards cosmetic in one place, drawn with the same
+     cosmetics.css + loot.js the site uses. Do NOT link it from any page, nav, sitemap or Discord post. noindex keeps search
+     engines out; the repo is public, so the path itself is not a secret. -->
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>All Cosmetics</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="/cosmetics.css">
+<style>
+:root{--bg:#15132a;--panel:#1d1a37;--line:#2e2a58;--gold:#f0c75e;--pink:#e0507f;--vio:#8f78f0;--muted:#a9a3c9;--fg:#ece9ff;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:'Space Grotesk',system-ui,sans-serif;font-weight:500}
+.wrap{max-width:1320px;margin:0 auto;padding:24px 16px 48px}
+h1{font:400 clamp(40px,7vw,60px)/.9 'Bebas Neue',Impact,sans-serif;letter-spacing:.02em;margin:0}
+.sub{color:var(--muted);font-size:14px;margin:6px 0 18px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+.bar button{font:inherit;font-size:14px;color:var(--fg);background:var(--panel);border:1px solid var(--line);padding:7px 12px;cursor:pointer}
+.bar button[aria-pressed=true]{background:var(--gold);color:#15132a;border-color:var(--gold)}
+.bar input{font:inherit;font-size:14px;color:var(--fg);background:var(--panel);border:1px solid var(--line);padding:7px 10px;min-width:0;flex:1 1 180px;max-width:280px}
+.bar .lbl{color:var(--muted);font-size:13px;margin-left:4px}
+h2{font:400 30px/1 'Bebas Neue',Impact,sans-serif;letter-spacing:.05em;margin:28px 0 4px;display:flex;gap:10px;align-items:baseline}
+h2 small{font:500 13px 'Space Grotesk',sans-serif;color:var(--muted);letter-spacing:0}
+h3{font:400 19px/1 'Bebas Neue',Impact,sans-serif;letter-spacing:.08em;margin:16px 0 8px;color:var(--c,var(--muted))}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.grid.wide{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.ti{background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--c);display:flex;flex-direction:column;min-width:0}
+.sw{height:128px;display:flex;align-items:center;justify-content:center;background:#100e22;position:relative;overflow:hidden;padding:8px}
+.wide .sw{height:96px}
+.tt .sw{height:84px}
+.meta{padding:8px 10px 10px;display:grid;gap:3px}
+.nm{font-weight:700;font-size:14px;line-height:1.2}
+.tg{font:600 11px 'IBM Plex Mono',monospace;color:var(--c);letter-spacing:.04em}
+.why{font-size:12px;color:var(--muted);line-height:1.3}
+.id{font:500 10.5px 'IBM Plex Mono',monospace;color:#6f6a99;word-break:break-all}
+/* pfp inside its border, same sizes as the dashboard player card */
+.sw .cbw{zoom:1.35}
+.pfp{width:64px;height:64px;display:block;object-fit:cover}
+.pfx{display:grid;place-items:center;font:400 30px/1 'Bebas Neue',Impact,sans-serif;padding-top:3px}
+.pf-light .pfx{background:#f2efe6;color:#15132a}
+.pf-dark .pfx{background:#0b0a14;color:#ece9ff}
+.sw .cos-hold{position:relative}
+/* sticker on its own, and on the pfp corner */
+.stk-big{width:92px;height:92px;display:flex;align-items:center;justify-content:center}
+.stk-big svg{width:100%;height:auto;max-height:100%;display:block}
+.sw .cos-stk{right:-14px;bottom:-10px;width:34px;height:34px;display:flex;align-items:center;justify-content:center}
+/* title, as on the player card */
+.ttl{font:400 26px/1 'Bebas Neue',Impact,sans-serif;letter-spacing:.06em;text-align:center}
+/* overall bar = the player card's stat strip */
+.strip{display:flex;width:100%;min-height:52px;background:var(--gold)}
+.strip .rc-ovr{display:flex;align-items:center;gap:6px;padding:0 10px;background:#15132a;border:2px solid var(--gold);color:var(--gold)}
+.strip .rc-ovr b{font:400 38px/1 'Bebas Neue',Impact,sans-serif;color:inherit;padding-top:3px}
+.strip .rc-ovr i{font:400 14px/1 'Bebas Neue',Impact,sans-serif;font-style:normal;letter-spacing:.12em;color:inherit}
+.strip .rc-foot{flex:1;display:flex}
+.strip .rc-foot div{flex:1;display:grid;justify-items:center;align-content:center}
+.strip .rc-foot b{font:400 22px/1 'Bebas Neue',Impact,sans-serif;color:#15132a;padding-top:2px}
+.strip .rc-foot span{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#15132a}
+.empty{color:var(--muted);font-size:14px;padding:12px 0}
+@media (max-width:520px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.grid.wide{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>All cosmetics</h1>
+  <p class="sub" id="sub">Loading…</p>
+  <div class="bar" id="slots"></div>
+  <div class="bar"><input id="q" type="search" placeholder="Search names" aria-label="Search names"><span class="lbl">Pfp</span><span id="pfs"></span></div>
+  <div id="out"></div>
+</div>
+<script type="module">
+import { ITEMS, ACC_ITEMS, RETIRED, BY_ID, TIERS, TCOL, STICKERS, CHAMP, champItem, decoFor } from '/loot.js';
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const COL = { ...TCOL, Earned: '#5fd6f0', Champion: '#f0c75e', Retired: '#6f6a99' };
+const SLOTS = [['Pfp border', 'Pfp borders'], ['Title', 'Titles'], ['Overall bar', 'Overall bars'], ['Sticker', 'Stickers']];
+// champion borders are worked out from the sheet per quarter/year: show one quarter and one year version of each board
+const champs = Object.keys(CHAMP).flatMap(k => [champItem(`c:${k}:Q4-2026`), champItem(`c:${k}:2026`)]).filter(Boolean);
+const retired = RETIRED.map(id => ({ ...BY_ID[id], tier: 'Retired', why: 'Retired, no longer in packs' }));
+const ALL = [...ITEMS, ...ACC_ITEMS, ...champs, ...retired];
+const GROUPS = [...TIERS, 'Earned', 'Champion', 'Retired'];
+
+let slot = 'all', pf = 'logo', q = '';
+try { slot = localStorage.getItem('vault-slot') || 'all'; pf = localStorage.getItem('vault-pf') || 'logo'; } catch (e) {}
+
+// pfp stand-in: the club logo, or a plain light/dark square (light pfps are where white border art goes missing)
+const PFP = () => pf === 'logo' ? '<img class="pfp" src="/icon-192.png" alt="">' : '<span class="pfp pfx">RS</span>';
+const border = it => `<span class="cbw cb-${esc(it.key)}${it.year ? ' cb-champ-y' : ''} pf-${pf}">${PFP()}${decoFor(it.tier === 'Retired' ? { ...it, tier: 'Common' } : it)}</span>`;
+function preview(it) {
+  if (it.slot === 'Pfp border') return border(it);
+  if (it.slot === 'Title') return `<div class="ttl" style="color:${COL[it.tier]}">${esc(it.name.toUpperCase())}</div>`;
+  if (it.slot === 'Sticker') return `<div class="stk-big">${STICKERS[it.name] || ''}</div>`;
+  return `<div class="strip cbar-${esc(it.key)}"><div class="rc-ovr"><b>82</b><i>OVR</i></div><div class="rc-foot"><div><b>+$240</b><span>Net</span></div><div><b>3</b><span>Wins</span></div><div><b>#2</b><span>of 14</span></div></div></div>`;
+}
+const tile = it => `<div class="ti" style="--c:${COL[it.tier]}"><div class="sw">${preview(it)}</div><div class="meta"><div class="nm">${esc(it.name)}</div><div class="tg">${esc(it.tier.toUpperCase())}</div>${it.why ? `<div class="why">${esc(it.why)}</div>` : ''}<div class="id">${esc(it.id)}</div></div></div>`;
+
+function render() {
+  document.getElementById('slots').innerHTML = [['all', 'Everything'], ...SLOTS].map(([k, n]) => `<button data-s="${esc(k)}" aria-pressed="${slot === k}">${esc(n)}</button>`).join('');
+  document.getElementById('pfs').innerHTML = [['logo', 'Logo'], ['light', 'Light'], ['dark', 'Dark']].map(([k, n]) => `<button data-p="${k}" aria-pressed="${pf === k}">${n}</button>`).join(' ');
+  const ql = q.trim().toLowerCase();
+  let h = '';
+  for (const [s, title] of SLOTS) {
+    if (slot !== 'all' && slot !== s) continue;
+    const its = ALL.filter(i => i.slot === s && (!ql || i.name.toLowerCase().includes(ql)));
+    if (!its.length) continue;
+    h += `<h2>${esc(title)} <small>${its.length}</small></h2>`;
+    for (const g of GROUPS) {
+      const gi = its.filter(i => i.tier === g);
+      if (!gi.length) continue;
+      h += `<h3 style="--c:${COL[g]}">${esc(g)} · ${gi.length}</h3><div class="grid${s === 'Overall bar' ? ' wide' : s === 'Title' ? ' tt' : ''}">${gi.map(tile).join('')}</div>`;
+    }
+  }
+  document.getElementById('out').innerHTML = h || '<p class="empty">Nothing matches.</p>';
+}
+const live = ALL.filter(i => i.tier !== 'Retired' && i.tier !== 'Champion').length;
+document.getElementById('sub').textContent = `${ITEMS.length} pack items, ${ACC_ITEMS.length} earned, ${CHAMP && Object.keys(CHAMP).length} champion boards (quarter + year), ${RETIRED.length} retired. ${live} in play.`;
+document.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.s) { slot = b.dataset.s; try { localStorage.setItem('vault-slot', slot); } catch (x) {} }
+  if (b.dataset.p) { pf = b.dataset.p; try { localStorage.setItem('vault-pf', pf); } catch (x) {} }
+  render();
+});
+document.getElementById('q').addEventListener('input', e => { q = e.target.value; render(); });
+render();
+</script>
+</body>
+</html>
