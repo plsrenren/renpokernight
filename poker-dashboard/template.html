@@ -423,7 +423,6 @@ function retryPic(im) { if (im.dataset.r) return im.remove(); im.dataset.r = 1; 
   im.addEventListener('load', () => { im.style.visibility = ''; }, { once: true }); setTimeout(() => { im.src = im.src + '&r=1'; }, 1200); }
 // a player's Discord pfp (initials on their colour when there's none) in front of their name
 const pfp = (n, ring) => `<span class="pfp${ring ? ' ring' : ''}" style="--h:${nameHue(n)}${ring ? ';--ring:' + ring : ''}" aria-hidden="true">${esc(n[0].toUpperCase())}${IDS[n] ? `<img src="/api/avatar?id=${IDS[n]}" alt="" loading="lazy" onerror="retryPic(this)">` : ''}</span>`;
-const whoBtn = n => `<span class="who">${pfp(n)}${nameBtn(n)}</span>`;
 // pfps drawn under the bar chart instead of names (hover or tap a bar to see the name)
 const faceImgs = {};
 function faceImg(n) {
@@ -553,13 +552,14 @@ function render() {
     p.games++; p.wins += r.win ? 1 : 0; p.cin += r.cin; p.cout += r.cout; p.net += r.net; });
   const standings = Object.values(per).sort((a, b) => b.net - a.net);
   const top = standings[0];
-  document.getElementById('tTop').innerHTML = top ? whoBtn(top.player) : '–';
+  lastWinners[0] = top ? top.player : null;
   document.getElementById('tTopN').textContent = top ? fmtSigned(top.net) : '';
 
   const lastKey = nights[nights.length - 1];
   const last = rows.filter(r => r.key === lastKey);
   const lw = last.find(r => r.win) || [...last].sort((a, b) => b.net - a.net)[0];
-  document.getElementById('tRecent').innerHTML = lw ? whoBtn(lw.player) : '–';
+  lastWinners[1] = lw ? lw.player : null;
+  paintWinners();
   document.getElementById('tRecentN').textContent = lw ? `${fmtSigned(lw.net)} · ${fmtDate(lw.date)}` : '';
   document.getElementById('tMix').textContent = `${cashN} / ${tourN}`;
 
@@ -600,7 +600,22 @@ function render() {
   // Standings table (+ top 3 podium); repainted with everyone's loadout once /api/shop answers
   lastStandings = standings;
   drawStandings();
-  if (!PLATES) loadPlates().then(drawStandings);
+  if (!PLATES) loadPlates().then(() => { drawStandings(); paintWinners(); });
+}
+
+// Top winner + Recent winner tiles wear the winner's loadout too: border on the pfp (sticker on its corner),
+// title under the name, overall bar as a soft wash across the tile. Plain until the loadouts arrive.
+let lastWinners = [null, null];
+function paintWinners() {
+  [['tTop', lastWinners[0]], ['tRecent', lastWinners[1]]].forEach(([id, n]) => {
+    const el = document.getElementById(id), tile = el.closest('.tile');
+    tile.querySelector(':scope > .pl-bg')?.remove();
+    tile.classList.remove('pl-wash');
+    if (!n) { el.innerHTML = '–'; return; }
+    const pl = plateFor(n);
+    if (pl.bar) { tile.classList.add('pl-wash'); tile.insertAdjacentHTML('afterbegin', `<span class="pl-bg ${pl.bar}" aria-hidden="true"></span>`); }
+    el.innerHTML = `<span class="who">${pl.face(pfp(n), 40, true)}<span class="pl-nm">${nameBtn(n)}${pl.title}</span></span>`;
+  });
 }
 
 // "Nameplates": standings rows get each player's equipped overall bar as a soft wash, plus their border, title and sticker,
