@@ -823,7 +823,7 @@ a { color: inherit; }
   <header class="top">
     <div class="brand"><a class="lg" href="/" aria-label="Dashboard"></a><div><h1><a href="/shop">Study Cards</a></h1>
       <nav class="links"><a class="recap-link" href="/">Dashboard</a><a class="recap-link casino-link" href="/casino">🎰 Casino</a><a class="recap-link hof-link" href="/hall">🏆 Hall of Fame</a></nav></div></div>
-    <div class="hside"><div class="me hidden" id="me"></div><div class="bal hidden" id="balbox"><b id="bal">$0</b><span>your chips<a href="/casino">get more in the casino</a></span></div></div>
+    <div class="hside"><div class="me" id="sb"></div><div class="bal hidden" id="balbox"><b id="bal">$0</b><span>your chips<a href="/casino">get more in the casino</a></span></div></div>
   </header>
   <p class="intro">Packs are $100 of your casino chips for 3 cards: titles, pfp borders, overall bars and stickers for your player card. The third card is always Uncommon or better, and duplicates pay chips back. What you equip shows on the site card and /player in Discord.</p>
   <div id="note"></div>
@@ -974,12 +974,12 @@ document.addEventListener('click', e => { const w = e.target.closest && e.target
 document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.whobg').forEach(b => b.remove()); });
 $('srt').querySelectorAll('button').forEach(b => b.onclick = () => { SORT = b.dataset.s; try { localStorage.setItem('study-own-sort', SORT); } catch (e) {} renderLoadout(); });
 function renderTop() {
-  const me = $('me'), bb = $('balbox');
-  if (!ME) { me.classList.add('hidden'); bb.classList.add('hidden'); return; }
-  me.classList.remove('hidden'); bb.classList.remove('hidden');
-  me.innerHTML = `<span class="av" style="--h:${hueFor(ME.name)}">${esc(initials(ME.name))}<img src="/api/avatar?id=${esc(ME.id)}" alt="" onerror="this.remove()"></span><span>${esc(ME.name)}</span><button id="out">sign out</button>`;
-  $('out').onclick = async () => { await fetch('/api/casino', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ a: 'logout' }), credentials: 'same-origin' }).catch(() => {}); location.href = '/shop'; };
+  // who you are + sign out live in the sign-in badge (badge.js) now
+  const bb = $('balbox');
+  if (!ME) { bb.classList.add('hidden'); return; }
+  bb.classList.remove('hidden');
   $('bal').textContent = money(shownBal ?? ME.bal ?? 0);
+  if (window.SB && ME.bal != null) window.SB.bal(ME.bal);
 }
 async function setEq(slot, id) {
   const before = { ...ME.eq };
@@ -1156,5 +1156,6 @@ if (ME && ME.open) resume(ME.open);
 }
 </style>
 <nav class="tabbar" aria-label="Pages"><a href="/"><span aria-hidden="true">📊</span>Dashboard</a><a href="/recap"><span aria-hidden="true">📰</span>Recap</a><a href="/hall"><span aria-hidden="true">🏆</span>Hall</a><a href="/h2h"><span aria-hidden="true">⚔️</span>H2H</a><a href="/casino" class="on" aria-current="page"><span aria-hidden="true">🃏</span>Casino</a></nav>
+<script type="module" src="/badge.js"></script>
 </body>
 </html>

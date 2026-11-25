@@ -116,7 +116,7 @@ async function sheet() {
 // names for the invite list come from the sheet copy in memory (no wait on Google); Discord names when there's none yet
 const refreshNewestInvite = () => refreshInvite(async () => Object.fromEntries(Object.entries(cache.ids || {}).map(([n, id]) => [id, n])))
   .catch(e => console.error('invite refresh', e));
-const webRoute = req => { const w = new URL(req.url).searchParams.get('web'); return w === 'login' || w === 'casino' || w === 'shop' || w === 'poker' || w === 'live' ? w : null; };
+const webRoute = req => { const w = new URL(req.url).searchParams.get('web'); return w === 'login' || w === 'casino' || w === 'shop' || w === 'poker' || w === 'live' || w === 'me' ? w : null; };
 
 // casino replies carry their table picture as an upload (see _attach.js), so it shows with the message instead of loading after it
 const PIC_BUTTONS = /^(bj|du|uth|ro|ba|sh):/, PIC_COMMANDS = ['blackjack', 'freebet', 'duel', 'uth', 'baccarat', 'roulette', 'pack'];

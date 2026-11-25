@@ -278,7 +278,7 @@ details.pay summary { cursor: pointer; font: 400 17px var(--title); letter-spaci
   <header class="top">
     <div class="brand"><a class="lg" href="/" aria-label="Dashboard"></a><div><h1><a href="/casino" style="text-decoration:none">The Study Casino</a></h1>
       <nav class="links"><a class="recap-link" href="/">Dashboard</a><a class="recap-link hof-link" href="/hall">🏆 Hall of Fame</a><a class="recap-link h2h-link" href="/h2h">⚔️ Head to head</a><a class="recap-link casino-link" href="/shop">🃏 Study Cards</a></nav></div></div>
-    <div class="me hidden" id="me"></div>
+    <div class="me" id="sb"></div>
   </header>
   <div id="note"></div>
   <main id="view"><p class="loading">Shuffling…</p></main>
@@ -344,11 +344,8 @@ async function play(body, apply, early) {
 
 // ---------- page frame ----------
 function header() {
-  const me = $('#me');
-  if (!S.me) { me.classList.add('hidden'); return; }
-  me.classList.remove('hidden');
-  me.innerHTML = `${av(S.me.id, S.me.name)}<span class="nm">${esc(S.me.name)}</span><button id="out">sign out</button>`;
-  $('#out').onclick = async () => { await api({ a: 'logout' }); location.href = '/casino'; };
+  // who you are + sign out live in the sign-in badge (badge.js) now; it just gets the newest balance
+  if (S.me && window.SB) window.SB.bal(S.me.bal);
 }
 const route = () => (location.hash || '#').slice(1);
 function render() {
@@ -759,5 +756,6 @@ load();
 <link rel="stylesheet" href="/cosmetics.css">
 <link rel="stylesheet" href="/plates.css">
 <link rel="stylesheet" href="/table-kit.css">
+<script type="module" src="/badge.js"></script>
 </body>
 </html>

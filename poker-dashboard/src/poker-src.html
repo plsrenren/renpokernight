@@ -397,7 +397,7 @@ details.fold > summary + * { margin-top: 10px; }
 <div class="wrap">
   <header class="top">
     <div class="brand"><a class="lg" href="/" aria-label="Dashboard"></a><div><h1><a href="/poker" style="text-decoration:none">Poker Room</a></h1></div></div>
-    <div class="me hidden" id="me"></div>
+    <div class="me" id="sb"></div><div class="me hidden" id="me"></div>
   </header>
   <div id="note"></div>
   <main id="view"><p class="loading">Shuffling…</p></main>
@@ -835,7 +835,9 @@ function header() {
   const el = $('#me');
   if (!S || !S.me) { el.classList.add('hidden'); return; }
   el.classList.remove('hidden');
-  el.innerHTML = S.me.guest ? `<a class="cbtn ghost sm" href="/poker" style="text-decoration:none">Poker room</a>` : `<span class="bal">${money(S.me.bal)}</span>${av(S.me.id, S.me.name)}<span class="nm">${esc(S.me.name)}</span>`;
+  // signed in: you + your chips are in the sign-in badge (badge.js); practice keeps its way back to the room here
+  if (!S.me.guest) { el.classList.add('hidden'); if (window.SB) window.SB.bal(S.me.bal); return; }
+  el.innerHTML = `<a class="cbtn ghost sm" href="/poker" style="text-decoration:none">Poker room</a>`;
 }
 let pop = '';                 // which top-right panel is open: '' | 'log' | 'rules' | 'host' (kept while the table updates)
 let logScroll = null;         // where you scrolled the hand log to (null = follow the newest line)
@@ -1257,5 +1259,6 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) api(
 <link rel="stylesheet" href="/lateshow.css">
 <link rel="stylesheet" href="/cosmetics.css">
 <link rel="stylesheet" href="/plates.css">
+<script type="module" src="/badge.js"></script>
 </body>
 </html>
