@@ -243,7 +243,8 @@ function finish(T, now) {
       pay(T, s, g.payout, { game: FEED[T.game], net: g.net, wager: g.hands.reduce((a, h) => a + h.bet, 0) + (g.side || 0), stats: { naturals: g.nat, sweep } });
     }
   }
-  const line = inRound(T).map(s => `${s.name} ${s.res.net > 0 ? '+$' + s.res.net : s.res.net < 0 ? '−$' + -s.res.net : 'push'}`).join(', ');
+  const cents = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); // cents on every amount, site-wide
+  const line = inRound(T).map(s => `${s.name} ${s.res.net > 0 ? '+$' + cents(s.res.net) : s.res.net < 0 ? '−$' + cents(-s.res.net) : 'push'}`).join(', ');
   if (line) log(T, `Round ${T.round}: ${line}`);
   T.phase = 'done'; T.nextAt = now + DONE_MS + drawn * CARD_MS + (T.game === 'uth' ? 900 : 0);
   T.seats.forEach(s => { if (s) s.dl = 0; });
