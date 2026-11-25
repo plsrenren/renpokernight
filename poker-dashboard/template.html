@@ -2,6 +2,7 @@
 <link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@500;700&family=Nunito:wght@500;600;700;800;900&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
 /* Layout: one column of summary tiles, then charts in a two-up grid that stacks on phones.
@@ -227,6 +228,38 @@ a.rc-mu { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; b
 @media (max-width: 860px) { .grid2 { grid-template-columns: minmax(0, 1fr); } .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 420px) { .pie-row { grid-template-columns: minmax(0, 1fr); } .pie-box { height: 200px; } .chart-box { height: 300px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+<link rel="stylesheet" href="/badge.css">
+<!-- phones: hide the header buttons (the site bar menu covers them) -->
+<style>
+/* Game log fold-out on the player page (same look as the casino's "Earn chips at poker night" bar) */
+html .fold { padding: 0; border-left: 4px solid var(--gold, #f0c75e); }
+html .fold > summary { display: flex; align-items: center; gap: 12px; padding: 14px 18px; cursor: pointer; list-style: none; }
+html .fold > summary::-webkit-details-marker { display: none; }
+html .fold > summary b { font: 400 24px/1 var(--title, "Bebas Neue"), Impact, sans-serif; letter-spacing: .06em; white-space: nowrap; }
+html .fold > summary span { color: var(--muted); font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html .fold > summary i { margin-left: auto; font: 400 17px var(--title, "Bebas Neue"), Impact, sans-serif; letter-spacing: .08em; color: var(--gold, #f0c75e); font-style: normal; white-space: nowrap; }
+html .fold > summary i::after { content: ' \25BE'; } html .fold[open] > summary i::after { content: ' \25B4'; }
+html .fold > :not(summary) { margin-left: 18px; margin-right: 18px; } html .fold > .table-scroll { margin-bottom: 16px; }
+
+@media (max-width: 640px) {
+  .recap-link, .tab-hide { display: none !important; }
+}
+</style>
+<link rel="stylesheet" href="/lateshow.css">
+<link rel="stylesheet" href="/cosmetics.css">
+<link rel="stylesheet" href="/plates.css">
+<style>
+/* Study Cards on the player card (cosmetics.css has the looks). The border art is sized for a 64px pfp, so it's zoomed up. */
+html .pcard .cbw { zoom: 1.5; flex: none; position: relative; }
+html .pcard .cbw > .pc-mono { width: 64px; height: 64px; border: 0; font-size: 31px; padding-top: 3px; }
+html .pcard .cos-ttl { font-size: 22px; margin-top: 1px; }
+html .pcard .cos-hold { position: relative; flex: none; display: block; line-height: 0; }
+/* the sticker is slapped on the pfp's bottom corner, so it never covers the name */
+html .pcard .cos-hold.has-stk { margin-right: 12px; }
+html .pcard .cos-stk { right: -20px; bottom: -14px; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; }
+html .pcard .cbw .cos-stk { right: -14px; bottom: -10px; width: 34px; height: 34px; }
+@media (max-width: 640px) { html .pcard .cbw { zoom: 1.2; } }
 </style>
 
 <div class="wrap">
@@ -1044,35 +1077,4 @@ new MutationObserver(() => DATA.length && show()).observe(document.documentEleme
 boot();
 </script>
 
-<!-- phones: hide the header buttons (the site bar menu covers them) -->
-<style>
-/* Game log fold-out on the player page (same look as the casino's "Earn chips at poker night" bar) */
-html .fold { padding: 0; border-left: 4px solid var(--gold, #f0c75e); }
-html .fold > summary { display: flex; align-items: center; gap: 12px; padding: 14px 18px; cursor: pointer; list-style: none; }
-html .fold > summary::-webkit-details-marker { display: none; }
-html .fold > summary b { font: 400 24px/1 var(--title, "Bebas Neue"), Impact, sans-serif; letter-spacing: .06em; white-space: nowrap; }
-html .fold > summary span { color: var(--muted); font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-html .fold > summary i { margin-left: auto; font: 400 17px var(--title, "Bebas Neue"), Impact, sans-serif; letter-spacing: .08em; color: var(--gold, #f0c75e); font-style: normal; white-space: nowrap; }
-html .fold > summary i::after { content: ' \25BE'; } html .fold[open] > summary i::after { content: ' \25B4'; }
-html .fold > :not(summary) { margin-left: 18px; margin-right: 18px; } html .fold > .table-scroll { margin-bottom: 16px; }
-
-@media (max-width: 640px) {
-  .recap-link, .tab-hide { display: none !important; }
-}
-</style>
-<link rel="stylesheet" href="/lateshow.css">
 <script type="module" src="/badge.js"></script>
-<link rel="stylesheet" href="/cosmetics.css">
-<link rel="stylesheet" href="/plates.css">
-<style>
-/* Study Cards on the player card (cosmetics.css has the looks). The border art is sized for a 64px pfp, so it's zoomed up. */
-html .pcard .cbw { zoom: 1.5; flex: none; position: relative; }
-html .pcard .cbw > .pc-mono { width: 64px; height: 64px; border: 0; font-size: 31px; padding-top: 3px; }
-html .pcard .cos-ttl { font-size: 22px; margin-top: 1px; }
-html .pcard .cos-hold { position: relative; flex: none; display: block; line-height: 0; }
-/* the sticker is slapped on the pfp's bottom corner, so it never covers the name */
-html .pcard .cos-hold.has-stk { margin-right: 12px; }
-html .pcard .cos-stk { right: -20px; bottom: -14px; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; }
-html .pcard .cbw .cos-stk { right: -14px; bottom: -10px; width: 34px; height: 34px; }
-@media (max-width: 640px) { html .pcard .cbw { zoom: 1.2; } }
-</style>

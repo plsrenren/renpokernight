@@ -820,6 +820,12 @@ a { color: inherit; }
 @media (max-width:640px){.whobg{align-items:flex-end;padding:0}.whobox{width:100%;max-height:70vh;padding-bottom:calc(18px + env(safe-area-inset-bottom))}}
 </style>
 <link rel="stylesheet" href="/cosmetics.css">
+<link rel="stylesheet" href="/badge.css">
+<style>
+@media (max-width: 640px) {
+  .recap-link { display: none !important; }
+}
+</style>
 </head>
 <body>
 <div class="wrap">
@@ -1144,11 +1150,6 @@ if (ME && ME.open) resume(ME.open);
 </script>
 
 <!-- phones: hide the header buttons (the site bar menu covers them) -->
-<style>
-@media (max-width: 640px) {
-  .recap-link { display: none !important; }
-}
-</style>
 <script type="module" src="/badge.js"></script>
 </body>
 </html>
