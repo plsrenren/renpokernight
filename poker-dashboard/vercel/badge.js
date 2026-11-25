@@ -2,8 +2,10 @@
 // signed in = you as you sit at the poker table (pfp in your border, dark plate with your overall bar washing in, name + chips,
 // sticker on the plate corner, title as a slanted tab underneath). Hover it (tap on a phone) for a card: chips + stack rank,
 // this quarter on the sheet, cosmetics owned, links. Phones show just face + chips; name and title move into the card.
-// Load: <script type="module" src="/badge.js"></script>. A page can give it a spot with <div id="sb"></div> (casino, shop,
-// poker, live put it where their old "name / sign out" corner was); otherwise it floats in the page's top right corner.
+// Load: <script type="module" src="/badge.js"></script>. The badge lives in the SITE BAR this script also draws (Nov 25 2026,
+// Renato's pick B + "1 Menus"): one slim bar across the top of every page = logo + THE STUDY (home), three menus Stats / Casino /
+// Cards (hover or tap for their pages), badge on the right. Phones: the menus fold into a caret next to THE STUDY, and a page's
+// bottom tab bar (.tabbar) is rebuilt as the same three menus opening upward. Pages keep only their own big title.
 // Cost: signed out = no call at all (the readable cas_in cookie says nobody signed in; a browser without it asks /api/me once a
 // week, for sessions made before the marker existed). Signed in = GET /api/me, kept 2 minutes in localStorage so clicking
 // around the site doesn't ask again. Pages that know a fresher balance call window.SB.bal(n).
@@ -22,18 +24,52 @@ const css = href => { if (!document.querySelector(`link[href$="${href}"]`)) docu
 
 css('/badge.css');
 let host = null, ME = null, mods = null;
+// the site's pages, in the three menus. here() = the one you're on
+export const MENU = [
+  ['Stats', [['/', 'Dashboard'], ['/recap', 'Recap'], ['/hall', 'Hall of Fame'], ['/h2h', 'Head to head']]],
+  ['Casino', [['/casino', 'Lobby'], ['/poker', 'Poker room'], ['/live', 'Live tables']]],
+  ['Cards', [['/shop', 'Shop & loadout'], ['/collection', 'Collection']]],
+];
+const here = () => location.pathname.replace(/\.html$/, '').replace(/\/index$/, '/').replace(/(.)\/$/, '$1') || '/';
+const CARET = '<svg class="sbn-c" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+const list = pages => pages.map(([href, name]) => `<a href="${href}"${href === here() ? ' class="on" aria-current="page"' : ''}>${esc(name)}</a>`).join('');
+const groupOn = pages => pages.some(([href]) => href === here());
 function mount() {
-  host = document.getElementById('sb');
-  // phones: always the slim strip above the page, so the page title keeps the whole width (Renato, Nov 25: titles got squished)
-  if (host && matchMedia('(max-width: 640px)').matches) { host.removeAttribute('id'); host.hidden = true; host = null; }
-  if (!host) { host = document.createElement('div'); host.id = 'sb'; host.className = 'sb-float'; document.body.appendChild(host); document.documentElement.classList.add('sb-floating'); }
-  host.classList.add('sb');
+  document.querySelectorAll('#sb').forEach(el => el.remove()); // old badge spots from before the bar
+  const bar = document.createElement('header');
+  bar.className = 'sbar'; bar.setAttribute('role', 'banner');
+  bar.innerHTML = `<a class="sbar-mk" href="/" aria-label="Poker Club @ The Study, dashboard"><i aria-hidden="true"></i><b>THE STUDY</b></a>
+    <button type="button" class="sbar-all" aria-label="Pages" aria-expanded="false">${CARET}</button>
+    <nav class="sbar-nav" aria-label="Pages">${MENU.map(([g, pages]) => `<div class="sbn${groupOn(pages) ? ' cur' : ''}"><button type="button" aria-expanded="false">${g}${CARET}</button><div class="sbn-m">${list(pages)}</div></div>`).join('')}</nav>
+    <div class="sb" id="sb"></div>
+    <div class="sbar-sheet" hidden>${MENU.map(([g, pages]) => `<div class="sbs-g"><span>${g}</span>${list(pages)}</div>`).join('')}</div>`;
+  document.body.prepend(bar);
+  const sp = document.createElement('div'); sp.className = 'sbar-sp'; bar.after(sp); // keeps the page clear of the bar
+  document.documentElement.classList.add('has-sbar');
+  host = bar.querySelector('#sb');
+  // menus: hover opens on a mouse (CSS); a tap/click toggles, one at a time
+  bar.querySelectorAll('.sbn > button').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation(); const g = b.parentNode, o = !g.classList.contains('open');
+    closeMenus(); g.classList.toggle('open', o); b.setAttribute('aria-expanded', o); }));
+  const all = bar.querySelector('.sbar-all'), sheet = bar.querySelector('.sbar-sheet');
+  all.addEventListener('click', e => { e.stopPropagation(); const o = sheet.hidden; closeMenus(); sheet.hidden = !o; all.setAttribute('aria-expanded', o); });
+  // a page's bottom tab bar (phones) becomes the same three menus, opening upward
+  document.querySelectorAll('nav.tabbar').forEach(t => {
+    t.classList.add('sbt');
+    t.innerHTML = MENU.map(([g, pages]) => `<div class="sbn${groupOn(pages) ? ' cur' : ''}"><button type="button" aria-expanded="false">${g}</button><div class="sbn-m">${list(pages)}</div></div>`).join('');
+    t.querySelectorAll('.sbn > button').forEach(b => b.addEventListener('click', e => {
+      e.stopPropagation(); const g = b.parentNode, o = !g.classList.contains('open'); closeMenus(); g.classList.toggle('open', o); }));
+  });
+}
+function closeMenus() {
+  document.querySelectorAll('.sbn.open').forEach(g => { g.classList.remove('open'); const b = g.querySelector('button'); b && b.setAttribute('aria-expanded', 'false'); });
+  const sh = document.querySelector('.sbar-sheet'); if (sh) sh.hidden = true;
+  const all = document.querySelector('.sbar-all'); if (all) all.setAttribute('aria-expanded', 'false');
 }
 
 function signedOut(msg) {
   ME = null;
   host.classList.remove('sb-me');
-  setTimeout(clear, 50); setTimeout(clear, 1500);
   host.innerHTML = `<a class="sb-out" href="/api/login?to=${page()}" title="Sign in with Discord">${DC}<span>SIGN IN</span></a>${msg ? `<div class="sb-msg" role="status">${esc(msg)}</div>` : ''}`;
 }
 
@@ -67,10 +103,9 @@ async function draw(m) {
   if (ME !== m) return;
   host.classList.add('sb-me');
   host.innerHTML = plate(m, L, P.bits);
-  clear(); setTimeout(clear, 1500); // again once the page has drawn its header
   const btn = host.querySelector('.sb-in');
   btn.addEventListener('click', e => {
-    e.stopPropagation(); const o = host.classList.toggle('open'); btn.setAttribute('aria-expanded', o);
+    e.stopPropagation(); closeMenus(); const o = host.classList.toggle('open'); btn.setAttribute('aria-expanded', o);
     // phones: the card spans the screen just under the badge, wherever the page put it
     const card = host.querySelector('.sb-card');
     card.style.top = o && matchMedia('(max-width: 640px)').matches ? Math.round(btn.getBoundingClientRect().bottom + 8) + 'px' : '';
@@ -81,21 +116,8 @@ async function draw(m) {
     location.reload();
   });
 }
-// a floating badge that would sit on top of the page's own links or title (e.g. /hall's "Latest recap" on a laptop) moves into
-// the slim strip above the page instead, like on phones
-function clear() {
-  if (!host || !host.classList.contains('sb-float')) return;
-  const root = document.documentElement; root.classList.remove('sb-strip');
-  const r = host.getBoundingClientRect(), hit = [...document.querySelectorAll('a, button, h1, select, input')].some(el => {
-    if (host.contains(el)) return false;
-    let q = el.getBoundingClientRect();
-    if (el.tagName === 'H1') { const g = document.createRange(); g.selectNodeContents(el); q = g.getBoundingClientRect(); } // the words, not the full-width block
-    return q.width && q.left < r.right + 8 && q.right > r.left - 8 && q.top < r.bottom + 4 && q.bottom > r.top - 4; });
-  root.classList.toggle('sb-strip', hit);
-}
-addEventListener('resize', () => requestAnimationFrame(clear));
-document.addEventListener('click', e => { if (host && !host.contains(e.target)) host.classList.remove('open'); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && host) host.classList.remove('open'); });
+document.addEventListener('click', e => { if (host && !host.contains(e.target)) host.classList.remove('open'); if (!e.target.closest('.sbn-m, .sbar-sheet')) closeMenus(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { host && host.classList.remove('open'); closeMenus(); } });
 
 async function ask() {
   ls.set('sb:chk', Date.now());

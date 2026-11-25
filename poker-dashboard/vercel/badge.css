@@ -1,11 +1,7 @@
 /* Sign-in badge (badge.js): top right of every page, Renato's pick B "seat plate" (Nov 25 2026). Every selector starts with html
    so it beats the page's own <style>. Borders, bars and stickers come from cosmetics.css + plates.css (badge.js links them). */
 html .sb { --sb-ink: #15132a; position: relative; z-index: 60; font-family: "Space Grotesk", system-ui, sans-serif; line-height: 1.2; color: #ece9fb; text-align: left; }
-/* pages without a spot of their own: float in the top right corner */
-html .sb.sb-float { position: absolute; top: 14px; right: 18px; }
 html .sb-wait { display: block; width: 38px; height: 38px; background: #26224a; opacity: .5; }
-html.sb-strip body { padding-top: 54px; }
-html.sb-strip .sb.sb-float { top: 8px; }
 /* signed out: one slanted Discord tag */
 html .sb-out { display: inline-flex; align-items: center; gap: 7px; font: 400 16px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .1em; color: #fff; background: #5865F2; padding: 7px 16px 5px 10px; clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%); text-decoration: none; white-space: nowrap; }
 html .sb-out:hover { background: #4752c4; }
@@ -53,12 +49,61 @@ html .sbc-ln a.pri { background: #8f78f0; color: #fff; }
 html .sbc-ln button.out { background: none; color: #9a94c4; margin-left: auto; }
 html .sbc-ln button.out:hover { color: #fff; }
 
-/* phones: face + chips only (name and title live in the card); floating badges sit in a slim strip above the page */
+/* ---------- the site bar (Nov 25 2026, Renato's pick B + "1 Menus"): logo + THE STUDY, Stats / Casino / Cards menus, badge ---------- */
+html .sbar { position: absolute; top: 0; left: 0; right: 0; z-index: 90; height: 54px; display: flex; align-items: center; gap: 6px; padding-right: 16px;
+  background: rgba(13,11,28,.82); border-bottom: 1px solid #2c2852; font-family: "Space Grotesk", system-ui, sans-serif; color: #ece9fb; }
+html .sbar-sp { height: 54px; }
+html .sbar-mk { display: flex; align-items: center; gap: 12px; height: 100%; text-decoration: none; color: #ece9fb; flex: none; }
+html .sbar-mk i { width: 58px; height: 100%; background: url(/icon-192.png) center / 34px no-repeat, #e0507f; clip-path: polygon(0 0, 100% 0, 82% 100%, 0 100%); }
+html .sbar-mk b { font: 400 24px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .05em; white-space: nowrap; margin-top: 2px; }
+html .sbar-mk:hover b { color: #f1c75b; }
+html .sbar-nav { display: flex; gap: 2px; margin-left: 14px; height: 100%; }
+html .sbn { position: relative; display: flex; align-items: center; }
+html .sbn > button { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 6px; height: 34px; padding: 3px 12px 0;
+  font: 400 17px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .1em; color: #9a94c4; }
+html .sbn > button:hover, html .sbn.open > button { color: #ece9fb; }
+html .sbn.cur > button { color: #15132a; background: #f1c75b; }
+html .sbn > button:focus-visible, html .sbar-all:focus-visible { outline: 2px solid #f1c75b; outline-offset: 2px; }
+html .sbn-c { width: 10px; height: 6px; margin-top: -2px; }
+html .sbn-m { position: absolute; left: 0; top: calc(100% - 4px); min-width: 190px; display: none; flex-direction: column; padding: 4px 0;
+  background: #1d1a37; border-top: 3px solid #f1c75b; box-shadow: 0 14px 30px rgba(0,0,0,.55); z-index: 95; }
+html .sbn-m::before { content: ""; position: absolute; left: 0; right: 0; top: -10px; height: 10px; } /* hover bridge */
+html .sbn.open .sbn-m { display: flex; }
+@media (hover: hover) and (pointer: fine) { html .sbar .sbn:hover .sbn-m { display: flex; } }
+html .sbn-m a, html .sbar-sheet a { font: 400 18px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .08em; color: #ece9fb; text-decoration: none; padding: 10px 16px 8px; }
+html .sbn-m a:hover, html .sbar-sheet a:hover { background: #26224a; }
+html .sbn-m a.on, html .sbar-sheet a.on { color: #f1c75b; box-shadow: inset 3px 0 0 #f1c75b; }
+html .sbar .sb { margin-left: auto; flex: none; }
+html .sbar .sb-in { padding-bottom: 0; }
+html .sbar .sb-ttl { display: none; } /* the title shows in the card; there's no room under a slim bar */
+html .sbar .sb-stk { bottom: auto; top: 50%; right: -13px; transform: translateY(-50%) rotate(8deg); }
+html .sbar .sb-name { padding-right: 20px; } /* room for the sticker on the plate's end */
+html .sbar .sbar-mk b, html .sbar .sbar-mk:visited b { color: #ece9fb; }
+html .sbar .sbar-mk:hover b { color: #f1c75b; }
+html .sbar .sb-card { top: calc(100% + 8px); }
+html .sbar-all { all: unset; display: none; cursor: pointer; padding: 10px 8px; color: #9a94c4; }
+html .sbar-all .sbn-c { width: 12px; height: 8px; margin: 0; }
+html .sbar-sheet { position: absolute; left: 0; right: 0; top: 100%; background: #1d1a37; border-top: 3px solid #f1c75b; box-shadow: 0 14px 30px rgba(0,0,0,.55); padding: 6px 0 10px; }
+html .sbar-sheet[hidden] { display: none; }
+html .sbs-g { display: flex; flex-direction: column; }
+html .sbs-g > span { font: 400 13px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .14em; color: #9a94c4; padding: 12px 16px 4px; }
+/* the page's own bottom tab bar, rebuilt as the three menus (phones) */
+html nav.tabbar.sbt { display: none; }
+
+/* phones: logo + THE STUDY + caret for every page, badge = face + chips (name and title live in the card) */
 @media (max-width: 640px) {
-  html .sb.sb-float { top: 8px; right: 12px; }
-  html.sb-floating body { padding-top: 46px; }
-  html .sb-in { padding-bottom: 0; }
-  html .sb-name b, html .sb-ttl { display: none; }
+  html .sbar { height: 50px; padding-right: 12px; gap: 0; }
+  html .sbar-sp { height: 50px; }
+  html .sbar-mk i { width: 50px; background-size: 30px; }
+  html .sbar-mk b { font-size: 21px; }
+  html .sbar-nav { display: none; }
+  html .sbar-all { display: block; }
+  html .sb-name b { display: none; }
   html .sb-name { min-width: 0; padding: 4px 8px 4px 9px; }
   html .sb-card { position: fixed; left: 12px; right: 12px; top: 58px; width: auto; }
+  html nav.tabbar.sbt { display: grid; grid-template-columns: repeat(3, 1fr); }
+  html nav.tabbar.sbt .sbn { display: block; }
+  html nav.tabbar.sbt .sbn > button { width: 100%; height: 100%; min-height: 50px; justify-content: center; padding: 4px 0 0; font-size: 16px; }
+  html nav.tabbar.sbt .sbn-m { top: auto; bottom: 100%; border-top: 0; border-bottom: 3px solid #f1c75b; }
+  html nav.tabbar.sbt .sbn:last-child .sbn-m { left: auto; right: 0; }
 }
