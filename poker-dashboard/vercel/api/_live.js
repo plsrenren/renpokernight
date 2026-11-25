@@ -57,6 +57,28 @@ async function payOut(list) {
   if (cmds.length) await kv(...cmds);
 }
 
+// ---------- /live on Discord (Nov 25 2026, by request: info only, playing stays on the site) ----------
+export const LIVE_COMMAND = { name: 'live', description: 'Is a live table open? Game, who is seated, open seats, and a link to sit down', type: 1 };
+/** read-only: never saves, so it costs one Redis GET. A table that is due to auto-close shows as closed. */
+export async function liveCommand(origin = 'https://renpokernight.vercel.app') {
+  const T = await load(), now = Date.now(), c = JSON.parse(JSON.stringify(T));
+  E.tick(c, now);
+  const url = origin + '/live', btn = label => [{ type: 1, components: [{ type: 2, style: 5, label, url }] }];
+  if (!c.open) return { allowed_mentions: { parse: [] }, components: btn('Open a table'),
+    embeds: [{ color: 0x8f78f0, title: '🎰 No live table open', url, description: `Anyone in the server can open one on the site: blackjack, Free Bet or Ultimate Texas Hold'em, up to ${E.SEATS} players at once against one dealer.` }] };
+  const seated = c.seats.filter(Boolean), open = E.SEATS - seated.length;
+  const state = c.closing ? 'Closing after this round' : c.phase === 'paused' ? 'Paused by the host' : c.phase === 'act' ? `Round ${c.round} is being played` : seated.length ? 'Taking bets' : 'Waiting for players';
+  const min = Math.max(1, Math.round((now - (c.openedAt || now)) / 60e3));
+  return { allowed_mentions: { parse: [] }, components: btn(open ? 'Take a seat' : 'Watch the table'),
+    embeds: [{ color: 0x2e9e5b, title: `🎰 Live ${E.GAMES[c.game]} table`, url,
+      description: `${state}. Bets $${c.cfg.min} to $${E.betMax(c)}${c.game === 'uth' ? ' on the ante' : ''}.`,
+      fields: [
+        { name: `Seated (${seated.length}/${E.SEATS})`, value: seated.length ? seated.map(s => s.name).join(', ').slice(0, 1000) : 'Nobody yet', inline: false },
+        { name: 'Open seats', value: open ? String(open) : 'Full, you can watch', inline: true },
+        { name: 'Host', value: c.host ? c.host.name : 'Nobody', inline: true }],
+      footer: { text: `Open for ${min < 60 ? min + ' min' : Math.floor(min / 60) + 'h ' + (min % 60) + 'm'}` } }] };
+}
+
 // ---------- Ably ----------
 const ablyKey = () => process.env.ABLY_API_KEY || '';
 async function publish(T, t) {
