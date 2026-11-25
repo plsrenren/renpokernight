@@ -665,7 +665,7 @@ const syncLine = '<div class="sync">🔗 Uses your Discord chips. Your balance a
 function blackjack(fm) {
   const g = fm ? T.fb : T.bj, bk = fm ? 'fb' : 'bj', bet = pref(bk, 20) || 0, p22 = fm ? pref('p22', 0) || 0 : 0, live = g && !g.over;
   if (!fm) spotOn = 'main';
-  const spots = live ? '' : spotsHTML([['main', bk, 'Bet', `$1 to $${S.maxBet}`], ...(fm ? [['side', 'p22', 'Push 22', 'pays 11:1', 'sm']] : [])]);
+  const spots = live ? '' : spotsHTML([['main', bk, 'Bet', `$1 to $${S.maxBet}`], ...(fm ? [['side', 'p22', 'Push 22', 'pays 12:1', 'sm']] : [])]);
   let inner = '<div class="lbl">Dealer</div><div class="hand">' + card('__') + card('__') + '</div><div class="lbl">' + esc(S.me.name) + '</div><div class="hand">' + card('__') + card('__') + '</div>';
   if (g) {
     const many = g.hands.length > 2;
@@ -676,7 +676,7 @@ function blackjack(fm) {
       g.hands.map((h, k) => `<div><div class="lbl${live && g.active === k && g.hands.length > 1 ? ' on' : ''}">${name(k)} · ${stake(h)}${h.freeDbl ? ' (free double)' : h.doubled ? ' (doubled)' : ''}
         <span class="tot" data-late>${h.soft && h.total < 21 && live && g.active === k ? `${h.total - 10} / ${h.total}` : h.total}</span>${h.res ? `<span data-late class="tag ${h.res}">${{ win: 'WIN', bj: 'BLACKJACK', push: 'PUSH', lose: 'LOSE', bust: 'BUST' }[h.res]}</span>` : ''}</div>
         <div class="hand">${h.cards.map(card).join('')}</div></div>`).join('') + '</div>' +
-      (g.side ? `<div class="lbl">Push 22 · ${money(g.side)}${g.over ? `<span data-late class="tag ${g.sideWin ? 'win' : 'lose'}">${g.sideWin ? 'WIN 11:1' : 'LOSE'}</span>` : ''}</div>` : '') +
+      (g.side ? `<div class="lbl">Push 22 · ${money(g.side)}${g.over ? `<span data-late class="tag ${g.sideWin ? 'win' : 'lose'}">${g.sideWin ? 'WIN 12:1' : 'LOSE'}</span>` : ''}</div>` : '') +
       (live ? betChip(g.hands.reduce((a, h) => a + h.bet, 0) + (g.side || 0)) : '') + (g.over ? resultStamp(g.net) : '');
   }
   inner += spots;
@@ -685,7 +685,7 @@ function blackjack(fm) {
   const controls = `<div class="ctlbox">${live ? `<div class="slots">${btn('data-bj="hit"', 'Hit', 'gold')}${btn('data-bj="stand"', 'Stand', '')}${btn('data-bj="double"', g.freeDouble ? 'Free double' : 'Double', g.freeDouble ? 'free' : 'ghost', g.canDouble)}${btn('data-bj="split"', g.freeSplit ? 'Free split' : 'Split', g.freeSplit ? 'free' : 'ghost', g.canSplit)}</div>`
     : rackHTML(bk, fm ? 'p22' : null, `data-do="${bk}-deal"`, `Deal ${money(need)}`, bet >= 1 && need <= (S.me.bal || 0), hint)}</div>`;
   const rules = fm
-    ? `Free double on a hard 9, 10 or 11 · free split on any pair except 10s (up to 6 hands) · a free bet pays even money when its hand wins and costs nothing when it loses · dealer hits soft 17 · dealer 22 pushes every standing hand · blackjack pays 3:2 · Push 22 side bet ($0 to $${S.maxPush22 || 25}) pays 11:1 · $1 to $${S.maxBet}. Same as /freebet.`
+    ? `Free double on a hard 9, 10 or 11 · free split on any pair except 10s (up to 6 hands) · a free bet pays even money when its hand wins and costs nothing when it loses · dealer hits soft 17 · dealer 22 pushes every standing hand · blackjack pays 3:2 · Push 22 side bet ($0 to $${S.maxPush22 || 25}) pays 12:1 · $1 to $${S.maxBet}. Same as /freebet.`
     : `Blackjack pays 3:2 · dealer stands on all 17s · double on any first two cards · split up to 6 hands (split aces get one card each) · $1 to $${S.maxBet}. Same as /blackjack.`;
   return `${balBar(fm ? 'Free Bet' : 'Blackjack', g && g.over ? g.net : 0)}${felt(g ? g.id : '', inner)}${controls}<div class="err">${esc(T.err)}</div>
     <p class="rules">${rules}</p>${syncLine}`;

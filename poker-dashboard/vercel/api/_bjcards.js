@@ -85,7 +85,7 @@ export function table({ dealer, hands, activeIdx, results, bets, frees = [], sid
   return h('div', { width: W * S, flexDirection: 'column', gap: 12 * S, padding: `${14 * S}px ${16 * S}px`, ...FELT, boxSizing: 'border-box' },
     h('div', { flexDirection: 'column', gap: 6 * S }, label('Dealer', d22 ? tagText('22 PUSHES', '#9a94c4', '#16132b') : null), row(dealer, hidden ? `${dTot} + ?` : String(dTot), false, false)),
     many ? h('div', { flexWrap: 'wrap', columnGap: 16 * S, rowGap: 10 * S }, hands.map(handBox)) : hands.map(handBox),
-    side ? label('Push 22 side bet', [betTag(side), sw ? tagText('WIN 11:1', '#8ee0b0', '#0e2a1c') : sl ? tag('lose') : null]) : null);
+    side ? label('Push 22 side bet', [betTag(side), sw ? tagText('WIN 12:1', '#8ee0b0', '#0e2a1c') : sl ? tag('lose') : null]) : null);
 }
 const tagText = (t, bg, fg) => h('div', { backgroundColor: bg, color: fg, fontFamily: 'Nunito', fontWeight: 900, fontSize: 11 * S, letterSpacing: 1 * S, padding: `${2 * S}px ${7 * S}px`, borderRadius: 5 * S }, t);
 
