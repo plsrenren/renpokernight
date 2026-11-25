@@ -432,10 +432,11 @@ h1{font-family:'Bebas Neue',Impact,sans-serif;font-weight:400;font-size:clamp(44
 .fc .rg span{font-family:'Bebas Neue',Impact,sans-serif;font-size:17px;color:var(--muted);letter-spacing:.06em}
 .fc .rg b{font-family:'Bebas Neue',Impact,sans-serif;font-weight:400;font-size:32px;line-height:1;color:#fff}
 .fc .rg i{position:absolute;left:0;bottom:0;height:3px}
-.fc .nt{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:0 22px}
-.fc .nt div{background:#1d1a37;border-top:4px solid;padding:9px 12px}
+.fc .nt{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:0 22px} /* last 4 nights, same as the dashboard card */
+.fc .nt div{background:#1d1a37;border-top:4px solid;padding:9px 10px;min-width:0}
 .fc .nt small{display:block;font-size:11px;color:var(--muted)}
-.fc .nt b{font-family:'IBM Plex Mono',ui-monospace,monospace;font-weight:600;font-size:18px}
+.fc .nt b{font-family:'IBM Plex Mono',ui-monospace,monospace;font-weight:600;font-size:15px;white-space:nowrap}
+@media (max-width:480px){.fc .nt{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .fc .ch{margin:6px 22px 0;background:#1d1a37;height:72px}
 .fc .bk{margin:0 22px}
 .fc .bk div{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #2c2750;font-size:13px;color:#fff}
@@ -754,7 +755,9 @@ h1{font-family:'Bebas Neue',Impact,sans-serif;font-weight:400;font-size:clamp(44
 /* ---- the real page on top of the mockup styles ---- */
 :root { --logo: url(/icon-192.png); --soft: #cfcaf0; --title: 'Bebas Neue', Impact, sans-serif; }
 a { color: inherit; }
-.wrap { max-width: 1240px; }
+/* the site-wide page frame (same as lateshow.css, which this page doesn't link): width, left edge, title spot */
+.wrap { box-sizing: border-box; max-width: 1240px; padding-top: 24px; padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)); }
+@media (max-width: 640px) { .wrap { padding-top: 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); } }
 .top { align-items: flex-start; }
 .brand { display: flex; align-items: stretch; }
 .brand .lg { display: block; width: 92px; height: 78px; flex: none; background: var(--logo) center / 58px no-repeat, var(--pink); clip-path: polygon(0 0, 100% 0, 84% 100%, 0 100%); margin-right: 14px; }
@@ -843,7 +846,7 @@ import { SHEET_URL, MEMBERS_URL, gameRecords, playerCard, memberIds, hueFor, ini
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const money = n => (n < 0 ? '−' : '') + '$' + (Math.abs(n) % 1 ? Math.abs(n).toFixed(2) : String(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+const money = n => (n < 0 ? '−' : '') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); // cents on every amount, site-wide
 const signed = n => (n > 0 ? '+' : '') + money(n);
 const DISCORD_SVG = '<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M20.3 4.4A19.6 19.6 0 0 0 15.4 3l-.6 1.3a18 18 0 0 0-5.6 0L8.6 3a19.6 19.6 0 0 0-4.9 1.5C.6 9-.3 13.6.1 18.1A19.8 19.8 0 0 0 6.1 21l1.3-2.1a12.8 12.8 0 0 1-2-1l.5-.4a14 14 0 0 0 12.2 0l.5.4c-.6.4-1.3.7-2 1l1.3 2.1a19.7 19.7 0 0 0 6-3c.5-5.2-.9-9.8-3.6-13.7zM8.3 15.3c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4zm7.4 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4z"/></svg>';
 const ERRS = { cancelled: 'Sign-in was cancelled.', expired: 'That sign-in link expired. Try again.', discord: "Discord didn't let the sign-in through. Try again in a moment.",
@@ -889,10 +892,10 @@ function card(eq) {
   let h = `<div class="mini fc"><div class="fhero"><img class="ban" alt=""${banOk ? ` src="/api/avatar?id=${esc(id)}&kind=banner"` : ''} data-src="/api/avatar?id=${esc(id)}&kind=banner" onerror="this.removeAttribute('src')"><div class="big">${big}</div>
  <div class="fwho"><div class="fpf${pf ? ' framed' : ''}">${pf ? framed(pf, img) : img}${sk ? `<div class="fstk">${STICKERS[sk.name] || ''}</div>` : ''}</div><div><div class="fnm">${esc(name.toUpperCase())}</div>${tt ? `<div class="fttl" style="color:${TCOL[tt.tier]}">${esc(tt.name.toUpperCase())}</div>` : ''}
  <div class="fss">${pc ? `${esc(pc.label)} · played ${pc.played} of ${pc.nights}` : 'No games on the sheet yet'}</div>${has && pc.badges.length ? `<div class="bdg">${pc.badges.map(b => `<span>${esc(b)}</span>`).join('')}</div>` : ''}</div></div></div>
- <div class="ovr ${ov ? ovc(ov) : ''}"><div class="o"><b>${big}</b><i>OVERALL<small>${has && pc.ovr ? `${pc.ovr.rank} of ${pc.ovr.of} regulars` : 'not rated yet'}</small></i></div><div class="s"><b>${has ? signed(Math.round(pc.net)) : '–'}</b><i>NET</i></div><div class="s"><b>${has ? pc.wins : '–'}</b><i>WINS</i></div><div class="s"><b>${has ? '#' + pc.rank : '–'}</b><i>${has ? 'OF ' + pc.of : 'RANK'}</i></div></div>`;
+ <div class="ovr ${ov ? ovc(ov) : ''}"><div class="o"><b>${big}</b><i>OVERALL<small>${has && pc.ovr ? `${pc.ovr.rank} of ${pc.ovr.of} regulars` : 'not rated yet'}</small></i></div><div class="s"><b>${has ? signed(pc.net) : '–'}</b><i>NET</i></div><div class="s"><b>${has ? pc.wins : '–'}</b><i>WINS</i></div><div class="s"><b>${has ? '#' + pc.rank : '–'}</b><i>${has ? 'OF ' + pc.of : 'RANK'}</i></div></div>`;
   if (!has) return h + `<div class="nogames">${pc ? `No games in ${esc(pc.label)} yet. Your stats fill in after your next night.` : 'Your stats show here once you play a night.'}</div><div class="ft"><b>POKER CLUB @ THE STUDY</b><span>renpokernight.vercel.app</span></div></div>`;
   if (pc.attrs.length) h += `<div class="sec"><b style="background:var(--vio)">RATINGS</b></div><div class="rg">${pc.attrs.map(({ k, v }) => `<div><span>${k}</span><b>${v}</b><i style="width:${v}%;background:${rcol(v)}"></i></div>`).join('')}</div>`;
-  const last = pc.form.slice(-3), up = last.filter(f => f.net > 0).length, dn = last.filter(f => f.net < 0).length;
+  const last = pc.form.slice(-4), up = last.filter(f => f.net > 0).length, dn = last.filter(f => f.net < 0).length;
   h += `<div class="sec"><b style="background:var(--pink)">LAST ${last.length} NIGHT${last.length === 1 ? '' : 'S'}</b><span>${up} up · ${dn} down</span></div>
  <div class="nt">${last.map(f => `<div style="border-color:${f.net >= 0 ? '#8fe0b0' : '#f0889f'}"><small>${esc(f.date)}</small><b class="${f.net >= 0 ? 'up' : 'dn'}">${signed(f.net)}</b></div>`).join('')}</div>`;
   if (pc.form.length > 1) {
@@ -1140,21 +1143,12 @@ renderAll();
 if (ME && ME.open) resume(ME.open);
 </script>
 
-<!-- phone-only tab bar at the bottom (the header buttons hide on phones) -->
+<!-- phones: hide the header buttons (the site bar menu covers them) -->
 <style>
-.tabbar { display: none; }
 @media (max-width: 640px) {
-  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: grid; grid-template-columns: repeat(5, 1fr);
-    background: rgba(22,19,42,.94); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border-top: 1px solid rgba(255,255,255,.1);
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
-  .tabbar a { display: flex; flex-direction: column; align-items: center; gap: 3px; color: #a9a3cf; text-decoration: none; font: 400 14px/1.1 'Bebas Neue', Impact, sans-serif; letter-spacing: .1em; padding: 4px 0; }
-  .tabbar a span { font-size: 20px; line-height: 1; }
-  .tabbar a.on { color: #15132a; background: var(--gold); }
-  body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
   .recap-link { display: none !important; }
 }
 </style>
-<nav class="tabbar" aria-label="Pages"><a href="/"><span aria-hidden="true">📊</span>Dashboard</a><a href="/recap"><span aria-hidden="true">📰</span>Recap</a><a href="/hall"><span aria-hidden="true">🏆</span>Hall</a><a href="/h2h"><span aria-hidden="true">⚔️</span>H2H</a><a href="/casino" class="on" aria-current="page"><span aria-hidden="true">🃏</span>Casino</a></nav>
 <script type="module" src="/badge.js"></script>
 </body>
 </html>

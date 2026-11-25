@@ -60,7 +60,7 @@ const ago = ms => { const m = Math.round((Date.now() - ms) / 60e3); return m < 6
 /** /jackpot */
 export function jackpotEmbed(v) {
   return { color: 0xf1c75b, title: `🎰 Casino jackpot: ${usd(v.pot)}`, url: `${SITE}/casino`,
-    description: `Drops at a secret amount before **${usd(v.cap).replace('.00', '')}**. The losing hand that pushes it over takes the whole pot.`,
+    description: `Drops at a secret amount before **${usd(v.cap)}**. The losing hand that pushes it over takes the whole pot.`,
     fields: [
       { name: 'How it grows', value: `${Math.round(JP.cut * 100)}% of every hand the house wins goes in. Blackjack, free bet, UTH, baccarat and roulette all count.` },
       { name: 'To win', value: `Bet ${money(JP.minBet)} or more. Pot resets to ${money(JP.seed)} after a hit.` },

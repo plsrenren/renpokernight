@@ -120,7 +120,7 @@ export function model(nights, n) {
 
   return {
     title: `${DAYS[date.getDay()]} Night @ The Study`,
-    sub: `${shortDate(n)} · ${n.type === 'Tournament' ? 'Tournament' : 'Cash game'} · ${rows.length} players put ${usd(pot, { sign: false, cents: !Number.isInteger(pot) })} on the table`,
+    sub: `${shortDate(n)} · ${n.type === 'Tournament' ? 'Tournament' : 'Cash game'} · ${rows.length} players put ${usd(pot, { sign: false })} on the table`,
     off: Math.abs(diff) >= 0.01 ? `Books off by ${usd(Math.abs(diff), { sign: false })}` : '',
     winner: { name: top.player, net: top.net, note: winNote },
     rows: rows.map(r => ({ ...r, form: form[r.player], hue: hueFor(r.player) })),
@@ -208,7 +208,7 @@ const pick = (cands, k, rnd) => {
   return out.map(c => c.parts);
 };
 const andList = a => a.length <= 2 ? a.join(' & ') : a.slice(0, -1).join(', ') + ' & ' + a[a.length - 1];
-const money0 = v => usd(v, { sign: false, cents: !Number.isInteger(v) });
+const money0 = v => usd(v, { sign: false }); // cents on every amount (Renato, Nov 25 2026)
 
 export function stories(nights, n) {
   const chrono = [...nights].reverse();

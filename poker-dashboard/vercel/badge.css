@@ -73,7 +73,7 @@ html .sbn.open .sbn-m { display: flex; }
 html .sbn-m a, html .sbar-sheet a { font: 400 18px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .08em; color: #ece9fb; text-decoration: none; padding: 10px 16px 8px; }
 html .sbn-m a:hover, html .sbar-sheet a:hover { background: #26224a; }
 html .sbn-m a.on, html .sbar-sheet a.on { color: #f1c75b; box-shadow: inset 3px 0 0 #f1c75b; }
-html .sbar .sb { margin-left: auto; flex: none; }
+html .sbar .sb { margin-left: auto; margin-right: 8px; flex: none; } /* room for the sticker that hangs off the plate's end, so it never runs past the screen */
 html .sbar .sb-in { padding-bottom: 0; }
 html .sbar .sb-ttl { display: none; } /* the title shows in the card; there's no room under a slim bar */
 html .sbar .sb-stk { bottom: auto; top: 50%; right: -13px; transform: translateY(-50%) rotate(8deg); }
@@ -87,8 +87,6 @@ html .sbar-sheet { position: absolute; left: 0; right: 0; top: 100%; background:
 html .sbar-sheet[hidden] { display: none; }
 html .sbs-g { display: flex; flex-direction: column; }
 html .sbs-g > span { font: 400 13px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .14em; color: #9a94c4; padding: 12px 16px 4px; }
-/* the page's own bottom tab bar, rebuilt as the three menus (phones) */
-html nav.tabbar.sbt { display: none; }
 
 /* phones: logo + THE STUDY + caret for every page, badge = face + chips (name and title live in the card) */
 @media (max-width: 640px) {
@@ -101,9 +99,4 @@ html nav.tabbar.sbt { display: none; }
   html .sb-name b { display: none; }
   html .sb-name { min-width: 0; padding: 4px 8px 4px 9px; }
   html .sb-card { position: fixed; left: 12px; right: 12px; top: 58px; width: auto; }
-  html nav.tabbar.sbt { display: grid; grid-template-columns: repeat(3, 1fr); }
-  html nav.tabbar.sbt .sbn { display: block; }
-  html nav.tabbar.sbt .sbn > button { width: 100%; height: 100%; min-height: 50px; justify-content: center; padding: 4px 0 0; font-size: 16px; }
-  html nav.tabbar.sbt .sbn-m { top: auto; bottom: 100%; border-top: 0; border-bottom: 3px solid #f1c75b; }
-  html nav.tabbar.sbt .sbn:last-child .sbn-m { left: auto; right: 0; }
 }

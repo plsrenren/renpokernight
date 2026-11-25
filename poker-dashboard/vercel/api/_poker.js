@@ -30,7 +30,7 @@ const CHAN = 'poker:table', CHAT = 'poker:chat';
 const ROOM = { key: 'pk:t', ver: 'pk:v' };
 const RENATO = '147939795400654848', API = 'https://discord.com/api/v10';
 const CAS = "local v=redis.call('GET',KEYS[1]) or '0' if v~=ARGV[1] then return 0 end redis.call('SET',KEYS[2],ARGV[3]) redis.call('SET',KEYS[1],ARGV[2]) return 1";
-const $ = n => '$' + Math.round(n).toLocaleString('en-US');
+const $ = n => '$' + (Math.round(n * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); // cents on every amount (Renato, Nov 25 2026)
 const int = v => { const n = Math.floor(+v); return Number.isFinite(n) ? n : NaN; };
 
 async function load(ref = ROOM) {

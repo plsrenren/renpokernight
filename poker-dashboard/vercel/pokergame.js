@@ -92,7 +92,7 @@ export function describe(h) {
 }
 
 // ---------- helpers ----------
-const $ = n => '$' + Math.round(n).toLocaleString('en-US');
+const $ = n => '$' + (Math.round(n * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); // cents on every amount (Renato, Nov 25 2026)
 const inHand = s => s && s.cards.length > 0;
 const canAct = s => inHand(s) && !s.folded && !s.allIn;
 const alive = T => T.seats.filter(s => inHand(s) && !s.folded);

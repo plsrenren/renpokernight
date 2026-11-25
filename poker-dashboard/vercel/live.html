@@ -222,7 +222,7 @@ select { background: var(--panel2); color: var(--fg); border: 0; padding: 8px 8p
 <script type="module">
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const money = n => (n < 0 ? '−' : '') + '$' + (Math.round(Math.abs(n) * 100) / 100).toLocaleString('en-US');
+const money = n => (n < 0 ? '−' : '') + '$' + (Math.round(Math.abs(n) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); // cents on every amount, site-wide
 const hue = n => [...String(n)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
 const initials = n => String(n).split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
 const av = (id, name) => `<span class="av" style="--h:${hue(name)}">${esc(initials(name))}${id ? `<img src="/api/avatar?id=${esc(id)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;

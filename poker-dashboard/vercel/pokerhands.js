@@ -6,7 +6,7 @@
   const SYM = { s: '♠', h: '♥', d: '♦', c: '♣' };
   const RN = { T: '10' };
   const cardText = c => (RN[c[0]] || c[0]) + SYM[c[1]];
-  const money = n => '$' + (Math.round(n * 100) / 100).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  const money = n => (n < 0 ? '−' : '') + '$' + (Math.round(Math.abs(n) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const signed = n => (n > 0 ? '+' : n < 0 ? '−' : '') + money(Math.abs(n));
   const POS_MID = { 0: [], 1: ['UTG'], 2: ['UTG', 'CO'], 3: ['UTG', 'HJ', 'CO'], 4: ['UTG', 'MP', 'HJ', 'CO'], 5: ['UTG', 'UTG+1', 'MP', 'HJ', 'CO'] };
   const STREET = ['Pre-flop', 'Flop', 'Turn', 'River'];

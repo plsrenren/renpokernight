@@ -830,7 +830,7 @@ function renderCard(name, allGames) {
     + (best.net > 0 ? `<div class="rc-row"><span>Best night · ${fmtDate(best.date)}</span><span class="${signCls(best.net)}">${fmtSigned(best.net)}</span></div>` : '') + '</div>';
   const h = headToHead(name, scope);
   document.getElementById('rH2h').innerHTML = rcMatchup(h.best, h.best && h.best.rate > .5 ? 'up' : 'even', name, cp) + rcMatchup(h.worst, 'down', name, cp);
-  document.getElementById('rFoot').innerHTML = `<div><b class="${signCls(net)}">${fmtSigned(Math.round(net)).replace('.00', '')}</b><span>Net</span></div><div><b>${wins}</b><span>Wins</span></div><div><b>#${rank}</b><span>of ${ranked.length}</span></div>`;
+  document.getElementById('rFoot').innerHTML = `<div><b class="${signCls(net)}">${fmtSigned(net)}</b><span>Net</span></div><div><b>${wins}</b><span>Wins</span></div><div><b>#${rank}</b><span>of ${ranked.length}</span></div>`;
 }
 
 // Discord banner across the top of the card; falls back to the player's profile colour, then to the plain card
@@ -1044,7 +1044,7 @@ new MutationObserver(() => DATA.length && show()).observe(document.documentEleme
 boot();
 </script>
 
-<!-- phone-only tab bar at the bottom (the header buttons hide on phones) -->
+<!-- phones: hide the header buttons (the site bar menu covers them) -->
 <style>
 /* Game log fold-out on the player page (same look as the casino's "Earn chips at poker night" bar) */
 html .fold { padding: 0; border-left: 4px solid var(--gold, #f0c75e); }
@@ -1056,19 +1056,10 @@ html .fold > summary i { margin-left: auto; font: 400 17px var(--title, "Bebas N
 html .fold > summary i::after { content: ' \25BE'; } html .fold[open] > summary i::after { content: ' \25B4'; }
 html .fold > :not(summary) { margin-left: 18px; margin-right: 18px; } html .fold > .table-scroll { margin-bottom: 16px; }
 
-.tabbar { display: none; }
 @media (max-width: 640px) {
-  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: grid; grid-template-columns: repeat(5, 1fr);
-    background: rgba(22,19,42,.94); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border-top: 1px solid rgba(255,255,255,.1);
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
-  .tabbar a { display: flex; flex-direction: column; align-items: center; gap: 3px; color: #a9a3cf; text-decoration: none; font: 800 11px/1.1 Nunito, system-ui, sans-serif; padding: 4px 0; }
-  .tabbar a span { font-size: 20px; line-height: 1; }
-  .tabbar a.on { color: #f1c75b; }
-  body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
   .recap-link, .tab-hide { display: none !important; }
 }
 </style>
-<nav class="tabbar" aria-label="Pages"><a href="/" class="on" aria-current="page"><span aria-hidden="true">📊</span>Dashboard</a><a href="/recap"><span aria-hidden="true">📰</span>Recap</a><a href="/hall"><span aria-hidden="true">🏆</span>Hall</a><a href="/h2h"><span aria-hidden="true">⚔️</span>H2H</a><a href="/casino"><span aria-hidden="true">🃏</span>Casino</a></nav>
 <link rel="stylesheet" href="/lateshow.css">
 <script type="module" src="/badge.js"></script>
 <link rel="stylesheet" href="/cosmetics.css">

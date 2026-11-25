@@ -4,8 +4,8 @@
 // this quarter on the sheet, cosmetics owned, links. Phones show just face + chips; name and title move into the card.
 // Load: <script type="module" src="/badge.js"></script>. The badge lives in the SITE BAR this script also draws (Nov 25 2026,
 // Renato's pick B + "1 Menus"): one slim bar across the top of every page = logo + THE STUDY (home), three menus Stats / Casino /
-// Cards (hover or tap for their pages), badge on the right. Phones: the menus fold into a caret next to THE STUDY, and a page's
-// bottom tab bar (.tabbar) is rebuilt as the same three menus opening upward. Pages keep only their own big title.
+// Cards (hover or tap for their pages), badge on the right. Phones: the menus fold into a caret next to THE STUDY (no bottom
+// tab bar on any page, Renato's call Nov 25 2026). Pages keep only their own big title.
 // Cost: signed out = no call at all (the readable cas_in cookie says nobody signed in; a browser without it asks /api/me once a
 // week, for sessions made before the marker existed). Signed in = GET /api/me, kept 2 minutes in localStorage so clicking
 // around the site doesn't ask again. Pages that know a fresher balance call window.SB.bal(n).
@@ -15,7 +15,7 @@ const DC = '<svg viewBox="0 0 71 55" aria-hidden="true"><path fill="currentColor
 const ERR = { stranger: "Only club members can sign in. Ask in Discord to get added.", cancelled: 'Sign-in cancelled.', expired: 'That sign-in took too long. Try again.', discord: "Discord didn't answer. Try again.", setup: "Sign-in isn't set up yet." };
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const money = n => (n < 0 ? '−$' : '$') + Math.abs(+n || 0).toLocaleString('en-US', { minimumFractionDigits: Math.abs(n) % 1 ? 2 : 0, maximumFractionDigits: 2 });
+const money = n => (n < 0 ? '−$' : '$') + Math.abs(+n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const ord = n => n + (['th', 'st', 'nd', 'rd'][(n % 100 - 20) % 10] || ['th', 'st', 'nd', 'rd'][n % 100] || 'th');
 const ls = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }, del(k) { try { localStorage.removeItem(k); } catch (e) {} } };
 const hasMarker = () => /(?:^|;\s*)cas_in=1/.test(document.cookie);
@@ -53,13 +53,6 @@ function mount() {
     closeMenus(); g.classList.toggle('open', o); b.setAttribute('aria-expanded', o); }));
   const all = bar.querySelector('.sbar-all'), sheet = bar.querySelector('.sbar-sheet');
   all.addEventListener('click', e => { e.stopPropagation(); const o = sheet.hidden; closeMenus(); sheet.hidden = !o; all.setAttribute('aria-expanded', o); });
-  // a page's bottom tab bar (phones) becomes the same three menus, opening upward
-  document.querySelectorAll('nav.tabbar').forEach(t => {
-    t.classList.add('sbt');
-    t.innerHTML = MENU.map(([g, pages]) => `<div class="sbn${groupOn(pages) ? ' cur' : ''}"><button type="button" aria-expanded="false">${g}</button><div class="sbn-m">${list(pages)}</div></div>`).join('');
-    t.querySelectorAll('.sbn > button').forEach(b => b.addEventListener('click', e => {
-      e.stopPropagation(); const g = b.parentNode, o = !g.classList.contains('open'); closeMenus(); g.classList.toggle('open', o); }));
-  });
 }
 function closeMenus() {
   document.querySelectorAll('.sbn.open').forEach(g => { g.classList.remove('open'); const b = g.querySelector('button'); b && b.setAttribute('aria-expanded', 'false'); });

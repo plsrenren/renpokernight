@@ -70,7 +70,8 @@ export function total(cards) {
 }
 const natural = h => h.cards.length === 2 && !h.split && total(h.cards).t === 21;
 
-export const money = n => (n < 0 ? '−' : '') + '$' + (Math.abs(n) % 1 ? Math.abs(n).toFixed(2) : Math.abs(n));
+// commas + cents on every amount, same as the site ($12,480.50) (Renato, Nov 25 2026)
+export const money = n => (n < 0 ? '−' : '') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const json = body => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
 export const quiet = content => json({ type: 4, data: { content, flags: 64, allowed_mentions: { parse: [] } } });
 

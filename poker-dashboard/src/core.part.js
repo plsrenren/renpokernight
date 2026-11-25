@@ -120,7 +120,7 @@ export function model(nights, n) {
 
   return {
     title: `${DAYS[date.getDay()]} Night @ The Study`,
-    sub: `${shortDate(n)} · ${n.type === 'Tournament' ? 'Tournament' : 'Cash game'} · ${rows.length} players put ${usd(pot, { sign: false, cents: !Number.isInteger(pot) })} on the table`,
+    sub: `${shortDate(n)} · ${n.type === 'Tournament' ? 'Tournament' : 'Cash game'} · ${rows.length} players put ${usd(pot, { sign: false })} on the table`,
     off: Math.abs(diff) >= 0.01 ? `Books off by ${usd(Math.abs(diff), { sign: false })}` : '',
     winner: { name: top.player, net: top.net, note: winNote },
     rows: rows.map(r => ({ ...r, form: form[r.player], hue: hueFor(r.player) })),
