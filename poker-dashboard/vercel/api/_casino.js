@@ -11,7 +11,7 @@
 // Chips are the Discord bot's (bj:bal keyed by Discord user ID), so the site and Discord stay in sync both ways.
 // The game rules are the bot's own code (_blackjack.js, _uth.js, _baccarat.js); nothing is duplicated here.
 // Needs Vercel env var DISCORD_CLIENT_SECRET (Developer Portal > OAuth2) and the redirect
-// https://renpokernight.vercel.app/api/login added there. The app's client ID is looked up with DISCORD_BOT_TOKEN.
+// https://www.thepoker.study/api/login (and the old https://renpokernight.vercel.app/api/login) added there. The app's client ID is looked up with DISCORD_BOT_TOKEN.
 import { createHmac, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { kv, kvUrl, kvToken, MAX_BET, FEED_KEEP, claimDaily, dailyStatus, boardFrom, dailyFrom, weekKey, rakeFor, newHand as bjStart, handAction, publicHand, MAX_PUSH22 } from './_blackjack.js';
 import { newHand as uthStart, uthAction, publicUth, MAX_ANTE, MAX_TRIPS, UTH_PAYTABLE } from './_uth.js';

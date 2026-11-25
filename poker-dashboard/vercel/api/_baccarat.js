@@ -5,7 +5,7 @@
 import { randomInt } from 'node:crypto';
 import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, MAX_BET, feedCmds, takeChips } from './_blackjack.js';
 
-const SITE = 'https://renpokernight.vercel.app';
+const SITE = 'https://www.thepoker.study';
 export const DEFAULT_BET = 20;
 const SIDES = { player: 'Player', banker: 'Banker', tie: 'Tie' };
 

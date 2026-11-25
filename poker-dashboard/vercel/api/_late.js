@@ -73,7 +73,7 @@ const mast = (title, sub) => h({ height: 84, alignItems: 'stretch' },
   h({ width: 96, backgroundColor: L.pink, alignItems: 'center', paddingLeft: 13, clipPath: 'polygon(0 0, 100% 0, 82% 100%, 0 100%)' }, img(LOGO, 58, 58)),
   h({ flexDirection: 'column', justifyContent: 'center', paddingLeft: 6, flex: 1 },
     B(title.toUpperCase(), 36), T(sub, { fontSize: 12.5, color: L.muted, marginTop: 3 })));
-const foot = (l, r = 'renpokernight.vercel.app') => h({ marginTop: 20, height: 34, alignItems: 'center', justifyContent: 'space-between', backgroundColor: L.foot, paddingLeft: PAD, paddingRight: PAD },
+const foot = (l, r = 'thepoker.study') => h({ marginTop: 20, height: 34, alignItems: 'center', justifyContent: 'space-between', backgroundColor: L.foot, paddingLeft: PAD, paddingRight: PAD },
   B(l.toUpperCase(), 16, L.gold, { letterSpacing: 1.5 }), T(r, { fontSize: 11.5, color: L.muted }));
 const frame = (...kids) => h({ width: W, flexDirection: 'column', backgroundColor: L.night, color: L.text, overflow: 'hidden',
   backgroundImage: 'linear-gradient(115deg, rgba(143,120,240,0.18) 0%, rgba(143,120,240,0.18) 30%, rgba(21,19,42,0) 30%), radial-gradient(circle at 100% 0%, rgba(224,80,127,0.25), rgba(21,19,42,0) 45%)' }, kids);
@@ -141,7 +141,7 @@ export const recapCard = withAssets(m => {
     h({ paddingLeft: PAD, paddingRight: PAD, gap: 12 }, h({ flexDirection: 'column', flex: 1 }, m.standings.rows.slice(0, half).map(row)), h({ flexDirection: 'column', flex: 1 }, m.standings.rows.slice(half).map(row))),
     chy(st.quarterTitle, st.awardsNote, 'pink'),
     pad(st.quarter.map((w, i) => story(words(w), i + 1)), h({ flexWrap: 'wrap', gap: 6, marginTop: 12 }, st.awards.map(award))),
-    foot('Poker Club @ The Study', 'renpokernight.vercel.app/recap'));
+    foot('Poker Club @ The Study', 'thepoker.study/recap'));
 });
 export const toWords = words;
 
@@ -225,7 +225,7 @@ export const hallCardTree = withAssets((H, pics = {}) => {
     pad(shelf.map(shelfRow), h({ gap: 14, marginTop: 6 }, ...[['overall', L.gold], ['cash', L.vio], ['tourney', L.bronze]].map(([l, c]) => h({ alignItems: 'center', gap: 5 }, h({ width: 9, height: 9, backgroundColor: c }), T(l, { fontSize: 11.5, color: L.muted }))))),
     chy('Latest champions', 'best net each quarter', 'pink'),
     h({ paddingLeft: PAD, paddingRight: PAD, gap: 8 }, champ(done), champ(live)),
-    foot('Poker Club @ The Study', 'renpokernight.vercel.app/hall'));
+    foot('Poker Club @ The Study', 'thepoker.study/hall'));
 });
 
 // ---------- quarter wrap (/api/wrap) ----------
@@ -436,5 +436,5 @@ export const lotteryCardTree = withAssets((b, d, pics = {}) => {
       h({ flex: 1, flexDirection: 'column' }, listed.map(wheelRow),
         more.length ? M(`+ ${more.length} more`, 11, L.muted, { marginTop: 6 }) : null))
       : pad(T('No tickets yet this quarter.', { fontSize: 14, color: L.muted, paddingTop: 6 })),
-    foot('Poker Club @ The Study', d ? 'tickets start over every quarter' : '/lottery · renpokernight.vercel.app/casino'));
+    foot('Poker Club @ The Study', d ? 'tickets start over every quarter' : '/lottery · thepoker.study/casino'));
 });

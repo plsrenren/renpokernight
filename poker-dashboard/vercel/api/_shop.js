@@ -17,7 +17,7 @@ import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds, DEB
 import { ITEMS, BY_ID, PRICE, REFUND, ODDS, TIERS, SLOT_NAMES, PACKS, rollPack, itemFor, tierRank, championsFrom, RETIRED } from '../loot.js';
 import { earnedIds } from './_accolades.js';
 
-const SITE = 'https://renpokernight.vercel.app';
+const SITE = 'https://www.thepoker.study';
 const MAX_TIP = 100000;
 export const SHOP_COMMANDS = [
   { name: 'pack', description: `Buy a pack of Study Cards ($${PRICE}): 3 cosmetics for your player card`, type: 1 },

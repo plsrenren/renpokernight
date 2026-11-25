@@ -11,7 +11,7 @@
 // keyed by Discord user ID) and bj:g:<id> (a hand in progress, expires after an hour).
 import { randomInt, randomBytes } from 'node:crypto';
 
-const SITE = 'https://renpokernight.vercel.app';
+const SITE = 'https://www.thepoker.study';
 import { jackpotCmds } from './_jackpot.js';
 export const MAX_BET = 500;
 /** Most hands one deal can be split into (both games). */

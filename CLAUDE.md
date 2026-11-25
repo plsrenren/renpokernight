@@ -7,7 +7,7 @@ a phone entry page (Google Apps Script) writes each night's results into the she
 Google Sheet ("Poker Stats")  <──writes──  Entry page (Apps Script web app, poker-entry/)
         │
         └──read live (CSV)──>  Dashboard (static HTML on Vercel, poker-dashboard/)
-                                https://renpokernight.vercel.app
+                                https://www.thepoker.study (old https://renpokernight.vercel.app still works)
 ```
 
 ## Where things live
@@ -15,7 +15,7 @@ Google Sheet ("Poker Stats")  <──writes──  Entry page (Apps Script web a
 | Piece | Location |
 |---|---|
 | Data | Google Sheet ID `1YxoWSWgeTRrEiPlm1Ys85s4UsHKxSzpPHEssynXEytM`, shared "Anyone with the link can view" (required for the dashboard) |
-| Live dashboard | Vercel project **renpokernight** (personal account `renjrsaturnino-5667`), production URL https://renpokernight.vercel.app. Root dir `poker-dashboard/vercel`, static pages + `api/` functions, no build step, framework none. Connected to GitHub repo plsrenren/renpokernight since Oct 20, 2026: merging to main deploys production, PRs get preview deploys. `vercel --prod` from the CLI also works |
+| Live dashboard | Vercel project **renpokernight** (personal account `renjrsaturnino-5667`), production URL https://www.thepoker.study (domain bought Nov 25 2026 through Vercel; www is primary, thepoker.study 308s to www; renpokernight.vercel.app redirects every page to www via vercel.json but keeps serving /api/* so the Discord interactions URL, Apps Script calls, the QStash scheduler and old Discord embeds/buttons keep working). Code links use SITE = 'https://www.thepoker.study'; picture footers show the bare thepoker.study. Sign-in cookies + localStorage are per host. Root dir `poker-dashboard/vercel`, static pages + `api/` functions, no build step, framework none. Connected to GitHub repo plsrenren/renpokernight since Oct 20, 2026: merging to main deploys production, PRs get preview deploys. `vercel --prod` from the CLI also works |
 | Dashboard snapshot copy | claude.ai artifact https://claude.ai/artifact/LoHQxkyWcDKsdTMdW78zpC (snapshot of the data built in; claude.ai blocks fetches to Google, so it never updates by itself) |
 | Entry page | Apps Script bound to the sheet (Extensions → Apps Script). Deployed Oct 21, 2026 (access: Only myself): https://script.google.com/macros/s/AKfycbw0mcMTo7sT94TVOOKg5FHtPml5aVAIBUcRCGNGig-CPvJPpm5DiDLSxDmCdNVOUxWedg/exec . Install steps in `poker-entry/SETUP.md` |
 | PKO mockup (review only) | claude.ai artifact https://claude.ai/artifact/PTZadaxo3kkgmx5wEmbr6a |

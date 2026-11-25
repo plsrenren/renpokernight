@@ -7,7 +7,7 @@
 import { randomInt } from 'node:crypto';
 import { readReacts, latestInvite } from './_tourney.js';
 
-const SITE = 'https://renpokernight.vercel.app';
+const SITE = 'https://www.thepoker.study';
 const MAX = 16;
 
 export const SEATS_COMMAND = { name: 'seats', description: 'Random seat order for everyone in on the latest /game invite', type: 1,

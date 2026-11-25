@@ -51,7 +51,7 @@ import { INFO_COMMAND, postInfo } from './_info.js';
 import { LIVE_COMMAND, liveCommand } from './_live.js';
 import { SHEET_URL, MEMBERS_URL, gameRecords, findPlayer, latestQuarter, memberIds, toNights, hallOfFame, usd, wrapDefault, quartersWithGames } from '../recap-core.js';
 
-const SITE = 'https://renpokernight.vercel.app';
+const SITE = 'https://www.thepoker.study';
 const SEASON = { type: 3, name: 'season', description: 'This quarter or the whole year', required: false,
   choices: [{ name: 'This quarter', value: 'quarter' }, { name: 'This year', value: 'year' }] };
 const PLAYER = (name, description, required = false) => ({ type: 3, name, description, autocomplete: true, required });

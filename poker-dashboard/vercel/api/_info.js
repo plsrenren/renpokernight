@@ -5,7 +5,7 @@
 import { channels, HOME } from './_channels.js';
 import { kv, kvUrl } from './_blackjack.js';
 const API = 'https://discord.com/api/v10';
-const SITE = 'https://renpokernight.vercel.app';
+const SITE = 'https://www.thepoker.study';
 
 export const INFO_COMMAND = { name: 'info', description: 'Post the welcome post with site links and starter commands here (pitbosses only)', type: 1 };
 

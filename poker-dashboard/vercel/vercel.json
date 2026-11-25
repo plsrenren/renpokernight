@@ -1,6 +1,19 @@
 {
   "cleanUrls": true,
   "ignoreCommand": "git diff --quiet \"${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}\" HEAD -- .",
+  "redirects": [
+    {
+      "source": "/:path((?!api/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "renpokernight.vercel.app"
+        }
+      ],
+      "destination": "https://www.thepoker.study/:path",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/login",

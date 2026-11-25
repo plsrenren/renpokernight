@@ -275,7 +275,7 @@ const clearDraft = () => { try { localStorage.removeItem(DRAFT); } catch (e) {} 
 // Tap a row to tick them in, tap again to take them off.
 // NOTE (Nov 20 2026): Google's page server strips "//" comments naively, including inside `template strings`, which
 // cut a URL in half and broke the whole script. Never put "//" inside a template string; build URLs with + instead.
-const SITE = 'https:' + '/' + '/renpokernight.vercel.app';
+const SITE = 'https:' + '/' + '/www.thepoker.study';
 let showGuests = false;
 // Problem line: hidden unless something breaks (page error, swallowed start/tap error), so a phone user can report it
 const DIAG = { err: '' };

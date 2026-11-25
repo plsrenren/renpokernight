@@ -13,7 +13,7 @@ import { randomBytes, randomInt } from 'node:crypto';
 import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds, takeChips } from './_blackjack.js';
 import { afterJackpot } from './_jackpot.js';
 
-const SITE = 'https://renpokernight.vercel.app', API = 'https://discord.com/api/v10';
+const SITE = 'https://www.thepoker.study', API = 'https://discord.com/api/v10';
 const OPEN_MS = 30e3, CHIPS = [5, 10, 25, 50, 100], DEFAULT_CHIP = 10, MAX_PER_SPIN = 1000;
 const REDS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
 const BETS = {
