@@ -12,7 +12,7 @@
 import { randomBytes } from 'node:crypto';
 import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, freshDeck, MAX_BET, feedCmds } from './_blackjack.js';
 
-const SITE = 'https://renpokernight.vercel.app';
+const SITE = 'https://www.thepoker.study';
 const DEFAULT_BET = 20, EXPIRES = 10 * 60e3, TTL = 86400, CALL_OFF = 3 * 60e3, STUCK = 30 * 60e3;
 const GAME = { rps: 'Rock Paper Scissors', high: 'High Card', coin: 'Coin Flip' };
 const PICK = { r: ['🪨', 'Rock'], p: ['📄', 'Paper'], s: ['✂️', 'Scissors'] };

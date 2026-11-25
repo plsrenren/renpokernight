@@ -176,7 +176,7 @@ export function casinoText(people, nights) {
     p.lines.forEach(l => { const m = l.match(/^(.*) ([+-][\d.]+)$/); const k = m ? m[1] : l, v = m ? +m[2] : 0, x = by.get(k) || { n: 0, v: 0 }; by.set(k, { n: x.n + 1, v: r2(x.v + v) }); });
     return `<@${p.id}> **${$(p.total)}** · ${[...by].filter(([, x]) => x.v).map(([k, x]) => `${k}${x.n > 1 ? ' ×' + x.n : ''} ${$(x.v)}`).join(', ')}`;
   });
-  let text = [head, ...lines, '-# Spend them at /blackjack, /freebet, /uth, /baccarat, /roulette or renpokernight.vercel.app/casino'].join('\n');
+  let text = [head, ...lines, '-# Spend them at /blackjack, /freebet, /uth, /baccarat, /roulette or thepoker.study/casino'].join('\n');
   if (text.length > 1990) text = text.slice(0, 1985) + '…';
   return text;
 }

@@ -12,7 +12,7 @@ A phone-friendly page that adds one night's results to the **Input** tab of the 
 5. Optional settings at the top of `Code.gs`:
    - `DISCORD_WEBHOOK_URL`: paste your Discord webhook to get a "Post results to Discord" checkbox.
    - `ENTRY_PIN`: set a PIN if other people will use the link.
-   - `DASHBOARD_URL`: your dashboard link, added to the Discord post (already set to https://renpokernight.vercel.app).
+   - `DASHBOARD_URL`: your dashboard link, added to the Discord post (already set to https://www.thepoker.study).
 6. Click **Save** (disk icon).
 7. **Deploy → New deployment →** gear icon → **Web app**.
    - Execute as: **Me**
@@ -21,7 +21,7 @@ A phone-friendly page that adds one night's results to the **Input** tab of the 
 8. Click **Deploy**, approve the permissions Google asks for (it is your own script), and copy the **Web app URL**.
 9. Open that URL on your phone (signed in to the same Google account in the browser) and add it to your home screen.
 10. Check it: save a test night, confirm the rows appear at the bottom of the **Input** tab, then delete those rows.
-    The dashboard (https://renpokernight.vercel.app) picks up new rows within a minute or two.
+    The dashboard (https://www.thepoker.study) picks up new rows within a minute or two.
 
 ## Using it
 

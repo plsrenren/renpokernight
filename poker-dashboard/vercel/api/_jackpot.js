@@ -13,7 +13,7 @@ import { kv, money, FEED_KEEP, weekKey } from './_blackjack.js';
 import { postCasino } from './_rewards.js';
 
 export const JP = { cut: 0.02, seed: 500, cap: 2000, minBet: 5 };
-const SITE = 'https://renpokernight.vercel.app';
+const SITE = 'https://www.thepoker.study';
 
 // KEYS: jp, bj:bal, cas:feed, hs:wk:<week>, hs:all, jp:news, ac:n:<id>, ac:dirty (jackpot wins count toward the Mystery Machine / Struck Twice titles)
 // ARGV: 1 id, 2 slice, 3 qualifies (1/0), 4 seed, 5 cap, 6 random 0-1 (next drop point), 7 name, 8 game, 9 src, 10 now ms, 11 feed keep

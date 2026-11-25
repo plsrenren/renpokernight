@@ -893,7 +893,7 @@ function card(eq) {
  <div class="fwho"><div class="fpf${pf ? ' framed' : ''}">${pf ? framed(pf, img) : img}${sk ? `<div class="fstk">${STICKERS[sk.name] || ''}</div>` : ''}</div><div><div class="fnm">${esc(name.toUpperCase())}</div>${tt ? `<div class="fttl" style="color:${TCOL[tt.tier]}">${esc(tt.name.toUpperCase())}</div>` : ''}
  <div class="fss">${pc ? `${esc(pc.label)} · played ${pc.played} of ${pc.nights}` : 'No games on the sheet yet'}</div>${has && pc.badges.length ? `<div class="bdg">${pc.badges.map(b => `<span>${esc(b)}</span>`).join('')}</div>` : ''}</div></div></div>
  <div class="ovr ${ov ? ovc(ov) : ''}"><div class="o"><b>${big}</b><i>OVERALL<small>${has && pc.ovr ? `${pc.ovr.rank} of ${pc.ovr.of} regulars` : 'not rated yet'}</small></i></div><div class="s"><b>${has ? signed(pc.net) : '–'}</b><i>NET</i></div><div class="s"><b>${has ? pc.wins : '–'}</b><i>WINS</i></div><div class="s"><b>${has ? '#' + pc.rank : '–'}</b><i>${has ? 'OF ' + pc.of : 'RANK'}</i></div></div>`;
-  if (!has) return h + `<div class="nogames">${pc ? `No games in ${esc(pc.label)} yet. Your stats fill in after your next night.` : 'Your stats show here once you play a night.'}</div><div class="ft"><b>POKER CLUB @ THE STUDY</b><span>renpokernight.vercel.app</span></div></div>`;
+  if (!has) return h + `<div class="nogames">${pc ? `No games in ${esc(pc.label)} yet. Your stats fill in after your next night.` : 'Your stats show here once you play a night.'}</div><div class="ft"><b>POKER CLUB @ THE STUDY</b><span>thepoker.study</span></div></div>`;
   if (pc.attrs.length) h += `<div class="sec"><b style="background:var(--vio)">RATINGS</b></div><div class="rg">${pc.attrs.map(({ k, v }) => `<div><span>${k}</span><b>${v}</b><i style="width:${v}%;background:${rcol(v)}"></i></div>`).join('')}</div>`;
   const last = pc.form.slice(-4), up = last.filter(f => f.net > 0).length, dn = last.filter(f => f.net < 0).length;
   h += `<div class="sec"><b style="background:var(--pink)">LAST ${last.length} NIGHT${last.length === 1 ? '' : 'S'}</b><span>${up} up · ${dn} down</span></div>
@@ -906,7 +906,7 @@ function card(eq) {
   h += `<div class="sec"><b style="background:var(--gold);color:#15132a">THE BOOK</b></div><div class="bk">${bk.map(([t, x]) => `<div>${t} · ${x.n} night${x.n === 1 ? '' : 's'}<b class="${x.net >= 0 ? 'up' : 'dn'}">${signed(x.net)}</b></div>`).join('')}${pc.best ? `<div>Best night · ${esc(pc.best.date)}<b class="up">${signed(pc.best.net)}</b></div>` : ''}</div>`;
   const mu = [pc.h2h.best && ['VS EASIEST', pc.h2h.best, '#8fe0b0', 'up'], pc.h2h.worst && ['VS NEMESIS', pc.h2h.worst, '#f0889f', 'dn']].filter(Boolean);
   if (mu.length) h += `<div class="mu">${mu.map(([l, x, c, cl]) => `<div style="border-color:${c}">${IDS[x.p] ? `<img src="/api/avatar?id=${esc(IDS[x.p])}" alt="" onerror="this.remove()">` : `<span class="ini">${esc(initials(x.p))}</span>`}<span><small class="${cl}">${l}</small><b>${esc(x.p)} ${x.ahead}–${x.n - x.ahead}</b></span></div>`).join('')}</div>`;
-  return h + `<div class="ft"><b>POKER CLUB @ THE STUDY</b><span>renpokernight.vercel.app</span></div></div>`;
+  return h + `<div class="ft"><b>POKER CLUB @ THE STUDY</b><span>thepoker.study</span></div></div>`;
 }
 // Redraw by patching the page in place instead of replacing it: nodes that didn't change (the pfp GIF, the banner, a border
 // that's still the same) stay as they are, so picking a title doesn't blank and restart the frame and the animated pfp.

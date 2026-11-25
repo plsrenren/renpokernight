@@ -8,7 +8,7 @@ import { randomInt } from 'node:crypto';
 import { kv, FEED_KEEP } from './_blackjack.js';
 import { nightRows } from './_rewards.js';
 
-const SITE = 'https://renpokernight.vercel.app';
+const SITE = 'https://www.thepoker.study';
 export const TICKET = 10;                 // dollars bought in per ticket
 export const FIRST_QUARTER = 'Q4 2026';   // the first quarter with a draw
 export const LUCKY_ROLE = 'Lucky Ticket';

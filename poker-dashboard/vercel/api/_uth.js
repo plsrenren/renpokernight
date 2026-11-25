@@ -12,7 +12,7 @@
 import { randomBytes } from 'node:crypto';
 import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, freshDeck, feedCmds, takeChips } from './_blackjack.js';
 
-const SITE = 'https://renpokernight.vercel.app';
+const SITE = 'https://www.thepoker.study';
 export const MAX_ANTE = 100, MAX_TRIPS = 100, DEFAULT_ANTE = 10;
 
 export const UTH_COMMAND = { name: 'uth', description: "Ultimate Texas Hold'em against the dealer", type: 1,

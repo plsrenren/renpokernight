@@ -3,9 +3,10 @@
 // often waking up a cold copy of that function, and the picture popped in a second or more after the text.
 // Now the picture is drawn here, inside the same call (about 50 ms once warm), and uploaded with the message as table.png.
 // If drawing ever takes too long for Discord's 3-second answer window, the reply keeps the old link, so nothing breaks.
-const SITE = 'https://renpokernight.vercel.app';
+const SITE = 'https://www.thepoker.study';
 const NAME = 'table.png';
-const PICTURE = /^https:\/\/renpokernight\.vercel\.app\/api\/(bjcards|roulette)\?/;
+// Old host kept too: buttons on messages sent before the move to thepoker.study (Nov 2026) still carry the old links.
+const PICTURE = /^https:\/\/(?:www\.thepoker\.study|thepoker\.study|renpokernight\.vercel\.app)\/api\/(bjcards|roulette)\?/;
 
 let libs;
 /** Starts loading the drawing code (satori, resvg, fonts) in the background. Call it early so it overlaps the chip storage calls. */

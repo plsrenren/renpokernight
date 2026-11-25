@@ -60,7 +60,7 @@ async function payOut(list) {
 // ---------- /live on Discord (Nov 25 2026, by request: info only, playing stays on the site) ----------
 export const LIVE_COMMAND = { name: 'live', description: 'Is a live table open? Game, who is seated, open seats, and a link to sit down', type: 1 };
 /** read-only: never saves, so it costs one Redis GET. A table that is due to auto-close shows as closed. */
-export async function liveCommand(origin = 'https://renpokernight.vercel.app') {
+export async function liveCommand(origin = 'https://www.thepoker.study') {
   const T = await load(), now = Date.now(), c = JSON.parse(JSON.stringify(T));
   E.tick(c, now);
   const url = origin + '/live', btn = label => [{ type: 1, components: [{ type: 2, style: 5, label, url }] }];
