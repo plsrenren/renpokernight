@@ -321,7 +321,7 @@ function schedule() {
   const wait = Math.max(0, Math.min(...due) - serverNow()) + 250 + Math.random() * 400;
   tickT = setTimeout(() => api({ a: 'tick' }).catch(() => {}), wait);
 }
-function poll() { clearTimeout(pollT); const t = T(); pollT = setTimeout(async () => { if (!liveOn) await api().catch(() => {}); poll(); }, liveOn ? 30000 : !t || !t.open || document.hidden ? 12000 : 2000); }
+function poll() { clearTimeout(pollT); const t = T(); pollT = setTimeout(async () => { if (!liveOn && !document.hidden) await api().catch(() => {}); poll(); }, liveOn ? 30000 : !t || !t.open || document.hidden ? 12000 : 2000); }
 function connectLive() {
   if (rt || !S || !S.ably || !window.Ably) return;
   const getToken = () => S.me ? fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"a":"token"}', credentials: 'same-origin' }).then(r => r.json()) : fetch(API + '?token=1', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.json());
@@ -607,6 +607,7 @@ function bindTable() {
 document.addEventListener('click', () => { if (drop) { drop = false; render(); } });
 // countdown text + nothing else moves between updates
 setInterval(() => { const t = T(); if (!t) return; document.querySelectorAll('[data-cd="bet"]').forEach(e => { e.textContent = Math.max(0, Math.ceil((t.deadline - serverNow()) / 1000)) + 's'; }); }, 250);
+// a hidden tab doesn't poll (saves Redis commands, Nov 25 2026); coming back fetches the table at once
 document.addEventListener('visibilitychange', () => { if (!document.hidden) api().catch(() => {}); });
 
 (async function start() {
