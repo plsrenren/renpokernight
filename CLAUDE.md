@@ -59,7 +59,8 @@ poker-dashboard/
                        chipColor(v) (casino bet pickers), card()/deal()/flipTo(). CSS: --tk-felt1/2 green felt, four-color deck colors, card back, .tk-stk.
                        Casino tables now use the four-color deck, a chip stack + amount tag for the bet, full sounds; live tables the same green felt,
                        cards slide from a shoe face down and turn over (CSS deal/turn keyframes, --fx/--fy aimed by aimCards()), sounds via animationstart.
-                       Change a sound/color here, not in a page. Discord table pictures (_bjcards.js) still use the red/black deck.
+                       Change a sound/color here, not in a page. Discord table pictures (_bjcards.js) match it by hand: SUITC four-color deck, flat felt
+                       #1f4433 + purple rail (FELT; a gradient made PNGs ~4x bigger), chip stacks + $ tag on bets (chipStacks/betTag). Keep both in step.
     pokerhands.js      Poker room hand histories in the browser (Nov 23 2026, picked options A + B): My hands button (table bar + closed-room lobby) opens an
                        overlay with your sessions (runs of hands < 2h apart), hand list, a replayer on a small felt and Download for trackers
                        (PokerStars-style text: PokerTracker/HM3/GTO Wizard/Hand2Note) or easy read. Engine writes T.rec per hand (events listed at the top of
