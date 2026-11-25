@@ -491,7 +491,7 @@ async function localStart() {
 function localSave() { try { localStorage.setItem('pk:guest', JSON.stringify(LOCAL.T)); localStorage.setItem('pk:guesth', JSON.stringify(LOCAL.hands.slice(-300))); } catch (e) {} }
 function localView(err) {
   const { E, T } = LOCAL, i = E.seatOf(T, GUEST.id), s = i >= 0 ? T.seats[i] : null;
-  return { ...(err ? { err } : {}), table: E.publicView(T, Date.now()), ably: false, me: { id: GUEST.id, name: GUEST.name, seat: i, cards: s && s.cards.length ? s.cards : [], bal: 0, host: true, guest: true } };
+  return { ...(err ? { err } : {}), table: E.publicView(T, Date.now()), ably: false, me: { id: GUEST.id, name: GUEST.name, seat: i, cards: s && s.cards.length ? s.cards : [], bal: 0, host: true, staff: true, guest: true } };
 }
 /** the same actions as practiceWeb() in api/_poker.js, on the table kept here */
 function localAct(b) {
@@ -583,7 +583,7 @@ function runPre() {
 // ---------- time: whoever is at the table nudges the server when a turn runs out or the next hand is due ----------
 function scheduleTick() {
   clearTimeout(tickT);
-  const t = S && S.table; if (!t || !t.open || !S.me || (mySeat() < 0 && !S.me.host)) return;
+  const t = S && S.table; if (!t || !t.open || !S.me || (mySeat() < 0 && !S.me.staff)) return;
   let at = 0;
   if (t.phase === 'hand' && t.toAct >= 0) at = t.deadline + (t.seats[t.toAct] && t.seats[t.toAct].bot ? 80 + Math.random() * 200 : 600 + Math.random() * 1400);
   else if (t.phase === 'hand' && t.rit) at = t.deadline + 300 + Math.random() * 600;
@@ -809,9 +809,9 @@ function hostHTML() {
       <label>Turn timer<select id="hTurn">${opts(TURNS, D.hTurn || t.cfg.turn, v => v + ' sec')}</select></label></div>
     <div class="hgrid"><label>1st hand bomb<select id="hBombO"><option value="0">No</option>${BOMBS.map(x => `<option value="${x}" ${String(x) === D.hBombO ? 'selected' : ''}>${x} BB each</option>`).join('')}</select></label>
       <label>Nit game<select id="hNitO"><option value="0">Off</option>${NITS.map(x => `<option value="${x}" ${String(x) === D.hNitO ? 'selected' : ''}>${x} BB each</option>`).join('')}</select></label></div>
-    <div class="hgrid"><label>Free seat $ (blank = off)<input class="num" type="number" id="hGiftO" min="0" step="5" inputmode="numeric" placeholder="Off" value="${D.hGiftO || ''}"></label>
+${S.me.staff ? `    <div class="hgrid"><label>Free seat $ (blank = off)<input class="num" type="number" id="hGiftO" min="0" step="5" inputmode="numeric" placeholder="Off" value="${D.hGiftO || ''}"></label>
       <label style="align-self:end;font-size:11px">One each, from $10 up to the max buy-in. The house pays, no strings.</label></div>
-    <label class="chk"><input type="checkbox" id="hStrO" ${D.hStrO ? 'checked' : ''}> Straddle (2× BB)</label>
+` : ''}    <label class="chk"><input type="checkbox" id="hStrO" ${D.hStrO ? 'checked' : ''}> Straddle (2× BB)</label>
     <label class="chk"><input type="checkbox" id="hPost" ${D.hPost === false ? '' : 'checked'}> Post "The poker room is open" in #the-table</label>
     <button class="cbtn up" data-host="open">Open the room</button></div>`;
   const people = t.seats.map((s, i) => s && !s.left ? `<div>${av(s.id, s.name)}<b>${esc(s.name)}</b><small>${s.out ? 'sitting out' : money(s.stack)}</small><button class="cbtn ${s.out ? 'up' : 'ghost'} sm" data-seatout="${i}" data-on="${s.out ? '' : '1'}">${s.out ? 'Deal in' : 'Sit out'}</button></div>` : '').join('');
@@ -822,8 +822,8 @@ function hostHTML() {
       <div><b>Bomb pot</b>${t.bomb ? `<small>Next hand, ${money(t.bomb * t.cfg.bb)} each</small><button class="cbtn ghost sm" data-hx="bomb" data-x="0">Call off</button>`
         : `<select id="hBomb">${BOMBS.map(x => `<option value="${x}" ${x === (+hostDraft.hBomb || 5) ? 'selected' : ''}>${money(x * t.cfg.bb)} each</option>`).join('')}</select><button class="cbtn up sm" data-hx="bomb">Next hand</button>`}</div>
       <div><b>Straddle</b><small>${t.phase === 'hand' ? 'From next hand' : `${money(2 * t.cfg.bb)} after the BB`}</small><button class="cbtn ${t.cfg.straddle ? 'up' : 'ghost'} sm" data-hx="straddle" data-on="${t.cfg.straddle ? '' : '1'}">${t.cfg.straddle ? 'On' : 'Off'}</button></div>
-      <div><b style="flex:1;display:grid">Free seat<small style="white-space:normal">${t.cfg.gift ? `${money(t.cfg.gift)} each, ${(t.gifted || []).length} taken` : 'Off'}</small></b><input class="num" type="number" id="hGift" min="0" step="5" inputmode="numeric" placeholder="$" value="${hostDraft.hGift || t.cfg.gift || 40}" aria-label="Free seat amount"><button class="cbtn up sm" data-hx="gift">Set</button>${t.cfg.gift ? '<button class="cbtn ghost sm" data-hx="gift" data-x="0">Off</button>' : ''}</div>
-${t.seats.some(s => s && s.bot && !s.left) ? `      <div><b>Bots</b><small>Left from before</small><button class="cbtn ghost sm" data-hx="bot" data-on="">Remove</button></div>` : ''}
+${S.me.staff ? `      <div><b style="flex:1;display:grid">Free seat<small style="white-space:normal">${t.cfg.gift ? `${money(t.cfg.gift)} each, ${(t.gifted || []).length} taken` : 'Off'}</small></b><input class="num" type="number" id="hGift" min="0" step="5" inputmode="numeric" placeholder="$" value="${hostDraft.hGift || t.cfg.gift || 40}" aria-label="Free seat amount"><button class="cbtn up sm" data-hx="gift">Set</button>${t.cfg.gift ? '<button class="cbtn ghost sm" data-hx="gift" data-x="0">Off</button>' : ''}</div>
+` : ''}${t.seats.some(s => s && s.bot && !s.left) ? `      <div><b>Bots</b><small>Left from before</small><button class="cbtn ghost sm" data-hx="bot" data-on="">Remove</button></div>` : ''}
       <div><b>Nit game</b>${t.nit || t.nitNext ? `<small>${t.nit ? `${money(t.nit.amt)} each, ${t.nit.need.length} left` : `Next hand, ${money(t.nitNext.amt)} each`}</small><button class="cbtn ghost sm" data-hx="nit" data-x="0">${t.nit ? 'End' : 'Call off'}</button>`
         : `<select id="hNit">${NITS.map(x => `<option value="${x}" ${x === (+hostDraft.hNit || 5) ? 'selected' : ''}>${money(x * t.cfg.bb)} each</option>`).join('')}</select><button class="cbtn up sm" data-hx="nit">Next hand</button>`}</div>
     </div>
@@ -1036,12 +1036,12 @@ function draw() {
     return;
   }
   if (!S.me) {
-    v.innerHTML = `<section class="hero"><div><h2>${t.open ? 'The poker room is open' : 'The poker room'}</h2><p>${t.open ? `No-limit Hold'em, blinds ${money(t.cfg.sb)}/${money(t.cfg.bb)}. ${t.seats.filter(s => s && !s.left).length} of 8 seats taken. ` : 'A host opens it on game night, and anyone can watch. '}Sign in with Discord to sit down with your casino chips. Or practice against bots any time, no sign-in needed.</p></div>
+    v.innerHTML = `<section class="hero"><div><h2>${t.open ? 'The poker room is open' : 'The poker room'}</h2><p>${t.open ? `No-limit Hold'em, blinds ${money(t.cfg.sb)}/${money(t.cfg.bb)}. ${t.seats.filter(s => s && !s.left).length} of 8 seats taken. ` : 'Anyone in the Poker Club Discord can open it, and anyone can watch. '}Sign in with Discord to sit down with your casino chips. Or practice against bots any time, no sign-in needed.</p></div>
       <div style="display:grid;gap:10px"><a class="dbtn" href="/api/login?to=poker">${DISCORD_SVG}Sign in with Discord</a><a class="cbtn up" href="/poker?bots=1" style="text-decoration:none;text-align:center">Practice vs bots</a></div></section>`;
     return;
   }
   if (!t.open) {
-    v.innerHTML = `<div class="lobby"><div style="display:grid;gap:16px"><div class="tcard"><h3>The room is closed</h3><p>A host opens it on game night, and it gets posted in #the-table. You have ${money(S.me.bal)} in casino chips.</p><div><button class="cbtn ghost sm" data-hh="open">My hands</button></div></div>
+    v.innerHTML = `<div class="lobby"><div style="display:grid;gap:16px"><div class="tcard"><h3>The room is closed</h3><p>Anyone in the Poker Club Discord can open it${S.me.host ? ' (Host controls, right here)' : ''}, and it gets posted in #the-table. You have ${money(S.me.bal)} in casino chips.</p><div><button class="cbtn ghost sm" data-hh="open">My hands</button></div></div>
       <div class="tcard prac"><h3>Practice vs bots</h3><p>Start your own table against bots any time. Play money, so your chips stay put.</p><a class="cbtn up sm" href="/poker?bots=1">Start a practice table</a></div></div>
       <div class="side">${hostHTML()}<div class="panel"><h2 class="g">How it works</h2>${rulesHTML(t.cfg)}</div></div></div>`;
     return;
@@ -1237,7 +1237,7 @@ document.addEventListener('click', e => {
   if (hx === 'straddle' || hx === 'bot') return send({ a: hx, on: !!b.dataset.on });
   if (hx) return send({ a: hx, x: b.dataset.x !== undefined ? +b.dataset.x : +$(hx === 'bomb' ? '#hBomb' : hx === 'gift' ? '#hGift' : '#hNit').value });
   const h = b.dataset.host;
-  if (h === 'open') { const [sb, bb] = $('#hBlinds').value.split('/').map(Number); return send({ a: 'open', post: $('#hPost').checked, cfg: { sb, bb, min: +$('#hMin').value, max: +$('#hMax').value, turn: +$('#hTurn').value, straddle: $('#hStrO').checked, bomb: +$('#hBombO').value, nit: +$('#hNitO').value, gift: +$('#hGiftO').value || 0 } }); }
+  if (h === 'open') { const [sb, bb] = $('#hBlinds').value.split('/').map(Number); return send({ a: 'open', post: $('#hPost').checked, cfg: { sb, bb, min: +$('#hMin').value, max: +$('#hMax').value, turn: +$('#hTurn').value, straddle: $('#hStrO').checked, bomb: +$('#hBombO').value, nit: +$('#hNitO').value, gift: $('#hGiftO') ? +$('#hGiftO').value || 0 : 0 } }); }
   if (h) return send({ a: h });
 });
 document.addEventListener('change', e => { if (e.target.id === 'hhSess') return hhOpen(+e.target.value); });
