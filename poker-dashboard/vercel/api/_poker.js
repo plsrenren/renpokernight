@@ -16,7 +16,10 @@
 // can't be taken; cash-outs are paid only after the table saved. Hidden cards never leave the server except to their owner.
 // Live updates: after each change the public table is published to the Ably channel "poker:table" (env ABLY_API_KEY, kept
 // server-side; browsers get short-lived tokens that can only listen there and chat on "poker:chat"). Without Ably the page polls.
-// Hosts = Renato, server admins and the pitboss role (same people as /house).
+// Staff = Renato, server admins and the pitboss role (same people as /house): they can always run the room.
+// Hosts (Nov 25 2026, Renato): any Discord server member can open the room and run it (T.host = the opener); once the opener
+// isn't sitting at the table any more, any server member can pick the host controls up (same as /live; a room staff opened stays staff-run). Free seats are house
+// money, so only staff can set them: a member's Open room form has no free seat field and the server drops cfg.gift from it.
 // Free seats (host's gift): only people in the Discord server (checked with the bot, a yes is kept a day in pk:mem:<id>). The house's cost
 // goes in the house books as 'free seat' (hs:all / hs:wk) and the casino feed gets a "free seat" line.
 // Hand histories: every finished hand (_pokergame.js T.rec) is saved once as pk:h:<hand id> (90 days), and each real player dealt in gets it
@@ -189,13 +192,19 @@ export async function isMember(id) {
   return false;
 }
 
+// the opener runs the room; staff always can; a closed room, or one whose opener has left the table, any server member can take
+const hostFree = T => !T.open || !T.host || (!T.host.staff && E.seatOf(T, T.host.id) < 0); // a room staff opened stays theirs
+const canHost = async (T, id) => (T.open && T.host && T.host.id === id) || (await isHost(id)) || (hostFree(T) && (await isMember(id)));
+
 // ---------- the page's data ----------
 async function view(T, me, t, extra = {}) {
   const body = { table: E.publicView(T, t), ably: !!ablyKey(), ...extra };
   if (!me) return body;
   const i = E.seatOf(T, me.id), s = i >= 0 ? T.seats[i] : null;
   const [bal] = extra.bal !== undefined ? [extra.bal] : await kv(['HGET', 'bj:bal', me.id]);
-  body.me = { id: me.id, name: me.name, seat: i, cards: s && s.cards.length ? s.cards : [], bal: bal === null ? 0 : Math.floor(+bal * 100) / 100, host: await isHost(me.id) };
+  // host = shows the host controls (membership is checked when one is used, so the page view costs no extra Redis); staff = may set free seats
+  const staff = await isHost(me.id);
+  body.me = { id: me.id, name: me.name, seat: i, cards: s && s.cards.length ? s.cards : [], bal: bal === null ? 0 : Math.floor(+bal * 100) / 100, staff, host: staff || (T.open && !!T.host && T.host.id === me.id) || hostFree(T) };
   delete body.bal;
   return body;
 }
@@ -218,7 +227,8 @@ export async function pokerWeb(req, me, _sheet, out) {
   let b; try { b = await req.json(); } catch (e) { return out({ err: 'Bad request.' }, 400); }
   const who = { id: me.id, name: me.name };
   const host = ['open', 'close', 'pause', 'resume', 'blinds', 'seatout', 'bomb', 'straddle', 'nit', 'gift', 'bot'].includes(b.a);
-  if (host && !(await isHost(me.id))) return out({ err: 'Only hosts can do that.' }, 403);
+  if (b.a === 'gift' && !(await isHost(me.id))) return out({ err: 'Only Renato and the pitbosses can set free seats.' }, 403);
+  if (host && !(await canHost(await load(), me.id))) return out({ err: b.a === 'open' ? 'Opening the room is for people in the Poker Club Discord. Join the server, then try again.' : 'Only the host can do that.' }, 403);
   const done = async (r, extra = {}) => r.err ? out({ err: r.err, ...(r.T ? await view(r.T, me, t) : {}) }) : out(await view(r.T, me, t, extra));
 
   // Keyboard Warrior: the first time someone sits at the hosted table (stamped by checkAccolades from ac:n joined)
@@ -275,11 +285,13 @@ export async function pokerWeb(req, me, _sheet, out) {
     case 'rabbit': return done(await change((T, now) => { const i = E.seatOf(T, me.id); return i < 0 ? "You're not at the table." : E.rabbitHunt(T, i, now); }, t));
     case 'tick': return done(await change((T, now) => E.tick(T, now) ? true : false, t));
     case 'open': {
-      const r = await change((T, now) => E.openRoom(T, b.cfg || {}, now), t);
+      const cfg = { ...(b.cfg || {}) }, staff = await isHost(me.id);
+      if (!staff) delete cfg.gift; // free seats are house money: staff only
+      const r = await change((T, now) => E.openRoom(T, cfg, now) || void (T.host = { ...who, staff }), t);
       if (!r.err && b.post !== false) {
         const c = r.T.cfg, origin = `https://${req.headers.get('x-forwarded-host') || new URL(req.url).host}`;
         const x = [c.gift && `\n🎟️ **Free seat tonight:** your first ${$(c.gift)} buy-in is on the house, yours to keep.`, c.straddle && 'Straddle on.', r.T.nitNext && `Nit game: last to win a pot pays everyone ${$(r.T.nitNext.amt)}.`, r.T.bomb && `First hand is a ${$(r.T.bomb * c.bb)} bomb pot.`].filter(Boolean).join(' ');
-        await postChannel({ content: `🃏 **The poker room is open.** No-limit Hold'em, blinds ${$(c.sb)}/${$(c.bb)}, buy in ${$(c.min)} to ${$(c.max)} with your casino chips.${x ? ' ' + x : ''}\n${origin}/poker`, allowed_mentions: { parse: [] } }, 'table').catch(e => console.error('poker open post', e));
+        await postChannel({ content: `🃏 **${String(me.name || 'Someone').replace(/[*_~`|>\\]/g, '')} opened the poker room.** No-limit Hold'em, blinds ${$(c.sb)}/${$(c.bb)}, buy in ${$(c.min)} to ${$(c.max)} with your casino chips.${x ? ' ' + x : ''}\n${origin}/poker`, allowed_mentions: { parse: [] } }, 'table').catch(e => console.error('poker open post', e));
       }
       return done(r);
     }
