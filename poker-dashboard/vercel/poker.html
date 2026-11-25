@@ -405,6 +405,7 @@ details.fold > summary + * { margin-top: 10px; }
 <div id="modal"></div>
 <div id="hh"></div>
 
+<script src="/table-kit.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -975,42 +976,14 @@ function render() {
 }
 // ---------- sounds (on by default; the speaker button in the table bar mutes them, remembered per browser) ----------
 // all made with Web Audio on the fly, no files. Browsers only allow sound after the first tap on the page.
-let sndOn = true; try { sndOn = localStorage.getItem('pk:snd') !== 'off'; } catch (e) {}
-let actx = null, sndPrev = null;
-const sndBtn = () => `<button class="unit snd" data-snd title="${sndOn ? 'Sound on: tap to mute' : 'Sound off: tap to turn on'}" aria-label="${sndOn ? 'Mute sounds' : 'Turn sounds on'}"><span class="${sndOn ? 'on' : ''}">${sndOn ? '&#128266;' : '&#128263;'}</span></button>`;
-function audio() { if (!actx) { const A = window.AudioContext || window.webkitAudioContext; if (!A) return null; actx = new A(); } if (actx.state === 'suspended') actx.resume().catch(() => {}); return actx; }
-['pointerdown', 'keydown'].forEach(ev => addEventListener(ev, () => { if (sndOn) audio(); }, { passive: true }));
-function tone(f, at, dur, { type = 'sine', vol = .18, to = 0 } = {}) {
-  const c = actx, o = c.createOscillator(), g = c.createGain(), t0 = c.currentTime + at;
-  o.type = type; o.frequency.setValueAtTime(f, t0); if (to) o.frequency.exponentialRampToValueAtTime(to, t0 + dur);
-  g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + .008); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  o.connect(g).connect(c.destination); o.start(t0); o.stop(t0 + dur + .02);
-}
-function noise(at, dur, { vol = .2, hp = 1500, lp = 9000, bp = 0, q = 1, curve = 3 } = {}) {
-  const c = actx, n = Math.max(1, Math.floor(c.sampleRate * dur)), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
-  for (let k = 0; k < n; k++) d[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / n, curve);
-  const src = c.createBufferSource(), g = c.createGain(), t0 = c.currentTime + at; src.buffer = buf; g.gain.value = vol;
-  let node = src;
-  if (bp) { const b = c.createBiquadFilter(); b.type = 'bandpass'; b.frequency.value = bp; b.Q.value = q; node.connect(b); node = b; } // bp = one ringing band (clay chip clack)
-  else { const h = c.createBiquadFilter(), l = c.createBiquadFilter(); h.type = 'highpass'; h.frequency.value = hp; l.type = 'lowpass'; l.frequency.value = lp; node.connect(h); h.connect(l); node = l; }
-  node.connect(g).connect(c.destination); src.start(t0);
-}
-const jit = (x, j) => x + (Math.random() - .5) * j;
-const SND = {
-  card: (at = 0) => noise(at, .07, { vol: .32, hp: 2200 }),
-  flip: (at = 0) => { noise(at, .05, { vol: .28, hp: 1800 }); tone(900, at + .01, .05, { type: 'triangle', vol: .05 }); },
-  // "clay clack" (Renato's pick from the sound mockup, option B): n chips knocking together, slightly out of time
-  chips: (at = 0, n = 2) => { for (let k = 0; k < n; k++) { const d = at + k * jit(.055, .03); noise(d, .025, { vol: .55, bp: jit(3300, 500), q: 6, curve: 4 }); noise(d, .05, { vol: .18, bp: jit(5200, 600), q: 14, curve: 2 }); tone(jit(2400, 300), d, .045, { vol: .04 }); } },
-  check: (at = 0) => { tone(180, at, .09, { type: 'sine', vol: .3, to: 90 }); tone(180, at + .12, .08, { type: 'sine', vol: .22, to: 90 }); },
-  fold: (at = 0) => noise(at, .22, { vol: .16, hp: 600, lp: 3000 }),
-  turn: (at = 0) => { tone(660, at, .16, { vol: .14 }); tone(990, at + .14, .26, { vol: .14 }); },
-  win: (at = 0) => { [523, 659, 784, 1047].forEach((f, k) => tone(f, at + k * .09, .3, { type: 'triangle', vol: .12 })); SND.chips(at + .4, 8); },
-  pot: (at = 0) => SND.chips(at, 10),
-};
+// sounds, mute and the speaker button's setting come from the shared table kit (/table-kit.js, window.TK), so every table sounds the same
+const K = window.TK, SND = K.SND;
+let sndPrev = null;
+const sndBtn = () => { const on = K.soundOn(); return `<button class="unit snd" data-snd title="${on ? 'Sound on: tap to mute' : 'Sound off: tap to turn on'}" aria-label="${on ? 'Mute sounds' : 'Turn sounds on'}"><span class="${on ? 'on' : ''}">${on ? '&#128266;' : '&#128263;'}</span></button>`; };
 function sounds(t) {
   const prev = sndPrev, i = mySeat();
   sndPrev = { hid: t.hid, board: t.board.length, b2: t.board2 ? t.board2.length : 0, res: !!t.res, toAct: t.toAct, phase: t.phase, rit: !!t.rit, seats: t.seats.map(s => s && { id: s.id, bet: s.bet, last: s.last, folded: s.folded }) };
-  if (!sndOn || !prev || !audio() || actx.state !== 'running') return;
+  if (!prev || !K.soundOn()) return;
   if (t.hid !== prev.hid && t.phase === 'hand') { const n = t.seats.filter(s => s && s.dealt).length * 2; for (let k = 0; k < Math.min(n, 16); k++) SND.card(k * .06); }
   else if (t.hid === prev.hid) {
     for (let k = prev.board; k < t.board.length; k++) SND.flip((k - prev.board) * .14);
@@ -1243,7 +1216,7 @@ document.addEventListener('click', e => {
   if (b.dataset.gift !== undefined) { $('#modal').innerHTML = ''; return send({ a: 'sit', seat: +b.dataset.gift, gift: 1 }); }
   if (b.dataset.say) return say(b.dataset.say);
   if (b.dataset.to) { const r = $('#raise'); if (r) { r.value = b.dataset.to; r.dispatchEvent(new Event('input')); } return; }
-  if (b.hasAttribute('data-snd')) { sndOn = !sndOn; try { localStorage.setItem('pk:snd', sndOn ? 'on' : 'off'); } catch (e) {} if (sndOn && audio()) SND.chips(); return render(); }
+  if (b.hasAttribute('data-snd')) { if (K.toggleSound()) setTimeout(() => SND.chips(), 30); return render(); }
   if (b.hasAttribute('data-unit')) { unitBB = !unitBB; try { localStorage.setItem('pk:unit', unitBB ? 'bb' : 'usd'); } catch (e) {} return render(); }
   if (b.dataset.pre) { const t = S.table, k = b.dataset.pre; preAct = preAct && preAct.k === k ? null : { k, bet: t.curBet, hid: t.hid, street: t.street }; return render(); }
   if (b.dataset.act) { const r = $('#raise'); return send({ a: 'act', do: b.dataset.act, to: b.dataset.act === 'raise' ? +(r ? r.value : 0) : 0 }); }

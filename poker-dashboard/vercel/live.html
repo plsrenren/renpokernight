@@ -17,7 +17,7 @@
   --page: #15132a; --panel: #1d1a37; --panel2: #2a2550; --line: #332e57;
   --fg: #ece9fb; --soft: #cfcaf0; --muted: #9a94c4; --ink: #15132a;
   --gold: #f1c75b; --pink: #e0507f; --vio: #8f78f0; --up: #8ee0b0; --down: #f59bb0; --blurple: #5865f2;
-  --felt: #17463c; --felt2: #0f3129; --cardbg: #fbfaf6; --red: #d23a4a;
+  --felt: var(--tk-felt1); --felt2: var(--tk-felt2); /* shared table kit felt, same green as every table */ --cardbg: #fbfaf6; --red: #d23a4a;
   --title: "Bebas Neue", Impact, sans-serif; --body: "Space Grotesk", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace; --round: Nunito, system-ui, sans-serif;
   --logo: url(/icon-192.png);
   color-scheme: dark;
@@ -93,8 +93,19 @@ select { background: var(--panel2); color: var(--fg); border: 0; padding: 8px 8p
 /* overlapped seat cards show their corner index, like a real fan of cards */
 .seat .cards .cd { justify-content: flex-start; align-items: flex-start; padding: 4px 0 0 5px; font-size: 18px; } .seat .cards .cd i { font-size: 14px; margin: 1px 0 0 1px; }
 .cards .cd:nth-child(odd) { transform: rotate(-3deg); } .cards .cd:nth-child(even) { transform: rotate(3deg) translateY(1px); }
-.cd.in { animation: deal .4s cubic-bezier(.2,.8,.3,1) both; }
-@keyframes deal { from { translate: 0 -150px; rotate: -10deg; opacity: 0; } to { translate: 0 0; rotate: 0deg; opacity: 1; } }
+.cd { position: relative; }
+/* dealing (shared table kit motion): each card slides from the shoe face down, lands and turns over; a face-down card already
+   on the table (dealer's hole card, UTH showdown) just turns over where it sits */
+.cd.in { animation: deal .6s cubic-bezier(.2,.8,.3,1) both; } .cd.in.back { animation-name: dealb; }
+.cd.in:not(.back)::after, .cd.turn::after { content: ""; position: absolute; inset: -1px; background: var(--tk-back); border: 3px solid var(--cardbg); animation: cover .6s linear both; animation-delay: inherit; }
+.cd.turn { animation: turn .32s ease-in-out both; } .cd.turn::after { animation: cover2 .32s linear both; animation-delay: inherit; }
+@keyframes deal { 0% { translate: var(--fx, 0) var(--fy, -150px); rotate: -14deg; scale: .8; } 65% { translate: 0 0; rotate: 0deg; scale: 1; } 82% { scale: 0 1; } 100% { scale: 1; } }
+@keyframes dealb { 0% { translate: var(--fx, 0) var(--fy, -150px); rotate: -14deg; scale: .8; } 100% { translate: 0 0; rotate: 0deg; scale: 1; } }
+@keyframes cover { 0%, 81% { opacity: 1; } 82%, 100% { opacity: 0; } }
+@keyframes turn { 50% { scale: 0 1; } }
+@keyframes cover2 { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.shoe { position: absolute; right: 7%; top: 14px; width: 40px; height: 56px; }
+@media (max-width: 640px) { .shoe { width: 26px; height: 36px; right: 6%; top: 10px; border-width: 2px; box-shadow: 2px 2px 0 #2c1f63, 4px 4px 0 #1f1647; } }
 .cards.sm .cd { width: 34px; height: 48px; font-size: 15px; } .cards.sm .cd i { font-size: 13px; } .cards.sm .cd + .cd { margin-left: -17px; }
 .dealer .cd { width: 52px; height: 73px; font-size: 24px; } .dealer .cd i { font-size: 20px; } .dealer .cards .cd + .cd { margin-left: -14px; }
 .ltb .cd { width: 46px; height: 65px; transform: none !important; } .ltb .cards .cd + .cd { margin-left: 0; }
@@ -114,9 +125,6 @@ select { background: var(--panel2); color: var(--fg); border: 0; padding: 8px 8p
 .act.none { visibility: hidden; }
 .act.hot { background: var(--pink); color: #fff; } .act.fold { background: #3a3560; color: var(--muted); } .act.gold { background: var(--gold); color: var(--ink); }
 .bets { display: flex; gap: 4px; align-items: center; min-height: 20px; flex-wrap: wrap; justify-content: center; }
-.stk { position: relative; width: 18px; display: inline-block; }
-.stk i { position: absolute; left: 0; width: 18px; height: 7px; border-radius: 50%; border: 1px dashed rgba(255,255,255,.75); box-shadow: 0 1px 0 rgba(0,0,0,.4); }
-.k1 { background: #eee; } .k5 { background: #d23a4a; } .k25 { background: #2e9a5c; } .k100 { background: #222; } .k500 { background: #8e5bd6; }
 .btag { font: 400 13px/1 var(--title); letter-spacing: .06em; background: #120f26; color: #fff; padding: 3px 7px 1px; transform: skewX(-10deg); white-space: nowrap; }
 .btag.free { background: var(--up); color: #0e2a1c; } .btag.side { background: var(--vio); } .btag.play { background: var(--gold); color: var(--ink); }
 .st-row { display: flex; align-items: center; gap: 6px; width: 100%; justify-content: center; }
@@ -176,7 +184,7 @@ select { background: var(--panel2); color: var(--fg); border: 0; padding: 8px 8p
   .ab { font-size: 18px; }
   .tbar .r { margin-left: 0; width: 100%; justify-content: flex-end; }
 }
-@media (prefers-reduced-motion: reduce) { .cd.in, .res { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .cd.in, .cd.turn, .res { animation: none; } .cd.in::after, .cd.turn::after { display: none; } }
 </style>
 </head>
 <body>
@@ -189,6 +197,7 @@ select { background: var(--panel2); color: var(--fg); border: 0; padding: 8px 8p
   <main id="view"><p class="hint" style="margin-top:20px">Shuffling…</p></main>
 </div>
 <div id="toast" class="hidden"></div>
+<script src="/table-kit.js"></script>
 <script type="module">
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -207,8 +216,8 @@ const API = window.LIVE_API || '/api/live';
 // ---------- state ----------
 let S = null, skew = 0, err = '', drop = false, busy = false, tickT = 0, pollT = 0, rt = null, liveOn = false;
 // animations survive redraws: each one is timed from when it first showed (key -> time), so a redraw mid-way carries on instead of restarting
-let seen = new Map(), seenRound = -1;
-const ANIM_MS = 450;
+let seen = new Map(), seenRound = -1, backs = new Set();
+const ANIM_MS = 650;
 /** class + style for an animation that should start `delay` ms after `key` first appeared ('' once it has finished) */
 function anim(key, delay) { const now = Date.now(); if (!seen.has(key)) seen.set(key, now); const el = now - seen.get(key); return el < delay + ANIM_MS ? { on: true, style: `animation-delay:${delay - el}ms` } : { on: false, style: '' }; }
 let pend = { bet: 0, side: 0 }; try { Object.assign(pend, JSON.parse(localStorage.getItem('lt:bet') || '{}')); } catch (e) {}
@@ -270,22 +279,56 @@ function connectLive() {
   rt.channels.get('live:table').subscribe('t', m => { try { onTable(JSON.parse(m.data)); } catch (e) {} });
 }
 
+// ---------- table kit: deal motion + sounds (same as the poker room and casino tables) ----------
+const K = window.TK, SND = K.SND;
+/** new cards start at the shoe: each gets its offset from the shoe as --fx/--fy for the deal animation */
+function aimCards() {
+  const sh = $('#shoe'); if (!sh) return; const b = sh.getBoundingClientRect();
+  document.querySelectorAll('#felt .cd.in').forEach(el => { const a = el.getBoundingClientRect();
+    el.style.setProperty('--fx', Math.round(b.left + b.width / 2 - a.left - a.width / 2) + 'px'); el.style.setProperty('--fy', Math.round(b.top + b.height / 2 - a.top - a.height / 2) + 'px'); });
+}
+// card sounds ride on the animations themselves, so they land exactly when each card does (each card once, even through redraws)
+let played = new Set();
+document.addEventListener('animationstart', e => {
+  const el = e.target, k = el.dataset && el.dataset.k; if (!k || !['deal', 'dealb', 'turn'].includes(e.animationName) || played.has(k)) return;
+  played.add(k);
+  if (e.animationName === 'turn') SND.flip(); else { SND.card(); if (e.animationName === 'deal') setTimeout(() => SND.flip(), 400); }
+});
+// everything else comes from what changed since the last draw: bets (chips), stand/check (knock), fold, bust, your turn, your result
+let sndPrev = null;
+const paidOf = s => !s.locked ? 0 : (s.hands ? s.hands.reduce((a, h) => a + h.bet, 0) : s.bet * (s.cards ? 2 : 1) + (s.play || 0)) + (s.side || 0); // UTH = ante + blind (+ play)
+function sounds(t) {
+  const prev = sndPrev, me = mySeat();
+  sndPrev = { round: t.round, phase: t.phase, seats: t.seats.map(s => s && { id: s.id, last: s.last, paid: paidOf(s), deciding: s.deciding, res: !!s.res }) };
+  if (!prev || !K.soundOn()) return;
+  let chip = 0, knock = false, fold = false;
+  t.seats.forEach((s, i) => {
+    const q = prev.seats[i]; if (!s || !q || q.id !== s.id) return;
+    if (paidOf(s) > q.paid && (t.round === prev.round || t.phase === 'bet')) chip = Math.max(chip, i === me ? 3 : 2);
+    if (s.last !== q.last) { if (s.last === 'Stand' || s.last === 'Check') knock = true; if (s.last === 'Fold') fold = true; if (s.last === 'Bust' && i === me) setTimeout(() => SND.lose(), 450); }
+  });
+  if (chip) SND.chips(0, chip); if (knock) SND.check(); if (fold) SND.fold();
+  const ms = me >= 0 ? t.seats[me] : null, mq = me >= 0 ? prev.seats[me] : null;
+  if (ms && t.phase === 'act' && ms.deciding && !(mq && mq.deciding)) SND.turn(.1);
+  if (ms && ms.res && t.phase === 'done' && !(mq && mq.res && prev.round === t.round)) {
+    const drawn = t.game === 'uth' ? 0 : Math.max(0, t.dealer.length - 2), at = t.game === 'uth' ? 600 : 350 + drawn * CARD_MS, net = ms.res.net;
+    setTimeout(() => net > 0 ? SND.win() : net < 0 ? SND.lose() : SND.push(), at);
+  }
+}
+
 // ---------- drawing ----------
 const SYM = { S: '♠', H: '♥', D: '♦', C: '♣' };
 function card(c, key, delay = 0, cls = '') {
   if (!c) return `<div class="cd ph ${cls}"></div>`;
-  const a = key ? anim(key, delay) : { on: false }, an = a.on ? ' in' : '';
-  const st = a.on ? ` style="${a.style}"` : '';
+  const base = key ? key.replace(/:[^:]*$/, '') : '', wasBack = key && c !== 'XX' && backs.has(base);
+  if (key && c === 'XX') backs.add(base);
+  const a = key ? anim(key, wasBack ? 0 : delay) : { on: false }, an = a.on ? (wasBack ? ' turn' : ' in') : '';
+  const st = a.on ? ` style="${a.style}" data-k="${esc(key)}"` : '';
   if (c === 'XX') return `<div class="cd back${an} ${cls}"${st}></div>`;
   const r = c[0] === 'T' ? '10' : c[0], s = c[1].toUpperCase();
   return `<div class="cd su-${s.toLowerCase()}${an} ${cls}"${st}><b>${r}</b><i>${SYM[s]}</i></div>`;
 }
-const DEN = [[500, 'k500'], [100, 'k100'], [25, 'k25'], [5, 'k5'], [1, 'k1']];
-function stacks(a) {
-  const g = []; let left = Math.floor(a), n = 0;
-  for (const [v, k] of DEN) { let c = 0; while (left >= v && n < 10) { left -= v; c++; n++; } if (c) g.push([k, c]); }
-  return g.slice(0, 2).map(([k, c]) => `<span class="stk" style="height:${7 + (c - 1) * 2}px">${Array.from({ length: c }, (_, j) => `<i class="${k}" style="bottom:${j * 2}px"></i>`).join('')}</span>`).join('');
-}
+const stacks = a => K.chips(a); // chip stacks from the shared table kit
 // seat spots on the felt (anchored at the seat's bottom middle); you always sit in the middle spot
 const ARC = [[11, 63], [29, 84], [50, 93], [71, 84], [89, 63]], TALL = [[17, 94], [33, 64], [50, 94], [67, 64], [83, 94]];
 const spotOf = i => { const me = mySeat(), k = me >= 0 ? (i - me + 2 + 5) % 5 : i; return (PHONE.matches ? TALL : ARC)[k]; };
@@ -297,10 +340,12 @@ function render() {
   renderMe();
   const t = T();
   if (!t || !t.open) { v.innerHTML = closedHTML(); bindClosed(); return; }
-  if (t.round !== seenRound) { seen = new Map([...seen].filter(([k]) => k.startsWith('r' + t.round + ':') || k.startsWith('r' + (t.round - 1) + ':'))); seenRound = t.round; }
+  if (t.round !== seenRound) { seen = new Map([...seen].filter(([k]) => k.startsWith('r' + t.round + ':') || k.startsWith('r' + (t.round - 1) + ':'))); seenRound = t.round; backs = new Set([...backs].filter(k => k.startsWith('r' + t.round + ':'))); played = new Set([...played].filter(k => k.startsWith('r' + t.round + ':'))); }
   // keep the host panel's open state and focus across redraws
   v.innerHTML = `${barHTML(t)}<div class="felt" id="felt">${feltHTML(t)}</div><div class="dock" id="dock">${dockHTML(t)}</div>${lowerHTML(t)}`;
+  aimCards();
   bindTable();
+  sounds(t);
 }
 function renderMe() {
   const el = $('#me');
@@ -331,7 +376,7 @@ function barHTML(t) {
   const me = S.me, seated = mySeat() >= 0;
   const max = t.betMax;
   return `<div class="tbar"><span class="live${liveOn ? ' on' : ''}" id="live">${liveOn ? 'LIVE' : S.ably ? 'SYNCING' : 'LIVE'}</span><span class="gm">${GAMES[t.game]}</span><span>${t.game === 'uth' ? 'Ante ' : ''}$${t.cfg.min}–$${max} · hosted by ${esc(t.host ? t.host.name : '…')}${t.pause ? ' · <b style="color:var(--gold)">paused</b>' : ''}${t.closing ? ' · <b style="color:var(--pink)">closing after this round</b>' : ''}</span>
-    <span class="r">${me && me.host ? `<button class="tbtn${drop ? ' on' : ''}" id="hostBtn">Host</button>` : ''}${seated ? '<button class="tbtn" id="leaveBtn">Leave seat</button>' : ''}</span>
+    <span class="r">${K.sndButton()}${me && me.host ? `<button class="tbtn${drop ? ' on' : ''}" id="hostBtn">Host</button>` : ''}${seated ? '<button class="tbtn" id="leaveBtn">Leave seat</button>' : ''}</span>
     ${drop && me && me.host ? hostHTML(t) : ''}</div>`;
 }
 function hostHTML(t) {
@@ -348,6 +393,7 @@ function feltHTML(t) {
   const ra = done ? anim(`r${t.round}:res`, resDelay) : null, resStyle = ra ? (ra.on ? ra.style : 'animation:none') : '';
   // dealer: in blackjack the new cards come one by one once everyone is done
   const dk = k => `r${t.round}:d${k}:${t.dealer[k]}`;
+  const shoe = '<div class="shoe tk-shoe" id="shoe"></div>';
   const dcards = t.dealer.length ? t.dealer.map((c, k) => card(c, dk(k), k >= 2 ? (k - 1) * CARD_MS : (k === 1 && done ? 150 : 0))).join('') : '<div class="cd ph"></div><div class="cd ph"></div>';
   const dtot = uth ? (done ? t.dealerHand : '') : t.dealer.length ? (done ? t.dealerTotal : (t.dealer[0] !== 'XX' ? (cv(t.dealer[0]) === 1 ? 'A' : cv(t.dealer[0])) : '')) : '';
   const board = uth ? `<div class="ltb">${Array.from({ length: 5 }, (_, k) => t.board[k] ? card(t.board[k], `r${t.round}:b${k}:${t.board[k]}`, k < 3 ? k * 90 : 0) : '<div class="cd ph"></div>').join('')}</div>` : '';
@@ -361,7 +407,7 @@ function feltHTML(t) {
   else if (done) { big = ms && ms.res ? (ms.res.net > 0 ? 'You win ' + money(ms.res.net) : ms.res.net < 0 ? 'You lose ' + money(-ms.res.net) : 'Push') : 'Round over';
     sm = uth && ms && ms.res && ms.res.hand ? 'You: ' + esc(ms.res.hand) : 'Next round in a moment'; }
   const status = `<div class="status"><div class="big"${done ? ` style="animation:pop .3s both;${resStyle}"` : ''}>${esc(big)}</div><div class="sm">${sm}</div>${board}</div>`;
-  return `<div class="dealer"><div class="lbl">Dealer<b>${dtot === '' || dtot === null ? '' : esc(String(dtot))}</b></div><div class="cards">${dcards}</div></div>
+  return `${shoe}<div class="dealer"><div class="lbl">Dealer<b>${dtot === '' || dtot === null ? '' : esc(String(dtot))}</b></div><div class="cards">${dcards}</div></div>
     <div class="rules">${RULES[t.game]}</div>${status}${t.seats.map((s, i) => seatHTML(t, s, i, resStyle)).join('')}`;
 }
 function resTag(n, word, delay) { if (n == null) return ''; const c = word === 'Blackjack' ? 'bj' : n > 0 ? 'w' : n < 0 ? 'l' : 'p';
@@ -466,6 +512,7 @@ function bindTable() {
   const t = T();
   document.querySelectorAll('[data-sit]').forEach(b => b.onclick = () => act({ a: 'sit', seat: +b.dataset.sit }));
   const lv = $('#leaveBtn'); if (lv) lv.onclick = () => act({ a: 'leave' });
+  document.querySelectorAll('[data-tksnd]').forEach(b => b.onclick = e => { e.stopPropagation(); if (K.toggleSound()) setTimeout(() => SND.chips(), 30); render(); });
   const hb = $('#hostBtn'); if (hb) hb.onclick = e => { e.stopPropagation(); drop = !drop; render(); };
   const d = $('#drop');
   if (d) {
@@ -502,5 +549,6 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) api(
 <link rel="stylesheet" href="/lateshow.css">
 <link rel="stylesheet" href="/cosmetics.css">
 <link rel="stylesheet" href="/plates.css">
+<link rel="stylesheet" href="/table-kit.css">
 </body>
 </html>

@@ -136,7 +136,8 @@ button:disabled { cursor: default; opacity: .4; }
 .ftag { font: 900 11px Nunito, sans-serif; letter-spacing: .08em; padding: 2px 7px; background: var(--gold); color: #2a1f00; }
 .cbtn.free { background: var(--up); color: #0e2a1c; }
 .card { width: 74px; height: 104px; background: #f6f3ea; display: flex; flex-direction: column; align-items: center; justify-content: center; font: 900 32px/1 Nunito, sans-serif; color: #1b1b1b; box-shadow: 0 4px 10px rgba(0,0,0,.35); flex: none; position: relative; }
-.card.r { color: #c2283e; } .card i { font-style: normal; font-size: 28px; margin-top: 4px; }
+/* four-color deck from the shared table kit: hearts red, diamonds blue, clubs green, spades black */
+.card.su-h { color: var(--tk-red); } .card.su-d { color: var(--tk-blue); } .card.su-c { color: var(--tk-green); } .card i { font-style: normal; font-size: 28px; margin-top: 4px; }
 .card.back { background: repeating-linear-gradient(45deg, #5a40ad 0 7px, #6e52c8 7px 14px); border: 4px solid #f6f3ea; }
 .card.empty { background: rgba(255,255,255,.06); box-shadow: none; border: 2px dashed rgba(255,255,255,.18); animation: none; }
 /* smooth dealing (see choreograph()): new cards fly from the shoe in deal order; a face-down card turns over */
@@ -158,12 +159,11 @@ button:disabled { cursor: default; opacity: .4; }
 .cbtn:not(:disabled):active, .chipb:not(:disabled):active, .side:active { transform: translateY(2px) scale(.97); filter: brightness(1.15); }
 .cbtn.pressed:disabled { opacity: 1; filter: brightness(1.2); }
 .chipb:disabled, .amt-in:disabled { opacity: .45; }
-.snd { background: var(--panel2); color: var(--soft); font: 400 15px var(--title); letter-spacing: .08em; padding: 6px 10px 4px; margin-left: 10px; }
-.snd[aria-pressed="true"] { color: var(--gold); }
+.bal .tk-snd { margin-left: 10px; font-size: 18px; vertical-align: 2px; }
 .rules.stage { min-height: 3.2em; }
 #balNum { font-variant-numeric: tabular-nums; }
-.betchip { position: absolute; right: 26px; bottom: 22px; width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; font: 400 24px var(--title); color: #fff;
-  background: radial-gradient(circle, #a23b58 0 46%, #fff 46% 50%, #a23b58 50% 62%, transparent 62%), repeating-conic-gradient(#fff 0 15deg, #a23b58 15deg 45deg); box-shadow: 0 6px 14px rgba(0,0,0,.4); }
+.betchip { position: absolute; right: 26px; bottom: 22px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; } /* the bet: shared-kit chip stacks + amount tag */
+.betchip .tk-stks { transform: scale(1.5); transform-origin: right bottom; margin-bottom: 4px; } .betchip .tk-amt { font-size: 22px; }
 .result { position: absolute; right: 140px; top: 52%; transform: translateY(-50%) rotate(-4deg); background: var(--gold); color: #15132a; font: 400 54px/1 var(--title); padding: 10px 26px 4px; letter-spacing: .04em; box-shadow: 0 10px 30px rgba(0,0,0,.5); text-align: center; white-space: nowrap; }
 .result.slide { animation: slide .42s cubic-bezier(.2,.9,.3,1.2) both; }
 @keyframes slide { from { transform: translateY(-20%) rotate(-12deg); opacity: 0; } }
@@ -213,11 +213,11 @@ details.pay summary { cursor: pointer; font: 400 17px var(--title); letter-spaci
   .hands.many .card { width: 34px; height: 48px; font-size: 15px; padding: 3px 0 0 4px; } .hands.many .card i { font-size: 11px; }
   .hands.many .card + .card { margin-left: -12px; } .hands.many .hand { margin: 4px 0 8px; }
   .slots .cbtn.free, .slots .cbtn.tight { font-size: 13px; letter-spacing: .02em; padding-left: 6px; padding-right: 10px; }
-  .betchip { width: 56px; height: 56px; font-size: 17px; right: 10px; bottom: 10px; }
+  .betchip { right: 10px; bottom: 10px; } .betchip .tk-stks { transform: none; margin: 0; } .betchip .tk-amt { font-size: 16px; }
   /* the stamp gets a reserved strip at the bottom of the table, so a result never pushes the buttons down */
   .felt { padding-bottom: 92px; }
   .tablebar { flex-wrap: nowrap; gap: 6px; } .tablebar .cbtn { font-size: 16px; padding: 6px 14px 4px 10px; flex: none; }
-  .bal { font-size: 15px; } .bal b { font-size: 23px; margin-left: 4px; } .bal i { font-size: 15px; margin-left: 4px; } .snd { font-size: 12px; padding: 5px 7px 3px; margin-left: 6px; }
+  .bal { font-size: 15px; } .bal b { font-size: 23px; margin-left: 4px; } .bal i { font-size: 15px; margin-left: 4px; }
   .felt.bac { min-height: 418px; }
   .result, .result.flat, .felt.bac .result { position: absolute; left: 12px; right: auto; top: auto; bottom: 12px; display: block; transform: rotate(-2deg); margin: 0; font-size: 36px; }
   .result.slide { animation-name: slide2; }
@@ -284,6 +284,7 @@ details.pay summary { cursor: pointer; font: 400 17px var(--title); letter-spaci
   <main id="view"><p class="loading">Shuffling…</p></main>
 </div>
 
+<script src="/table-kit.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -294,7 +295,7 @@ const initials = n => String(n).split(/\s+/).map(w => w[0]).join('').slice(0, 2)
 const av = (id, name) => `<span class="av" style="--h:${hue(name)}">${esc(initials(name))}${id ? `<img src="/api/avatar?id=${esc(id)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
 const SUIT = { S: '♠', H: '♥', D: '♦', C: '♣' };
 const card = c => !c || c === 'XX' ? '<div class="card back"></div>' : c === '__' ? '<div class="card empty"></div>'
-  : `<div class="card${'HD'.includes(c[1]) ? ' r' : ''}">${c[0] === 'T' ? '10' : c[0]}<i>${SUIT[c[1]]}</i></div>`;
+  : `<div class="card su-${c[1].toLowerCase()}">${c[0] === 'T' ? '10' : c[0]}<i>${SUIT[c[1]]}</i></div>`;
 const DISCORD_SVG = '<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M20.3 4.4A19.6 19.6 0 0 0 15.4 3l-.6 1.3a18 18 0 0 0-5.6 0L8.6 3a19.6 19.6 0 0 0-4.9 1.5C.6 9-.3 13.6.1 18.1A19.8 19.8 0 0 0 6.1 21l1.3-2.1a12.8 12.8 0 0 1-2-1l.5-.4a14 14 0 0 0 12.2 0l.5.4c-.6.4-1.3.7-2 1l1.3 2.1a19.7 19.7 0 0 0 6-3c.5-5.2-.9-9.8-3.6-13.7zM8.3 15.3c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4zm7.4 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4z"/></svg>';
 const ERRS = { cancelled: 'Sign-in was cancelled.', expired: 'That sign-in link expired. Try again.', discord: "Discord didn't let the sign-in through. Try again in a moment.",
   setup: "Discord sign-in isn't switched on yet (the site needs its Discord client secret).",
@@ -309,14 +310,8 @@ let T = { bj: null, fb: null, uth: null, bac: null, err: '' };  // what's on eac
 let busy = false;
 let shownBal = null;          // the balance currently on screen (it rolls to the real one)
 let pressed = null;           // the button just tapped (stays lit while the table thinks)
-let actx = null;
-function tick() {             // soft card sound, only when switched on
-  if (!pref('snd', false)) return;
-  try { actx ||= new (window.AudioContext || window.webkitAudioContext)();
-    const o = actx.createOscillator(), g = actx.createGain(); o.type = 'triangle'; o.frequency.value = 1700 + Math.random() * 500;
-    g.gain.setValueAtTime(.05, actx.currentTime); g.gain.exponentialRampToValueAtTime(.0001, actx.currentTime + .05);
-    o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime + .06); } catch (e) {}
-}
+// sounds + mute come from the shared table kit (/table-kit.js), same as the poker room and live tables
+const K = window.TK, SND = K.SND;
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 async function api(body) {
@@ -404,7 +399,7 @@ function choreograph(before) {
   fresh.forEach((x, k) => {
     if (k) t += fresh[k - 1].flip ? 380 : x.j >= 2 ? 420 : 170;
     if (REDUCED) return;
-    setTimeout(tick, t);
+    setTimeout(x.flip ? SND.flip : SND.card, t);
     if (x.flip) { x.c.style.animationDelay = t + 'ms'; x.c.classList.add('flip'); return; }
     const e = x.c.getBoundingClientRect();
     x.c.animate([{ transform: `translate(${sr.left - e.left}px, ${sr.top - e.top}px) rotate(-12deg) scale(.8)`, opacity: .9 }, { transform: 'none', opacity: 1 }],
@@ -413,10 +408,15 @@ function choreograph(before) {
   const end = fresh.length && !REDUCED ? t + 380 : 0;
   // totals, tags, result and bet lines wait for the cards
   const late = [...document.querySelectorAll('#view [data-late]')];
-  const show = () => late.forEach(el => { el.classList.remove('late-hide'); if (!el.classList.contains('still')) el.classList.add(el.classList.contains('result') ? 'slide' : 'late-show'); });
+  const show = () => { late.forEach(el => { el.classList.remove('late-hide'); if (!el.classList.contains('still')) el.classList.add(el.classList.contains('result') ? 'slide' : 'late-show'); }); resultSound(); };
   const row = document.querySelector('#view .slots');
   if (end) { late.forEach(el => el.classList.add('late-hide')); if (row) row.classList.add('hold'); setTimeout(() => { show(); if (row) row.classList.remove('hold'); }, end); } else show();
   rollBal(end);
+}
+// a new result stamp: win / lose / push sound
+function resultSound() {
+  const r = document.querySelector('#view .result:not(.still)'); if (!r) return;
+  if (r.classList.contains('lost')) SND.lose(); else if (r.classList.contains('even')) SND.push(); else SND.win();
 }
 // the balance on screen rolls to the new number once the hand has played out
 function rollBal(delay) {
@@ -611,13 +611,13 @@ function lobby() {
 }
 
 // ---------- shared table bits ----------
-const balBar = (title, net) => `<div class="tablebar"><a class="cbtn vio" href="#">← Lobby</a><span class="bal">Chips<b id="balNum">${money(shownBal === null ? S.me.bal || 0 : shownBal)}</b>${net ? `<i data-late class="${net > 0 ? 'pos' : 'neg'}">${signed(net)}</i>` : ''}<button class="snd" data-snd aria-pressed="${pref('snd', false)}" title="Card sounds">${pref('snd', false) ? 'Sound on' : 'Sound off'}</button></span></div>`;
+const balBar = (title, net) => `<div class="tablebar"><a class="cbtn vio" href="#">← Lobby</a><span class="bal">Chips<b id="balNum">${money(shownBal === null ? S.me.bal || 0 : shownBal)}</b>${net ? `<i data-late class="${net > 0 ? 'pos' : 'neg'}">${signed(net)}</i>` : ''}${K.sndButton()}</span></div>`;
 const felt = (hid, inner, extra = '') => `<div class="felt${extra}" data-hid="${hid}"${extra.includes('bac') ? '' : ' data-dealer="0"'}><div class="shoe" aria-hidden="true"></div>${inner}<div class="wait${busy ? ' on' : ''}"></div></div>`;
+const betChip = amt => `<div class="betchip">${K.chips(amt)}<span class="tk-amt">${money(amt)}</span></div>`;
 const resultStamp = net => `<div data-late class="result${net < 0 ? ' lost' : net === 0 ? ' even' : ''}">${net > 0 ? 'You win' : net < 0 ? 'You lose' : 'Push'}<small>${net ? signed(net) : 'bet back'}</small></div>`;
-const CHIP_COLORS = ['#6e52c8', '#a23b58', '#2f7a55', '#1b1b1b', '#bd8210'];
 function chipPicker(key, values, current, label, locked) {
   const d = locked ? ' disabled' : '';
-  return `<div class="chips"><span class="lab">${label}</span>${values.map((v, k) => `<button class="chipb" style="background:${CHIP_COLORS[k % 5]}" data-chip="${key}" data-v="${v}" aria-pressed="${v === current}"${d}>${v}</button>`).join('')}
+  return `<div class="chips"><span class="lab">${label}</span>${values.map((v, k) => `<button class="chipb" style="background:${K.chipColor(v)}${v > 0 && v < 5 ? ';color:#15132a' : ''}" data-chip="${key}" data-v="${v}" aria-pressed="${v === current}"${d}>${v}</button>`).join('')}
     <input class="amt-in" type="number" inputmode="numeric" min="${key === 'trips' ? 0 : 1}" data-amt="${key}" value="${current}" aria-label="${label} amount"${d}></div>`;
 }
 const btn = (attr, label, cls, ok = true) => `<button class="cbtn ${cls}${pressed === attr ? ' pressed' : ''}" ${attr}${ok ? '' : ' disabled'}>${label}</button>`;
@@ -637,7 +637,7 @@ function blackjack(fm) {
         <span class="tot" data-late>${h.soft && h.total < 21 && live && g.active === k ? `${h.total - 10} / ${h.total}` : h.total}</span>${h.res ? `<span data-late class="tag ${h.res}">${{ win: 'WIN', bj: 'BLACKJACK', push: 'PUSH', lose: 'LOSE', bust: 'BUST' }[h.res]}</span>` : ''}</div>
         <div class="hand">${h.cards.map(card).join('')}</div></div>`).join('') + '</div>' +
       (g.side ? `<div class="lbl">Push 22 · ${money(g.side)}${g.over ? `<span data-late class="tag ${g.sideWin ? 'win' : 'lose'}">${g.sideWin ? 'WIN 11:1' : 'LOSE'}</span>` : ''}</div>` : '') +
-      `<div class="betchip">${money(g.hands.reduce((a, h) => a + h.bet, 0) + (g.side || 0))}</div>` + (g.over ? resultStamp(g.net) : '');
+      betChip(g.hands.reduce((a, h) => a + h.bet, 0) + (g.side || 0)) + (g.over ? resultStamp(g.net) : '');
   }
   // the same four buttons in the same places every time; the bet chips stay put underneath. Free doubles and splits turn green.
   const dl = fm ? `Deal ${money(bet)}${p22 ? ` + ${money(p22)}` : ''}` : `Deal ${money(bet)}`;
@@ -659,7 +659,7 @@ function uth() {
   else inner = `<div class="lbl">Dealer ${done ? `<span class="tot" data-late>${esc(g.dlHand)}${g.qualifies ? ' · qualifies' : " · doesn't qualify"}</span>` : ''}</div><div class="hand">${g.dealer.map(card).join('')}</div>
       <div class="lbl">Board</div><div class="hand uth-board">${g.board.map(c => c === 'XX' ? card('__') : card(c)).join('')}</div>
       <div class="lbl">${esc(S.me.name)} <span class="tot" data-late>${esc(g.myHand)}</span>${done ? `<span data-late class="tag ${g.res}">${g.res.toUpperCase()}</span>` : ''}</div><div class="hand">${g.me.map(card).join('')}</div>
-      <div class="betchip">${money(g.onTable)}</div>${done ? resultStamp(g.net) : ''}`;
+      ${betChip(g.onTable)}${done ? resultStamp(g.net) : ''}`;
   // two buttons that never move: the bet (or Deal) and check/fold, right under the table; results and chips go below them
   const live = g && !done, st = live ? g.stage : '', a = live ? g.ante : ante;
   const b = (m, cls) => btn(`data-uth="b${m}"`, `Bet ${m}x ${money(a * m)}`, cls, live && g.afford[m]);
@@ -699,7 +699,7 @@ const clamp = (k, v) => Math.min(LIMIT[k][1](), Math.max(LIMIT[k][0], Math.floor
 function wire() {
   document.querySelectorAll('[data-bj],[data-uth],[data-do]').forEach(b => b.addEventListener('pointerdown', () => { b.classList.add('pressed'); }));
   document.querySelectorAll('details.earn').forEach(d => d.ontoggle = () => setPref('earn', d.open));
-  document.querySelectorAll('[data-snd]').forEach(b => b.onclick = () => { setPref('snd', !pref('snd', false)); render(); tick(); });
+  document.querySelectorAll('[data-tksnd]').forEach(b => b.onclick = () => { if (K.toggleSound()) setTimeout(() => SND.chips(), 30); render(); });
   // the lottery wheel spins to the winning ticket once per person per draw
   document.querySelectorAll('.won g[data-spin]').forEach(g => {
     const t = document.querySelector('[data-late-won]'), q = S.lottery && S.lottery.last && S.lottery.last.quarter;
@@ -711,11 +711,11 @@ function wire() {
   document.querySelectorAll('[data-chip]').forEach(b => b.onclick = () => { setPref(b.dataset.chip, clamp(b.dataset.chip, b.dataset.v)); render(); });
   document.querySelectorAll('[data-amt]').forEach(i => i.onchange = () => { setPref(i.dataset.amt, clamp(i.dataset.amt, i.value)); render(); });
   document.querySelectorAll('[data-side]').forEach(b => b.onclick = () => { setPref('side', b.dataset.side); render(); });
-  document.querySelectorAll('[data-bj]').forEach(b => b.onclick = () => { pressed = `data-bj="${b.dataset.bj}"`; const k = bjKey();
+  document.querySelectorAll('[data-bj]').forEach(b => b.onclick = () => { pressed = `data-bj="${b.dataset.bj}"`; const k = bjKey(); actSound(b.dataset.bj);
     play({ a: 'bj-act', id: T[k].id, do: b.dataset.bj }, j => { T[k] = j.hand; }, ['hit', 'double'].includes(b.dataset.bj) ? incomingCard : null); });
-  document.querySelectorAll('[data-uth]').forEach(b => b.onclick = () => { pressed = `data-uth="${b.dataset.uth}"`; play({ a: 'uth-act', id: T.uth.id, do: b.dataset.uth }, j => { T.uth = j.hand; }); });
+  document.querySelectorAll('[data-uth]').forEach(b => b.onclick = () => { pressed = `data-uth="${b.dataset.uth}"`; actSound(b.dataset.uth); play({ a: 'uth-act', id: T.uth.id, do: b.dataset.uth }, j => { T.uth = j.hand; }); });
   document.querySelectorAll('[data-do]').forEach(b => b.onclick = () => {
-    const d = b.dataset.do; pressed = `data-do="${d}"`;
+    const d = b.dataset.do; pressed = `data-do="${d}"`; if (d.endsWith('-deal')) SND.chips(0, 3);
     if (d === 'daily') play({ a: 'daily' }, j => { S.me.daily = j.daily; T.got = j.got; T.weekly = j.weekly; load(); });
     if (d === 'bj-deal') play({ a: 'bj', bet: pref('bj', 20) }, j => { T.bj = j.hand; });
     if (d === 'fb-deal') play({ a: 'bj', mode: 'free', bet: pref('fb', 20), side: pref('p22', 0) }, j => { T.fb = j.hand; });
@@ -724,6 +724,8 @@ function wire() {
   });
   if (busy) document.querySelectorAll('[data-bj],[data-uth],[data-do]').forEach(b => b.disabled = true);
 }
+// the move's own sound as you tap it: knock for stand / check, chips for double / split / bets, swish for fold (hit = the card)
+const actSound = m => m === 'stand' || m === 'chk' ? SND.check() : m === 'fold' ? SND.fold() : ['double', 'split', 'b4', 'b2', 'b1'].includes(m) ? SND.chips(0, 3) : null;
 // On Hit or Double a face-down card flies to your hand at once; it turns over when the server says what it is.
 const bjKey = () => route() === 'freebet' ? 'fb' : 'bj';
 function incomingCard() {
@@ -731,7 +733,7 @@ function incomingCard() {
   if (!g || !f || REDUCED) return;
   const hands = f.querySelectorAll('.hands .hand'), h = hands[g.active] || hands[0];
   if (!h) return;
-  const el = document.createElement('div'); el.className = 'card back'; h.appendChild(el); tick();
+  const el = document.createElement('div'); el.className = 'card back'; h.appendChild(el); SND.card();
   const s = f.querySelector('.shoe').getBoundingClientRect(), e = el.getBoundingClientRect();
   el.animate([{ transform: `translate(${s.left - e.left}px, ${s.top - e.top}px) rotate(-12deg) scale(.8)` }, { transform: 'none' }], { duration: 280, easing: 'cubic-bezier(.2,.8,.25,1)' });
 }
@@ -756,5 +758,6 @@ load();
 <link rel="stylesheet" href="/lateshow.css">
 <link rel="stylesheet" href="/cosmetics.css">
 <link rel="stylesheet" href="/plates.css">
+<link rel="stylesheet" href="/table-kit.css">
 </body>
 </html>

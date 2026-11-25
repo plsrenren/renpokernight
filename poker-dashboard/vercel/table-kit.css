@@ -1,0 +1,43 @@
+/* Shared table kit: one look for every table on the site (poker room, casino tables, live tables).
+   Felt, four-color deck, card backs, chip stacks and the deal motion all come from here, so a change lands on every table at once.
+   Cards size from --cw (card width); everything else scales from it. */
+:root {
+  --tk-felt1: #2f5a45; --tk-felt2: #173326; --tk-rail: #2b2150; --tk-gold: #f1c75b;
+  --tk-cardbg: #f6f3ea; --tk-ink: #1b1b1b; --tk-red: #c2283e; --tk-blue: #2c63d6; --tk-green: #1f8a4c;
+  --tk-back: repeating-linear-gradient(45deg, #5a40ad 0 6px, #6e52c8 6px 12px);
+}
+.tk-felt { background: radial-gradient(120% 90% at 50% 10%, var(--tk-felt1), var(--tk-felt2) 72%); }
+
+/* ---------- cards ---------- */
+.tk-cd { --cw: 44px; width: var(--cw); height: calc(var(--cw) * 1.41); background: var(--tk-cardbg); color: var(--tk-ink);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; flex: none; position: relative;
+  font: 900 calc(var(--cw) * .45)/1 Nunito, system-ui, sans-serif; box-shadow: 0 calc(var(--cw) * .07) calc(var(--cw) * .18) rgba(0,0,0,.4);
+  backface-visibility: hidden; }
+.tk-cd i { font-style: normal; font-size: .85em; margin-top: .1em; }
+.tk-cd.su-h { color: var(--tk-red); } .tk-cd.su-d { color: var(--tk-blue); } .tk-cd.su-c { color: var(--tk-green); }
+.tk-cd.back { background: var(--tk-back); border: calc(var(--cw) * .07) solid var(--tk-cardbg); color: transparent; }
+.tk-cd.back i { visibility: hidden; }
+.tk-cd.sm { --cw: 34px; } .tk-cd.md { --cw: 52px; } .tk-cd.lg { --cw: 74px; }
+/* fanned cards show their corner index */
+.tk-fan { display: flex; }
+.tk-fan .tk-cd { justify-content: flex-start; align-items: flex-start; padding: calc(var(--cw) * .09) 0 0 calc(var(--cw) * .11); font-size: calc(var(--cw) * .4); }
+.tk-fan .tk-cd + .tk-cd { margin-left: calc(var(--cw) * -.45); }
+.tk-row { display: flex; gap: calc(var(--cw, 44px) * .14); }
+.tk-shoe { width: 46px; height: 64px; background: var(--tk-back); border: 3px solid var(--tk-cardbg); box-shadow: 3px 3px 0 #2c1f63, 6px 6px 0 #1f1647; }
+
+/* ---------- chips: white $1, red $5, green $25, black $100, purple $500 ---------- */
+.tk-stks { display: inline-flex; align-items: flex-end; gap: 3px; }
+.tk-stk { position: relative; width: 20px; display: block; }
+.tk-stk i { position: absolute; left: 0; width: 20px; height: 8px; border-radius: 50%; background: var(--c);
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,.35), 0 1px 0 rgba(0,0,0,.45); }
+.tk-stk i::after { content: ""; position: absolute; inset: 1px 4px; border-top: 2px dashed rgba(255,255,255,.75); border-radius: 50%; }
+.tk-stk .k1 { --c: #f2f2f2; } .tk-stk .k1::after { border-color: #3b6fd6; } .tk-stk .k5 { --c: #d93a4a; } .tk-stk .k25 { --c: #2e9e5b; }
+.tk-stk .k100 { --c: #22202f; box-shadow: inset 0 -1px 0 rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.55); } .tk-stk .k500 { --c: #8f78f0; }
+.tk-amt { font: 400 18px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .03em; padding: 3px 10px 1px 7px; background: #cfcaf0; color: #15132a;
+  clip-path: polygon(0 0,100% 0,calc(100% - 7px) 100%,0 100%); }
+
+/* ---------- sound button (same speaker everywhere, one setting for every table) ---------- */
+.tk-snd { background: none; border: 0; padding: 2px 6px; font-size: 15px; line-height: 18px; cursor: pointer; color: #9a94c4; }
+.tk-snd.on { color: var(--tk-gold); }
+
+@media (prefers-reduced-motion: reduce) { .tk-cd { transition: none !important; animation: none !important; } }

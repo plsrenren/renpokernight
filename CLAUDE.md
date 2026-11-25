@@ -52,6 +52,14 @@ poker-dashboard/
                        the save, each hand through feedCmds (feed, house books, rakeback, jackpot, accolades). 5 seats, 5 idle rounds stands you up.
                        Seats = poker room look (pfp in border, bar wash, sticker, title tab via plates.js). Casino lobby has a Live Tables line.
                        Preview build: /mnt/project-files/live-tables/preview/ (node plugin.mjs && python3 build.py).
+    table-kit.js/.css  Shared table kit (Nov 24 2026, Renato's pick: every table looks + sounds the same). Plain script -> window.TK, loaded by
+                       poker.html, casino.html and live.html before their own script: Web Audio sounds (SND card/flip/chips "clay clack"/check knock/
+                       fold/turn/win/pot/lose/push), ONE mute setting for all tables (localStorage tk:snd, falls back to the old pk:snd; on by default;
+                       sounds before the first tap are skipped), sndButton(), chips(amount) stacks ($1 white, $5 red, $25 green, $100 black, $500 purple),
+                       chipColor(v) (casino bet pickers), card()/deal()/flipTo(). CSS: --tk-felt1/2 green felt, four-color deck colors, card back, .tk-stk.
+                       Casino tables now use the four-color deck, a chip stack + amount tag for the bet, full sounds; live tables the same green felt,
+                       cards slide from a shoe face down and turn over (CSS deal/turn keyframes, --fx/--fy aimed by aimCards()), sounds via animationstart.
+                       Change a sound/color here, not in a page. Discord table pictures (_bjcards.js) still use the red/black deck.
     pokerhands.js      Poker room hand histories in the browser (Nov 23 2026, picked options A + B): My hands button (table bar + closed-room lobby) opens an
                        overlay with your sessions (runs of hands < 2h apart), hand list, a replayer on a small felt and Download for trackers
                        (PokerStars-style text: PokerTracker/HM3/GTO Wizard/Hand2Note) or easy read. Engine writes T.rec per hand (events listed at the top of
