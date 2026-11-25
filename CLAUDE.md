@@ -104,7 +104,7 @@ poker-dashboard/
                        Why (Nov 20 2026): every deployment stores each function with its own satori+resvg copy; 203 deployments hit 75% of Hobby's
                        10 GB Function Storage. Don't add new picture functions: add a case to img.js. vercel.json ignoreCommand skips deploys when
                        nothing under poker-dashboard/vercel changed (entry-page-only PRs don't deploy). avatar (Discord pfps/banners; &anim=1 = animated GIF pfp, used only on player cards),
-                       discord (slash commands endpoint; ?setup=1 registers commands), invite (who reacted to the latest /game invite; /game type:Tournament|Cash replaced /tourney + /cash on Nov 21 2026, old names still answered),
+                       discord (slash commands endpoint; ?setup=1 registers commands), invite (who reacted to the latest /game invite; ?refresh=1 = the 5-minute scheduler's headcount redraw, the ONLY caller since Nov 25 2026 (not on every command any more); tv:last expires at the end of game day (gameDayEnd), so no invite out = 1 Redis command per check; /game type:Tournament|Cash replaced /tourney + /cash on Nov 21 2026, old names still answered),
                        roles (results roles + chip rewards; trusts a POSTed sheet only with header X-Roles-Key = env ROLES_KEY, which Invite.gs reads from
                        Script Properties; otherwise reads Google's copy), _tourney.js/_roles.js/_discord.js helpers, _assets/ fonts + logo
                        blackjack: _blackjack.js (/daily /blackjack /freebet /chips; splits up to 6 hands (MAX_HANDS) in both games; /freebet = mode 'free' on the same hand code:

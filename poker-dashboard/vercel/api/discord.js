@@ -27,7 +27,7 @@
 // Needs Vercel env vars DISCORD_BOT_TOKEN (already there) and DISCORD_PUBLIC_KEY (from the Developer Portal).
 import { createPublicKey, verify } from 'node:crypto';
 import { waitUntil } from '@vercel/functions';
-import { GAME_COMMAND, startTourney, tally, inviteBlocked, refreshInvite } from './_tourney.js';
+import { GAME_COMMAND, startTourney, tally, inviteBlocked } from './_tourney.js';
 import { syncRoles } from './_roles.js';
 import { BLACKJACK_COMMANDS, blackjackCommand, blackjackButton } from './_blackjack.js';
 import { DUEL_COMMAND, duelCommand, duelButton, sweepDuels } from './_duel.js';
@@ -117,8 +117,6 @@ async function sheet() {
 }
 
 // names for the invite list come from the sheet copy in memory (no wait on Google); Discord names when there's none yet
-const refreshNewestInvite = () => refreshInvite(async () => Object.fromEntries(Object.entries(cache.ids || {}).map(([n, id]) => [id, n])))
-  .catch(e => console.error('invite refresh', e));
 const webRoute = req => { const w = new URL(req.url).searchParams.get('web'); return w === 'login' || w === 'casino' || w === 'shop' || w === 'poker' || w === 'live' || w === 'me' ? w : null; };
 
 // casino replies carry their table picture as an upload (see _attach.js), so it shows with the message instead of loading after it
@@ -128,7 +126,7 @@ const accoladesLater = () => { if (!kvUrl() || !kvToken()) return;
   waitUntil(checkAccolades({ ids: cache.ids }).catch(e => console.error('accolades', e)));
   waitUntil(afterJackpot().catch(e => console.error('jackpot', e))); }; // posts any jackpot win in #casino
 export async function POST(req) {
-  if (webRoute(req)) { waitUntil(refreshNewestInvite()); const out = await casinoWeb(req, webRoute(req), sheet); accoladesLater(); return out; }
+  if (webRoute(req)) { const out = await casinoWeb(req, webRoute(req), sheet); accoladesLater(); return out; }
   const startedAt = Date.now();
   const body = await req.text();
   if (!signed(req, body)) return new Response('bad signature', { status: 401 });
@@ -179,7 +177,7 @@ async function finishLate(i, res) {
 }
 
 async function answer(i) {
-  waitUntil(refreshNewestInvite()); // any use of the bot also refreshes the newest invite's headcount (at most once a minute)
+  // the newest invite's headcount is refreshed by the 5-minute scheduler only (/api/invite?refresh=1), not on every command: saves Redis commands
 
   const opts = Object.fromEntries((i.data && i.data.options || []).map(o => [o.name, o]));
   if (i.type === 4) return suggest(i, opts); // suggestions while typing
