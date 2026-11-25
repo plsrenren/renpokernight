@@ -207,6 +207,19 @@ export async function pokerWeb(req, me, _sheet, out) {
     // signing in is optional: anyone can watch, and a guest gets a listen-only live token here
     const q = new URL(req.url).searchParams;
     if (q.get('hands')) return me ? out(await myHands(me.id, +q.get('from') || 0, +q.get('to') || 0, t)) : out({ err: 'Sign in to see your hands.' }, 401);
+    if (q.get('ablylib')) { // TEMP diagnostic: run the page's own ably.min.js here with a guest token request
+      const fs = await import('node:fs'), path = await import('node:path');
+      const src = fs.readFileSync(path.join(process.cwd(), 'ably.min.js'), 'utf8'), m = { exports: {} };
+      new Function('module', 'exports', src)(m, m.exports);
+      const Ably = m.exports.Realtime ? m.exports : (m.exports.default || globalThis.Ably);
+      const log = [];
+      const rt = new Ably.Realtime({ authCallback: (p, cb) => cb(null, tokenRequest('diag-lib', true)), autoConnect: true, echoMessages: false, logLevel: 0 });
+      rt.connection.on(ch => log.push([ch.previous, ch.current, ch.reason && (ch.reason.code + ' ' + ch.reason.message)]));
+      const sub = new Promise(res => { rt.channels.get('poker:table').attach().then(() => res('attached'), e => res('attach fail ' + e.code + ' ' + e.message)); });
+      const r = await Promise.race([sub, new Promise(res => setTimeout(() => res('timeout'), 7000))]);
+      try { rt.close(); } catch (e) {}
+      return out({ ver: Ably.Realtime.version || m.exports.version, attach: r, log });
+    }
     if (new URL(req.url).searchParams.get('token')) return ablyKey() ? out({ token: tokenRequest(me ? me.id : 'guest-' + randomBytes(6).toString('hex'), !me) }) : out({ err: 'Live updates are not set up.' });
     let T = await load();
     // nobody ticks a room that everyone walked away from; the next visit does (closes it, pays everyone)

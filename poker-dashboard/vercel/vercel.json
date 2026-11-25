@@ -61,7 +61,7 @@
   ],
   "functions": {
     "api/discord.js": {
-      "includeFiles": "{api/_assets/**,recap-core.js,loot.js,pokergame.js}",
+      "includeFiles": "{api/_assets/**,recap-core.js,loot.js,pokergame.js,ably.min.js}",
       "maxDuration": 60,
       "excludeFiles": "node_modules/@resvg/resvg-js-linux-x64-musl/**"
     },
