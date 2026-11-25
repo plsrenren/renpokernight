@@ -156,9 +156,8 @@ button:disabled { cursor: default; opacity: .4; }
 .slots { display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
 .slots .cbtn { font-size: 22px; padding: 11px 8px 9px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cbtn { transition: transform .08s, filter .12s, opacity .15s; }
-.cbtn:not(:disabled):active, .chipb:not(:disabled):active, .side:active { transform: translateY(2px) scale(.97); filter: brightness(1.15); }
+.cbtn:not(:disabled):active { transform: translateY(2px) scale(.97); filter: brightness(1.15); }
 .cbtn.pressed:disabled { opacity: 1; filter: brightness(1.2); }
-.chipb:disabled, .amt-in:disabled { opacity: .45; }
 .bal .tk-snd { margin-left: 10px; font-size: 18px; vertical-align: 2px; }
 .rules.stage { min-height: 3.2em; }
 #balNum { font-variant-numeric: tabular-nums; }
@@ -178,9 +177,33 @@ button:disabled { cursor: default; opacity: .4; }
 .acts .cbtn { font-size: 22px; padding: 11px 24px 9px; }
 .chips { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .chips .lab { font: 400 18px var(--title); letter-spacing: .08em; color: var(--soft); margin-right: 4px; min-width: 64px; }
-.chipb { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font: 400 17px var(--title); color: #fff; border: 4px dashed rgba(255,255,255,.7); letter-spacing: .02em; }
-.chipb[aria-pressed="true"] { outline: 3px solid var(--gold); outline-offset: 2px; }
-.amt-in { width: 86px; background: var(--panel2); border: 1px solid var(--line); color: var(--fg); font: 600 15px var(--mono); padding: 10px 8px; }
+/* betting = chip rack (Nov 25 2026, Renato's pick A, same as /live): tap a spot on the felt, tap chips to add, Undo / Clear / 2x, Deal on the right */
+.ctlbox { min-height: 66px; margin-top: 14px; }
+.ctlbox .slots { margin-top: 0; }
+.rackb { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(150px, 240px); gap: 12px; align-items: center; background: var(--panel); padding: 6px 8px; }
+.rack { display: flex; gap: 8px; }
+.chip { width: 54px; height: 54px; display: grid; place-items: center; font: 400 18px/1 var(--title); color: #fff; letter-spacing: .02em; position: relative; flex: none; padding: 0;
+  background: var(--c); box-shadow: inset 0 0 0 4px var(--c), inset 0 0 0 7px rgba(255,255,255,.85), 0 3px 0 rgba(0,0,0,.45); }
+.chip::before { content: ""; position: absolute; inset: 3px; border-radius: 50%; border: 4px dashed rgba(255,255,255,.75); }
+.chip span { position: relative; padding-top: 2px; }
+html button.chip, html button.bspot { border-radius: 50%; } /* lateshow.css squares every button */
+.chip.c1 { --c: #f2f2f2; color: #15132a; } .chip.c1::before { border-color: #3b6fd6; } .chip.c5 { --c: #d93a4a; } .chip.c25 { --c: #2e9e5b; } .chip.c100 { --c: #22202f; } .chip.c500 { --c: #8f78f0; }
+.chip:disabled { opacity: .35; }
+.chip:not(:disabled):active { transform: translateY(2px) scale(.97); filter: brightness(1.15); }
+.tools { display: flex; gap: 6px; justify-content: flex-end; }
+.tools .cbtn { font-size: 17px; padding: 9px 14px 7px; flex: 0 1 80px; text-align: center; }
+.rackb .cbtn.deal { font-size: 22px; padding: 14px 10px 12px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rhint { font-size: 12.5px; color: var(--muted); margin: 6px 0 0; min-height: 1.4em; }
+.bspots { position: absolute; right: 22px; bottom: 18px; display: flex; gap: 10px; align-items: flex-end; z-index: 1; }
+.bspot { width: 84px; height: 84px; border: 3px solid rgba(241,199,91,.55); background: rgba(0,0,0,.16); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 0;
+  color: rgba(241,199,91,.9); font: 400 14px/1 var(--title); letter-spacing: .12em; transition: box-shadow .15s, border-color .15s; }
+.bspot small { display: block; font: 500 9.5px var(--mono); letter-spacing: 0; color: #b9d8c7; margin-top: 3px; }
+.bspot.sm { width: 66px; height: 66px; font-size: 12px; }
+.bspot .tk-amt { font-size: 15px; padding: 2px 7px 0 5px; }
+.bspot.on { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(241,199,91,.25), 0 0 20px rgba(241,199,91,.35); }
+.bspot.bump { animation: bump .18s ease-out; } @keyframes bump { 50% { transform: scale(1.08); } }
+html button.bspot.rect { border-radius: 0; width: auto; flex: 1; max-width: 200px; height: 74px; }
+.felt.bac .bspots { position: static; justify-content: center; margin-top: 14px; }
 .rules { font-size: 12px; color: var(--muted); margin-top: 12px; line-height: 1.5; }
 .sync { display: flex; gap: 8px; align-items: center; margin-top: 12px; font-size: 12.5px; color: var(--soft); background: rgba(88,101,242,.16); border-left: 3px solid var(--blurple); padding: 8px 10px; }
 .err { color: var(--down); font-size: 14px; margin-top: 10px; min-height: 1em; }
@@ -224,7 +247,13 @@ details.pay summary { cursor: pointer; font: 400 17px var(--title); letter-spaci
   .shoe { width: 36px; height: 50px; right: 10px; top: 10px; }
   .slots .cbtn { font-size: 19px; padding: 11px 4px 9px; }
   .acts .cbtn { flex: 1; text-align: center; font-size: 20px; padding: 11px 6px 9px; }
-  .chipb { width: 42px; height: 42px; font-size: 15px; }
+  .ctlbox { min-height: 126px; }
+  .rackb { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; padding: 8px; }
+  .rack { grid-column: 1 / -1; justify-content: space-between; gap: 4px; } .chip { width: 52px; height: 52px; font-size: 17px; }
+  .tools .cbtn { flex: 1; font-size: 15px; padding: 9px 4px 7px 2px; } .rackb .cbtn.deal { font-size: 19px; padding: 11px 6px 9px 4px; }
+  .bspots { right: 10px; bottom: 10px; gap: 6px; } .bspot { width: 66px; height: 66px; font-size: 12px; } .bspot.sm { width: 54px; height: 54px; font-size: 11px; }
+  .bspot small { display: none; } .bspot .tk-amt { font-size: 13px; } .bspot .tk-stks { transform: scale(.85); }
+  html button.bspot.rect { height: 62px; }
   .sides { gap: 6px; } .side b { font-size: 21px; }
   .bacrow { gap: 10px; }
   .uth-board .card { width: 46px; height: 66px; font-size: 21px; } .uth-board .card i { font-size: 16px; }
@@ -429,7 +458,7 @@ function rollBal(delay) {
     requestAnimationFrame(run);
   }, delay);
 }
-window.addEventListener('hashchange', () => { T.err = ''; T.got = 0; if (!route()) load(); else render(); window.scrollTo(0, 0); });
+window.addEventListener('hashchange', () => { T.err = ''; T.got = 0; spotOn = 'main'; hist = []; if (!route()) load(); else render(); window.scrollTo(0, 0); });
 
 // ---------- lobby ----------
 // "Nameplates": chip leader rows get each player's equipped overall bar as a soft wash, plus border, title and sticker (plates.js).
@@ -611,17 +640,32 @@ const balBar = (title, net) => `<div class="tablebar"><a class="cbtn vio" href="
 const felt = (hid, inner, extra = '') => `<div class="felt${extra}" data-hid="${hid}"${extra.includes('bac') ? '' : ' data-dealer="0"'}><div class="shoe" aria-hidden="true"></div>${inner}<div class="wait${busy ? ' on' : ''}"></div></div>`;
 const betChip = amt => `<div class="betchip">${K.chips(amt)}<span class="tk-amt">${money(amt)}</span></div>`;
 const resultStamp = net => `<div data-late class="result${net < 0 ? ' lost' : net === 0 ? ' even' : ''}">${net > 0 ? 'You win' : net < 0 ? 'You lose' : 'Push'}<small>${net ? signed(net) : 'bet back'}</small></div>`;
-function chipPicker(key, values, current, label, locked) {
-  const d = locked ? ' disabled' : '';
-  return `<div class="chips"><span class="lab">${label}</span>${values.map((v, k) => `<button class="chipb" style="background:${K.chipColor(v)}${v > 0 && v < 5 ? ';color:#15132a' : ''}" data-chip="${key}" data-v="${v}" aria-pressed="${v === current}"${d}>${v}</button>`).join('')}
-    <input class="amt-in" type="number" inputmode="numeric" min="${key === 'trips' ? 0 : 1}" data-amt="${key}" value="${current}" aria-label="${label} amount"${d}></div>`;
+// chip rack: pending bets live in prefs (bet stays the same for the next hand); spotOn = which spot on the felt takes chips
+let spotOn = 'main', hist = [], bumped = '';
+const DEF = { bj: 20, fb: 20, ante: 10, bac: 20, p22: 0, trips: 0 }, pv = k => +pref(k, DEF[k]) || 0; // pending bet on a spot
+const pendMax = k => LIMIT[k][1]();
+function spotsHTML(list) { // [role, key, name, sub, cls]
+  const out = list.map(([role, key, name, sub, cls]) => { const amt = pv(key), on = list.length > 1 && spotOn === role;
+    return `<button class="bspot ${cls || ''}${on ? ' on' : ''}${bumped === role ? ' bump' : ''}" data-spot="${role}" aria-label="${esc(name)}${amt ? ' ' + money(amt) : ''}">${amt ? `${K.chips(amt)}<span class="tk-amt">${money(amt)}</span>` : `${esc(name)}${sub ? `<small>${esc(sub)}</small>` : ''}`}</button>`; }).join('');
+  bumped = '';
+  return `<div class="bspots">${out}</div>`;
+}
+function rackHTML(mainKey, sideKey, dealAttr, dealLabel, ok, hint) {
+  const key = spotOn === 'side' && sideKey ? sideKey : mainKey, cur = pv(key), cap = pendMax(key);
+  const chips = [1, 5, 25, 100, 500].map(v => `<button class="chip c${v}" data-chip="${v}"${cur >= cap ? ' disabled' : ''} aria-label="Add ${money(v)}"><span>$${v}</span></button>`).join('');
+  const any = pv(mainKey) + (sideKey ? pv(sideKey) : 0);
+  return `<div class="rackb"><div class="rack">${chips}</div>
+    <div class="tools">${btn('data-rk="undo"', 'Undo', 'ghost', hist.length > 0)}${btn('data-rk="clear"', 'Clear', 'ghost', any > 0)}${btn('data-rk="x2"', '2x', 'ghost', pv(mainKey) > 0 && pv(mainKey) < pendMax(mainKey))}</div>
+    ${btn(dealAttr, dealLabel, 'gold deal', ok && !busy)}</div><p class="rhint">${hint}</p>`;
 }
 const btn = (attr, label, cls, ok = true) => `<button class="cbtn ${cls}${pressed === attr ? ' pressed' : ''}" ${attr}${ok ? '' : ' disabled'}>${label}</button>`;
 const syncLine = '<div class="sync">🔗 Uses your Discord chips. Your balance and /chips on Discord update straight away.</div>';
 
 // ---------- blackjack (fm = Free Bet table, #freebet; same game code with mode 'free') ----------
 function blackjack(fm) {
-  const g = fm ? T.fb : T.bj, bk = fm ? 'fb' : 'bj', bet = pref(bk, 20), p22 = pref('p22', 0), live = g && !g.over;
+  const g = fm ? T.fb : T.bj, bk = fm ? 'fb' : 'bj', bet = pref(bk, 20) || 0, p22 = fm ? pref('p22', 0) || 0 : 0, live = g && !g.over;
+  if (!fm) spotOn = 'main';
+  const spots = live ? '' : spotsHTML([['main', bk, 'Bet', `$1 to $${S.maxBet}`], ...(fm ? [['side', 'p22', 'Push 22', 'pays 11:1', 'sm']] : [])]);
   let inner = '<div class="lbl">Dealer</div><div class="hand">' + card('__') + card('__') + '</div><div class="lbl">' + esc(S.me.name) + '</div><div class="hand">' + card('__') + card('__') + '</div>';
   if (g) {
     const many = g.hands.length > 2;
@@ -633,13 +677,13 @@ function blackjack(fm) {
         <span class="tot" data-late>${h.soft && h.total < 21 && live && g.active === k ? `${h.total - 10} / ${h.total}` : h.total}</span>${h.res ? `<span data-late class="tag ${h.res}">${{ win: 'WIN', bj: 'BLACKJACK', push: 'PUSH', lose: 'LOSE', bust: 'BUST' }[h.res]}</span>` : ''}</div>
         <div class="hand">${h.cards.map(card).join('')}</div></div>`).join('') + '</div>' +
       (g.side ? `<div class="lbl">Push 22 · ${money(g.side)}${g.over ? `<span data-late class="tag ${g.sideWin ? 'win' : 'lose'}">${g.sideWin ? 'WIN 11:1' : 'LOSE'}</span>` : ''}</div>` : '') +
-      betChip(g.hands.reduce((a, h) => a + h.bet, 0) + (g.side || 0)) + (g.over ? resultStamp(g.net) : '');
+      (live ? betChip(g.hands.reduce((a, h) => a + h.bet, 0) + (g.side || 0)) : '') + (g.over ? resultStamp(g.net) : '');
   }
+  inner += spots;
   // the same four buttons in the same places every time; the bet chips stay put underneath. Free doubles and splits turn green.
-  const dl = fm ? `Deal ${money(bet)}${p22 ? ` + ${money(p22)}` : ''}` : `Deal ${money(bet)}`;
-  const controls = `<div class="slots">${live ? btn('data-bj="hit"', 'Hit', 'gold') : btn(`data-do="${fm ? 'fb' : 'bj'}-deal"`, dl, fm && p22 ? 'gold tight' : 'gold')}
-      ${btn('data-bj="stand"', 'Stand', '', live)}${btn('data-bj="double"', live && g.freeDouble ? 'Free double' : 'Double', live && g.freeDouble ? 'free' : 'ghost', live && g.canDouble)}${btn('data-bj="split"', live && g.freeSplit ? 'Free split' : 'Split', live && g.freeSplit ? 'free' : 'ghost', live && g.canSplit)}</div>
-    <div class="acts">${chipPicker(bk, [5, 20, 50, 100, 500], bet, 'Bet', live)}${fm ? chipPicker('p22', [0, 1, 5, 10, 25], p22, 'Push 22', live) : ''}</div>`;
+  const need = bet + p22, hint = bet < 1 ? 'Tap chips to place your bet.' : fm ? `Chips go on ${spotOn === 'side' ? 'Push 22' : 'Bet'}. Tap ${spotOn === 'side' ? 'Bet' : 'Push 22'} on the table to bet there.` : 'Your bet stays on the table for the next hand.';
+  const controls = `<div class="ctlbox">${live ? `<div class="slots">${btn('data-bj="hit"', 'Hit', 'gold')}${btn('data-bj="stand"', 'Stand', '')}${btn('data-bj="double"', g.freeDouble ? 'Free double' : 'Double', g.freeDouble ? 'free' : 'ghost', g.canDouble)}${btn('data-bj="split"', g.freeSplit ? 'Free split' : 'Split', g.freeSplit ? 'free' : 'ghost', g.canSplit)}</div>`
+    : rackHTML(bk, fm ? 'p22' : null, `data-do="${bk}-deal"`, `Deal ${money(need)}`, bet >= 1 && need <= (S.me.bal || 0), hint)}</div>`;
   const rules = fm
     ? `Free double on a hard 9, 10 or 11 · free split on any pair except 10s (up to 6 hands) · a free bet pays even money when its hand wins and costs nothing when it loses · dealer hits soft 17 · dealer 22 pushes every standing hand · blackjack pays 3:2 · Push 22 side bet ($0 to $${S.maxPush22 || 25}) pays 11:1 · $1 to $${S.maxBet}. Same as /freebet.`
     : `Blackjack pays 3:2 · dealer stands on all 17s · double on any first two cards · split up to 6 hands (split aces get one card each) · $1 to $${S.maxBet}. Same as /blackjack.`;
@@ -649,22 +693,24 @@ function blackjack(fm) {
 
 // ---------- Ultimate Hold'em ----------
 function uth() {
-  const g = T.uth, ante = pref('ante', 10), trips = pref('trips', 0), done = g && g.stage === 'done';
+  const g = T.uth, ante = pref('ante', 10) || 0, trips = pref('trips', 0) || 0, done = g && g.stage === 'done';
+  const spots = g && !done ? '' : spotsHTML([['side', 'trips', 'Trips', 'up to 50:1', 'sm'], ['main', 'ante', 'Ante', `$1 to $${S.maxAnte}`]]);
   let inner;
-  if (!g) inner = `<div class="lbl">Dealer</div><div class="hand">${card('__')}${card('__')}</div><div class="lbl">Board</div><div class="hand uth-board">${Array(5).fill(card('__')).join('')}</div><div class="lbl">${esc(S.me.name)}</div><div class="hand">${card('__')}${card('__')}</div>`;
+  if (!g) inner = `<div class="lbl">Dealer</div><div class="hand">${card('__')}${card('__')}</div><div class="lbl">Board</div><div class="hand uth-board">${Array(5).fill(card('__')).join('')}</div><div class="lbl">${esc(S.me.name)}</div><div class="hand">${card('__')}${card('__')}</div>${spots}`;
   else inner = `<div class="lbl">Dealer ${done ? `<span class="tot" data-late>${esc(g.dlHand)}${g.qualifies ? ' · qualifies' : " · doesn't qualify"}</span>` : ''}</div><div class="hand">${g.dealer.map(card).join('')}</div>
       <div class="lbl">Board</div><div class="hand uth-board">${g.board.map(c => c === 'XX' ? card('__') : card(c)).join('')}</div>
       <div class="lbl">${esc(S.me.name)} <span class="tot" data-late>${esc(g.myHand)}</span>${done ? `<span data-late class="tag ${g.res}">${g.res.toUpperCase()}</span>` : ''}</div><div class="hand">${g.me.map(card).join('')}</div>
-      ${betChip(g.onTable)}${done ? resultStamp(g.net) : ''}`;
+      ${done ? spots : betChip(g.onTable)}${done ? resultStamp(g.net) : ''}`;
   // two buttons that never move: the bet (or Deal) and check/fold, right under the table; results and chips go below them
   const live = g && !done, st = live ? g.stage : '', a = live ? g.ante : ante;
   const b = (m, cls) => btn(`data-uth="b${m}"`, `Bet ${m}x ${money(a * m)}`, cls, live && g.afford[m]);
-  const slots = `<div class="slots" style="--n:2">${!live ? btn('data-do="uth-deal"', `Deal ${money(ante * 3 + trips)}`, 'gold') : st === 'pre' ? b(4, 'gold') : st === 'flop' ? b(2, 'gold') : b(1, 'gold')}
-      ${st === 'river' ? btn('data-uth="fold"', 'Fold', 'ghost') : btn('data-uth="chk"', 'Check', 'ghost', st === 'pre' || st === 'flop')}</div>`;
+  // check / fold on the left, the bet on the right, like /live and the poker room
+  const need = ante * 3 + trips, hint = ante < 1 ? 'Tap chips to place your ante.' : `Chips go on ${spotOn === 'side' ? 'Trips' : 'Ante'}. Tap ${spotOn === 'side' ? 'Ante' : 'Trips'} on the table to bet there.`;
+  const slots = `<div class="ctlbox">${live ? `<div class="slots" style="--n:2">${st === 'river' ? btn('data-uth="fold"', 'Fold', 'ghost') : btn('data-uth="chk"', 'Check', 'ghost')}${st === 'pre' ? b(4, 'gold') : st === 'flop' ? b(2, 'gold') : b(1, 'gold')}</div>`
+    : rackHTML('ante', 'trips', 'data-do="uth-deal"', `Deal ${money(need)}`, ante >= 1 && need <= (S.me.bal || 0), hint)}</div>`;
   const controls = `<p class="rules stage">${!live ? `Ante + equal blind up front${trips ? ', plus trips' : ''}, and 1x your ante held so the river bet is always covered (back if you fold). Then bet 4x before the flop, 2x on the flop, or 1x on the river.`
       : st === 'pre' ? 'Pre-flop: bet 4x your ante now, or check and decide after the flop.' : st === 'flop' ? 'Flop: bet 2x your ante, or check.' : 'River: bet 1x your ante, or fold and lose the ante and blind.'}
-      ${live ? `Ante ${money(g.ante)} · Blind ${money(g.ante)}${g.trips ? ` · Trips ${money(g.trips)}` : ''}${g.held ? ` · ${money(g.held)} held for the river bet` : ''}` : ''}</p>
-    <div class="acts">${chipPicker('ante', [5, 10, 25, 50, 100], ante, 'Ante', live)}</div><div class="acts">${chipPicker('trips', [0, 5, 10, 25], trips, 'Trips', live)}</div>`;
+      ${live ? `Ante ${money(g.ante)} · Blind ${money(g.ante)}${g.trips ? ` · Trips ${money(g.trips)}` : ''}${g.held ? ` · ${money(g.held)} held for the river bet` : ''}` : ''}</p>`;
   const lines = done ? `<div class="lines" data-late>${g.lines.map(([b, why, amt]) => `<div><b>${esc(b)}</b><span>${esc(why)}</span><span class="${amt > 0 ? 'pos' : amt < 0 ? 'neg' : ''}">${amt ? signed(amt) : '$0'}</span></div>`).join('')}</div>` : '';
   return `${balBar("Ultimate Hold'em", done ? g.net : 0)}${felt(g ? g.id : '', inner)}${slots}<div class="err">${esc(T.err)}</div>${lines}${controls}
     <details class="pay"><summary>Payouts</summary>${esc(S.uthPaytable)}</details>${syncLine}`;
@@ -672,7 +718,11 @@ function uth() {
 
 // ---------- baccarat ----------
 function baccarat() {
-  const r = T.bac, bet = pref('bac', 20), side = pref('side', 'banker');
+  const r = T.bac, bet = pref('bac', 20) || 0, side = pref('side', 'banker');
+  // one bet: tap Player, Tie or Banker on the table to move your chips there
+  const bspots = `<div class="bspots">${['player', 'tie', 'banker'].map(k => { const [n, p] = { player: ['Player', 'pays 1:1'], tie: ['Tie', 'pays 8:1'], banker: ['Banker', 'pays 0.95:1'] }[k], on = side === k;
+    return `<button class="bspot rect${on ? ' on' : ''}${on && bumped === 'main' ? ' bump' : ''}" data-spot="bac-${k}" aria-label="${n}">${on && bet ? `${K.chips(bet)}<span class="tk-amt">${money(bet)}</span>` : `${n}<small>${p}</small>`}</button>`; }).join('')}</div>`;
+  bumped = ''; spotOn = 'main';
   const SIDES = { player: ['Player', 'pays 1:1', 'var(--vio)'], banker: ['Banker', 'pays 0.95:1', 'var(--gold)'], tie: ['Tie', 'pays 8:1', 'var(--up)'] };
   let inner = `<div class="bacrow"><div><div class="lbl">Player</div><div class="hand">${card('__')}${card('__')}</div></div><div><div class="lbl">Banker</div><div class="hand">${card('__')}${card('__')}</div></div></div>`;
   if (r) {
@@ -682,16 +732,14 @@ function baccarat() {
       <div class="lbl sum" data-late style="margin-top:6px">${w === 'tie' ? `Tie ${c.ps}–${c.bs}` : `${SIDES[w][0]} wins ${Math.max(c.ps, c.bs)}–${Math.min(c.ps, c.bs)}`}${c.natural ? ' · natural' : ''} · you bet ${money(r.bet)} on ${SIDES[r.side][0]}</div>
       ${resultStamp(r.net)}`;
   }
+  inner += bspots;
   return `${balBar('Baccarat', r ? r.net : 0)}${felt(r ? r.n : '', inner, ' bac')}
-    <div class="acts" style="display:block"><div class="sides">${Object.entries(SIDES).map(([k, [n, p, c]]) => `<button class="side" style="--c:${c}" data-side="${k}" aria-pressed="${k === side}"><b>${n}</b><span>${p}</span></button>`).join('')}</div></div>
-    <div class="acts">${chipPicker('bac', [5, 20, 50, 100, 500], bet, 'Bet')}</div>
-    <div class="slots" style="--n:1">${btn('data-do="bac-deal"', `Deal ${money(bet)} on ${SIDES[side][0]}`, 'gold')}</div><div class="err">${esc(T.err)}</div>
+    <div class="ctlbox">${rackHTML('bac', null, 'data-do="bac-deal"', `Deal ${money(bet)}`, bet >= 1 && bet <= (S.me.bal || 0), bet < 1 ? 'Tap chips to place your bet.' : `Your bet is on ${SIDES[side][0]}. Tap Player, Tie or Banker on the table to move it.`)}</div><div class="err">${esc(T.err)}</div>
     <p class="rules">Fresh 6-deck shoe each hand, standard third-card rules. Player and Banker bets push on a tie. Same as /baccarat.</p>${syncLine}`;
 }
 
 // ---------- buttons ----------
 const LIMIT = { bj: [1, () => S.maxBet], fb: [1, () => S.maxBet], p22: [0, () => S.maxPush22 || 25], bac: [1, () => S.maxBet], ante: [1, () => S.maxAnte], trips: [0, () => S.maxTrips] };
-const clamp = (k, v) => Math.min(LIMIT[k][1](), Math.max(LIMIT[k][0], Math.floor(+v || 0)));
 function wire() {
   document.querySelectorAll('[data-bj],[data-uth],[data-do]').forEach(b => b.addEventListener('pointerdown', () => { b.classList.add('pressed'); }));
   document.querySelectorAll('details.earn').forEach(d => d.ontoggle = () => setPref('earn', d.open));
@@ -704,9 +752,24 @@ function wire() {
     requestAnimationFrame(() => requestAnimationFrame(() => { g.style.transform = `rotate(${g.dataset.spin}deg)`; }));
     setTimeout(() => { if (t) t.style.opacity = 1; }, 5600);
   });
-  document.querySelectorAll('[data-chip]').forEach(b => b.onclick = () => { setPref(b.dataset.chip, clamp(b.dataset.chip, b.dataset.v)); render(); });
-  document.querySelectorAll('[data-amt]').forEach(i => i.onchange = () => { setPref(i.dataset.amt, clamp(i.dataset.amt, i.value)); render(); });
-  document.querySelectorAll('[data-side]').forEach(b => b.onclick = () => { setPref('side', b.dataset.side); render(); });
+  // chip rack: which keys this table bets with
+  const rt = route(), RK = { blackjack: ['bj'], freebet: ['fb', 'p22'], uth: ['ante', 'trips'], baccarat: ['bac'] }[rt];
+  const snap = () => RK ? RK.map(k => pv(k)) : [], restore = v => RK.forEach((k, i) => setPref(k, v[i]));
+  document.querySelectorAll('[data-chip]').forEach(b => b.onclick = () => {
+    const k = spotOn === 'side' && RK[1] ? RK[1] : RK[0];
+    hist.push(snap()); if (hist.length > 50) hist.shift();
+    setPref(k, Math.min(pendMax(k), pv(k) + +b.dataset.chip)); bumped = spotOn; SND.chips(0, 1); render(); });
+  document.querySelectorAll('[data-rk]').forEach(b => b.onclick = () => {
+    const d = b.dataset.rk;
+    if (d === 'undo' && hist.length) restore(hist.pop());
+    if (d === 'clear') { hist.push(snap()); RK.forEach(k => setPref(k, 0)); }
+    if (d === 'x2') { hist.push(snap()); RK.forEach(k => setPref(k, Math.min(pendMax(k), pv(k) * 2))); SND.chips(0, 2); }
+    render(); });
+  document.querySelectorAll('[data-spot]').forEach(b => b.onclick = () => {
+    const d = b.dataset.spot;
+    if (d.startsWith('bac-')) { if (pref('side', 'banker') !== d.slice(4)) { setPref('side', d.slice(4)); bumped = 'main'; SND.chips(0, 1); } }
+    else spotOn = d;
+    render(); });
   document.querySelectorAll('[data-bj]').forEach(b => b.onclick = () => { pressed = `data-bj="${b.dataset.bj}"`; const k = bjKey(); actSound(b.dataset.bj);
     play({ a: 'bj-act', id: T[k].id, do: b.dataset.bj }, j => { T[k] = j.hand; }, ['hit', 'double'].includes(b.dataset.bj) ? incomingCard : null); });
   document.querySelectorAll('[data-uth]').forEach(b => b.onclick = () => { pressed = `data-uth="${b.dataset.uth}"`; actSound(b.dataset.uth); play({ a: 'uth-act', id: T.uth.id, do: b.dataset.uth }, j => { T.uth = j.hand; }); });
