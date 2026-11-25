@@ -23,6 +23,7 @@ import { shopWeb } from './_shop.js';
 import { sweepDuels } from './_duel.js';
 import { pokerWeb } from './_poker.js';
 import { liveWeb } from './_live.js';
+import { meWeb } from './_me.js';
 
 const DAYS30 = 30 * 24 * 3600;
 const out = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers } });
@@ -35,6 +36,9 @@ const secret = () => process.env.SESSION_SECRET || process.env.DISCORD_CLIENT_SE
 const keyOf = () => createHash('sha256').update('casino-session|' + secret()).digest();
 const sign = data => createHmac('sha256', keyOf()).update(data).digest('base64url');
 const cookie = (name, value, maxAge) => `${name}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
+// "cas_in=1": a readable marker (no secrets, just "someone signed in on this browser") so the sign-in badge on every page knows
+// whether to ask the server at all. Signed-out visitors then cost no function call. The real session stays in the HttpOnly "cas".
+export const marker = on => `cas_in=${on ? 1 : ''}; Path=/; Secure; SameSite=Lax; Max-Age=${on ? DAYS30 : 0}`;
 function readCookie(req, name) {
   const m = (req.headers.get('cookie') || '').split(/;\s*/).find(c => c.startsWith(name + '='));
   return m ? m.slice(name.length + 1) : '';
@@ -60,12 +64,14 @@ async function appId() {
 }
 const originOf = req => { const u = new URL(req.url); return `https://${req.headers.get('x-forwarded-host') || u.host}`; };
 
+const BACK = ['shop', 'poker', 'live', 'collection', 'recap', 'hall', 'h2h'];
 async function login(req, sheet) {
   const u = new URL(req.url), origin = originOf(req), redirect = origin + '/api/login', code = u.searchParams.get('code');
-  // ?to=shop (or poker, collection) brings you back there instead of /casino (kept next to the state in the same short cookie)
+  // ?to=shop (or any page: home, recap, hall, h2h, poker, live, collection) brings you back there instead of /casino
+  // (kept next to the state in the same short cookie). The sign-in badge sends the page you were on.
   const [wantState, to] = String(readCookie(req, 'cas_state') || '').split('.');
   const want = code || u.searchParams.get('error') ? to : u.searchParams.get('to');
-  const back = want === 'shop' ? '/shop' : want === 'poker' ? '/poker' : want === 'live' ? '/live' : want === 'collection' ? '/collection' : '/casino';
+  const back = want === 'home' ? '/' : BACK.includes(want) ? '/' + want : '/casino';
   const fail = why => go(`${back}?err=${encodeURIComponent(why)}`, [cookie('cas_state', '', 0)]);
   if (u.searchParams.get('error')) return fail('cancelled');
   if (!code) { // step 1: off to Discord
@@ -73,7 +79,7 @@ async function login(req, sheet) {
     if (!id || !process.env.DISCORD_CLIENT_SECRET) return fail('setup');
     const state = randomBytes(12).toString('hex');
     const q = new URLSearchParams({ client_id: id, response_type: 'code', redirect_uri: redirect, scope: 'identify', state, prompt: 'none' });
-    return go('https://discord.com/oauth2/authorize?' + q, [cookie('cas_state', state + (back === '/casino' ? '' : '.' + back.slice(1)), 600)]);
+    return go('https://discord.com/oauth2/authorize?' + q, [cookie('cas_state', state + (back === '/casino' ? '' : '.' + (back === '/' ? 'home' : back.slice(1))), 600)]);
   }
   // step 2: Discord sent us back
   if (!u.searchParams.get('state') || u.searchParams.get('state') !== wantState) return fail('expired');
@@ -89,7 +95,7 @@ async function login(req, sheet) {
   const sheetName = Object.keys(ids).find(n => ids[n] === user.id);
   if (!known && !sheetName) return fail('stranger');
   const name = sheetName || known || user.global_name || user.username;
-  return go(back, [cookie('cas', makeSession({ id: user.id, name }), DAYS30), cookie('cas_state', '', 0)]);
+  return go(back, [cookie('cas', makeSession({ id: user.id, name }), DAYS30), cookie('cas_state', '', 0), marker(true)]);
 }
 
 // ---------- the page's data ----------
@@ -140,7 +146,8 @@ async function act(req, me) {
   let b; try { b = await req.json(); } catch (e) { return out({ err: 'Bad request.' }, 400); }
   const who = { id: me.id, name: me.name, src: 'site' };
   switch (b.a) {
-    case 'logout': return out({ ok: true }, 200, { 'Set-Cookie': cookie('cas', '', 0) });
+    case 'logout': { const h = new Headers({ 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); h.append('Set-Cookie', cookie('cas', '', 0)); h.append('Set-Cookie', marker(false));
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: h }); }
     case 'daily': {
       await sweepDuels().catch(e => console.error('duel sweep', e)); // refunds rock paper scissors duels stuck for 30+ min
       const r = await claimDaily(who);
@@ -182,6 +189,7 @@ export async function casinoWeb(req, what, sheet) {
   try {
     if (what === 'login') return await login(req, sheet);
     const me = readSession(req);
+    if (what === 'me') return await meWeb(me, sheet, out); // the sign-in badge (badge.js), see _me.js
     if (what === 'shop' && req.method === 'GET') return await shopWeb(req, me, sheet, out);
     if (what === 'poker' && req.method === 'GET') return await pokerWeb(req, me, sheet, out);
     if (what === 'live' && req.method === 'GET') return await liveWeb(req, me, out);

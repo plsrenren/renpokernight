@@ -1,0 +1,64 @@
+/* Sign-in badge (badge.js): top right of every page, Renato's pick B "seat plate" (Nov 25 2026). Every selector starts with html
+   so it beats the page's own <style>. Borders, bars and stickers come from cosmetics.css + plates.css (badge.js links them). */
+html .sb { --sb-ink: #15132a; position: relative; z-index: 60; font-family: "Space Grotesk", system-ui, sans-serif; line-height: 1.2; color: #ece9fb; text-align: left; }
+/* pages without a spot of their own: float in the top right corner */
+html .sb.sb-float { position: absolute; top: 14px; right: 18px; }
+html .sb-wait { display: block; width: 38px; height: 38px; background: #26224a; opacity: .5; }
+html.sb-strip body { padding-top: 54px; }
+html.sb-strip .sb.sb-float { top: 8px; }
+/* signed out: one slanted Discord tag */
+html .sb-out { display: inline-flex; align-items: center; gap: 7px; font: 400 16px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .1em; color: #fff; background: #5865F2; padding: 7px 16px 5px 10px; clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%); text-decoration: none; white-space: nowrap; }
+html .sb-out:hover { background: #4752c4; }
+html .sb-out svg { width: 18px; height: 14px; margin-top: -2px; }
+html .sb-msg { position: absolute; right: 0; top: calc(100% + 6px); width: max-content; max-width: 240px; background: #1d1a37; border-left: 3px solid #e0507f; padding: 7px 10px; font-size: 12.5px; box-shadow: 0 8px 20px rgba(0,0,0,.45); }
+
+/* signed in: the poker room nameplate */
+html .sb-in { all: unset; box-sizing: border-box; display: flex; align-items: center; cursor: pointer; padding-bottom: 20px; } /* room for the title tab */
+html .sb-in:focus-visible { outline: 2px solid #f1c75b; outline-offset: 3px; }
+html .sb-in .plf { position: relative; z-index: 2; }
+html .sb-pf { display: block; width: 100%; height: 100%; object-fit: cover; background: #26224a; }
+html .sb-np { position: relative; margin-left: -6px; }
+html .sb-name { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 128px; padding: 4px 9px 4px 10px; background: #1d1a37; border-left: 3px solid #4a4380; }
+html .sb-name b { font: 700 12.5px/1.2 "Space Grotesk", system-ui, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+html .sb-name .pl-bg { opacity: .55; }
+html .sb-bal { font: 600 12.5px/1.2 "IBM Plex Mono", ui-monospace, monospace; color: #f1c75b; white-space: nowrap; }
+/* title: a slanted tab under the plate, sized to the whole title (never cut), lined up with the plate's right end */
+html .sb-ttl { position: absolute; right: 0; top: 100%; z-index: 4; width: max-content; white-space: nowrap; font: 400 13.5px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--sb-ink); background: var(--tc); padding: 4px 8px 3px 14px; clip-path: polygon(7px 0, 100% 0, 100% 100%, 0 100%); }
+html .sb-stk { position: absolute; right: -9px; bottom: calc(100% - 6px); transform: rotate(8deg); line-height: 0; z-index: 3; pointer-events: none; }
+html .sb-stk .pl-stk { width: 24px; height: 24px; margin: 0; transform: none; }
+
+/* the card (hover on a mouse, tap on a phone) */
+html .sb-card { position: absolute; right: 0; top: calc(100% + 6px); width: 300px; background: #1d1a37; box-shadow: 0 14px 34px rgba(0,0,0,.55); border-top: 3px solid #f1c75b; display: none; z-index: 70; }
+html .sb-card::before { content: ""; position: absolute; left: 0; right: 0; top: -12px; height: 12px; } /* hover bridge */
+html .sb.open .sb-card { display: block; }
+@media (hover: hover) and (pointer: fine) { html .sb.sb-me:hover .sb-card { display: block; } }
+html .sbc-hd { position: relative; display: flex; gap: 12px; align-items: center; padding: 14px 14px 12px; }
+html .sbc-hd .pl-bg { opacity: .6; }
+html .sbc-nm { min-width: 0; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+html .sbc-nm b { font: 400 28px/.9 "Bebas Neue", Impact, sans-serif; letter-spacing: .03em; max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html .sbc-tt { font: 400 13.5px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--sb-ink); background: var(--tc); padding: 4px 12px 3px 7px; clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 100%, 0 100%); white-space: nowrap; }
+html .sbc-tt.no { background: #3a3560; color: #9a94c4; }
+html .sbc-st { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #2c2852; border-top: 1px solid #2c2852; border-bottom: 1px solid #2c2852; }
+html .sbc-st > div { background: #1d1a37; padding: 9px 14px; min-width: 0; }
+html .sbc-st > div.w { grid-column: 1 / -1; }
+html .sbc-st span { display: block; font: 400 13px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .12em; color: #9a94c4; }
+html .sbc-st strong { display: block; font: 400 26px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .02em; margin-top: 4px; color: #ece9fb; }
+html .sbc-st strong small { font-size: 17px; color: #9a94c4; }
+html .sbc-st strong.g { color: #f1c75b; } html .sbc-st strong.u { color: #8ee0b0; } html .sbc-st strong.d { color: #e0507f; } html .sbc-st strong.n { color: #9a94c4; }
+html .sbc-st em { display: block; font: 500 11.5px/1.3 "IBM Plex Mono", ui-monospace, monospace; color: #9a94c4; font-style: normal; }
+html .sbc-ln { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 14px 14px; }
+html .sbc-ln a, html .sbc-ln button { all: unset; cursor: pointer; font: 400 15px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .08em; color: #ece9fb; background: #26224a; padding: 7px 12px 5px 9px; clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 100%, 0 100%); }
+html .sbc-ln a:hover { background: #3a3560; }
+html .sbc-ln a.pri { background: #8f78f0; color: #fff; }
+html .sbc-ln button.out { background: none; color: #9a94c4; margin-left: auto; }
+html .sbc-ln button.out:hover { color: #fff; }
+
+/* phones: face + chips only (name and title live in the card); floating badges sit in a slim strip above the page */
+@media (max-width: 640px) {
+  html .sb.sb-float { top: 8px; right: 12px; }
+  html.sb-floating body { padding-top: 46px; }
+  html .sb-in { padding-bottom: 0; }
+  html .sb-name b, html .sb-ttl { display: none; }
+  html .sb-name { min-width: 0; padding: 4px 8px 4px 9px; }
+  html .sb-card { position: fixed; left: 12px; right: 12px; top: 58px; width: auto; }
+}

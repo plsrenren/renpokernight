@@ -79,7 +79,7 @@ h2 em{font-style:normal;color:var(--gold);font:600 13px 'IBM Plex Mono',monospac
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><a href="/shop">&larr; Shop &amp; loadout</a><span class="who" id="who"></span></div>
+  <div class="top"><a href="/shop">&larr; Shop &amp; loadout</a><span id="sb"></span></div>
   <h1>Collection</h1>
   <p class="sub" id="sub">Loading…</p>
   <div class="prog" id="prog" hidden><i></i></div>
@@ -95,7 +95,6 @@ const COL = { ...TCOL, Earned: '#5fd6f0', Champion: '#f0c75e' };
 const SLOTS = [['Pfp border', 'Pfp borders'], ['Title', 'Titles'], ['Overall bar', 'Overall bars'], ['Sticker', 'Stickers']];
 const GROUPS = ['Champion', 'Earned', ...[...TIERS].reverse()];
 const LOCK = '<svg class="lock" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3h1.5v11h-13V10zm2 0h6V7a3 3 0 0 0-6 0z"/></svg>';
-const DISCORD = '<svg width="18" height="14" viewBox="0 0 71 55" aria-hidden="true"><path fill="currentColor" d="M60 4.9A58.5 58.5 0 0 0 45.6.4a40 40 0 0 0-1.9 3.8 54 54 0 0 0-16.2 0A40 40 0 0 0 25.6.4 58.4 58.4 0 0 0 11.1 4.9C1.9 18.7-.6 32.2.6 45.5a58.8 58.8 0 0 0 18 9.1 43 43 0 0 0 3.8-6.2 38 38 0 0 1-6-2.9l1.5-1.1a42 42 0 0 0 36 0l1.5 1.1a38 38 0 0 1-6 2.9 43 43 0 0 0 3.8 6.2 58.6 58.6 0 0 0 18-9.1c1.5-15.4-2.5-28.8-10.5-40.6zM23.7 37.3c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.3 6.4 7.2c0 4-2.8 7.2-6.4 7.2zm23.6 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.3 6.4 7.2c0 4-2.8 7.2-6.4 7.2z"/></svg>';
 
 let ME = null, slot = 'all', show = 'all', q = '';
 try { slot = localStorage.getItem('col-slot') || 'all'; show = localStorage.getItem('col-show') || 'all'; } catch (e) {}
@@ -163,9 +162,7 @@ function render() {
     }
   }
   document.getElementById('out').innerHTML = h || '<p class="empty">Nothing matches.</p>';
-  document.getElementById('who').innerHTML = ME
-    ? `<img src="/api/avatar?id=${esc(ME.id)}" alt="" onerror="this.remove()">${esc(ME.name)}`
-    : `<a class="dsign" href="/api/login?to=collection">${DISCORD}Sign in</a>`;
+  // who you are + sign in/out: the sign-in badge (badge.js)
 }
 document.addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
@@ -177,5 +174,6 @@ document.getElementById('q').addEventListener('input', e => { q = e.target.value
 render();
 fetch('/api/shop', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(d => { ME = d && d.me || null; render(); }).catch(() => {});
 </script>
+<script type="module" src="/badge.js"></script>
 </body>
 </html>

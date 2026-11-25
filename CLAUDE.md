@@ -57,6 +57,15 @@ poker-dashboard/
                        the save, each hand through feedCmds (feed, house books, rakeback, jackpot, accolades). 5 seats, 5 idle rounds stands you up.
                        Seats = poker room look (pfp in border, bar wash, sticker, title tab via plates.js). Casino lobby has a Live Tables line.
                        Preview build: /mnt/project-files/live-tables/preview/ (node plugin.mjs && python3 build.py).
+    badge.js/.css      Sign-in badge (Nov 25 2026, Renato's pick B "seat plate"): top right of every page (script tag on index/recap/hall/h2h/casino/
+                       shop/poker/live/collection). Signed out = Discord SIGN IN tag (/api/login?to=<page>, login returns to any page now); signed in =
+                       poker-room nameplate (pfp + border, bar wash, name + chips, sticker, full-width title tab) + hover/tap card (chips + stack rank,
+                       quarter net/nights/place, cosmetics X/Y like /collection, links, sign out). GET /api/me (vercel.json rewrite into discord.js?web=me,
+                       api/_me.js, one loadout() pipeline + cached sheet). Readable cookie cas_in=1 (set at login and by /api/me, cleared on logout)
+                       means signed-out visitors make NO call (no marker = ask once a week); answer cached 2 min in localStorage sb:me. Pages with a
+                       <div id="sb"> (casino/shop/poker/live/collection) hold it in their old corner and push balances via window.SB.bal(n); others float
+                       it top right, and it drops to a slim strip above the page (html.sb-strip/sb-floating) on phones (always, so titles keep full
+                       width, Renato's ask) or when it would cover the page's links/title.
     table-kit.js/.css  Shared table kit (Nov 24 2026, Renato's pick: every table looks + sounds the same). Plain script -> window.TK, loaded by
                        poker.html, casino.html and live.html before their own script: Web Audio sounds (SND card/flip/chips "clay clack"/check knock/
                        fold/turn/win/pot/lose/push), ONE mute setting for all tables (localStorage tk:snd, falls back to the old pk:snd; on by default;

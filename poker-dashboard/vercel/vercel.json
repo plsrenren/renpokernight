@@ -23,6 +23,10 @@
       "destination": "/api/discord?web=live"
     },
     {
+      "source": "/api/me",
+      "destination": "/api/discord?web=me"
+    },
+    {
       "source": "/api/recap",
       "destination": "/api/img?fn=recap"
     },

@@ -68,7 +68,10 @@ export async function loadout(uid) {
     ['HGETALL', 'sh:own:' + uid], ['HGET', 'sh:eq', uid], ['HGET', 'bj:bal', uid], ['HGET', 'sh:packs', uid], ['HGETALL', 'ac:own:' + uid], ['HGETALL', 'bj:bal'], ['SMEMBERS', 'sh:open:' + uid]);
   const [own, eq, bal, packs, acc, all, openIds] = res.slice(RETIRED.length);
   const earned = earnedIds(uid, acc, all), { hid, open } = await hiddenCards(uid, openIds);
-  return { owned: shown(hashObj(own), hid), eq: wearable(parseEq(eq), earned), bal: bal === null ? null : +bal, packs: +packs || 0, earned, open };
+  // where their stack ranks among everyone with chips (the sign-in badge shows it; the balances are read anyway for earnedIds)
+  const bals = []; for (let k = 1; k < (all || []).length; k += 2) bals.push(+all[k] || 0);
+  const rank = bal === null ? null : 1 + bals.filter(v => v > +bal).length;
+  return { owned: shown(hashObj(own), hid), eq: wearable(parseEq(eq), earned), bal: bal === null ? null : +bal, packs: +packs || 0, earned, open, rank, of: bals.length };
 }
 /** an equipped set without retired items or accolades they haven't earned. earned = earnedIds */
 export const wearable = (eq, earned) => Object.fromEntries(Object.entries(eq || {}).filter(([, id]) => !RETIRED.includes(id) && (!String(id).startsWith('a:') || earned.includes(id))));
