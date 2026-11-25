@@ -233,7 +233,7 @@ a.rc-mu { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; b
     <div>
       <div class="brand"><div class="lg" role="img" aria-label="Poker Club @ The Study logo"></div>
         <div><h1>Poker Club @ The Study</h1>
-        <div class="sub"><span class="src-line"><span class="dot" id="srcDot"></span> <span id="srcText">Loading results…</span></span><a class="recap-link" href="/recap">Latest recap →</a><a class="recap-link hof-link" href="/hall">🏆 Hall of Fame</a><a class="recap-link h2h-link" href="/h2h">⚔️ Head to head</a><a class="recap-link casino-link" href="/casino">🃏 Casino</a></div></div></div>
+        <div class="sub"><a class="recap-link" href="/recap">Latest recap →</a><a class="recap-link hof-link" href="/hall">🏆 Hall of Fame</a><a class="recap-link h2h-link" href="/h2h">⚔️ Head to head</a><a class="recap-link casino-link" href="/casino">🃏 Casino</a></div></div></div>
     </div>
     <div class="controls" id="controls">
       <label class="lbl" for="oYear">Year</label>
@@ -371,7 +371,7 @@ a.rc-mu { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; b
     </details>
   </div>
 
-  <footer>Data from the <strong>Input</strong> tab of the Poker Stats Google Sheet.</footer>
+  <footer><span class="src-line"><span class="dot" id="srcDot"></span> <span id="srcText">Loading…</span></span> · Data from the <strong>Input</strong> tab of the Poker Stats Google Sheet.</footer>
 </div>
 
 <script type="text/csv" id="snapshot">/*__SNAPSHOT__*/</script>
@@ -1011,9 +1011,10 @@ window.addEventListener('popstate', () => { fromHash(); show(); });
 function setSource(live) {
   document.getElementById('srcDot').classList.toggle('live', live);
   const latest = DATA.length ? fmtDate(DATA.reduce((a, r) => r.date > a ? r.date : a, DATA[0].date)) : '';
-  document.getElementById('srcText').textContent = live
-    ? `Live from Google Sheets · latest game ${latest}`
-    : `Snapshot taken ${SNAPSHOT_DATE} · latest game ${latest}`;
+  // kept short (Nov 25 2026, Renato: it pushed the header around); the full line is the hover text
+  const el = document.getElementById('srcText');
+  el.textContent = live ? `Live · ${latest}` : `Snapshot · ${latest}`;
+  el.parentNode.title = live ? `Live from Google Sheets · latest game ${latest}` : `Snapshot taken ${SNAPSHOT_DATE} · latest game ${latest}`;
 }
 
 async function boot() {
@@ -1021,7 +1022,7 @@ async function boot() {
   MEMBERS = toMembers(document.getElementById('membersSnapshot').textContent);
   IDS = toIds(document.getElementById('membersSnapshot').textContent);
   if (DATA.length) { setSource(false); setup(); }
-  else document.getElementById('srcText').textContent = 'Loading results from Google Sheets…';
+  else document.getElementById('srcText').textContent = 'Loading…';
   const get = async url => {
     const ctrl = new AbortController(); setTimeout(() => ctrl.abort(), 8000);
     const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' });
@@ -1034,8 +1035,8 @@ async function boot() {
     if (live.length) { DATA = live; const m = toMembers(membersCsv); if (Object.keys(m).length) { MEMBERS = m; IDS = toIds(membersCsv); } setSource(true); setup(); }
   } catch (e) {
     // With a built-in snapshot, keep showing it; without one, say what to check
-    if (!DATA.length) document.getElementById('srcText').textContent =
-      "Couldn't reach the Poker Stats sheet. Check that it's shared as \"Anyone with the link can view\", then refresh.";
+    if (!DATA.length) { const el = document.getElementById('srcText'); el.textContent = 'Sheet offline · refresh';
+      el.parentNode.title = "Couldn't reach the Poker Stats sheet. Check that it's shared as \"Anyone with the link can view\", then refresh."; }
   }
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => DATA.length && show());
