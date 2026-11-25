@@ -208,6 +208,7 @@ export async function pokerWeb(req, me, _sheet, out) {
     const q = new URL(req.url).searchParams;
     if (q.get('hands')) return me ? out(await myHands(me.id, +q.get('from') || 0, +q.get('to') || 0, t)) : out({ err: 'Sign in to see your hands.' }, 401);
     if (q.get('ablylib')) { // TEMP diagnostic: run the page's own ably.min.js here with a guest token request
+      try {
       const fs = await import('node:fs'), path = await import('node:path');
       const src = fs.readFileSync(path.join(process.cwd(), 'ably.min.js'), 'utf8'), m = { exports: {} };
       new Function('module', 'exports', src)(m, m.exports);
@@ -219,6 +220,7 @@ export async function pokerWeb(req, me, _sheet, out) {
       const r = await Promise.race([sub, new Promise(res => setTimeout(() => res('timeout'), 7000))]);
       try { rt.close(); } catch (e) {}
       return out({ ver: Ably.Realtime.version || m.exports.version, attach: r, log });
+      } catch (e) { return out({ diagErr: String(e && e.stack || e).slice(0, 600) }); }
     }
     if (new URL(req.url).searchParams.get('token')) return ablyKey() ? out({ token: tokenRequest(me ? me.id : 'guest-' + randomBytes(6).toString('hex'), !me) }) : out({ err: 'Live updates are not set up.' });
     let T = await load();
