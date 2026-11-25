@@ -37,6 +37,7 @@ export const CRUMBS = [
 ];
 export const NOTHING = [
   '😂 {P} laughs at you.',
+  '📣 {P} yells at you, "Get these beggars out of here!"',
   "📸 {P} took a picture of you begging. It's in the group chat now.",
   '🙈 {P} saw you coming and hid behind a slot machine.',
   '🍿 {P1}, {P2} and {P3} pulled up chairs and grabbed popcorn to watch you beg.',
