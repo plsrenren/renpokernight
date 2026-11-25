@@ -1,16 +1,32 @@
 // /game (was /tourney and /cash, merged Nov 21 2026): a game invite people answer with reactions. Any reaction counts as "in".
 // type: Tournament (default) or Cash picks the card's wording; old /tourney and /cash still work if a client sends them.
 // The bot can't watch reactions live (it only wakes up on commands and button presses), so refreshInvite() rewrites
-// the newest card's names and count: on any use of the bot and every 5 minutes from a scheduler (/api/invite?refresh=1).
+// the newest card's names and count every 5 minutes from a scheduler (/api/invite?refresh=1). Until Nov 25 2026 it also
+// ran on every bot command and site action; dropped then to save Redis commands (the scheduler is enough).
 // Cards posted before Nov 16, 2026 had a "🔄 Update headcount" button (custom_id tally:...); tally() still answers it
 // and removes it, and the next refresh removes it too.
 // Needs the bot to be in the server (Add Reactions, Read Message History, View Channel, Mention Everyone).
 import { kv, kvUrl } from './_blackjack.js';
 const API = 'https://discord.com/api/v10';
-// Auto-refresh: the newest invite's spot is kept in Redis (tv:last, 3 days) so refreshInvite() can rewrite its card
-// without searching the channels. tv:seen = the list last drawn, tv:lock = at most one check a minute,
-// tv:none = searched the channels and found no recent invite (don't search again for 30 minutes).
-const LAST = 'tv:last', SEEN = 'tv:seen', LOCK = 'tv:lock', NONE = 'tv:none', KEEP = 3 * 86400;
+// Auto-refresh: the newest invite's spot is kept in Redis (tv:last) until the end of game day (gameDayEnd; 3 days if the
+// date can't be read), so refreshInvite() can rewrite its card. tv:seen = the list last drawn.
+// No invite out = 1 Redis command per check (Nov 25 2026, Renato: don't spend commands between invites).
+const LAST = 'tv:last', SEEN = 'tv:seen', KEEP = 3 * 86400;
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+/** Seconds from now until the end of game day, read from the invite's date text ("Fri Nov 21", "11/21", "Friday, November 21st").
+ *  End = 18:00 UTC the day after (the morning after in every US time zone). Can't read it, or it's in the past: 3 days. */
+export function gameDayEnd(text, now = Date.now()) {
+  const t = String(text || '').toLowerCase();
+  let mo = -1, d = 0, m;
+  if ((m = t.match(/\b(\d{1,2})\/(\d{1,2})\b/))) { mo = +m[1] - 1; d = +m[2]; }
+  else if ((m = t.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?!\d)/))) { mo = MONTHS.indexOf(m[1]); d = +m[2]; }
+  if (mo < 0 || mo > 11 || d < 1 || d > 31) return KEEP;
+  const y = new Date(now).getUTCFullYear();
+  // the game is at most a couple of months out, so pick the year that puts it closest to now (a December post for "Jan 3")
+  const end = [y - 1, y, y + 1].map(yy => Date.UTC(yy, mo, d + 1, 18)).sort((a, b) => Math.abs(a - now) - Math.abs(b - now))[0];
+  const left = Math.floor((end - now) / 1000);
+  return left > 60 && left < 70 * 86400 ? left : KEEP;
+}
 const SEEN_V = 'v2|'; // bump to make every card redraw once (v2 = button removed)
 
 const inviteOptions = buyinHint => [
@@ -114,8 +130,9 @@ async function finishTourney(i, info, att) {
   const r = await fetch(hook, { method: 'PATCH', headers, body });
   if (!r.ok) { console.error('tourney post failed', r.status, await r.text()); return; }
   const msg = await r.json().catch(() => null);
-  if (msg && msg.id && kvUrl()) await kv(['SET', LAST, JSON.stringify({ c: msg.channel_id, m: msg.id, min: info.min || 0, kind: info.kind }), 'EX', KEEP],
-    ['SET', SEEN, SEEN_V, 'EX', KEEP], ['DEL', NONE]).catch(e => console.error('invite remember', e));
+  const keep = gameDayEnd(info.date);
+  if (msg && msg.id && kvUrl()) await kv(['SET', LAST, JSON.stringify({ c: msg.channel_id, m: msg.id, min: info.min || 0, kind: info.kind }), 'EX', keep],
+    ['SET', SEEN, SEEN_V, 'EX', keep]).catch(e => console.error('invite remember', e));
 }
 
 // ---------- finding the newest invite (used by /api/invite and /seats) ----------
@@ -187,26 +204,17 @@ export async function tally(i, s) {
   return { type: 7, data: { embeds: [inviteEmbed(infoFrom(m, st), lists, st.image)], components: [], allowed_mentions: { parse: [] } } };
 }
 
-/** Rewrites the newest invite's card with the current reactions. Cheap to call often: does nothing when there's no
- *  invite from the last 3 days, when someone checked in the last minute, or when the list hasn't changed. With nothing
- *  saved (an invite posted before saving existed), it searches the channels once, then not again for 30 minutes. getNames: async () => { discordId: sheetName }. Returns a short word on what happened. */
+/** Rewrites the newest invite's card with the current reactions. Cheap to call often: one Redis command when no invite
+ *  is out (tv:last expires at the end of game day), and nothing more when the list hasn't changed.
+ *  getNames: async () => { discordId: sheetName }. Returns a short word on what happened. */
 export async function refreshInvite(getNames = async () => ({})) {
   if (!kvUrl() || !process.env.DISCORD_BOT_TOKEN) return 'not set up';
-  let [raw, lock, none] = await kv(['GET', LAST], ['SET', LOCK, '1', 'NX', 'EX', 55], ['GET', NONE]);
-  if (lock !== 'OK') return 'checked in the last minute';
-  if (!raw) {
-    if (none) return 'no recent invite';
-    const me = await dc('/users/@me'), found = me && await latestInvite(me.id);
-    const left = found ? Math.floor(KEEP - (Date.now() - Date.parse(found.timestamp)) / 1000) : 0;
-    if (left < 60) { await kv(['SET', NONE, '1', 'EX', 1800]); return 'no recent invite'; }
-    raw = JSON.stringify({ c: found.channel_id, m: found.id, ...stateOf(found), image: undefined });
-    await kv(['SET', LAST, raw, 'EX', left]);
-  }
+  const [[raw, seen]] = await kv(['MGET', LAST, SEEN]);
+  if (!raw) return 'no invite out';
   const last = JSON.parse(raw);
   const got = await readReacts(last.c, last.m, await getNames());
   if (got.error) { if (got.status === 404) await kv(['DEL', LAST]); return 'discord said ' + got.status; }
   const list = got.lists[0].map(u => u.name), key = SEEN_V + list.join('|');
-  const [seen] = await kv(['GET', SEEN]);
   if (seen === key) return 'no change';
   const m = await dc(`/channels/${last.c}/messages/${last.m}`);
   if (!m) return 'invite not found';

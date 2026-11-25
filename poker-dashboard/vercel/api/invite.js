@@ -1,7 +1,7 @@
 // /api/invite            who answered the latest /game invite (the entry page's "Load from invite" button)
 // /api/invite?link=...   the same for a specific invite (Discord: right-click the invite > Copy Message Link)
 // /api/invite?refresh=1 rewrites the newest invite's headcount card (called every 5 minutes by a scheduler, e.g. Upstash QStash;
-//   cheap: does nothing for invites older than 3 days, more than once a minute, or when the list hasn't changed).
+//   cheap: one Redis command when no invite is out (it's forgotten at the end of game day), nothing more when the list hasn't changed).
 // Returns JSON { kind, date, time, buyin, url, postedAt, in: [{ name, known }], maybe: [], cant: [] } (any reaction counts as in).
 // "known" means the Discord account is in the Members tab, so the name is the sheet name.
 // Uses DISCORD_BOT_TOKEN; the bot needs View Channel + Read Message History where the invite was posted.
