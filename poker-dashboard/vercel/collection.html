@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Public collection (Nov 24 2026, Renato's ask): every Study Cards cosmetic, drawn with the same cosmetics.css + loot.js, but the ones the signed-in
+     player doesn't own are blurred out (signed out = everything blurred). Ownership comes from GET /api/shop (me.owned / earned / champs).
+     The blur is only a look: loot.js is public, so this hides nothing from someone who digs. -->
+<title>Collection</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="/cosmetics.css">
+<style>
+:root{--bg:#15132a;--panel:#1d1a37;--line:#2e2a58;--gold:#f0c75e;--pink:#e0507f;--vio:#8f78f0;--muted:#a9a3c9;--fg:#ece9ff;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:'Space Grotesk',system-ui,sans-serif;font-weight:500}
+.wrap{max-width:1320px;margin:0 auto;padding:24px 16px 48px}
+h1{font:400 clamp(40px,7vw,60px)/.9 'Bebas Neue',Impact,sans-serif;letter-spacing:.02em;margin:0}
+.sub{color:var(--muted);font-size:14px;margin:6px 0 18px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+.bar button{font:inherit;font-size:14px;color:var(--fg);background:var(--panel);border:1px solid var(--line);padding:7px 12px;cursor:pointer}
+.bar button[aria-pressed=true]{background:var(--gold);color:#15132a;border-color:var(--gold)}
+.bar input{font:inherit;font-size:14px;color:var(--fg);background:var(--panel);border:1px solid var(--line);padding:7px 10px;min-width:0;flex:1 1 180px;max-width:280px}
+.bar .lbl{color:var(--muted);font-size:13px;margin-left:4px}
+h2{font:400 30px/1 'Bebas Neue',Impact,sans-serif;letter-spacing:.05em;margin:28px 0 4px;display:flex;gap:10px;align-items:baseline}
+h2 small{font:500 13px 'Space Grotesk',sans-serif;color:var(--muted);letter-spacing:0}
+h3{font:400 19px/1 'Bebas Neue',Impact,sans-serif;letter-spacing:.08em;margin:16px 0 8px;color:var(--c,var(--muted))}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.grid.wide{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.ti{background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--c);display:flex;flex-direction:column;min-width:0}
+.sw{height:128px;display:flex;align-items:center;justify-content:center;background:#100e22;position:relative;overflow:hidden;padding:8px}
+.wide .sw{height:96px}
+.tt .sw{height:84px}
+.meta{padding:8px 10px 10px;display:grid;gap:3px}
+.nm{font-weight:700;font-size:14px;line-height:1.2}
+.tg{font:600 11px 'IBM Plex Mono',monospace;color:var(--c);letter-spacing:.04em}
+.why{font-size:12px;color:var(--muted);line-height:1.3}
+.id{font:500 10.5px 'IBM Plex Mono',monospace;color:#6f6a99;word-break:break-all}
+/* pfp inside its border, same sizes as the dashboard player card */
+.sw .cbw{zoom:1.35}
+.pfp{width:64px;height:64px;display:block;object-fit:cover}
+.pfx{display:grid;place-items:center;font:400 30px/1 'Bebas Neue',Impact,sans-serif;padding-top:3px}
+.pf-light .pfx{background:#f2efe6;color:#15132a}
+.pf-dark .pfx{background:#0b0a14;color:#ece9ff}
+.sw .cos-hold{position:relative}
+/* sticker on its own, and on the pfp corner */
+.stk-big{width:92px;height:92px;display:flex;align-items:center;justify-content:center}
+.stk-big svg{width:100%;height:auto;max-height:100%;display:block}
+.sw .cos-stk{right:-14px;bottom:-10px;width:34px;height:34px;display:flex;align-items:center;justify-content:center}
+/* title, as on the player card */
+.ttl{font:400 26px/1 'Bebas Neue',Impact,sans-serif;letter-spacing:.06em;text-align:center}
+/* overall bar = the player card's stat strip */
+.strip{display:flex;width:100%;min-height:52px;background:var(--gold)}
+.strip .rc-ovr{display:flex;align-items:center;gap:6px;padding:0 10px;background:#15132a;border:2px solid var(--gold);color:var(--gold)}
+.strip .rc-ovr b{font:400 38px/1 'Bebas Neue',Impact,sans-serif;color:inherit;padding-top:3px}
+.strip .rc-ovr i{font:400 14px/1 'Bebas Neue',Impact,sans-serif;font-style:normal;letter-spacing:.12em;color:inherit}
+.strip .rc-foot{flex:1;display:flex}
+.strip .rc-foot div{flex:1;display:grid;justify-items:center;align-content:center}
+.strip .rc-foot b{font:400 22px/1 'Bebas Neue',Impact,sans-serif;color:#15132a;padding-top:2px}
+.strip .rc-foot span{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#15132a}
+/* collection: locked tiles */
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;font-size:14px}
+.top a{color:var(--muted);text-decoration:none}.top a:hover{color:var(--fg)}
+.who{display:flex;align-items:center;gap:8px;color:var(--muted)}
+.who img{width:26px;height:26px;border-radius:50%;object-fit:cover}
+.dsign{display:inline-flex;align-items:center;gap:8px;background:#5865f2;color:#fff!important;padding:7px 12px;font-weight:700}
+.prog{height:6px;background:var(--panel);margin:-8px 0 16px;max-width:420px}.prog i{display:block;height:100%;background:var(--gold)}
+h2 em{font-style:normal;color:var(--gold);font:600 13px 'IBM Plex Mono',monospace}
+.ti.lk .sw>*{filter:blur(9px) grayscale(.6) brightness(.7);pointer-events:none;user-select:none}
+.ti.lk .sw::after{content:'';position:absolute;inset:0;background:radial-gradient(circle,rgba(16,14,34,.1),rgba(16,14,34,.55))}
+.ti.lk .sw .lock{filter:none;position:absolute;z-index:2;width:26px;height:26px;fill:#ece9ff;opacity:.85}
+.ti.lk .nm{color:var(--muted);letter-spacing:.2em}
+.ti.lk{border-top-color:color-mix(in srgb,var(--c) 45%,var(--line))}
+.ti.lk .tg{opacity:.7}
+.ti .have{font:600 11px 'IBM Plex Mono',monospace;color:var(--gold)}
+.empty{color:var(--muted);font-size:14px;padding:12px 0}
+@media (max-width:520px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.grid.wide{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="/shop">&larr; Shop &amp; loadout</a><span class="who" id="who"></span></div>
+  <h1>Collection</h1>
+  <p class="sub" id="sub">Loading…</p>
+  <div class="prog" id="prog" hidden><i></i></div>
+  <div class="bar" id="slots"></div>
+  <div class="bar"><input id="q" type="search" placeholder="Search your cosmetics" aria-label="Search your cosmetics"><span id="fs"></span></div>
+  <div id="out"></div>
+</div>
+<script type="module">
+import { ITEMS, ACC_ITEMS, TIERS, TCOL, STICKERS, CHAMP, champItem, itemFor, decoFor } from '/loot.js';
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const COL = { ...TCOL, Earned: '#5fd6f0', Champion: '#f0c75e' };
+const SLOTS = [['Pfp border', 'Pfp borders'], ['Title', 'Titles'], ['Overall bar', 'Overall bars'], ['Sticker', 'Stickers']];
+const GROUPS = ['Champion', 'Earned', ...[...TIERS].reverse()];
+const LOCK = '<svg class="lock" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3h1.5v11h-13V10zm2 0h6V7a3 3 0 0 0-6 0z"/></svg>';
+const DISCORD = '<svg width="18" height="14" viewBox="0 0 71 55" aria-hidden="true"><path fill="currentColor" d="M60 4.9A58.5 58.5 0 0 0 45.6.4a40 40 0 0 0-1.9 3.8 54 54 0 0 0-16.2 0A40 40 0 0 0 25.6.4 58.4 58.4 0 0 0 11.1 4.9C1.9 18.7-.6 32.2.6 45.5a58.8 58.8 0 0 0 18 9.1 43 43 0 0 0 3.8-6.2 38 38 0 0 1-6-2.9l1.5-1.1a42 42 0 0 0 36 0l1.5 1.1a38 38 0 0 1-6 2.9 43 43 0 0 0 3.8 6.2 58.6 58.6 0 0 0 18-9.1c1.5-15.4-2.5-28.8-10.5-40.6zM23.7 37.3c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.3 6.4 7.2c0 4-2.8 7.2-6.4 7.2zm23.6 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.3 6.4 7.2c0 4-2.8 7.2-6.4 7.2z"/></svg>';
+
+let ME = null, slot = 'all', show = 'all', q = '';
+try { slot = localStorage.getItem('col-slot') || 'all'; show = localStorage.getItem('col-show') || 'all'; } catch (e) {}
+
+// what the signed-in player has: pack cards (owned), accolades (earned), champion borders (champs, worked out from the sheet)
+const has = it => !!ME && (it.tier === 'Champion' ? (ME.champs || []).includes(it.id) : it.tier === 'Earned' ? (ME.earned || []).includes(it.id) : !!(ME.owned || {})[it.id]);
+function allItems() {
+  // champion borders: the player's own (any quarter/year) plus one locked quarter + year stand-in per board they don't have yet
+  const mine = ME ? (ME.champs || []).map(itemFor).filter(it => it && it.tier === 'Champion') : [];
+  const stand = Object.keys(CHAMP).flatMap(k => [['Q4-2026', 'a quarter'], ['2026', 'a year']]
+    .filter(([, span]) => !mine.some(m => m.kind === k && m.year === (span === 'a year')))
+    .map(([w]) => champItem(`c:${k}:${w}`)));
+  return [...ITEMS, ...ACC_ITEMS, ...mine, ...stand];
+}
+
+const PFP = () => ME ? `<img class="pfp" src="/api/avatar?id=${esc(ME.id)}" alt="" onerror="this.src='/icon-192.png'">` : '<img class="pfp" src="/icon-192.png" alt="">';
+const border = it => `<span class="cbw cb-${esc(it.key)}${it.year ? ' cb-champ-y' : ''} pf-logo">${PFP()}${decoFor(it)}</span>`;
+// locked titles never put the real words in the page, just a same-length row of dots
+const hide = s => s.replace(/\S/g, '•');
+function preview(it, own) {
+  if (it.slot === 'Pfp border') return border(it);
+  if (it.slot === 'Title') return `<div class="ttl" style="color:${COL[it.tier]}">${esc(own ? it.name.toUpperCase() : hide(it.name))}</div>`;
+  if (it.slot === 'Sticker') return `<div class="stk-big">${STICKERS[it.name] || ''}</div>`;
+  return `<div class="strip cbar-${esc(it.key)}"><div class="rc-ovr"><b>82</b><i>OVR</i></div><div class="rc-foot"><div><b>+$240</b><span>Net</span></div><div><b>3</b><span>Wins</span></div><div><b>#2</b><span>of 14</span></div></div></div>`;
+}
+// locked tiles only say WHERE an item comes from, never how (Renato, Nov 24 2026); owned tiles keep the real line
+const NIGHT = 'firstblood hattrick backtoback laststanding payday comebackkid bubble usualsuspect centurion perfect mlm headhunter sponsor wiretowire monster switchhitter gotmilk doubleup hotstreak podium reel iron glow';
+const ROOM = 'betatester keyboard bombsquad straddle nittax runitback rabbitseason afk showboat';
+const BEG = 'beggar whalewatch pickpocket sugardaddy coldhearted rent charity leftonread penny patch rags';
+const SHOP = 'packrat epic coll';
+const has1 = (list, k) => list.split(' ').includes(k);
+const where = it => it.tier === 'Champion' ? 'Hall of Fame' : it.tier !== 'Earned' ? 'From packs'
+  : has1(NIGHT, it.k) ? 'Earned at poker night' : has1(ROOM, it.k) ? 'Earned in the poker room' : has1(BEG, it.k) ? 'Earned with /beg'
+  : has1(SHOP, it.k) ? 'Earned in the shop' : 'Earned in the casino';
+const tile = it => {
+  const own = has(it), c = own && it.tier !== 'Earned' && it.tier !== 'Champion' ? ME.owned[it.id] : 0;
+  const why = own ? it.why : where(it);
+  return `<div class="ti${own ? '' : ' lk'}" style="--c:${COL[it.tier]}"><div class="sw">${preview(it, own)}${own ? '' : LOCK}</div><div class="meta"><div class="nm">${own ? esc(it.name) : '? ? ?'}</div><div class="tg">${esc(it.tier.toUpperCase())}${c > 1 ? ` <span class="have">x${c}</span>` : ''}</div>${why ? `<div class="why">${esc(why)}</div>` : ''}</div></div>`;
+};
+
+function render() {
+  const ALL = allItems(), countable = ALL.filter(i => i.tier !== 'Champion'); // champion borders are open-ended, so they stay out of the X of Y
+  document.getElementById('slots').innerHTML = [['all', 'Everything'], ...SLOTS].map(([k, n]) => `<button data-s="${esc(k)}" aria-pressed="${slot === k}">${esc(n)}</button>`).join('');
+  document.getElementById('fs').innerHTML = ME ? [['all', 'All'], ['own', 'Owned'], ['miss', 'Missing']].map(([k, n]) => `<button data-f="${k}" aria-pressed="${show === k}">${n}</button>`).join(' ') : '';
+  const got = countable.filter(has).length;
+  document.getElementById('sub').innerHTML = ME
+    ? `You have <b>${got}</b> of ${countable.length} cosmetics${(ME.champs || []).length ? ` + ${ME.champs.length} champion border${ME.champs.length > 1 ? 's' : ''}` : ''}. The ones you don't have stay blurred.`
+    : `${countable.length} cosmetics to collect. Sign in to see the ones you have, everything else stays blurred.`;
+  const pg = document.getElementById('prog'); pg.hidden = !ME; pg.firstElementChild.style.width = (ME ? 100 * got / countable.length : 0) + '%';
+  const ql = q.trim().toLowerCase();
+  let h = '';
+  for (const [s, title] of SLOTS) {
+    if (slot !== 'all' && slot !== s) continue;
+    const inSlot = ALL.filter(i => i.slot === s);
+    // search only matches names you can see (owned) or the where-from line, so it can't be used to find hidden names
+    const its = inSlot.filter(i => (show === 'all' || (show === 'own') === has(i)) && (!ql || (has(i) ? i.name + ' ' + (i.why || '') : where(i)).toLowerCase().includes(ql)));
+    if (!its.length) continue;
+    const cs = inSlot.filter(i => i.tier !== 'Champion');
+    h += `<h2>${esc(title)} <small>${ME ? `<em>${cs.filter(has).length}/${cs.length}</em>` : cs.length}</small></h2>`;
+    for (const g of GROUPS) {
+      const gi = its.filter(i => i.tier === g).sort((a, b) => has(b) - has(a) || (has(a) ? a.name.localeCompare(b.name) : 0));
+      if (!gi.length) continue;
+      const gc = inSlot.filter(i => i.tier === g);
+      h += `<h3 style="--c:${COL[g]}">${esc(g)} · ${ME && g !== 'Champion' ? `${gc.filter(has).length}/${gc.length}` : gc.length}</h3><div class="grid${s === 'Overall bar' ? ' wide' : s === 'Title' ? ' tt' : ''}">${gi.map(tile).join('')}</div>`;
+    }
+  }
+  document.getElementById('out').innerHTML = h || '<p class="empty">Nothing matches.</p>';
+  document.getElementById('who').innerHTML = ME
+    ? `<img src="/api/avatar?id=${esc(ME.id)}" alt="" onerror="this.remove()">${esc(ME.name)}`
+    : `<a class="dsign" href="/api/login?to=collection">${DISCORD}Sign in</a>`;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.s) { slot = b.dataset.s; try { localStorage.setItem('col-slot', slot); } catch (x) {} }
+  if (b.dataset.f) { show = b.dataset.f; try { localStorage.setItem('col-show', show); } catch (x) {} }
+  render();
+});
+document.getElementById('q').addEventListener('input', e => { q = e.target.value; render(); });
+render();
+fetch('/api/shop', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(d => { ME = d && d.me || null; render(); }).catch(() => {});
+</script>
+</body>
+</html>

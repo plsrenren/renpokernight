@@ -23,7 +23,8 @@ export const NEED = { wins3: 3, tourWins: 5, cashWins: 5, seconds: 5, nights25: 
   duelist: 10, gun: 50, nemesis: 10, whale: 10000, stacked: 5000, bigstack: 10000, mountain: 25000,
   packrat: 25, epic: 10, coll: 50, clockedin: 30, hands: 250, cardshark: 1000, natural: 25, regular: 4,
   hotstreak: 3, iron: 10, run: 5, heavy: 1000,
-  betatester: 5, rabbit: 25, afk: 10, showboat: 10 };
+  betatester: 5, rabbit: 25, afk: 10, showboat: 10,
+  beggar: 50, patch: 100, penny: 25, sugardaddy: 10, coldhearted: 10, charity: 250, leftonread: 5, rags: 1000, ragsDays: 7 };
 /** Got the Milk only counts nights from here on (Renato: not for the past; the count started 4 nights before launch) */
 export const MILK_FROM = '2026-09-19';
 /** the newest set of poker accolades (see checkPoker): 'bars' = the earned overall bars, Nov 2026 */
@@ -71,6 +72,12 @@ export function earnedFrom(st) {
   add('betatester', (n.practice || 0) >= NEED.betatester);
   // the hosted poker room (ac:n fields counted by api/_poker.js)
   add('keyboard', (n.joined || 0) >= 1); add('bombsquad', (n.bomb || 0) >= 1); add('straddle', (n.straddle || 0) >= 1); add('nittax', (n.nit || 0) >= 1);
+  // /beg (ac:n fields counted by api/_beg.js)
+  add('beggar', (n.beg || 0) >= NEED.beggar); add('patch', (n.beg || 0) >= NEED.patch); add('penny', (n.begzero || 0) >= NEED.penny);
+  add('whalewatch', (n.begwhale || 0) >= 1); add('pickpocket', (n.begpick || 0) >= 1); add('rent', (n.beglost || 0) >= 1);
+  add('sugardaddy', (n.begave || 0) >= NEED.sugardaddy); add('coldhearted', (n.begnah || 0) >= NEED.coldhearted);
+  add('charity', (n.begin || 0) >= NEED.charity); add('leftonread', (n.begread || 0) >= NEED.leftonread);
+  add('rags', (n.beglast || 0) > 0 && (st.now || Date.now()) - n.beglast <= NEED.ragsDays * 864e5 && (st.bal || 0) >= NEED.rags);
   add('runitback', (n.rit2 || 0) >= 1); add('rabbitseason', (n.rabbit || 0) >= NEED.rabbit); add('afk', (n.afk || 0) >= NEED.afk); add('showboat', (n.showboat || 0) >= NEED.showboat);
   return out;
 }
@@ -147,7 +154,7 @@ export async function checkAccolades({ all = false, ids = null, now = Date.now()
   const got = {};
   uids.forEach((uid, j) => {
     const [n, bal, packs, own, weekVol] = res.slice(2 + j * 5, 7 + j * 5);
-    const keys = earnedFrom({ n: num(pairs(n)), bal: +bal || 0, packs: +packs || 0, owned: num(pairs(own)), duel: duels[uid], weekVol: +weekVol || 0, lucky: uid === luckyId });
+    const keys = earnedFrom({ n: num(pairs(n)), bal: +bal || 0, packs: +packs || 0, owned: num(pairs(own)), duel: duels[uid], weekVol: +weekVol || 0, lucky: uid === luckyId, now });
     if (keys.size) got[uid] = [...keys];
   });
   const news = await stamp(got, now);

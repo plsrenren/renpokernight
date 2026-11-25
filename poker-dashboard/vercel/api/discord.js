@@ -41,6 +41,7 @@ import { afterJackpot, readJackpot, jackpotEmbed, JP } from './_jackpot.js';
 import { REWARD_LIST } from './_rewards.js';
 import { WEEKLY_CLAIM, DAILY, DAILY_RESET_UTC, RAKE, kvUrl, kvToken } from './_blackjack.js';
 import { SHOP_COMMANDS, shopCommand, shopInteraction } from './_shop.js';
+import { BEG_COMMAND, begCommand, begButton, BEG } from './_beg.js';
 import { wrongChannel } from './_channels.js';
 import { withPicture, warmPictures, attachPicture, discordBody } from './_attach.js';
 import { board as lotteryBoard, quarterOf, shownQuarter, drawable, drawQuarter, TICKET, LUCKY_ROLE, nextQuarter } from './_lottery.js';
@@ -76,6 +77,7 @@ const COMMANDS = [
   BACCARAT_COMMAND,
   SEATS_COMMAND,
   ...SHOP_COMMANDS,
+  BEG_COMMAND,
   { name: 'lottery', description: 'The quarter lottery', type: 1, options: [
     { type: 1, name: 'odds', description: "The jackpot, your tickets and everyone's odds" },
     { type: 1, name: 'draw', description: "Draw last quarter's winner, live (host only)" }] },
@@ -197,6 +199,9 @@ async function answer(i) {
   if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('ba:')) { // baccarat play-again buttons
     try { return await baccaratButton(i, cache.recs ? cache : null); } catch (e) { console.error('baccarat', e); return say("Couldn't reach the chip storage just now. Try again in a moment."); }
   }
+  if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('bg:')) { // /beg Give / Gamble / Toss / Nah
+    try { return await begButton(i, cache.recs ? cache : null); } catch (e) { console.error('beg button', e); return say("Couldn't reach the chip storage just now. Try again in a moment."); }
+  }
   if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('sh:')) return shopInteraction(i, cache.recs ? cache : null); // Study Cards buttons and menus
   if (i.type === 3 && i.data && String(i.data.custom_id).startsWith('seats:')) return json(reshuffle(i)); // /seats Reshuffle
   if (i.type !== 2 || !i.data) return say('Unknown command.');
@@ -215,7 +220,7 @@ async function answer(i) {
   }
   // chip commands answer from the sheet copy already in memory (names only) instead of waiting on Google: a slow sheet read
   // could push the reply past Discord's 3 seconds after the bet was already taken. The copy refreshes in the background.
-  const CHIP = ['daily', 'blackjack', 'freebet', 'chips', 'pack', 'loadout', 'tip', 'duel', 'uth', 'baccarat', 'house', 'earn', 'jackpot'];
+  const CHIP = ['daily', 'blackjack', 'freebet', 'chips', 'pack', 'loadout', 'tip', 'duel', 'uth', 'baccarat', 'house', 'earn', 'jackpot', 'beg'];
   const chipCmd = CHIP.includes(i.data.name);
   if (chipCmd && (i.data.name === 'daily' || i.data.name === 'duel')) waitUntil(sweepDuels().catch(e => console.error('duel sweep', e))); // refunds stuck duels
   const s = chipCmd ? (cache.recs ? cache : null) : await sheet();
@@ -224,6 +229,8 @@ async function answer(i) {
   if (bj) return bj;
   const shop = await shopCommand(i, opts, s); // /pack /loadout /tip
   if (shop) return shop;
+  const beg = await begCommand(i, opts, s); // /beg
+  if (beg) return beg;
   if (i.data.name === 'duel') return duelCommand(i, opts, s);
   if (i.data.name === 'uth') return uthCommand(i, opts, s);
   if (i.data.name === 'baccarat') return baccaratCommand(i, opts, s);
@@ -270,6 +277,7 @@ function earnEmbed() {
       { name: '🎰 Casino jackpot', value: `2% of every hand the house wins goes in the pot. It drops at a secret amount before $${JP.cap.toLocaleString('en-US')} on whoever's losing hand pushes it over. /jackpot shows it.` },
       { name: '🎟️ Quarter lottery', value: `Every $${TICKET} you buy in at poker night is a free ticket. One winner takes the whole quarter's buy-ins in chips. See /lottery odds.` },
       { name: '🤝 /tip', value: 'Any player can send you chips.' },
+      { name: '🥺 /beg', value: `Beg the house for spare chips (${BEG.perDay} a day, only under $${BEG.under}), or /beg someone and see if they give, gamble it for you or laugh.` },
     ],
     footer: { text: 'Spend them at /blackjack, /freebet, /uth, /baccarat, /roulette, /duel, /pack or the site casino' } };
 }

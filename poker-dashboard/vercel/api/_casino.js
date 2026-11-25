@@ -62,10 +62,10 @@ const originOf = req => { const u = new URL(req.url); return `https://${req.head
 
 async function login(req, sheet) {
   const u = new URL(req.url), origin = originOf(req), redirect = origin + '/api/login', code = u.searchParams.get('code');
-  // ?to=shop brings you back to /shop instead of /casino (kept next to the state in the same short cookie)
+  // ?to=shop (or poker, collection) brings you back there instead of /casino (kept next to the state in the same short cookie)
   const [wantState, to] = String(readCookie(req, 'cas_state') || '').split('.');
   const want = code || u.searchParams.get('error') ? to : u.searchParams.get('to');
-  const back = want === 'shop' ? '/shop' : want === 'poker' ? '/poker' : want === 'live' ? '/live' : '/casino';
+  const back = want === 'shop' ? '/shop' : want === 'poker' ? '/poker' : want === 'live' ? '/live' : want === 'collection' ? '/collection' : '/casino';
   const fail = why => go(`${back}?err=${encodeURIComponent(why)}`, [cookie('cas_state', '', 0)]);
   if (u.searchParams.get('error')) return fail('cancelled');
   if (!code) { // step 1: off to Discord
@@ -93,7 +93,7 @@ async function login(req, sheet) {
 }
 
 // ---------- the page's data ----------
-const SESSION_GAP = 10 * 60e3, SOLO = new Set(['daily', 'poker night', 'rakeback', 'jackpot', 'free seat']), solo = g => SOLO.has(g) || /^tip /.test(g);
+const SESSION_GAP = 10 * 60e3, SOLO = new Set(['daily', 'poker night', 'rakeback', 'jackpot', 'free seat', 'beg', 'beg flip']), solo = g => SOLO.has(g) || /^tip /.test(g);
 /** "Just now" session lines: the same person playing the same game (same place), with no gap over 10 minutes, becomes one
  *  line with the total, hand count, wins/losses and when it started. Dailies and rewards stay single. Newest first, 10 lines. */
 export function groupFeed(feed, lines = 10) {
