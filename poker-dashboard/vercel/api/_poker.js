@@ -215,7 +215,8 @@ export async function pokerWeb(req, me, _sheet, out) {
         a4 = await new Promise(res => { const ws = new WebSocket(`wss://realtime.ably.io/?access_token=${encodeURIComponent(tok)}&v=3&format=json`); const to = setTimeout(() => { res({ timeout: true }); try { ws.close(); } catch (e) {} }, 5000);
           ws.onmessage = ev => { clearTimeout(to); res({ first: String(ev.data).slice(0, 300).replace(/"connectionKey":"[^"]+"/, '') }); try { ws.close(); } catch (e) {} }; ws.onerror = e => { clearTimeout(to); res({ wsError: String(e && e.message || e.type) }); }; });
       } catch (e) { a4 = { err: String(e) }; }
-      return out({ withClientId: a3, realtime: a4, keyLen: k.length, colons: k.split(':').length - 1, space: /\s/.test(k), quote: /["']/.test(k), token: a1, publish: a2 });
+      const a5 = await fetch(`https://rest.ably.io/channels/diag-check/messages`, { method: 'POST', headers: { Authorization: 'Basic ' + Buffer.from(k).toString('base64'), 'X-Ably-ClientId': Buffer.from('server').toString('base64'), 'Content-Type': 'application/json' }, body: '{"name":"x","data":"1"}' }).then(async r => ({ status: r.status, body: (await r.text()).slice(0, 300) })).catch(e => ({ err: String(e) }));
+      return out({ hdrClientId: a5, withClientId: a3, realtime: a4, keyLen: k.length, colons: k.split(':').length - 1, space: /\s/.test(k), quote: /["']/.test(k), token: a1, publish: a2 });
     }
     if (new URL(req.url).searchParams.get('token')) return ablyKey() ? out({ token: tokenRequest(me ? me.id : 'guest-' + randomBytes(6).toString('hex'), !me) }) : out({ err: 'Live updates are not set up.' });
     let T = await load();
