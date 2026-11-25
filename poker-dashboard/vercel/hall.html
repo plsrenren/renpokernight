@@ -119,6 +119,15 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--peri); outline-
 @media (max-width: 860px) { .recs, .boards { grid-template-columns: minmax(0,1fr); } }
 @media (max-width: 520px) { .shelfrow { grid-template-columns: 18px minmax(0, 110px) minmax(0,1fr) 30px; gap: 8px; } }
 </style>
+<link rel="stylesheet" href="/badge.css">
+<style>
+@media (max-width: 640px) {
+  .recap-link, .tab-hide { display: none !important; }
+}
+</style>
+<link rel="stylesheet" href="/lateshow.css">
+<link rel="stylesheet" href="/cosmetics.css">
+<link rel="stylesheet" href="/plates.css">
 </head>
 <body>
 <div class="wrap">
@@ -207,14 +216,6 @@ load();
 </script>
 
 <!-- phones: hide the header buttons (the site bar menu covers them) -->
-<style>
-@media (max-width: 640px) {
-  .recap-link, .tab-hide { display: none !important; }
-}
-</style>
-<link rel="stylesheet" href="/lateshow.css">
-<link rel="stylesheet" href="/cosmetics.css">
-<link rel="stylesheet" href="/plates.css">
 <script type="module" src="/badge.js"></script>
 </body>
 </html>

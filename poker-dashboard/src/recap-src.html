@@ -125,6 +125,13 @@ select:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid
 .empty { padding: 40px 0; text-align: center; color: var(--muted); }
 @media (max-width: 540px) { .tiles { grid-template-columns: minmax(0,1fr); } .f2-win .note { display: none; } }
 </style>
+<link rel="stylesheet" href="/badge.css">
+<style>
+@media (max-width: 640px) {
+  .recap-link, .tab-hide { display: none !important; }
+}
+</style>
+<link rel="stylesheet" href="/lateshow.css">
 </head>
 <body>
 <div class="wrap">
@@ -265,12 +272,6 @@ load();
 </script>
 
 <!-- phones: hide the header buttons (the site bar menu covers them) -->
-<style>
-@media (max-width: 640px) {
-  .recap-link, .tab-hide { display: none !important; }
-}
-</style>
-<link rel="stylesheet" href="/lateshow.css">
 <script type="module" src="/badge.js"></script>
 </body>
 </html>

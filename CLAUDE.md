@@ -63,7 +63,7 @@ poker-dashboard/
                        Casino: Lobby/Poker room/Live tables; Cards: Shop & loadout/Collection; hover or click, current group gold), then the badge
                        (<div id="sb">). Pages no longer carry their own logo/back links/"me" corners. Phones: menus become a caret sheet listing every
                        page; no bottom tab bar on any page (removed Nov 25 2026, Renato's call). Dashboard h1 breaks as
-                       "Poker Club / @ The Study" (span.nb nowrap). Add a page = add it to MENU. Badge: signed out = Discord SIGN IN tag
+                       "Poker Club / @ The Study" (span.nb nowrap). Add a page = add it to MENU. No flash on load (Nov 25 2026): every page links badge.css + lateshow/cosmetics/plates/table-kit CSS in <head> (they used to sit at the end of <body>, so pages painted unstyled first), and badge.css holds the bar's 54px spot (html:not(.has-sbar) body::before) until badge.js draws it. New pages: put stylesheets in <head>. Badge: signed out = Discord SIGN IN tag
                        (/api/login?to=<page>, login returns to any page); signed in = poker-room nameplate (pfp + border, bar wash, name + chips,
                        sticker; phones = face + chips) + hover/tap card (chips + stack rank, quarter net/nights/place, title, cosmetics X/Y like
                        /collection, links, sign out). GET /api/me (vercel.json rewrite into discord.js?web=me, api/_me.js, one loadout() pipeline +

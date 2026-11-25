@@ -233,6 +233,11 @@ html button.chip, html button.bspot { border-radius: 50%; } /* lateshow.css squa
 }
 @media (prefers-reduced-motion: reduce) { .cd.in, .cd.turn, .res { animation: none; } .cd.in::after, .cd.turn::after { display: none; } }
 </style>
+<link rel="stylesheet" href="/badge.css">
+<link rel="stylesheet" href="/lateshow.css">
+<link rel="stylesheet" href="/cosmetics.css">
+<link rel="stylesheet" href="/plates.css">
+<link rel="stylesheet" href="/table-kit.css">
 </head>
 <body>
 <div class="wrap">
@@ -618,10 +623,6 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) api(
   if (S && S.ably && !window.LIVE_API) { const sc = document.createElement('script'); sc.src = '/ably.min.js?v=3'; sc.onload = connectLive; document.head.appendChild(sc); }
 })();
 </script>
-<link rel="stylesheet" href="/lateshow.css">
-<link rel="stylesheet" href="/cosmetics.css">
-<link rel="stylesheet" href="/plates.css">
-<link rel="stylesheet" href="/table-kit.css">
 <script type="module" src="/badge.js"></script>
 </body>
 </html>

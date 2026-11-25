@@ -301,6 +301,16 @@ details.pay summary { cursor: pointer; font: 400 17px var(--title); letter-spaci
 .lot .won b { font: 400 26px/1 var(--title); letter-spacing: .03em; } .lot .won small { display: block; font: 500 12px var(--mono); color: var(--soft); margin-top: 3px; }
 @media (max-width: 640px) { .lot .ltiles { grid-template-columns: 1fr 1fr; } .lot .tl.jp { grid-column: 1 / -1; } .lot .lcols { grid-template-columns: 1fr; } .lot .won { flex-wrap: wrap; } }
 </style>
+<link rel="stylesheet" href="/badge.css">
+<style>
+@media (max-width: 640px) {
+  .recap-link, .tab-hide { display: none !important; }
+}
+</style>
+<link rel="stylesheet" href="/lateshow.css">
+<link rel="stylesheet" href="/cosmetics.css">
+<link rel="stylesheet" href="/plates.css">
+<link rel="stylesheet" href="/table-kit.css">
 </head>
 <body>
 <div class="wrap">
@@ -800,15 +810,6 @@ load();
 </script>
 
 <!-- phones: hide the header buttons (the site bar menu covers them) -->
-<style>
-@media (max-width: 640px) {
-  .recap-link, .tab-hide { display: none !important; }
-}
-</style>
-<link rel="stylesheet" href="/lateshow.css">
-<link rel="stylesheet" href="/cosmetics.css">
-<link rel="stylesheet" href="/plates.css">
-<link rel="stylesheet" href="/table-kit.css">
 <script type="module" src="/badge.js"></script>
 </body>
 </html>

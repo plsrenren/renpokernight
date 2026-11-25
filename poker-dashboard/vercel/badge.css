@@ -53,6 +53,9 @@ html .sbc-ln button.out:hover { color: #fff; }
 html .sbar { position: absolute; top: 0; left: 0; right: 0; z-index: 90; height: 54px; display: flex; align-items: center; gap: 6px; padding-right: 16px;
   background: rgba(13,11,28,.82); border-bottom: 1px solid #2c2852; font-family: "Space Grotesk", system-ui, sans-serif; color: #ece9fb; }
 html .sbar-sp { height: 54px; }
+/* before badge.js has drawn the bar (it runs after the page is parsed), hold its spot with an empty bar so nothing jumps down 54px when it lands.
+   badge.css is linked in every page's <head> for this; badge.js swaps it for the real bar + .sbar-sp and sets html.has-sbar */
+html:not(.has-sbar) body::before { content: ""; display: block; height: 54px; box-sizing: border-box; background: rgba(13,11,28,.82); border-bottom: 1px solid #2c2852; }
 html .sbar-mk { display: flex; align-items: center; gap: 12px; height: 100%; text-decoration: none; color: #ece9fb; flex: none; }
 html .sbar-mk i { width: 58px; height: 100%; background: url(/icon-192.png) center / 34px no-repeat, #e0507f; clip-path: polygon(0 0, 100% 0, 82% 100%, 0 100%); }
 html .sbar-mk b { font: 400 24px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .05em; white-space: nowrap; margin-top: 2px; }
@@ -92,6 +95,7 @@ html .sbs-g > span { font: 400 13px/1 "Bebas Neue", Impact, sans-serif; letter-s
 @media (max-width: 640px) {
   html .sbar { height: 50px; padding-right: 12px; gap: 0; }
   html .sbar-sp { height: 50px; }
+  html:not(.has-sbar) body::before { height: 50px; }
   html .sbar-mk i { width: 50px; background-size: 30px; }
   html .sbar-mk b { font-size: 21px; }
   html .sbar-nav { display: none; }

@@ -74,6 +74,15 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--peri); outl
 .note { color: var(--muted); font-size: 12.5px; margin: 0; }
 @media (max-width: 520px) { .slot, .slot.b { flex-direction: column; text-align: center; padding: 10px 6px; gap: 8px; } .slot .av { --s: 64px; } .slot .t { max-width: 100%; } .slot .t b { font-size: 26px; } .mid { padding: 6px 8px; } .faces { grid-template-columns: repeat(4, minmax(0,1fr)); } .seg { width: 100%; } .seg button { flex: 1; padding-inline: 6px; } }
 </style>
+<link rel="stylesheet" href="/badge.css">
+<style>
+@media (max-width: 640px) {
+  .recap-link, .tab-hide { display: none !important; }
+}
+</style>
+<link rel="stylesheet" href="/lateshow.css">
+<link rel="stylesheet" href="/cosmetics.css">
+<link rel="stylesheet" href="/plates.css">
 </head>
 <body>
 <div class="wrap">
@@ -224,14 +233,6 @@ main();
 </script>
 
 <!-- phones: hide the header buttons (the site bar menu covers them) -->
-<style>
-@media (max-width: 640px) {
-  .recap-link, .tab-hide { display: none !important; }
-}
-</style>
-<link rel="stylesheet" href="/lateshow.css">
-<link rel="stylesheet" href="/cosmetics.css">
-<link rel="stylesheet" href="/plates.css">
 <script type="module" src="/badge.js"></script>
 </body>
 </html>

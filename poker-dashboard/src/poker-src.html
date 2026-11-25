@@ -392,6 +392,10 @@ details.fold > summary + * { margin-top: 10px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before { animation-duration: .01s !important; animation-iteration-count: 1 !important; transition: none !important; } }
 </style>
+<link rel="stylesheet" href="/badge.css">
+<link rel="stylesheet" href="/lateshow.css">
+<link rel="stylesheet" href="/cosmetics.css">
+<link rel="stylesheet" href="/plates.css">
 </head>
 <body>
 <div class="wrap">
@@ -1257,9 +1261,6 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) api(
   if (S.ably && !PRACTICE) { const sc = document.createElement('script'); sc.src = '/ably.min.js?v=3'; sc.onload = connectLive; document.head.appendChild(sc); }
 })();
 </script>
-<link rel="stylesheet" href="/lateshow.css">
-<link rel="stylesheet" href="/cosmetics.css">
-<link rel="stylesheet" href="/plates.css">
 <script type="module" src="/badge.js"></script>
 </body>
 </html>
