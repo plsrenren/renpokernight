@@ -174,40 +174,41 @@ export async function dailyStatus(id) {
   return dailyFrom(last);
 }
 
-// Funny lines for /daily (one picked at random per reply, like /beg). $X = the amount. No player names in any of them.
+// Funny lines for /daily (one picked at random per reply, like /beg). /daily is your pay from a day job, never the casino handing
+// out chips. $X = the amount. No player names in any of them.
 export const DAILY_LINES = [
-  '🎁 The cashier slides you $X and says "See you tomorrow, champ."',
-  '☕ Your daily allowance has arrived. Spend it irresponsibly.',
-  '🃏 The dealer tips their cap. $X on the house.',
-  '📬 You\'ve got mail: $X and a note that says "please stop begging."',
-  '🧃 Juice box money: $X. Don\'t lose it before lunch.',
-  '🐟 The house is feeding the fish again: $X.',
-  '🪑 You showed up, so you get paid. Like a real job, but worse.',
-  '🎰 Free chips! The casino is very confident it\'s getting these back.',
-  '🍕 $X in chips, or roughly one Study pizza.',
-  '🧠 Fun fact: $X is exactly enough to shove all in once.',
   '💼 Clocked in. Clocked out. $X richer.',
-  '🫡 The pit boss nods at you. You\'re a regular now.'];
+  '🧾 Payday! Your boss handed over $X and asked if you\'re "still doing the poker thing."',
+  '☕ Eight hours of meetings that should have been emails: $X.',
+  '🚚 You delivered 40 packages and only lost one. $X earned.',
+  '🍔 Flipped burgers all shift. $X and you smell like fries.',
+  '📊 Made a spreadsheet nobody will read. $X.',
+  '🧹 Mopped the floors, took out the trash, $X in your pocket.',
+  '🚗 Drove rideshare all day. Five stars, $X, zero respect.',
+  '🪑 You showed up to work, so you get paid. Wild concept.',
+  '🧠 A full day of honest work, about to be lost in one hand: $X.',
+  '🔧 Fixed the printer. Became a legend. $X.',
+  '📞 Said "per my last email" three times today. $X earned.'];
 export const WEEKLY_LINES = [
-  '🗓️ New week, new bankroll. Double chips: $X.',
-  '🎉 Welcome back! The house missed your money: $X.',
-  '💸 Monday money hits different: $X.',
-  '🔁 Weekly reload: $X. Last week never happened.',
-  '🏦 The bank of The Study opened its vault for you: $X.',
-  '🧼 Fresh week, clean slate, $X to ruin it with.'];
+  '🗓️ Weekly paycheck cleared: $X. Overtime counts.',
+  '💸 Direct deposit hit: $X. Monday money hits different.',
+  '🏆 Employee of the week bonus: $X.',
+  '📅 New week, new shift, and the boss paid double: $X.',
+  '🧼 Fresh week, clean slate, $X to ruin it with.',
+  '🎉 Back at work after the weekend. Welcome-back pay: $X.'];
 /** Extra line when the balance after the claim is under DAILY_BROKE / over DAILY_RICH. */
 export const DAILY_BROKE = 100, DAILY_RICH = 5000;
-export const BROKE_LINES = ['🩹 This should stop the bleeding. For now.', '🕳️ Climbing out of the hole one claim at a time.', '📉 Your bankroll called. It said thanks.'];
-export const RICH_LINES = ['🤨 You have plenty of chips and you still came for the freebie.', '🐋 A whale claiming the daily. The house respects the grind.', '💎 Rich people stay rich by never skipping /daily.'];
+export const BROKE_LINES = ['🩹 This should stop the bleeding. For now.', '🕳️ Climbing out of the hole one shift at a time.', '📉 Your bankroll called. It said thanks.'];
+export const RICH_LINES = ['🤨 You have plenty of chips and you still clocked in.', '🐋 A whale still working the day job. Respect the grind.', '💎 Rich people stay rich by never skipping a shift.'];
 export const CLAIMED_LINES = [
-  '⏳ Nice try. The cashier remembers your face.',
-  '🚫 One per day, sweetheart.',
-  `🙅 The vault is closed. Come back after ${DAILY_RESET_UTC}:00 UTC.`,
-  '👀 The pit boss saw that. Back of the line.',
-  '🧾 Your receipt says you already got today\'s chips.',
+  "⏳ You already worked today's shift. Go home.",
+  '🚫 Your boss says no double shifts.',
+  `🙅 HR says your next shift starts after ${DAILY_RESET_UTC}:00 UTC.`,
+  '👀 Clocking in twice is called time theft.',
+  '🧾 Payroll already paid you today.',
   '🐢 Patience is a poker skill too.',
-  '🪤 Double-dipping is a ban in most casinos. Here it\'s just a no.',
-  '💤 The cashier is on break until reset.'];
+  '💤 The office is closed. Get some sleep.',
+  '🪪 Your badge won\'t scan. You already clocked out.'];
 const pickLine = a => a[randomInt(a.length)];
 
 async function daily(i, s) {
@@ -222,7 +223,7 @@ async function daily(i, s) {
   const line = pickLine(r.weekly ? WEEKLY_LINES : DAILY_LINES).replace('$X', `**${money(amt)}**`);
   const extra = +bal < DAILY_BROKE ? pickLine(BROKE_LINES) : +bal > DAILY_RICH ? pickLine(RICH_LINES) : '';
   return json({ type: 4, data: { allowed_mentions: { parse: [] }, embeds: [{ color: 0x8ee0b0,
-    title: r.weekly ? `🎁 ${me.name} claimed the weekly ${money(amt)}` : `🎁 ${me.name} claimed ${money(amt)}`,
+    title: r.weekly ? `💼 ${me.name} got the weekly paycheck: ${money(amt)}` : `💼 ${me.name} got paid ${money(amt)}`,
     description: `${line}${extra ? '\n' + extra : ''}\n\n**+${money(amt)}** in chips · Balance **${money(+bal)}**`,
     footer: { text: `Next +${money(r.next)} after ${DAILY_RESET_UTC}:00 UTC` } }] } });
 }
