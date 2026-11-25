@@ -210,7 +210,7 @@ export async function pokerWeb(req, me, _sheet, out) {
     if (q.get('ablylib')) { // TEMP diagnostic: run the page's own ably.min.js here with a guest token request
       try {
       const fs = await import('node:fs'), path = await import('node:path');
-      const src = fs.readFileSync(path.join(process.cwd(), 'ably.min.js'), 'utf8'), m = { exports: {} };
+      const src = fs.readFileSync(new URL('../ably.min.js', import.meta.url), 'utf8'), m = { exports: {} };
       new Function('module', 'exports', src)(m, m.exports);
       const Ably = m.exports.Realtime ? m.exports : (m.exports.default || globalThis.Ably);
       const log = [];
