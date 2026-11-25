@@ -11,6 +11,7 @@
 //   /roles                  refreshes the results roles (Quarter Leader, Heater, ...; see _roles.js)
 //   /game type: date:...    tournament or cash game invite people answer with reactions (see _tourney.js; was /tourney + /cash)
 //   /info                   posts the pinned-style welcome post (links + starter commands) in this channel (pitbosses only, see _info.js)
+//   /live                   is a live table open: game, who is seated, open seats + a link button (read only, see _live.js)
 //   /daily /blackjack /freebet /chips  blackjack (and Free Bet Blackjack) with chips (see _blackjack.js; needs Upstash storage)
 //   /duel                   player vs player for chips: coin flip (default), rock paper scissors or high card (see _duel.js)
 //   /uth                    Ultimate Texas Hold'em against the dealer for chips (see _uth.js)
@@ -47,6 +48,7 @@ import { withPicture, warmPictures, attachPicture, discordBody } from './_attach
 import { board as lotteryBoard, quarterOf, shownQuarter, drawable, drawQuarter, TICKET, LUCKY_ROLE, nextQuarter } from './_lottery.js';
 import { nightRows } from './_rewards.js';
 import { INFO_COMMAND, postInfo } from './_info.js';
+import { LIVE_COMMAND, liveCommand } from './_live.js';
 import { SHEET_URL, MEMBERS_URL, gameRecords, findPlayer, latestQuarter, memberIds, toNights, hallOfFame, usd, wrapDefault, quartersWithGames } from '../recap-core.js';
 
 const SITE = 'https://renpokernight.vercel.app';
@@ -68,6 +70,7 @@ const COMMANDS = [
     options: [{ type: 3, name: 'quarter', description: 'Pick another quarter (default: the last finished one)', autocomplete: true, required: false }] },
   GAME_COMMAND,
   INFO_COMMAND,
+  LIVE_COMMAND,
   { name: 'fish', description: 'Call out the fish at the table', type: 1, options: [{ type: 6, name: 'who', description: 'Who is the fish (leave empty for the usual suspect)', required: false }] },
   { name: 'donkey', description: 'Call someone a donkey', type: 1, options: [{ type: 6, name: 'who', description: 'Who played like a donkey (leave empty for the usual suspect)', required: false }] },
   ...BLACKJACK_COMMANDS,
@@ -207,6 +210,9 @@ async function answer(i) {
   if (i.type !== 2 || !i.data) return say('Unknown command.');
   const hint = await wrongChannel(i); // casino games only in #casino, poker commands only in #the-table (see _channels.js)
   if (hint) return say(hint);
+  if (i.data.name === 'live') { // live table status + link (read only, no sheet needed)
+    try { return json({ type: 4, data: await liveCommand(SITE) }); } catch (e) { console.error('live', e); return say("Couldn't reach the table just now."); }
+  }
   if (i.data.name === 'roulette') return rouletteCommand(i, waitUntil); // no sheet needed; stays awake 30s to spin
   if (i.data.name === 'info') { // pitbosses only (plus Renato and admins); no sheet needed
     const no = await inviteBlocked(i, cache.ids ? cache : { ids: {} }, HOST_ID, true);
