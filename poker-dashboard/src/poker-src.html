@@ -595,9 +595,9 @@ function scheduleTick() {
 // ---------- live updates ----------
 let rt = null, liveOn = false;
 function connectLive() {
-  if (rt || !S || !S.ably || !window.Ably) return;
+  if (rt || !S || !S.ably || !window.AblyPubSub) return;
   const getToken = () => S.me ? api({ a: 'token' }) : fetch('/api/poker?token=1', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.json()); // guests get a listen-only token
-  rt = new Ably.Realtime({ authCallback: (p, cb) => getToken().then(j => j.token ? cb(null, j.token) : cb(j.err || 'no token')).catch(e => cb(String(e))), autoConnect: true, echoMessages: false });
+  rt = AblyPubSub.createClient({ authCallback: (p, cb) => getToken().then(j => j.token ? cb(null, j.token) : cb(j.err || 'no token')).catch(e => cb(String(e))), autoConnect: true, echoMessages: false });
   rt.connection.on(ch => { liveOn = ch.current === 'connected'; renderLive(); if (ch.current === 'connected' && ch.previous !== 'initialized') api().catch(() => {}); });
   rt.channels.get('poker:table').subscribe('t', m => { try { onTable(JSON.parse(m.data)); } catch (e) {} });
   rt.channels.get('poker:chat').subscribe(m => { const d = m.data || {}; addChat(m.clientId, d.name, d.text); });
@@ -1254,7 +1254,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) api(
   }
   try { await api(); } catch (e) { $('#view').innerHTML = '<p class="loading">Couldn\'t reach the table. Refresh to try again.</p>'; return; }
   poll();
-  if (S.ably && !PRACTICE) { const sc = document.createElement('script'); sc.src = '/ably.min.js'; sc.onload = connectLive; document.head.appendChild(sc); }
+  if (S.ably && !PRACTICE) { const sc = document.createElement('script'); sc.src = '/ably.min.js?v=3'; sc.onload = connectLive; document.head.appendChild(sc); }
 })();
 </script>
 <link rel="stylesheet" href="/lateshow.css">

@@ -323,9 +323,9 @@ function schedule() {
 }
 function poll() { clearTimeout(pollT); const t = T(); pollT = setTimeout(async () => { if (!liveOn && !document.hidden) await api().catch(() => {}); poll(); }, liveOn ? 30000 : !t || !t.open || document.hidden ? 12000 : 2000); }
 function connectLive() {
-  if (rt || !S || !S.ably || !window.Ably) return;
+  if (rt || !S || !S.ably || !window.AblyPubSub) return;
   const getToken = () => S.me ? fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"a":"token"}', credentials: 'same-origin' }).then(r => r.json()) : fetch(API + '?token=1', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.json());
-  rt = new Ably.Realtime({ authCallback: (p, cb) => getToken().then(j => j.token ? cb(null, j.token) : cb(j.err || 'no token')).catch(e => cb(String(e))), autoConnect: true, echoMessages: false });
+  rt = AblyPubSub.createClient({ authCallback: (p, cb) => getToken().then(j => j.token ? cb(null, j.token) : cb(j.err || 'no token')).catch(e => cb(String(e))), autoConnect: true, echoMessages: false });
   rt.connection.on(ch => { liveOn = ch.current === 'connected'; const el = $('#live'); if (el) { el.className = 'live' + (liveOn ? ' on' : ''); el.textContent = liveOn ? 'LIVE' : 'SYNCING'; } if (liveOn && ch.previous !== 'initialized') api().catch(() => {}); });
   rt.channels.get('live:table').subscribe('t', m => { try { onTable(JSON.parse(m.data)); } catch (e) {} });
 }
@@ -615,7 +615,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) api(
   if (q.get('err')) err = { cancelled: 'Sign-in was cancelled.', setup: "Discord sign-in isn't set up yet.", stranger: "That Discord account isn't one the club knows yet." }[q.get('err')] || 'Sign-in failed. Try again.';
   try { await api(); } catch (e) { $('#view').innerHTML = '<p class="hint" style="margin-top:20px">Couldn\'t reach the table. Refresh to try again.</p>'; }
   poll();
-  if (S && S.ably && !window.LIVE_API) { const sc = document.createElement('script'); sc.src = '/ably.min.js'; sc.onload = connectLive; document.head.appendChild(sc); }
+  if (S && S.ably && !window.LIVE_API) { const sc = document.createElement('script'); sc.src = '/ably.min.js?v=3'; sc.onload = connectLive; document.head.appendChild(sc); }
 })();
 </script>
 <link rel="stylesheet" href="/lateshow.css">
