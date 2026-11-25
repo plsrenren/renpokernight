@@ -115,6 +115,7 @@ select { background: var(--panel2); color: var(--fg); border: 0; padding: 8px 8p
 /* overlapped seat cards show their corner index, like a real fan of cards */
 .seat .cards .cd { justify-content: flex-start; align-items: flex-start; padding: 4px 0 0 5px; font-size: 18px; } .seat .cards .cd i { font-size: 14px; margin: 1px 0 0 1px; }
 .cards .cd:nth-child(odd) { transform: rotate(-3deg); } .cards .cd:nth-child(even) { transform: rotate(3deg) translateY(1px); }
+.felt.g-bj .cards .cd, .felt.g-fb .cards .cd { transform: none; } /* blackjack cards sit straight; only UTH hole cards are angled like the poker room */
 .cd { position: relative; }
 /* dealing (shared table kit motion): each card slides from the shoe face down, lands and turns over; a face-down card already
    on the table (dealer's hole card, UTH showdown) just turns over where it sits */
@@ -394,7 +395,7 @@ function render() {
   // keep the host panel's open state and focus across redraws
   // the dock keeps its buttons when nothing in it changed, so a quick run of chip taps isn't lost to a table update mid-tap
   const oldDock = $('#dock'), dh = dockHTML(t);
-  v.innerHTML = `${barHTML(t)}<div class="felt" id="felt">${feltHTML(t)}</div><div class="dock" id="dock"></div>${lowerHTML(t)}`;
+  v.innerHTML = `${barHTML(t)}<div class="felt g-${t.game}" id="felt">${feltHTML(t)}</div><div class="dock" id="dock"></div>${lowerHTML(t)}`;
   if (oldDock && oldDock.dataset.h === dh) $('#dock').replaceWith(oldDock); else { $('#dock').innerHTML = dh; $('#dock').dataset.h = dh; }
   aimCards();
   bindTable();
