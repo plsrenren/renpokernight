@@ -174,18 +174,56 @@ export async function dailyStatus(id) {
   return dailyFrom(last);
 }
 
+// Funny lines for /daily (one picked at random per reply, like /beg). $X = the amount. No player names in any of them.
+export const DAILY_LINES = [
+  '🎁 The cashier slides you $X and says "See you tomorrow, champ."',
+  '☕ Your daily allowance has arrived. Spend it irresponsibly.',
+  '🃏 The dealer tips their cap. $X on the house.',
+  '📬 You\'ve got mail: $X and a note that says "please stop begging."',
+  '🧃 Juice box money: $X. Don\'t lose it before lunch.',
+  '🐟 The house is feeding the fish again: $X.',
+  '🪑 You showed up, so you get paid. Like a real job, but worse.',
+  '🎰 Free chips! The casino is very confident it\'s getting these back.',
+  '🍕 $X in chips, or roughly one Study pizza.',
+  '🧠 Fun fact: $X is exactly enough to shove all in once.',
+  '💼 Clocked in. Clocked out. $X richer.',
+  '🫡 The pit boss nods at you. You\'re a regular now.'];
+export const WEEKLY_LINES = [
+  '🗓️ New week, new bankroll. Double chips: $X.',
+  '🎉 Welcome back! The house missed your money: $X.',
+  '💸 Monday money hits different: $X.',
+  '🔁 Weekly reload: $X. Last week never happened.',
+  '🏦 The bank of The Study opened its vault for you: $X.',
+  '🧼 Fresh week, clean slate, $X to ruin it with.'];
+/** Extra line when the balance after the claim is under DAILY_BROKE / over DAILY_RICH. */
+export const DAILY_BROKE = 100, DAILY_RICH = 5000;
+export const BROKE_LINES = ['🩹 This should stop the bleeding. For now.', '🕳️ Climbing out of the hole one claim at a time.', '📉 Your bankroll called. It said thanks.'];
+export const RICH_LINES = ['🤨 You have plenty of chips and you still came for the freebie.', '🐋 A whale claiming the daily. The house respects the grind.', '💎 Rich people stay rich by never skipping /daily.'];
+export const CLAIMED_LINES = [
+  '⏳ Nice try. The cashier remembers your face.',
+  '🚫 One per day, sweetheart.',
+  `🙅 The vault is closed. Come back after ${DAILY_RESET_UTC}:00 UTC.`,
+  '👀 The pit boss saw that. Back of the line.',
+  '🧾 Your receipt says you already got today\'s chips.',
+  '🐢 Patience is a poker skill too.',
+  '🪤 Double-dipping is a ban in most casinos. Here it\'s just a no.',
+  '💤 The cashier is on break until reset.'];
+const pickLine = a => a[randomInt(a.length)];
+
 async function daily(i, s) {
   const me = whoIs(i, s);
   const r = await claimDaily(me);
   if (r.busy) return quiet('One moment, that claim is already going through.');
   if (r.wait !== undefined) {
     const left = Math.ceil(r.wait / 60e3), hrs = Math.floor(left / 60), mins = left % 60;
-    return quiet(`⏳ Already claimed. Next **+${money(r.amt)}** in ${hrs}h ${mins}m.`);
+    return quiet(`${pickLine(CLAIMED_LINES)}\nNext **+${money(r.amt)}** in ${hrs}h ${mins}m.`);
   }
   const { amt, bal } = r;
+  const line = pickLine(r.weekly ? WEEKLY_LINES : DAILY_LINES).replace('$X', `**${money(amt)}**`);
+  const extra = +bal < DAILY_BROKE ? pickLine(BROKE_LINES) : +bal > DAILY_RICH ? pickLine(RICH_LINES) : '';
   return json({ type: 4, data: { allowed_mentions: { parse: [] }, embeds: [{ color: 0x8ee0b0,
     title: r.weekly ? `🎁 ${me.name} claimed the weekly ${money(amt)}` : `🎁 ${me.name} claimed ${money(amt)}`,
-    description: `${r.weekly ? 'First claim of the week gets double. ' : ''}**+${money(amt)}** in chips\n\nBalance **${money(+bal)}**`,
+    description: `${line}${extra ? '\n' + extra : ''}\n\n**+${money(amt)}** in chips · Balance **${money(+bal)}**`,
     footer: { text: `Next +${money(r.next)} after ${DAILY_RESET_UTC}:00 UTC` } }] } });
 }
 
