@@ -605,7 +605,7 @@ function connectLive() {
 function poll() {
   clearTimeout(pollT);
   const t = T(), slow = !t || !t.open || document.hidden;
-  pollT = setTimeout(async () => { if (!liveOn) await api().catch(() => {}); poll(); }, liveOn || PRACTICE ? 30000 : slow ? 15000 : 2500);
+  pollT = setTimeout(async () => { if (!liveOn && !document.hidden) await api().catch(() => {}); poll(); }, liveOn || PRACTICE ? 30000 : slow ? 15000 : 2500);
 }
 function renderLive() { const el = $('#live'); if (el) { el.className = 'live' + (liveOn ? ' on' : ''); el.textContent = liveOn ? 'LIVE' : 'SYNCING'; } }
 function addChat(id, name, text) {
@@ -1244,6 +1244,7 @@ document.addEventListener('change', e => { if (e.target.id === 'hhSess') return 
 document.addEventListener('change', e => { const id = e.target.id; if (['hBlinds', 'hMin', 'hMax', 'hTurn', 'hBomb', 'hNit', 'hBombO', 'hNitO', 'hGiftO', 'hGift', 'pBots', 'pBlinds', 'pStack', 'pTurn'].includes(id)) hostDraft[id] = e.target.value; if (id === 'pStack') render(); if (id === 'pLevel2') send({ a: 'level', x: e.target.value }); if (id === 'hPost' || id === 'hStrO') hostDraft[id] = e.target.checked; if (e.target.id === 'hBlinds2') { const [sb, bb] = e.target.value.split('/').map(Number); send({ a: 'blinds', sb, bb }); } });
 document.addEventListener('input', e => { if (e.target.id === 'hGift' || e.target.id === 'hGiftO') hostDraft[e.target.id] = e.target.value; });
 document.addEventListener('submit', e => { if (e.target.id === 'sayF') { e.preventDefault(); const i = $('#sayIn'); say(i.value); i.value = ''; } });
+// a hidden tab doesn't poll (saves Redis commands, Nov 25 2026); coming back fetches the table at once
 document.addEventListener('visibilitychange', () => { if (!document.hidden) api().catch(() => {}); });
 
 (async function start() {

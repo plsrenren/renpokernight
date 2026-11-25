@@ -41,7 +41,12 @@ export const BLACKJACK_COMMANDS = [
 // ---------- storage (Upstash REST: one HTTP call per batch of commands) ----------
 export const kvUrl = () => process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
 export const kvToken = () => process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+// counts writes that put someone in ac:dirty (accolade counters, which jackpot wins also bump), so discord.js can skip the
+// after-answer title + jackpot checks on poker room / live table requests that counted nothing (Nov 25 2026, saves Redis commands).
+// Shared by concurrent requests on one instance: a false "something changed" only means an extra check, never a missed one.
+export const kvMarks = { n: 0 };
 export async function kv(...cmds) {
+  if (cmds.some(c => c && c.includes('ac:dirty') && (c[0] === 'SADD' || c[0] === 'EVAL'))) kvMarks.n++;
   const r = await fetch(kvUrl().replace(/\/$/, '') + '/pipeline', { method: 'POST', headers: { Authorization: `Bearer ${kvToken()}`, 'Content-Type': 'application/json' }, body: JSON.stringify(cmds) });
   if (!r.ok) throw new Error('storage said ' + r.status);
   const out = await r.json();

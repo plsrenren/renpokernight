@@ -40,7 +40,7 @@ import { checkAccolades } from './_accolades.js';
 import { houseEmbed } from './_rakeback.js';
 import { afterJackpot, readJackpot, jackpotEmbed, JP } from './_jackpot.js';
 import { REWARD_LIST } from './_rewards.js';
-import { WEEKLY_CLAIM, DAILY, DAILY_RESET_UTC, RAKE, kvUrl, kvToken } from './_blackjack.js';
+import { WEEKLY_CLAIM, DAILY, DAILY_RESET_UTC, RAKE, kvUrl, kvToken, kvMarks } from './_blackjack.js';
 import { SHOP_COMMANDS, shopCommand, shopInteraction } from './_shop.js';
 import { BEG_COMMAND, begCommand, begButton, BEG } from './_beg.js';
 import { wrongChannel } from './_channels.js';
@@ -126,7 +126,12 @@ const accoladesLater = () => { if (!kvUrl() || !kvToken()) return;
   waitUntil(checkAccolades({ ids: cache.ids }).catch(e => console.error('accolades', e)));
   waitUntil(afterJackpot().catch(e => console.error('jackpot', e))); }; // posts any jackpot win in #casino
 export async function POST(req) {
-  if (webRoute(req)) { const out = await casinoWeb(req, webRoute(req), sheet); accoladesLater(); return out; }
+  if (webRoute(req)) {
+    const w = webRoute(req), marks = kvMarks.n, out = await casinoWeb(req, w, sheet);
+    // poker room + live table moves (checks, folds, timer nudges) mostly count nothing: only check titles/jackpot when one did
+    if ((w !== 'poker' && w !== 'live') || kvMarks.n !== marks) accoladesLater();
+    return out;
+  }
   const startedAt = Date.now();
   const body = await req.text();
   if (!signed(req, body)) return new Response('bad signature', { status: 401 });
