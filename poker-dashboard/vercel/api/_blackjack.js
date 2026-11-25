@@ -4,7 +4,7 @@
 //                   double on any first two cards, split any two cards of the same value up to 6 hands (split aces get one card each, no re-split)
 //   /freebet bet push22   Free Bet Blackjack, same chips and buttons: free double on a hard 9/10/11, free split on any pair except
 //                   10-value cards (up to 6 hands), dealer hits soft 17, a dealer 22 pushes every hand still standing (blackjack still 3:2),
-//                   optional Push 22 side bet ($0 to $25) pays 11:1. A free bet pays even money if its hand wins and costs nothing if it loses.
+//                   optional Push 22 side bet ($0 to $25) pays 12:1. A free bet pays even money if its hand wins and costs nothing if it loses.
 //   /chips          leaderboard of everyone's chips
 // Balances live in Upstash Redis (Vercel: Storage > Upstash > connect to this project). It sets KV_REST_API_URL and
 // KV_REST_API_TOKEN (or UPSTASH_REDIS_REST_URL / _TOKEN); either pair works. Keys: bj:bal, bj:last, bj:name (hashes
@@ -34,7 +34,7 @@ export const BLACKJACK_COMMANDS = [
     options: [{ type: 4, name: 'bet', description: `How much to bet ($1 to $${MAX_BET}, default $${DEFAULT_BET})`, min_value: 1, max_value: MAX_BET, required: false }] },
   { name: 'freebet', description: 'Free Bet Blackjack: free doubles on 9-11, free splits, dealer 22 pushes', type: 1,
     options: [{ type: 4, name: 'bet', description: `How much to bet ($1 to $${MAX_BET}, default $${DEFAULT_BET})`, min_value: 1, max_value: MAX_BET, required: false },
-      { type: 4, name: 'push22', description: `Push 22 side bet, pays 11:1 if the dealer ends on 22 ($0 to $${MAX_PUSH22})`, min_value: 0, max_value: MAX_PUSH22, required: false }] },
+      { type: 4, name: 'push22', description: `Push 22 side bet, pays 12:1 if the dealer ends on 22 ($0 to $${MAX_PUSH22})`, min_value: 0, max_value: MAX_PUSH22, required: false }] },
   { name: 'chips', description: 'Blackjack chip leaderboard', type: 1 },
 ];
 
@@ -263,7 +263,7 @@ export function settle(g) {
     else h.res = 'lose';
     h.won = back - h.bet; g.payout += back;
   }
-  g.sideWin = g.side && d === 22 && !dealerNat ? g.side * 12 : 0;   // 11:1 plus the side bet back
+  g.sideWin = g.side && d === 22 && !dealerNat ? g.side * 13 : 0;   // 12:1 plus the side bet back (was 11:1 until Nov 25 2026)
   g.payout += g.sideWin;
   g.net = g.payout - g.hands.reduce((a, h) => a + h.bet, 0) - (g.side || 0);
 }
@@ -284,7 +284,7 @@ function view(g, bal) {
     color = g.net > 0 ? 0x8ee0b0 : g.net < 0 ? 0xf59bb0 : 0x9a94c4;
     const d = total(g.dealer).t;
     const lines = g.hands.map((h, k) => `${g.hands.length > 1 ? `Hand ${k + 1}: ` : ''}${total(h.cards).t}${h.freeDbl ? ' (free double)' : h.doubled ? ' (doubled)' : ''}${!h.bet && h.free ? ' (free hand)' : ''}, ${RES[h.res]}${isFree(g) && h.won > 0 ? ' ' + money(h.won) : ''}`);
-    if (g.side) lines.push(g.sideWin ? `Push 22: ${money(g.side)} pays ${money(g.side * 11)} 🎯` : `Push 22: lost ${money(g.side)}`);
+    if (g.side) lines.push(g.sideWin ? `Push 22: ${money(g.side)} pays ${money(g.side * 12)} 🎯` : `Push 22: lost ${money(g.side)}`);
     description = `${g.d22 ? 'Dealer hit 22, so standing hands push' : d > 21 ? 'Dealer busted with ' + d : 'Dealer has ' + d}\n${lines.join('\n')}\n\nBalance **${money(bal)}**`;
   }
   const footer = g.over ? (isFree(g) ? 'Free doubles on 9-11 · free splits (not 10s) · dealer 22 pushes · dealer hits soft 17' : 'Blackjack pays 3:2 · dealer stands on 17 · split up to 6 hands')
