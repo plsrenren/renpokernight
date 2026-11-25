@@ -132,9 +132,12 @@ async function publish(T, t) {
   const key = ablyKey(); if (!key) return;
   const c = new AbortController(), timer = setTimeout(() => c.abort(), 1500);
   try {
-    await fetch(`https://rest.ably.io/channels/${encodeURIComponent(CHAN)}/messages`, { method: 'POST', signal: c.signal,
-      headers: { Authorization: 'Basic ' + Buffer.from(key).toString('base64'), 'Content-Type': 'application/json' },
+    // X-Ably-ClientId: the Ably app only lets identified clients publish; without it every publish was refused (40161), so
+    // nobody got live tables and every page fell back to polling Redis (found Nov 25 2026)
+    const r = await fetch(`https://rest.ably.io/channels/${encodeURIComponent(CHAN)}/messages`, { method: 'POST', signal: c.signal,
+      headers: { Authorization: 'Basic ' + Buffer.from(key).toString('base64'), 'X-Ably-ClientId': Buffer.from('server').toString('base64'), 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 't', data: JSON.stringify(E.publicView(T, t)) }) });
+    if (!r.ok) console.error('ably publish', r.status, (await r.text().catch(() => '')).slice(0, 200));
   } catch (e) { console.error('ably publish', e.name); } finally { clearTimeout(timer); }
 }
 /** A signed Ably token request (the browser swaps it for a token itself): listen on the table, talk on the chat, nothing else. */
