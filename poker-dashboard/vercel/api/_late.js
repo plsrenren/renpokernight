@@ -178,7 +178,7 @@ export const playerCardTree = withAssets((c, art = {}) => {
     h({ alignItems: 'center', gap: 10, paddingLeft: 18, paddingRight: 18, backgroundColor: bar && bar.ovrBg ? bar.ovrBg : L.night, border: `2px solid ${bar ? bar.ovr : L.gold}` },
       B(ov ? String(ov.value) : '–', 52, oc),
       h({ flexDirection: 'column' }, B('OVERALL', 18, oc, { letterSpacing: 2 }), T(ov ? `${ov.rank} of ${ov.of} regulars` : `needs ${c.needs} nights`, { fontSize: 11, color: bar && bar.ovrBg ? L.night : L.muted }))),
-    stat(usd(Math.round(c.net), { cents: false }), 'NET'), stat(String(c.wins), 'WINS'), stat('#' + c.rank, 'OF ' + c.of));
+    stat(usd(c.net), 'NET'), stat(String(c.wins), 'WINS'), stat('#' + c.rank, 'OF ' + c.of));
   const attr = a => h({ width: (IN - 12) / 3, height: 58, backgroundColor: L.panel, alignItems: 'center', paddingLeft: 12, gap: 10, position: 'relative' },
     h({ position: 'absolute', left: 0, bottom: 0, height: 4, width: `${a.v}%`, backgroundColor: a.v >= 80 ? L.up : a.v >= 60 ? L.gold : L.down }),
     B(a.k, 20, L.muted, { width: 40, letterSpacing: 1.5 }), B(String(a.v), 38));
@@ -243,7 +243,7 @@ export const wrapCardTree = withAssets((w, pics = {}) => {
     w.tour ? aw('Tournament king', w.tour.name, w.tour.net, `${w.tourNights} tourney night${w.tourNights === 1 ? '' : 's'}`, L.bronze) : null,
     w.worst ? aw('Toughest night', w.worst.name, w.worst.net, w.worst.date, L.down) : null].filter(Boolean);
   return frame(
-    mast(`${w.q} Wrapped`, `${w.nights} night${w.nights === 1 ? '' : 's'} · ${w.players} players · ${usd(w.pot, { sign: false, cents: !Number.isInteger(w.pot) })} in buy-ins`),
+    mast(`${w.q} Wrapped`, `${w.nights} night${w.nights === 1 ? '' : 's'} · ${w.players} players · ${usd(w.pot, { sign: false })} in buy-ins`),
     h({ marginTop: 18, marginLeft: PAD, marginRight: PAD, height: 250, position: 'relative', overflow: 'hidden', backgroundImage: 'linear-gradient(120deg, #3a2a6e, #a23b58)' },
       h({ position: 'absolute', right: -6, bottom: -50, fontFamily: 'Bebas', fontSize: 240, lineHeight: 1, color: 'rgba(255,255,255,0.07)' }, '#1'),
       h({ width: 200, alignItems: 'center', justifyContent: 'center', position: 'relative' }, sq(pics, k.name, 150),
@@ -259,7 +259,7 @@ export const wrapCardTree = withAssets((w, pics = {}) => {
 // ---------- head to head (/api/h2h) ----------
 /** the one-line "X has the edge here, but Y can..." blurb under the h2h header: [[text, who], ...] (who = 'a' | 'b' | '' for colour) */
 export function h2hBlurb(p) {
-  const money = v => usd(Math.round(Math.abs(v)), { cents: false, sign: false });
+  const money = v => usd(Math.abs(v), { sign: false });
   // the same matchup split by game type: wins (finished ahead) and net for each side
   const split = tour => { const g = p.games.filter(x => x.tour === tour);
     return { n: g.length, a: g.filter(x => x.win === 'a').length, b: g.filter(x => x.win === 'b').length, an: g.reduce((t, x) => t + x.x, 0), bn: g.reduce((t, x) => t + x.y, 0) }; };

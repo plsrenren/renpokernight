@@ -409,7 +409,7 @@ details.fold > summary + * { margin-top: 10px; }
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const money = n => '$' + (Math.round(n * 100) / 100).toLocaleString('en-US');
+const money = n => (n < 0 ? '−' : '') + '$' + (Math.round(Math.abs(n) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); // cents on every amount, site-wide
 // $ / BB switch (table bar): amounts ON the table (stacks, bets, pot, action buttons, results, hand log) can show in big blinds; remembered per browser
 let unitBB = false; try { unitBB = localStorage.getItem('pk:unit') === 'bb'; } catch (e) {}
 const chip = n => { const bb = S && S.table && S.table.cfg.bb; return unitBB && bb ? (Math.round(n / bb * 10) / 10).toLocaleString('en-US') + ' BB' : money(n); };

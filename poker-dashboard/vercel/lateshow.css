@@ -3,8 +3,6 @@ html:root { --title: "Bebas Neue", Impact, sans-serif; --display: "Space Grotesk
 html body { font-family: var(--body); background-color: #15132a; background-image: linear-gradient(115deg, rgba(143,120,240,.16) 0 26%, rgba(0,0,0,0) 26%), radial-gradient(60% 40% at 100% 0%, rgba(224,80,127,.22), rgba(0,0,0,0) 70%); background-attachment: fixed; }
 html select, html button { border-radius: 0; }
 html .pfp, html .rc-mu .ava, html .pc-mono, html .av, html .av img { border-radius: 0 !important; }
-html .tabbar a { font-family: var(--title) !important; font-weight: 400 !important; font-size: 14px !important; letter-spacing: .1em; }
-html .tabbar a.on { color: #15132a !important; background: var(--gold); }
 html .brand { gap: 0; align-items: stretch; }
 html .brand .lg { width: 92px; height: 78px; background: var(--logo) center / 58px no-repeat, var(--pink); clip-path: polygon(0 0, 100% 0, 84% 100%, 0 100%); margin-right: 14px; }
 html .brand h1 { font-size: clamp(38px, 5.4vw, 56px); line-height: .9; letter-spacing: .02em; }
@@ -51,8 +49,6 @@ html .aw .t small { font-family: var(--title); font-weight: 400; font-size: 14px
 html button.primary { font-family: var(--title); font-weight: 400; font-size: 18px; letter-spacing: .08em; background: var(--pink); }
 html button { font-family: var(--title); font-weight: 400; font-size: 17px; letter-spacing: .08em; }
 html .bar a, html label { font-family: var(--title); font-weight: 400; font-size: 17px; letter-spacing: .1em; }
-html .band { border-radius: 0; border-left: 6px solid var(--gold); background: linear-gradient(100deg, #3a2a6e, #a23b58); }
-html .band h1 { font-size: 60px; }
 html .sechead h2 { display: inline-block; font-family: var(--title); font-weight: 400; font-size: 26px; letter-spacing: .06em; color: #fff; background: var(--vio); padding: 7px 26px 3px 14px; clip-path: polygon(0 0, 100% 0, calc(100% - 13px) 100%, 0 100%); line-height: 1; }
 html .rec, html .shelf, html .trophy, html .q, html .board, html .brow, html .brow .md, html .trophy .tot { border-radius: 0; }
 html .rec, html .shelf, html .q, html .board { background: #1d1a37; }
@@ -75,7 +71,6 @@ html .seg button[aria-pressed="true"] { background: var(--gold); }
   html .brand h1::before { font-size: 12px; }
   html .tile .v { font-size: 30px; overflow-wrap: normal; word-break: normal; }
   html .tile .k { font-size: 15px; }
-  html .band h1 { font-size: 44px; }
   }
 /* Phones: keep long names, amounts and the Net column inside the screen (site audit, Nov 2026) */
 @media (max-width: 480px) {
@@ -102,4 +97,13 @@ html .seg button[aria-pressed="true"] { background: var(--gold); }
   /* the game log is the widest table, so it drops Buy-ins/Cash in/Cash out a bit earlier (small tablets too) */
   html table:has(#pLog) th:nth-child(3), html table:has(#pLog) th:nth-child(4), html table:has(#pLog) th:nth-child(5),
   html #pLog td:nth-child(3), html #pLog td:nth-child(4), html #pLog td:nth-child(5) { display: none; }
+}
+/* One page frame on every page (Nov 25 2026, Renato): same width, same left edge, same title spot and size, so switching pages
+   from the site bar doesn't make the page jump. The poker room's open table (body.room) keeps its full width. */
+html body:not(.room) .wrap { box-sizing: border-box; width: 100%; max-width: 1240px; margin-left: auto; margin-right: auto; padding-top: 24px;
+  padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)); }
+html .brand h1, html h1.pg-h1 { font-family: var(--title); font-weight: 400; font-size: clamp(38px, 5.4vw, 56px); line-height: .9; letter-spacing: .02em; margin: 6px 0; color: #fff; }
+html .pg-lede { margin: 4px 0 0; color: var(--muted, #a9a3cf); font-size: 14px; max-width: 70ch; }
+@media (max-width: 640px) {
+  html body:not(.room) .wrap { padding-top: 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 }

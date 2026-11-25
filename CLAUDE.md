@@ -62,7 +62,7 @@ poker-dashboard/
                        every page: logo + THE STUDY (links home), three dropdown menus from MENU (Stats: Dashboard/Recap/Hall of Fame/Head to head;
                        Casino: Lobby/Poker room/Live tables; Cards: Shop & loadout/Collection; hover or click, current group gold), then the badge
                        (<div id="sb">). Pages no longer carry their own logo/back links/"me" corners. Phones: menus become a caret sheet listing every
-                       page, and a page's nav.tabbar is rebuilt into the same 3 menus opening upward (class sbt). Dashboard h1 breaks as
+                       page; no bottom tab bar on any page (removed Nov 25 2026, Renato's call). Dashboard h1 breaks as
                        "Poker Club / @ The Study" (span.nb nowrap). Add a page = add it to MENU. Badge: signed out = Discord SIGN IN tag
                        (/api/login?to=<page>, login returns to any page); signed in = poker-room nameplate (pfp + border, bar wash, name + chips,
                        sticker; phones = face + chips) + hover/tap card (chips + stack rank, quarter net/nights/place, title, cosmetics X/Y like
@@ -93,6 +93,9 @@ poker-dashboard/
     cosmetics.css      Border/bar/sticker/title CSS for the dashboard player card and /shop (champion borders .cb-champ-*) (.cbw.cb-<key>, .cbar-<key>, .cos-stk, .cos-ttl); every selector starts with html
     lateshow.css       "Late Show" look (Nov 2026), linked last on every page; every selector is prefixed with html so it beats
                        the page's own <style> (which sits in <body>)
+                       Page frame (Nov 25 2026): html body:not(.room) .wrap = 1240px max, 24px sides (16 on phones), title h1.pg-h1 / .brand h1
+                       56px, so every page's title sits in the same spot (shop.html copies the rule; collection now links lateshow.css).
+                       Money: cents on every amount, site + Discord ($12,480.50); only chart axes stay whole dollars.
     recap-core.js      Shared logic (browser + API): parsing, recap stories, Hall of Fame, player cards, h2h, quarter wrap
     api/               Serverless functions: recap/card/hall/h2h/wrap (PNG cards via satori + resvg, all drawn by _late.js = Late Show design),
                        h2h card wears both players' Study Cards loadouts (Nov 24 2026, Renato's pick D = the /poker seat look: border + outer-corner sticker, dark nameplate with the overall bar washing in, title as a slanted tab; every piece in a fixed-size slot so nothing moves; _h2h.js HMGETs sh:eq) and a one-line blurb under the header (h2hBlurb in _late.js: "X has the edge here, but Y wins the cash games (6–3)", rules use cash vs tournament splits, fixed 2-line band),

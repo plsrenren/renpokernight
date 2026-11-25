@@ -25,7 +25,8 @@ html, body { margin: 0; }
 body { background: var(--page); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.45; font-weight: 600; }
 .wrap { max-width: 640px; margin: 0 auto; padding-block: max(24px, env(safe-area-inset-top, 0px)) 48px;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 18px; }
-.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+/* the page frame (width, left edge, title) is site-wide in lateshow.css; the card stays 560 wide on the frame's left edge */
+.bar { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: center; justify-content: space-between; }
 .bar a { color: var(--muted); font-size: 14px; text-decoration: none; font-weight: 700; }
 .bar a:hover { color: var(--peri); }
 .ctl { display: flex; gap: 8px; align-items: center; }
@@ -38,7 +39,7 @@ select:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .status { font-size: 13px; color: var(--muted); min-height: 1.4em; }
 .status.err { color: var(--down); }
-.stage { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; }
+.stage { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; width: 100%; max-width: 608px; box-sizing: border-box; }
 
 /* ===== Cozy night card ===== */
 .f2 { width: 560px; max-width: 100%; border-radius: 22px; padding: 18px; display: grid; gap: 14px; color: var(--fg);
@@ -128,6 +129,7 @@ select:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid
 <body>
 <div class="wrap">
   <div class="bar">
+    <h1 class="pg-h1">Night Recap</h1>
     <div class="ctl"><label for="night">Night</label><select id="night"></select></div>
   </div>
   <div class="stage"><article class="f2" id="card" aria-live="polite"><div class="empty">Reading the sheet…</div></article></div>
@@ -262,21 +264,12 @@ $('share').addEventListener('click', async () => {
 load();
 </script>
 
-<!-- phone-only tab bar at the bottom (the header buttons hide on phones) -->
+<!-- phones: hide the header buttons (the site bar menu covers them) -->
 <style>
-.tabbar { display: none; }
 @media (max-width: 640px) {
-  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: grid; grid-template-columns: repeat(5, 1fr);
-    background: rgba(22,19,42,.94); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border-top: 1px solid rgba(255,255,255,.1);
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
-  .tabbar a { display: flex; flex-direction: column; align-items: center; gap: 3px; color: #a9a3cf; text-decoration: none; font: 800 11px/1.1 Nunito, system-ui, sans-serif; padding: 4px 0; }
-  .tabbar a span { font-size: 20px; line-height: 1; }
-  .tabbar a.on { color: #f1c75b; }
-  body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
   .recap-link, .tab-hide { display: none !important; }
 }
 </style>
-<nav class="tabbar" aria-label="Pages"><a href="/"><span aria-hidden="true">📊</span>Dashboard</a><a href="/recap" class="on" aria-current="page"><span aria-hidden="true">📰</span>Recap</a><a href="/hall"><span aria-hidden="true">🏆</span>Hall</a><a href="/h2h"><span aria-hidden="true">⚔️</span>H2H</a><a href="/casino"><span aria-hidden="true">🃏</span>Casino</a></nav>
 <link rel="stylesheet" href="/lateshow.css">
 <script type="module" src="/badge.js"></script>
 </body>

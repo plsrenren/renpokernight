@@ -14,7 +14,7 @@ const pick = (cands, k, rnd) => {
   return out.map(c => c.parts);
 };
 const andList = a => a.length <= 2 ? a.join(' & ') : a.slice(0, -1).join(', ') + ' & ' + a[a.length - 1];
-const money0 = v => usd(v, { sign: false, cents: !Number.isInteger(v) });
+const money0 = v => usd(v, { sign: false }); // cents on every amount (Renato, Nov 25 2026)
 
 export function stories(nights, n) {
   const chrono = [...nights].reverse();

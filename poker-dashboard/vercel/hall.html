@@ -10,7 +10,7 @@
 <link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <style>
 /* Hall of Fame page: worked out live from the Input tab (same data as the dashboard and recap). */
-/* Layout: trophy case. Title band, then the record holders, the title count shelf, quarter-by-quarter champions
+/* Layout: trophy case. Page title, then the record holders, the title count shelf, quarter-by-quarter champions
    (newest first), and the three Top 5 boards. Single deliberate look: the club's "Cozy night" room. */
 :root {
   --page: #100e20; --panel: #221e3d; --panel2: #2a2549; --line: #332e57;
@@ -46,11 +46,6 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--peri); outline-
 .status { color: var(--muted); }
 .status.err { color: var(--down); }
 
-/* title band */
-.band { border-radius: 24px; padding: 26px 24px; background: radial-gradient(70% 120% at 0% 0%, rgba(241,199,91,.22), transparent 60%), linear-gradient(120deg, #2e2358, #3a1f3e); display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; }
-.band svg { width: 64px; height: 64px; }
-.band h1 { margin: 0; font-family: var(--title); font-weight: 400; font-size: 54px; line-height: .9; color: #fff; letter-spacing: .02em; text-wrap: balance; }
-.band p { margin: 6px 0 0; color: #e4d9ff; max-width: 60ch; }
 
 /* record holders */
 .recs { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
@@ -60,6 +55,8 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--peri); outline-
 .rec .who .av { width: 44px; height: 44px; font-size: 18px; box-shadow: 0 0 0 3px var(--panel), 0 0 0 5px var(--gold); }
 .rec .who b { font-weight: 900; font-size: 20px; color: #fff; }
 .rec .big { font-family: var(--mono); font-weight: 600; font-size: 26px; color: var(--up); line-height: 1; }
+/* a shadow behind every line of the record cards so a bright overall bar washing in never hides the text (Renato, Nov 25 2026) */
+.rec .k, .rec .who b, .rec .pl-nm *, .rec .big { text-shadow: 0 1px 2px rgba(10,8,24,.9), 0 0 8px rgba(10,8,24,.75); }
 
 /* title shelf */
 .shelf { background: var(--panel); border-radius: 18px; padding: 16px; display: grid; gap: 10px; }
@@ -120,16 +117,13 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--peri); outline-
 .note { color: var(--muted); font-size: 12.5px; max-width: 80ch; margin: 0; }
 
 @media (max-width: 860px) { .recs, .boards { grid-template-columns: minmax(0,1fr); } }
-@media (max-width: 520px) { .band { grid-template-columns: minmax(0,1fr); } .band h1 { font-size: 42px; } .shelfrow { grid-template-columns: 18px minmax(0, 110px) minmax(0,1fr) 30px; gap: 8px; } }
+@media (max-width: 520px) { .shelfrow { grid-template-columns: 18px minmax(0, 110px) minmax(0,1fr) 30px; gap: 8px; } }
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <section class="band">
-    <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 8h28v14c0 9-6 16-14 16s-14-7-14-16z" fill="#f1c75b"/><path d="M18 12H9c0 9 4 14 10 15M46 12h9c0 9-4 14-10 15" fill="none" stroke="#f1c75b" stroke-width="4" stroke-linecap="round"/><rect x="28" y="37" width="8" height="10" fill="#d9a72e"/><rect x="20" y="47" width="24" height="8" rx="2" fill="#f1c75b"/><path d="M32 14l2.2 4.6 5 .6-3.7 3.4 1 5-4.5-2.5-4.5 2.5 1-5-3.7-3.4 5-.6z" fill="#fff6d6"/></svg>
-    <div><h1>Hall of Fame</h1><p>Every quarter's champions since the first night @ The Study, the record holders, and who has the most hardware.</p></div>
-  </section>
+  <header class="pg-h"><h1 class="pg-h1">Hall of Fame</h1><p class="pg-lede">Every quarter's champions since the first night @ The Study, the record holders, and who has the most hardware.</p></header>
 
   <p class="status" id="status">Reading the sheet…</p>
   <div id="hof" hidden style="display:grid;gap:22px">
@@ -212,21 +206,12 @@ async function load() {
 load();
 </script>
 
-<!-- phone-only tab bar at the bottom (the header buttons hide on phones) -->
+<!-- phones: hide the header buttons (the site bar menu covers them) -->
 <style>
-.tabbar { display: none; }
 @media (max-width: 640px) {
-  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: grid; grid-template-columns: repeat(5, 1fr);
-    background: rgba(22,19,42,.94); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border-top: 1px solid rgba(255,255,255,.1);
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
-  .tabbar a { display: flex; flex-direction: column; align-items: center; gap: 3px; color: #a9a3cf; text-decoration: none; font: 800 11px/1.1 Nunito, system-ui, sans-serif; padding: 4px 0; }
-  .tabbar a span { font-size: 20px; line-height: 1; }
-  .tabbar a.on { color: #f1c75b; }
-  body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
   .recap-link, .tab-hide { display: none !important; }
 }
 </style>
-<nav class="tabbar" aria-label="Pages"><a href="/"><span aria-hidden="true">📊</span>Dashboard</a><a href="/recap"><span aria-hidden="true">📰</span>Recap</a><a href="/hall" class="on" aria-current="page"><span aria-hidden="true">🏆</span>Hall</a><a href="/h2h"><span aria-hidden="true">⚔️</span>H2H</a><a href="/casino"><span aria-hidden="true">🃏</span>Casino</a></nav>
 <link rel="stylesheet" href="/lateshow.css">
 <link rel="stylesheet" href="/cosmetics.css">
 <link rel="stylesheet" href="/plates.css">
