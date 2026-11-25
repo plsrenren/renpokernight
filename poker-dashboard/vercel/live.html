@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Live Tables · Poker Club @ The Study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@500;700&family=Nunito:wght@600;700;800;900&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>
+/* Live tables (Nov 2026): one shared blackjack / Free Bet / UTH table, opened by any member of the Discord server.
+   Everyone plays their own hand at the same time against the same dealer (Renato's pick "B"). Server: /api/live (api/_live.js +
+   api/_livegame.js, the same settle code as the solo games). Seats wear the poker room's look: Discord pfp in its border, overall bar
+   washing into the nameplate, sticker on the corner, title as a slanted tab (plates.js + /api/shop loadouts). Live via Ably "live:table". */
+:root {
+  --page: #15132a; --panel: #1d1a37; --panel2: #2a2550; --line: #332e57;
+  --fg: #ece9fb; --soft: #cfcaf0; --muted: #9a94c4; --ink: #15132a;
+  --gold: #f1c75b; --pink: #e0507f; --vio: #8f78f0; --up: #8ee0b0; --down: #f59bb0; --blurple: #5865f2;
+  --felt: var(--tk-felt1); --felt2: var(--tk-felt2); /* shared table kit felt, same green as every table */ --cardbg: #fbfaf6; --red: #d23a4a;
+  --title: "Bebas Neue", Impact, sans-serif; --body: "Space Grotesk", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace; --round: Nunito, system-ui, sans-serif;
+  --logo: url(/icon-192.png);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; color: var(--fg); font-family: var(--body); background: var(--page); -webkit-tap-highlight-color: transparent; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 22px max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px)); }
+a { color: inherit; }
+button { cursor: pointer; border: 0; color: inherit; font: inherit; border-radius: 0; }
+button:disabled { cursor: default; opacity: .35; }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.hidden { display: none !important; }
+.top { display: flex; gap: 14px; align-items: flex-start; }
+.brand { display: flex; align-items: stretch; }
+.brand .lg { display: block; width: 92px; height: 78px; flex: none; }
+.brand h1 { font: 400 54px/.9 var(--title); letter-spacing: .02em; margin: 6px 0 6px; }
+.links { display: flex; gap: 8px; flex-wrap: wrap; }
+.links a { text-decoration: none; }
+.me { margin-left: auto; display: flex; align-items: center; gap: 10px; font: 700 14px var(--body); color: var(--soft); margin-top: 10px; white-space: nowrap; }
+.me .bal { font: 600 13px var(--mono); color: var(--gold); }
+.av { --h: 260; position: relative; width: 30px; height: 30px; flex: none; display: grid; place-items: center; overflow: hidden; font: 900 12px var(--round); background: hsl(var(--h) 75% 82%); color: hsl(var(--h) 45% 25%); }
+.av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.panel { background: var(--panel); padding: 0 18px 16px; margin-top: 16px; }
+.panel h2 { display: inline-block; font: 400 26px/1 var(--title); letter-spacing: .06em; color: #fff; background: var(--vio); margin: 0 0 10px -18px; padding: 7px 26px 3px 18px; clip-path: polygon(0 0,100% 0,calc(100% - 13px) 100%,0 100%); }
+.panel h2.g { background: var(--gold); color: var(--ink); } .panel h2.p { background: var(--pink); }
+.hint { font-size: 13px; color: var(--muted); margin: 0 0 10px; line-height: 1.45; }
+.cbtn { display: inline-block; font: 400 19px var(--title); letter-spacing: .08em; padding: 8px 18px 6px; background: var(--pink); color: #fff; clip-path: polygon(0 0,100% 0,calc(100% - 10px) 100%,0 100%); text-decoration: none; }
+.cbtn.ghost { background: var(--panel2); color: var(--fg); } .cbtn.up { background: var(--up); color: #0e2a1c; } .cbtn.gold { background: var(--gold); color: var(--ink); }
+.dbtn { display: inline-flex; align-items: center; gap: 10px; background: var(--blurple); color: #fff; font: 700 15px var(--body); padding: 10px 16px; text-decoration: none; }
+.dbtn svg { width: 20px; height: 20px; }
+.form { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 14px; margin: 6px 0 14px; }
+.form label { display: grid; gap: 4px; font: 400 15px var(--title); letter-spacing: .12em; color: var(--gold); }
+select { background: var(--panel2); color: var(--fg); border: 0; padding: 8px 8px; font: 500 14px var(--mono); border-radius: 0; }
+.err { background: rgba(224,80,127,.15); border-left: 4px solid var(--pink); padding: 8px 12px; margin-top: 12px; font-size: 13.5px; }
+#toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--panel2); border-left: 4px solid var(--pink); padding: 10px 14px; font-size: 14px; z-index: 60; max-width: min(92vw, 520px); box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+
+/* table bar */
+.tbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--panel); padding: 8px 12px; font-size: 13px; color: var(--soft); margin-top: 16px; position: relative; }
+.live { font: 600 11px var(--mono); background: var(--panel2); color: var(--muted); padding: 2px 6px; }
+.live.on { background: var(--pink); color: #fff; }
+.tbar .gm { font: 400 22px var(--title); letter-spacing: .06em; color: var(--fg); }
+.tbar .r { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.tbtn { font: 400 15px var(--title); letter-spacing: .1em; background: var(--panel2); padding: 5px 12px 3px; }
+.tbtn.on { background: var(--gold); color: var(--ink); }
+.drop { position: absolute; right: 0; top: 100%; z-index: 30; width: min(360px, 100%); background: var(--panel); border: 1px solid var(--line); box-shadow: 0 12px 30px rgba(0,0,0,.55); padding: 4px 14px 14px; }
+.drop .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.drop .row label { color: var(--soft); }
+.drop .row select { padding: 5px 6px; font-size: 12.5px; }
+.drop .hb { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.drop .hb button { font: 400 16px var(--title); letter-spacing: .08em; padding: 8px 6px 6px; background: var(--panel2); }
+.drop .hb .go { background: var(--pink); color: #fff; }
+.drop .note { font-size: 12px; color: var(--muted); margin: 8px 0 0; line-height: 1.4; }
+
+/* felt */
+.felt { position: relative; aspect-ratio: 2 / 1.22; background: radial-gradient(120% 90% at 50% 0%, var(--felt), var(--felt2)); border: 10px solid #2b2150; border-top-width: 0; border-radius: 0 0 50% 50% / 0 0 34% 34%; overflow: hidden; }
+.dealer { position: absolute; left: 50%; top: 3%; transform: translateX(-50%); text-align: center; display: grid; justify-items: center; gap: 4px; }
+.lbl { font: 400 14px var(--title); letter-spacing: .14em; color: rgba(255,255,255,.55); }
+.lbl b { color: var(--gold); font-weight: 400; margin-left: 4px; }
+.rules { position: absolute; left: 50%; top: 23%; transform: translateX(-50%); font: 400 13px var(--title); letter-spacing: .16em; color: rgba(241,199,91,.55); white-space: nowrap; }
+.status { position: absolute; left: 50%; top: 28%; transform: translateX(-50%); text-align: center; width: 70%; pointer-events: none; }
+.status .big { font: 400 clamp(20px, 2.6vw, 30px)/1 var(--title); letter-spacing: .06em; color: #fff; }
+.status .sm { font-size: 12.5px; color: rgba(255,255,255,.72); margin-top: 4px; min-height: 1.3em; }
+.ltb { display: flex; gap: 5px; justify-content: center; margin-top: 6px; }
+
+/* cards (four-color deck like the poker room) */
+.cards { display: flex; justify-content: center; }
+.cd { width: 44px; height: 62px; background: var(--cardbg); color: #1b1b1b; display: flex; flex-direction: column; align-items: center; justify-content: center; font: 900 20px/1 var(--round); box-shadow: 0 3px 8px rgba(0,0,0,.4); flex: none; }
+.cd i { font-style: normal; font-size: 17px; margin-top: 2px; }
+.cd.su-h { color: var(--red); } .cd.su-d { color: #2c63d6; } .cd.su-c { color: #1f8a4c; }
+.cd.back { background: repeating-linear-gradient(45deg, #5a40ad 0 6px, #6e52c8 6px 12px); border: 3px solid var(--cardbg); }
+.cd.ph { background: rgba(0,0,0,.18); box-shadow: none; border: 2px dashed rgba(255,255,255,.12); }
+.cards .cd + .cd { margin-left: -20px; }
+/* overlapped seat cards show their corner index, like a real fan of cards */
+.seat .cards .cd { justify-content: flex-start; align-items: flex-start; padding: 4px 0 0 5px; font-size: 18px; } .seat .cards .cd i { font-size: 14px; margin: 1px 0 0 1px; }
+.cards .cd:nth-child(odd) { transform: rotate(-3deg); } .cards .cd:nth-child(even) { transform: rotate(3deg) translateY(1px); }
+.cd { position: relative; }
+/* dealing (shared table kit motion): each card slides from the shoe face down, lands and turns over; a face-down card already
+   on the table (dealer's hole card, UTH showdown) just turns over where it sits */
+.cd.in { animation: deal .6s cubic-bezier(.2,.8,.3,1) both; } .cd.in.back { animation-name: dealb; }
+.cd.in:not(.back)::after, .cd.turn::after { content: ""; position: absolute; inset: -1px; background: var(--tk-back); border: 3px solid var(--cardbg); animation: cover .6s linear both; animation-delay: inherit; }
+.cd.turn { animation: turn .32s ease-in-out both; } .cd.turn::after { animation: cover2 .32s linear both; animation-delay: inherit; }
+@keyframes deal { 0% { translate: var(--fx, 0) var(--fy, -150px); rotate: -14deg; scale: .8; } 65% { translate: 0 0; rotate: 0deg; scale: 1; } 82% { scale: 0 1; } 100% { scale: 1; } }
+@keyframes dealb { 0% { translate: var(--fx, 0) var(--fy, -150px); rotate: -14deg; scale: .8; } 100% { translate: 0 0; rotate: 0deg; scale: 1; } }
+@keyframes cover { 0%, 81% { opacity: 1; } 82%, 100% { opacity: 0; } }
+@keyframes turn { 50% { scale: 0 1; } }
+@keyframes cover2 { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.shoe { position: absolute; right: 7%; top: 14px; width: 40px; height: 56px; }
+@media (max-width: 640px) { .shoe { width: 26px; height: 36px; right: 6%; top: 10px; border-width: 2px; box-shadow: 2px 2px 0 #2c1f63, 4px 4px 0 #1f1647; } }
+.cards.sm .cd { width: 34px; height: 48px; font-size: 15px; } .cards.sm .cd i { font-size: 13px; } .cards.sm .cd + .cd { margin-left: -17px; }
+.dealer .cd { width: 52px; height: 73px; font-size: 24px; } .dealer .cd i { font-size: 20px; } .dealer .cards .cd + .cd { margin-left: -14px; }
+.ltb .cd { width: 46px; height: 65px; transform: none !important; } .ltb .cards .cd + .cd { margin-left: 0; }
+@media (hover: hover) { .cd:not(.back):not(.ph) { cursor: zoom-in; transition: scale .15s; } .cd:not(.back):not(.ph):hover { scale: 1.5; z-index: 6; position: relative; } }
+
+/* seats: cards up top, bet, then the poker room's nameplate (pfp in its border + bar wash + sticker + title tab) */
+.seat { position: absolute; transform: translate(-50%, -100%); display: grid; justify-items: center; gap: 3px; width: 20%; z-index: 2; }
+.seat .hands { display: flex; gap: 8px; justify-content: center; align-items: flex-end; min-height: 66px; position: relative; }
+.hand { display: grid; justify-items: center; gap: 2px; position: relative; }
+.hand.cur::after { content: ""; position: absolute; left: -4px; right: -4px; bottom: -5px; height: 3px; background: var(--gold); }
+.tot { font: 600 11px var(--mono); background: rgba(0,0,0,.6); color: #fff; padding: 1px 5px; }
+.tot.free { background: var(--up); color: #0e2a1c; }
+.res { font: 400 15px/1 var(--title); letter-spacing: .06em; padding: 3px 7px 1px; transform: skewX(-10deg); white-space: nowrap; animation: pop .3s both; }
+@keyframes pop { from { opacity: 0; scale: .6; } to { opacity: 1; scale: 1; } }
+.res.w { background: var(--up); color: #0e2a1c; } .res.l { background: var(--down); color: #3a0d1c; } .res.p { background: var(--soft); color: var(--ink); } .res.bj { background: var(--gold); color: var(--ink); }
+.act { margin-bottom: 4px; font: 900 10.5px var(--round); letter-spacing: .04em; background: var(--panel2); color: var(--fg); padding: 2px 6px; white-space: nowrap; text-transform: uppercase; min-height: 17px; }
+.act.none { visibility: hidden; }
+.act.hot { background: var(--pink); color: #fff; } .act.fold { background: #3a3560; color: var(--muted); } .act.gold { background: var(--gold); color: var(--ink); }
+.bets { display: flex; gap: 4px; align-items: center; min-height: 20px; flex-wrap: wrap; justify-content: center; }
+.btag { font: 400 13px/1 var(--title); letter-spacing: .06em; background: #120f26; color: #fff; padding: 3px 7px 1px; transform: skewX(-10deg); white-space: nowrap; }
+.btag.free { background: var(--up); color: #0e2a1c; } .btag.side { background: var(--vio); } .btag.play { background: var(--gold); color: var(--ink); }
+.st-row { display: flex; align-items: center; gap: 6px; width: 100%; justify-content: center; }
+.pfw { position: relative; flex: none; }
+.st-np { position: relative; flex: 1; min-width: 0; max-width: 150px; }
+.st-name { position: relative; display: flex; justify-content: space-between; gap: 8px; width: 100%; padding: 4px 8px 4px 7px; background: #1d1a37; border-left: 3px solid #4a4380; }
+.st-name b { font: 700 12.5px/1.2 var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-name span.sk { font: 600 12px/1.2 var(--mono); color: var(--gold); white-space: nowrap; }
+.st-name .pl-bg { opacity: .55; }
+.st-stk { position: absolute; right: -8px; bottom: calc(100% - 4px); transform: rotate(8deg); z-index: 5; line-height: 0; pointer-events: none; }
+.st-stk .pl-stk { width: 24px; height: 24px; margin: 0; }
+.st-ttl { justify-self: start; max-width: 100%; margin-top: -1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 12px/1 var(--title); letter-spacing: .09em; text-transform: uppercase; color: var(--ink); background: var(--tc); padding: 3px 12px 1px 7px; clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 100%, 0 100%); }
+.seat.you .st-name { border-left-color: var(--gold); }
+.seat.turn .st-name { box-shadow: 0 0 0 2px var(--gold), 0 0 18px rgba(241,199,91,.4); }
+.seat.out .pfw, .seat.out .st-np, .seat.out .st-ttl { opacity: .45; }
+.tmr { width: 100%; height: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
+.tmr i { display: block; height: 100%; background: var(--up); animation: drain linear forwards; transform-origin: left; }
+@keyframes drain { from { transform: scaleX(1); } 80% { background: var(--up); } to { transform: scaleX(0); background: var(--pink); } }
+.tmr.none { visibility: hidden; }
+.sitbtn { font: 400 16px var(--title); letter-spacing: .12em; color: rgba(255,255,255,.75); background: rgba(0,0,0,.25); border: 1px dashed rgba(255,255,255,.35); padding: 10px 16px 8px; }
+.sitbtn:hover { background: rgba(0,0,0,.4); color: #fff; }
+.empty { font: 400 14px var(--title); letter-spacing: .12em; color: rgba(255,255,255,.3); border: 1px dashed rgba(255,255,255,.18); padding: 9px 12px 7px; }
+
+/* the dock: fixed height in every state, so nothing jumps */
+.dock { background: var(--panel); height: 128px; display: grid; grid-template-rows: auto 1fr; padding: 10px 12px; gap: 8px; }
+.dock .info { font-size: 13px; color: var(--soft); display: flex; gap: 10px; align-items: center; min-height: 20px; }
+.dock .info .right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+.dock .info .bal { font: 600 13px var(--mono); color: var(--gold); }
+.dock .info button.lk { background: none; color: var(--muted); font-size: 12px; text-decoration: underline; padding: 0; }
+.btns { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.ab { font: 400 20px var(--title); letter-spacing: .08em; background: var(--panel2); color: var(--fg); padding: 8px 6px 6px; min-height: 52px; }
+.ab.go { background: var(--pink); color: #fff; } .ab.up { background: var(--up); color: #0e2a1c; } .ab.gold { background: var(--gold); color: var(--ink); }
+.ab small { display: block; font: 500 10.5px var(--mono); letter-spacing: 0; opacity: .85; }
+.ab.ghost { visibility: hidden; }
+.dock .center { grid-column: 1 / -1; display: grid; place-items: center; }
+
+.lower { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.log div { padding: 5px 0; border-bottom: 1px solid var(--line); color: var(--soft); font-size: 13px; }
+.howto li { margin: 4px 0; font-size: 13px; color: var(--soft); line-height: 1.45; }
+
+@media (max-width: 900px) { .lower { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) {
+  .brand h1 { font-size: 40px; } .brand .lg { width: 70px; height: 62px; }
+  .me .nm { display: none; }
+  .felt { aspect-ratio: auto; height: 720px; border-radius: 0 0 40% 40% / 0 0 9% 9%; border-width: 0 6px 8px; }
+  .seat { width: 32%; }
+  .rules { top: 18%; font-size: 11.5px; white-space: normal; width: 92%; text-align: center; }
+  .status { top: 22%; width: 94%; }
+  .dealer .cd { width: 44px; height: 62px; font-size: 20px; }
+  .cd { width: 38px; height: 54px; font-size: 17px; } .cd i { font-size: 14px; }
+  .ltb .cd { width: 40px; height: 57px; }
+  .st-name b { font-size: 11px; } .st-name { padding: 3px 5px; } .st-name span.sk { display: none; }
+  .st-row { gap: 3px; } .st-np { max-width: calc(100% - 37px); } .st-ttl { font-size: 10.5px; }
+  .seat .cards .cd { width: 34px; height: 48px; font-size: 15px; padding: 3px 0 0 4px; } .seat .cards .cd i { font-size: 12px; } .seat .cards .cd + .cd { margin-left: -18px; }
+  .seat .cards.sm .cd { width: 28px; height: 40px; font-size: 13px; } .seat .cards.sm .cd + .cd { margin-left: -15px; }
+  .bets .btag { font-size: 11.5px; }
+  .ab { font-size: 18px; }
+  .tbar .r { margin-left: 0; width: 100%; justify-content: flex-end; }
+}
+@media (prefers-reduced-motion: reduce) { .cd.in, .cd.turn, .res { animation: none; } .cd.in::after, .cd.turn::after { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><a class="lg" href="/" aria-label="Dashboard"></a><div><h1><a href="/live" style="text-decoration:none">Live Tables</a></h1>
+      <nav class="links"><a class="recap-link casino-link" href="/casino">🎰 Casino</a><a class="recap-link" href="/poker">♠️ Poker Room</a></nav></div></div>
+    <div class="me hidden" id="me"></div>
+  </header>
+  <main id="view"><p class="hint" style="margin-top:20px">Shuffling…</p></main>
+</div>
+<div id="toast" class="hidden"></div>
+<script src="/table-kit.js"></script>
+<script type="module">
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = n => (n < 0 ? '−' : '') + '$' + (Math.round(Math.abs(n) * 100) / 100).toLocaleString('en-US');
+const hue = n => [...String(n)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
+const initials = n => String(n).split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+const av = (id, name) => `<span class="av" style="--h:${hue(name)}">${esc(initials(name))}${id ? `<img src="/api/avatar?id=${esc(id)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
+const DISCORD_SVG = '<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M20.3 4.4A19.6 19.6 0 0 0 15.4 3l-.6 1.3a18 18 0 0 0-5.6 0L8.6 3a19.6 19.6 0 0 0-4.9 1.5C.6 9-.3 13.6.1 18.1A19.8 19.8 0 0 0 6.1 21l1.3-2.1a12.8 12.8 0 0 1-2-1l.5-.4a14 14 0 0 0 12.2 0l.5.4c-.6.4-1.3.7-2 1l1.3 2.1a19.7 19.7 0 0 0 6-3c.5-5.2-.9-9.8-3.6-13.7zM8.3 15.3c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4zm7.4 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4z"/></svg>';
+const GAMES = { bj: 'Blackjack', fb: 'Free Bet Blackjack', uth: "Ultimate Texas Hold'em" }, SHORT = { bj: 'Blackjack', fb: 'Free Bet', uth: 'UTH' };
+const CARD_MS = 650;
+// bet stepper: $5 steps up to $50, $25 up to $200, then $50 (bets run $5 to $500, UTH ante $5 to $100)
+const upStep = b => b < 50 ? 5 : b < 200 ? 25 : 50, downStep = b => b <= 50 ? 5 : b <= 200 ? 25 : 50;
+const RULES = { bj: 'Blackjack pays 3 to 2 · dealer stands on 17', fb: 'Free doubles 9–11 · free splits · dealer 22 pushes', uth: 'Dealer needs a pair to open the ante' };
+const API = window.LIVE_API || '/api/live';
+
+// ---------- state ----------
+let S = null, skew = 0, err = '', drop = false, busy = false, tickT = 0, pollT = 0, rt = null, liveOn = false;
+// animations survive redraws: each one is timed from when it first showed (key -> time), so a redraw mid-way carries on instead of restarting
+let seen = new Map(), seenRound = -1, backs = new Set();
+const ANIM_MS = 650;
+/** class + style for an animation that should start `delay` ms after `key` first appeared ('' once it has finished) */
+function anim(key, delay) { const now = Date.now(); if (!seen.has(key)) seen.set(key, now); const el = now - seen.get(key); return el < delay + ANIM_MS ? { on: true, style: `animation-delay:${delay - el}ms` } : { on: false, style: '' }; }
+let pend = { bet: 0, side: 0 }; try { Object.assign(pend, JSON.parse(localStorage.getItem('lt:bet') || '{}')); } catch (e) {}
+let PLATES = null;
+import('/plates.js').then(m => m.loadouts().then(lo => { PLATES = { ...lo, bits: m.bits }; render(); })).catch(() => {});
+const eqOf = id => PLATES && PLATES.L ? PLATES.byId[id] || null : null;
+const titleOf = id => { const eq = eqOf(id), it = eq && eq['Title'] && PLATES.L.itemFor(eq['Title']); return it ? { name: it.name, col: PLATES.L.TCOL[it.tier] || '#a9a3c9' } : null; };
+const plateOf = id => (PLATES && PLATES.L && PLATES.bits(PLATES.L, eqOf(id))) || { bar: '', sticker: '', face: h => h };
+const PHONE = matchMedia('(max-width: 640px)'); PHONE.addEventListener?.('change', () => render());
+const T = () => S && S.table;
+const serverNow = () => Date.now() + skew;
+const mySeat = () => S && S.me ? S.me.seat : -1;
+
+async function api(body) {
+  const r = await fetch(API, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' } : { credentials: 'same-origin', cache: 'no-store' });
+  let j = null; try { j = await r.json(); } catch (e) {}
+  if (!j) throw new Error('bad answer');
+  take(j); return j;
+}
+function take(j) {
+  if (!S) S = {};
+  if (j.ably !== undefined) S.ably = j.ably;
+  if (j.table && S.table && j.table.v < S.table.v) return; // an answer slower than a live update: keep the newer table
+  if (j.table) { S.table = j.table; skew = j.table.now - Date.now(); }
+  if ('me' in j) { S.me = j.me || null; myKey = keyOf(S.table); }
+  render(); schedule();
+}
+// your own bits (UTH hole cards, chips after a round) only come with your own answer: fetch once per new deal / street / result
+const keyOf = t => t ? [t.round, t.phase, t.board.length].join(':') : '';
+let myKey = '';
+function onTable(t) { if (S && S.table && t.v <= S.table.v) return; S.table = t; skew = t.now - Date.now();
+  if (S.me && mySeat() >= 0 && keyOf(t) !== myKey) { myKey = keyOf(t); api().catch(() => {}); }
+  render(); schedule(); }
+if (window.LIVE_API) window.liveUpdate = onTable; // the preview's stand-in for Ably
+async function act(body, okMsg) {
+  if (busy) return; busy = true;
+  try { const j = await api(body); if (j.err) toast(j.err); else if (okMsg) toast(okMsg); }
+  catch (e) { toast("Couldn't reach the table. Try again."); }
+  finally { busy = false; render(); }
+}
+let toastT = 0;
+function toast(msg) { const el = $('#toast'); el.textContent = msg; el.classList.remove('hidden'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.add('hidden'), 3600); }
+
+/** asks the server to move the table along when a clock runs out (only people seated, so a crowd of watchers doesn't pile on) */
+function schedule() {
+  clearTimeout(tickT);
+  const t = T(); if (!t || !t.open || mySeat() < 0) return;
+  const due = [t.phase === 'bet' && t.deadline, t.phase === 'done' && t.nextAt, ...(t.phase === 'act' ? t.seats.filter(s => s && s.deciding && s.dl).map(s => s.dl) : [])].filter(Boolean);
+  if (!due.length) return;
+  const wait = Math.max(0, Math.min(...due) - serverNow()) + 250 + Math.random() * 400;
+  tickT = setTimeout(() => api({ a: 'tick' }).catch(() => {}), wait);
+}
+function poll() { clearTimeout(pollT); const t = T(); pollT = setTimeout(async () => { if (!liveOn) await api().catch(() => {}); poll(); }, liveOn ? 30000 : !t || !t.open || document.hidden ? 12000 : 2000); }
+function connectLive() {
+  if (rt || !S || !S.ably || !window.Ably) return;
+  const getToken = () => S.me ? fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"a":"token"}', credentials: 'same-origin' }).then(r => r.json()) : fetch(API + '?token=1', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.json());
+  rt = new Ably.Realtime({ authCallback: (p, cb) => getToken().then(j => j.token ? cb(null, j.token) : cb(j.err || 'no token')).catch(e => cb(String(e))), autoConnect: true, echoMessages: false });
+  rt.connection.on(ch => { liveOn = ch.current === 'connected'; const el = $('#live'); if (el) { el.className = 'live' + (liveOn ? ' on' : ''); el.textContent = liveOn ? 'LIVE' : 'SYNCING'; } if (liveOn && ch.previous !== 'initialized') api().catch(() => {}); });
+  rt.channels.get('live:table').subscribe('t', m => { try { onTable(JSON.parse(m.data)); } catch (e) {} });
+}
+
+// ---------- table kit: deal motion + sounds (same as the poker room and casino tables) ----------
+const K = window.TK, SND = K.SND;
+/** new cards start at the shoe: each gets its offset from the shoe as --fx/--fy for the deal animation */
+function aimCards() {
+  const sh = $('#shoe'); if (!sh) return; const b = sh.getBoundingClientRect();
+  document.querySelectorAll('#felt .cd.in').forEach(el => { const a = el.getBoundingClientRect();
+    el.style.setProperty('--fx', Math.round(b.left + b.width / 2 - a.left - a.width / 2) + 'px'); el.style.setProperty('--fy', Math.round(b.top + b.height / 2 - a.top - a.height / 2) + 'px'); });
+}
+// card sounds ride on the animations themselves, so they land exactly when each card does (each card once, even through redraws)
+let played = new Set();
+document.addEventListener('animationstart', e => {
+  const el = e.target, k = el.dataset && el.dataset.k; if (!k || !['deal', 'dealb', 'turn'].includes(e.animationName) || played.has(k)) return;
+  played.add(k);
+  if (e.animationName === 'turn') SND.flip(); else { SND.card(); if (e.animationName === 'deal') setTimeout(() => SND.flip(), 400); }
+});
+// everything else comes from what changed since the last draw: bets (chips), stand/check (knock), fold, bust, your turn, your result
+let sndPrev = null;
+const paidOf = s => !s.locked ? 0 : (s.hands ? s.hands.reduce((a, h) => a + h.bet, 0) : s.bet * (s.cards ? 2 : 1) + (s.play || 0)) + (s.side || 0); // UTH = ante + blind (+ play)
+function sounds(t) {
+  const prev = sndPrev, me = mySeat();
+  sndPrev = { round: t.round, phase: t.phase, seats: t.seats.map(s => s && { id: s.id, last: s.last, paid: paidOf(s), deciding: s.deciding, res: !!s.res }) };
+  if (!prev || !K.soundOn()) return;
+  let chip = 0, knock = false, fold = false;
+  t.seats.forEach((s, i) => {
+    const q = prev.seats[i]; if (!s || !q || q.id !== s.id) return;
+    if (paidOf(s) > q.paid && (t.round === prev.round || t.phase === 'bet')) chip = Math.max(chip, i === me ? 3 : 2);
+    if (s.last !== q.last) { if (s.last === 'Stand' || s.last === 'Check') knock = true; if (s.last === 'Fold') fold = true; if (s.last === 'Bust' && i === me) setTimeout(() => SND.lose(), 450); }
+  });
+  if (chip) SND.chips(0, chip); if (knock) SND.check(); if (fold) SND.fold();
+  const ms = me >= 0 ? t.seats[me] : null, mq = me >= 0 ? prev.seats[me] : null;
+  if (ms && t.phase === 'act' && ms.deciding && !(mq && mq.deciding)) SND.turn(.1);
+  if (ms && ms.res && t.phase === 'done' && !(mq && mq.res && prev.round === t.round)) {
+    const drawn = t.game === 'uth' ? 0 : Math.max(0, t.dealer.length - 2), at = t.game === 'uth' ? 600 : 350 + drawn * CARD_MS, net = ms.res.net;
+    setTimeout(() => net > 0 ? SND.win() : net < 0 ? SND.lose() : SND.push(), at);
+  }
+}
+
+// ---------- drawing ----------
+const SYM = { S: '♠', H: '♥', D: '♦', C: '♣' };
+function card(c, key, delay = 0, cls = '') {
+  if (!c) return `<div class="cd ph ${cls}"></div>`;
+  const base = key ? key.replace(/:[^:]*$/, '') : '', wasBack = key && c !== 'XX' && backs.has(base);
+  if (key && c === 'XX') backs.add(base);
+  const a = key ? anim(key, wasBack ? 0 : delay) : { on: false }, an = a.on ? (wasBack ? ' turn' : ' in') : '';
+  const st = a.on ? ` style="${a.style}" data-k="${esc(key)}"` : '';
+  if (c === 'XX') return `<div class="cd back${an} ${cls}"${st}></div>`;
+  const r = c[0] === 'T' ? '10' : c[0], s = c[1].toUpperCase();
+  return `<div class="cd su-${s.toLowerCase()}${an} ${cls}"${st}><b>${r}</b><i>${SYM[s]}</i></div>`;
+}
+const stacks = a => K.chips(a); // chip stacks from the shared table kit
+// seat spots on the felt (anchored at the seat's bottom middle); you always sit in the middle spot
+const ARC = [[11, 63], [29, 84], [50, 93], [71, 84], [89, 63]], TALL = [[17, 94], [33, 64], [50, 94], [67, 64], [83, 94]];
+const spotOf = i => { const me = mySeat(), k = me >= 0 ? (i - me + 2 + 5) % 5 : i; return (PHONE.matches ? TALL : ARC)[k]; };
+const total = cards => { let t = 0, a = 0; for (const c of cards) { if (c === 'XX') continue; t += c[0] === 'A' ? 1 : 'TJQK'.includes(c[0]) ? 10 : +c[0]; if (c[0] === 'A') a++; } const soft = a > 0 && t + 10 <= 21; return { t: soft ? t + 10 : t, soft }; };
+const cv = c => c[0] === 'A' ? 1 : 'TJQK'.includes(c[0]) ? 10 : +c[0];
+
+function render() {
+  const v = $('#view'); if (!S) return;
+  renderMe();
+  const t = T();
+  if (!t || !t.open) { v.innerHTML = closedHTML(); bindClosed(); return; }
+  if (t.round !== seenRound) { seen = new Map([...seen].filter(([k]) => k.startsWith('r' + t.round + ':') || k.startsWith('r' + (t.round - 1) + ':'))); seenRound = t.round; backs = new Set([...backs].filter(k => k.startsWith('r' + t.round + ':'))); played = new Set([...played].filter(k => k.startsWith('r' + t.round + ':'))); }
+  // keep the host panel's open state and focus across redraws
+  v.innerHTML = `${barHTML(t)}<div class="felt" id="felt">${feltHTML(t)}</div><div class="dock" id="dock">${dockHTML(t)}</div>${lowerHTML(t)}`;
+  aimCards();
+  bindTable();
+  sounds(t);
+}
+function renderMe() {
+  const el = $('#me');
+  if (!S.me) { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  el.innerHTML = `${av(S.me.id, S.me.name)}<span class="nm">${esc(S.me.name)}</span><span class="bal">${money(S.me.bal)}</span>`;
+}
+function closedHTML() {
+  const signIn = `<a class="dbtn" href="/api/login?to=live">${DISCORD_SVG}Sign in with Discord</a>`;
+  const opt = (arr, cur, f) => arr.map(x => `<option value="${x}"${x == cur ? ' selected' : ''}>${f ? f(x) : x}</option>`).join('');
+  return `<section class="panel"><h2>No table open</h2>
+    <p class="hint">Anyone in the Poker Club Discord can open a live table: blackjack, Free Bet or Ultimate Texas Hold'em. Up to 5 people play their own hands at the same time against one dealer, with their casino chips. Everyone at the table and on the rail sees every hand.</p>
+    ${S.me ? `<div class="form">
+      <label>Game<select id="oGame">${Object.entries(GAMES).map(([k, n]) => `<option value="${k}">${n}</option>`).join('')}</select></label>
+    </div><button class="cbtn" id="oGo">Open the table</button><p class="hint" style="margin-top:10px">Opening posts a note in #casino. You run the table (pause, change the game between rounds, close) until you leave it.</p>` : signIn}
+    ${err ? `<div class="err">${esc(err)}</div>` : ''}</section>
+    <section class="panel"><h2 class="p">How it plays</h2><ul class="howto">
+      <li>Pick an empty seat, then bet. Bets close a few seconds after the first one, or as soon as everyone seated is in.</li>
+      <li>Everyone plays at once against the same dealer card, each on their own clock. Run out of time and you stand (or check; on the UTH river you fold).</li>
+      <li>Same rules and payouts as the solo games, and every hand counts for rakeback, the jackpot and titles like a solo hand.</li>
+    </ul></section>`;
+}
+function bindClosed() {
+  const go = $('#oGo'); if (!go) return;
+  go.onclick = () => act({ a: 'open', cfg: { game: $('#oGame').value } });
+}
+function barHTML(t) {
+  const me = S.me, seated = mySeat() >= 0;
+  const max = t.betMax;
+  return `<div class="tbar"><span class="live${liveOn ? ' on' : ''}" id="live">${liveOn ? 'LIVE' : S.ably ? 'SYNCING' : 'LIVE'}</span><span class="gm">${GAMES[t.game]}</span><span>${t.game === 'uth' ? 'Ante ' : ''}$${t.cfg.min}–$${max} · hosted by ${esc(t.host ? t.host.name : '…')}${t.pause ? ' · <b style="color:var(--gold)">paused</b>' : ''}${t.closing ? ' · <b style="color:var(--pink)">closing after this round</b>' : ''}</span>
+    <span class="r">${K.sndButton()}${me && me.host ? `<button class="tbtn${drop ? ' on' : ''}" id="hostBtn">Host</button>` : ''}${seated ? '<button class="tbtn" id="leaveBtn">Leave seat</button>' : ''}</span>
+    ${drop && me && me.host ? hostHTML(t) : ''}</div>`;
+}
+function hostHTML(t) {
+  const between = t.phase === 'done' || t.phase === 'paused' || (t.phase === 'bet' && !t.seats.some(s => s && s.locked));
+  const opt = (arr, cur, f) => arr.map(x => `<option value="${x}"${x == cur ? ' selected' : ''}>${f(x)}</option>`).join('');
+  return `<div class="drop" id="drop">
+    <div class="row"><label for="hGame">Game</label><select id="hGame"${between ? '' : ' disabled'}>${Object.entries(GAMES).map(([k, n]) => `<option value="${k}"${k === t.game ? ' selected' : ''}>${n}</option>`).join('')}</select></div>
+    <div class="hb"><button id="hPause">${t.pause ? 'Resume' : 'Pause after round'}</button><button class="go" id="hClose">Close table</button></div>
+    <p class="note">${between ? 'The game can change now.' : 'The game changes between rounds.'} Closing waits for the round to finish; bets not dealt yet go back.</p></div>`;
+}
+function feltHTML(t) {
+  const uth = t.game === 'uth', done = t.phase === 'done';
+  const drawn = !uth && done ? Math.max(0, t.dealer.length - 2) : 0, resDelay = (done ? (uth ? 600 : 350 + drawn * CARD_MS) : 0);
+  const ra = done ? anim(`r${t.round}:res`, resDelay) : null, resStyle = ra ? (ra.on ? ra.style : 'animation:none') : '';
+  // dealer: in blackjack the new cards come one by one once everyone is done
+  const dk = k => `r${t.round}:d${k}:${t.dealer[k]}`;
+  const shoe = '<div class="shoe tk-shoe" id="shoe"></div>';
+  const dcards = t.dealer.length ? t.dealer.map((c, k) => card(c, dk(k), k >= 2 ? (k - 1) * CARD_MS : (k === 1 && done ? 150 : 0))).join('') : '<div class="cd ph"></div><div class="cd ph"></div>';
+  const dtot = uth ? (done ? t.dealerHand : '') : t.dealer.length ? (done ? t.dealerTotal : (t.dealer[0] !== 'XX' ? (cv(t.dealer[0]) === 1 ? 'A' : cv(t.dealer[0])) : '')) : '';
+  const board = uth ? `<div class="ltb">${Array.from({ length: 5 }, (_, k) => t.board[k] ? card(t.board[k], `r${t.round}:b${k}:${t.board[k]}`, k < 3 ? k * 90 : 0) : '<div class="cd ph"></div>').join('')}</div>` : '';
+  const me = mySeat(), ms = me >= 0 ? t.seats[me] : null;
+  const waiting = t.seats.filter((s, i) => s && s.deciding && i !== me).map(s => s.name);
+  let big = '', sm = '';
+  if (t.phase === 'paused') { big = 'Paused'; sm = 'The host will start the next round.'; }
+  else if (t.phase === 'bet') { const n = t.seats.filter(s => s && s.locked).length; big = n ? 'Bets are open' : 'Place your bets'; sm = t.deadline ? `Dealing in <b data-cd="bet"></b>` : t.seats.some(Boolean) ? 'The clock starts with the first bet' : 'Take a seat to play'; }
+  else if (t.phase === 'act') { big = uth ? { pre: 'Pre-flop', flop: 'The flop', river: 'Turn and river' }[t.street] : 'Players act';
+    sm = ms && ms.deciding ? 'Your move' + (waiting.length ? ` · ${waiting.length} other${waiting.length > 1 ? 's' : ''} deciding` : '') : waiting.length ? 'Waiting on ' + waiting.map(esc).join(', ') : ''; }
+  else if (done) { big = ms && ms.res ? (ms.res.net > 0 ? 'You win ' + money(ms.res.net) : ms.res.net < 0 ? 'You lose ' + money(-ms.res.net) : 'Push') : 'Round over';
+    sm = uth && ms && ms.res && ms.res.hand ? 'You: ' + esc(ms.res.hand) : 'Next round in a moment'; }
+  const status = `<div class="status"><div class="big"${done ? ` style="animation:pop .3s both;${resStyle}"` : ''}>${esc(big)}</div><div class="sm">${sm}</div>${board}</div>`;
+  return `${shoe}<div class="dealer"><div class="lbl">Dealer<b>${dtot === '' || dtot === null ? '' : esc(String(dtot))}</b></div><div class="cards">${dcards}</div></div>
+    <div class="rules">${RULES[t.game]}</div>${status}${t.seats.map((s, i) => seatHTML(t, s, i, resStyle)).join('')}`;
+}
+function resTag(n, word, delay) { if (n == null) return ''; const c = word === 'Blackjack' ? 'bj' : n > 0 ? 'w' : n < 0 ? 'l' : 'p';
+  return `<span class="res ${c}" style="${delay}">${word ? esc(word) + ' ' : ''}${n > 0 ? '+' + money(n) : n < 0 ? money(n) : 'Push'}</span>`; }
+function seatHTML(t, s, i, resDelay) {
+  const [x, y] = spotOf(i), me = mySeat();
+  if (!s) {
+    const canSit = S.me && me < 0;
+    return `<div class="seat" style="left:${x}%;top:${y}%">${canSit ? `<button class="sitbtn" data-sit="${i}">Sit here</button>` : '<span class="empty">Open seat</span>'}</div>`;
+  }
+  const uth = t.game === 'uth', done = t.phase === 'done', inR = !!(s.hands || s.cards);
+  let hands = '';
+  if (uth && s.cards) {
+    const own = i === me && S.me.mine ? S.me.mine.cards : null, cs = own || s.cards;
+    hands = `<div class="hand"><div class="cards">${cs.map((c, k) => card(c, `r${t.round}:s${i}:${k}:${c === 'XX' ? 'b' : 'f'}`, k * 110)).join('')}</div>${done && s.res ? resTag(s.res.net, s.folded ? 'Fold' : '', resDelay) : i === me && S.me.mine && S.me.mine.hand ? `<span class="tot">${esc(S.me.mine.hand)}</span>` : ''}</div>`;
+  } else if (s.hands) {
+    const many = s.hands.length > 1;
+    hands = s.hands.map((h, j) => {
+      const tag = done && h.res ? resTag(h.res === 'bj' ? h.bet * 1.5 : h.res === 'win' ? h.bet + h.free : h.res === 'push' ? 0 : -h.bet, h.res === 'bj' ? 'Blackjack' : h.res === 'bust' ? 'Bust' : '', resDelay)
+        : `<span class="tot${h.free ? ' free' : ''}">${h.soft && h.t < 21 ? 'soft ' : ''}${h.t}${h.free ? ' · free' : ''}</span>`;
+      return `<div class="hand${many && j === s.active && s.deciding ? ' cur' : ''}"><div class="cards${many ? ' sm' : ''}">${h.cards.map((c, k) => card(c, `r${t.round}:s${i}:h${j}:${k}:${c}`, j === 0 && k < 2 ? k * 140 : 0)).join('')}</div>${tag}</div>`;
+    }).join('');
+  }
+  if (!hands) hands = '<div class="cards"><div class="cd ph" style="visibility:hidden"></div></div>';
+  let bets = '';
+  if (s.locked) {
+    if (uth) bets = `<span class="stks">${stacks(s.bet * 2)}</span><span class="btag">A ${money(s.bet)} · B ${money(s.bet)}</span>${s.play ? `<span class="btag play">P ${money(s.play)}</span>` : ''}${s.side ? `<span class="btag side">Trips ${money(s.side)}</span>` : ''}`;
+    else { const paid = s.hands ? s.hands.reduce((a, h) => a + h.bet, 0) : s.bet, free = s.hands ? s.hands.reduce((a, h) => a + h.free, 0) : 0;
+      bets = `<span class="stks">${stacks(paid)}</span><span class="btag">${money(paid)}</span>${free ? `<span class="btag free">Free ${money(free)}</span>` : ''}${s.side ? `<span class="btag side">P22 ${money(s.side)}</span>` : ''}`; }
+  }
+  const out = !s.locked && t.phase !== 'bet';
+  const label = s.left ? 'Leaving' : out && t.phase !== 'paused' ? 'Sitting out' : s.last || '';
+  const lc = /^(Bust|Fold)/.test(label) ? 'fold' : /^(Double|Split|Bet|Free)/.test(label) ? 'hot' : /^(Blackjack|In)$/.test(label) ? 'gold' : '';
+  const b = plateOf(s.id), ttl = titleOf(s.id), size = PHONE.matches ? 34 : 42;
+  const timer = s.deciding && s.dl ? (() => { const dur = t.cfg.clock, left = Math.max(0, (s.dl - serverNow()) / 1000); return `<div class="tmr"><i style="animation-duration:${dur}s;animation-delay:-${Math.max(0, dur - left).toFixed(2)}s"></i></div>`; })() : '<div class="tmr none"></div>';
+  return `<div class="seat${i === me ? ' you' : ''}${s.deciding ? ' turn' : ''}${out ? ' out' : ''}" style="left:${x}%;top:${y}%">
+    <div class="act ${label ? lc : 'none'}">${esc(label) || '·'}</div>
+    <div class="hands">${hands}</div>
+    <div class="bets">${bets}</div>
+    <div class="st-row"><div class="pfw">${b.face(av(s.id, s.name), size)}</div>
+      <div class="st-np"><div class="st-name${b.bar ? ' pl-wash' : ''}">${b.bar ? `<span class="pl-bg ${b.bar}" aria-hidden="true"></span>` : ''}<b>${esc(i === me ? 'You' : s.name)}</b>${inR || s.locked ? `<span class="sk">${money(uth ? s.bet * 2 + (s.play || 0) + s.side : (s.hands ? s.hands.reduce((a, h) => a + h.bet, 0) : s.bet) + s.side)}</span>` : ''}</div>${b.sticker ? `<span class="st-stk">${b.sticker}</span>` : ''}</div></div>
+    ${ttl ? `<div class="st-ttl" style="--tc:${ttl.col}">${esc(ttl.name)}</div>` : ''}
+    ${timer}
+  </div>`;
+}
+
+// ---------- your buttons ----------
+const ghost = () => '<button class="ab ghost" disabled>·</button>';
+function dockHTML(t) {
+  const me = mySeat(), s = me >= 0 ? t.seats[me] : null, uth = t.game === 'uth';
+  const bal = S.me ? `<span class="bal">Chips ${money(S.me.bal)}</span>` : '';
+  if (!S.me) return `<div class="info"><span>You're watching. Sign in to take a seat.</span></div><div class="btns"><div class="center"><a class="dbtn" href="/api/login?to=live">${DISCORD_SVG}Sign in with Discord</a></div></div>`;
+  if (!s) return `<div class="info"><span>${t.seats.some(x => !x) ? 'Pick an open seat on the table to play.' : 'The table is full. You can watch until a seat opens.'}</span><span class="right">${bal}</span></div><div class="btns">${ghost()}${ghost()}${ghost()}${ghost()}</div>`;
+  let info = '', b = [];
+  if (t.phase === 'bet' && !s.locked) {
+    const max = t.betMax;
+    if (!(pend.bet >= t.cfg.min && pend.bet <= max)) pend.bet = Math.min(max, t.cfg.min * 2);
+    const sideName = t.cfg.side && t.sideMax ? (uth ? 'Trips' : t.game === 'fb' ? 'Push 22' : '') : '';
+    if (!sideName || pend.side > t.sideMax) pend.side = 0;
+    const need = uth ? pend.bet * 3 + pend.side : pend.bet + pend.side;
+    info = uth ? `Ante ${money(pend.bet)} + blind ${money(pend.bet)} (+ ${money(pend.bet)} held for the river bet)` : `Bet ${money(pend.bet)}`;
+    if (pend.side) info += ` · ${sideName} ${money(pend.side)}`;
+    b = [`<button class="ab" data-b="minus"${pend.bet <= t.cfg.min ? ' disabled' : ''}>−<small>${money(downStep(pend.bet))}</small></button>`,
+      `<button class="ab" data-b="plus"${pend.bet >= max ? ' disabled' : ''}>+<small>${money(upStep(pend.bet))}</small></button>`,
+      sideName ? `<button class="ab" data-b="side">${sideName}<small>${pend.side ? money(pend.side) + ' · tap to change' : 'off'}</small></button>` : ghost(),
+      `<button class="ab go" data-b="bet"${S.me.bal < need ? ' disabled' : ''}>Bet<small>${money(need)}</small></button>`];
+  } else if (t.phase === 'act' && s.deciding) {
+    if (uth) {
+      const o = { pre: [['Check', 'chk'], ['Bet 4x', 'b4', 4]], flop: [['Check', 'chk'], ['Bet 2x', 'b2', 2]], river: [['Fold', 'fold'], ['Bet 1x', 'b1', 1]] }[t.street];
+      const extra = m => Math.max(0, s.bet * m - s.bet); // the held 1x ante goes in first
+      info = S.me.mine && S.me.mine.hand ? 'You have ' + S.me.mine.hand : 'Your move';
+      b = [`<button class="ab ${o[0][1] === 'fold' ? '' : 'gold'}" data-m="${o[0][1]}">${o[0][0]}</button>`, ghost(), ghost(),
+        `<button class="ab go" data-m="${o[1][1]}"${S.me.bal < extra(o[1][2]) ? ' disabled' : ''}>${o[1][0]}<small>${money(s.bet * o[1][2])}</small></button>`];
+    } else {
+      const h = s.hands[s.active], two = h.cards.length === 2, splitAces = h.cards[0][0] === 'A' && s.hands.length > 1;
+      const hard = !h.soft, fb = t.game === 'fb';
+      const dblFree = fb && two && !splitAces && hard && h.t >= 9 && h.t <= 11, canDbl = two && !splitAces;
+      const pair = two && !splitAces && cv(h.cards[0]) === cv(h.cards[1]) && s.hands.length < 6, splFree = fb && pair && cv(h.cards[0]) !== 10;
+      info = s.hands.length > 1 ? `Hand ${s.active + 1} of ${s.hands.length}` : 'Your move';
+      b = [`<button class="ab up" data-m="hit">Hit</button>`, `<button class="ab gold" data-m="stand">Stand</button>`,
+        `<button class="ab" data-m="double"${!canDbl || (!dblFree && S.me.bal < s.bet) ? ' disabled' : ''}>${dblFree ? 'Free double' : 'Double'}<small>${dblFree ? 'on the house' : money(s.bet)}</small></button>`,
+        `<button class="ab" data-m="split"${!pair || (!splFree && S.me.bal < s.bet) ? ' disabled' : ''}>${splFree ? 'Free split' : 'Split'}<small>${splFree ? 'on the house' : money(s.bet)}</small></button>`];
+    }
+  } else {
+    info = t.phase === 'bet' ? (s.locked ? `You're in. ${t.deadline ? 'Dealing in <b data-cd="bet"></b>' : ''}` : '') : t.phase === 'paused' ? 'The table is paused.'
+      : t.phase === 'act' ? (s.locked ? (uth && s.play ? 'Your bet is in. Riding it out.' : 'Done. Waiting on the table.') : "You're sitting this round out.")
+      : t.phase === 'done' ? (s.locked ? 'Round over' : 'Bets open in a moment') : '';
+    b = [ghost(), ghost(), ghost(), ghost()];
+  }
+  return `<div class="info"><span>${info}</span><span class="right">${bal}</span></div><div class="btns">${b.join('')}</div>`;
+}
+function lowerHTML(t) {
+  return `<div class="lower"><section class="panel"><h2 class="p">Table log</h2><div class="log">${t.log.length ? t.log.map(l => `<div>${esc(l)}</div>`).join('') : '<div>Nothing yet.</div>'}</div></section>
+    <section class="panel"><h2>How it plays</h2><ul class="howto">
+      <li>Bets close ${t.cfg.betClock} seconds after the first one, or as soon as everyone seated is in.</li>
+      <li>Everyone plays at once against the same dealer, each with a ${t.cfg.clock} second clock. Out of time = ${t.game === 'uth' ? 'check (fold on the river)' : 'stand'}.</li>
+      <li>${t.game === 'uth' ? 'Bet 4x before the flop, 2x on the flop or 1x on the river (or fold). The deal holds 1x your ante so the river bet is always covered.' : t.game === 'fb' ? 'Free doubles on hard 9, 10 and 11, free splits on any pair but 10s. A free bet pays even money if it wins and costs nothing if it loses. Dealer 22 pushes.' : 'Split up to 6 hands, double on any first two cards. Blackjack pays 3 to 2.'}</li>
+      <li>Same payouts as the solo game. Every hand counts for rakeback, the jackpot and titles.</li>
+      <li>Sitting out 5 rounds in a row stands you up. Your chips never stay on the table.</li></ul></section></div>`;
+}
+function bindTable() {
+  const t = T();
+  document.querySelectorAll('[data-sit]').forEach(b => b.onclick = () => act({ a: 'sit', seat: +b.dataset.sit }));
+  const lv = $('#leaveBtn'); if (lv) lv.onclick = () => act({ a: 'leave' });
+  document.querySelectorAll('[data-tksnd]').forEach(b => b.onclick = e => { e.stopPropagation(); if (K.toggleSound()) setTimeout(() => SND.chips(), 30); render(); });
+  const hb = $('#hostBtn'); if (hb) hb.onclick = e => { e.stopPropagation(); drop = !drop; render(); };
+  const d = $('#drop');
+  if (d) {
+    d.onclick = e => e.stopPropagation();
+    $('#hGame').onchange = e => act({ a: 'game', game: e.target.value });
+    $('#hPause').onclick = () => act({ a: 'pause', on: !t.pause });
+    $('#hClose').onclick = () => { drop = false; act({ a: 'close' }); };
+  }
+  $('#dock').onclick = e => {
+    const btn = e.target.closest('button'); if (!btn || btn.disabled) return;
+    if (btn.dataset.m) return act({ a: 'move', do: btn.dataset.m });
+    const k = btn.dataset.b; if (!k) return;
+    if (k === 'minus') pend.bet = Math.max(t.cfg.min, pend.bet - downStep(pend.bet));
+    if (k === 'plus') pend.bet = Math.min(t.betMax, pend.bet + upStep(pend.bet));
+    if (k === 'side') { const opts = [0, 5, 10, 25, 50, 100].filter(x => x <= t.sideMax); pend.side = opts[(opts.indexOf(pend.side) + 1) % opts.length] || 0; }
+    try { localStorage.setItem('lt:bet', JSON.stringify(pend)); } catch (er) {}
+    if (k === 'bet') return act({ a: 'bet', bet: pend.bet, side: pend.side });
+    render();
+  };
+}
+document.addEventListener('click', () => { if (drop) { drop = false; render(); } });
+// countdown text + nothing else moves between updates
+setInterval(() => { const t = T(); if (!t) return; document.querySelectorAll('[data-cd="bet"]').forEach(e => { e.textContent = Math.max(0, Math.ceil((t.deadline - serverNow()) / 1000)) + 's'; }); }, 250);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) api().catch(() => {}); });
+
+(async function start() {
+  const q = new URLSearchParams(location.search);
+  if (q.get('err')) err = { cancelled: 'Sign-in was cancelled.', setup: "Discord sign-in isn't set up yet.", stranger: "That Discord account isn't one the club knows yet." }[q.get('err')] || 'Sign-in failed. Try again.';
+  try { await api(); } catch (e) { $('#view').innerHTML = '<p class="hint" style="margin-top:20px">Couldn\'t reach the table. Refresh to try again.</p>'; }
+  poll();
+  if (S && S.ably && !window.LIVE_API) { const sc = document.createElement('script'); sc.src = '/ably.min.js'; sc.onload = connectLive; document.head.appendChild(sc); }
+})();
+</script>
+<link rel="stylesheet" href="/lateshow.css">
+<link rel="stylesheet" href="/cosmetics.css">
+<link rel="stylesheet" href="/plates.css">
+<link rel="stylesheet" href="/table-kit.css">
+</body>
+</html>

@@ -22,6 +22,7 @@ import { jackpotView, readJackpot } from './_jackpot.js';
 import { shopWeb } from './_shop.js';
 import { sweepDuels } from './_duel.js';
 import { pokerWeb } from './_poker.js';
+import { liveWeb } from './_live.js';
 
 const DAYS30 = 30 * 24 * 3600;
 const out = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers } });
@@ -64,7 +65,7 @@ async function login(req, sheet) {
   // ?to=shop (or poker, collection) brings you back there instead of /casino (kept next to the state in the same short cookie)
   const [wantState, to] = String(readCookie(req, 'cas_state') || '').split('.');
   const want = code || u.searchParams.get('error') ? to : u.searchParams.get('to');
-  const back = want === 'shop' ? '/shop' : want === 'poker' ? '/poker' : want === 'collection' ? '/collection' : '/casino';
+  const back = want === 'shop' ? '/shop' : want === 'poker' ? '/poker' : want === 'live' ? '/live' : want === 'collection' ? '/collection' : '/casino';
   const fail = why => go(`${back}?err=${encodeURIComponent(why)}`, [cookie('cas_state', '', 0)]);
   if (u.searchParams.get('error')) return fail('cancelled');
   if (!code) { // step 1: off to Discord
@@ -175,7 +176,7 @@ async function act(req, me) {
   return out({ err: 'Unknown action.' }, 400);
 }
 
-/** Entry point from api/discord.js. what = 'login' | 'casino' | 'shop' (Study Cards, see _shop.js) | 'poker' (the poker room, see _poker.js). sheet() = the cached sheet loader (for Members tab IDs). */
+/** Entry point from api/discord.js. what = 'login' | 'casino' | 'shop' (Study Cards, see _shop.js) | 'poker' (the poker room, see _poker.js) | 'live' (live tables, see _live.js). sheet() = the cached sheet loader (for Members tab IDs). */
 export async function casinoWeb(req, what, sheet) {
   if (!kvUrl() || !kvToken()) return out({ err: "The chip storage isn't connected." }, 503);
   try {
@@ -183,6 +184,7 @@ export async function casinoWeb(req, what, sheet) {
     const me = readSession(req);
     if (what === 'shop' && req.method === 'GET') return await shopWeb(req, me, sheet, out);
     if (what === 'poker' && req.method === 'GET') return await pokerWeb(req, me, sheet, out);
+    if (what === 'live' && req.method === 'GET') return await liveWeb(req, me, out);
     if (req.method === 'GET' && new URL(req.url).searchParams.get('jp')) return out({ jackpot: await readJackpot() }); // the lobby banner's live refresh
     if (req.method === 'GET') return out(await state(me, sheet));
     if (req.method !== 'POST') return out({ err: 'Method not allowed.' }, 405);
@@ -192,6 +194,7 @@ export async function casinoWeb(req, what, sheet) {
     if (!me) return out({ err: 'Sign in first.', signedOut: true }, 401);
     if (what === 'shop') return await shopWeb(req, me, sheet, out);
     if (what === 'poker') return await pokerWeb(req, me, sheet, out);
+    if (what === 'live') return await liveWeb(req, me, out);
     return await act(req, me);
   } catch (e) {
     console.error('casino', e);

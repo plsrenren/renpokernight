@@ -19,6 +19,10 @@
       "destination": "/api/discord?web=poker"
     },
     {
+      "source": "/api/live",
+      "destination": "/api/discord?web=live"
+    },
+    {
       "source": "/api/recap",
       "destination": "/api/img?fn=recap"
     },
