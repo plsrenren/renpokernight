@@ -204,6 +204,12 @@ export async function pokerWeb(req, me, _sheet, out) {
     // signing in is optional: anyone can watch, and a guest gets a listen-only live token here
     const q = new URL(req.url).searchParams;
     if (q.get('hands')) return me ? out(await myHands(me.id, +q.get('from') || 0, +q.get('to') || 0, t)) : out({ err: 'Sign in to see your hands.' }, 401);
+    if (q.get('ablycheck')) { // TEMP diagnostic (preview only use): what Ably says to our token request + a publish. No secrets returned.
+      const k = ablyKey(), tr = tokenRequest('diag-check', true);
+      const a1 = await fetch(`https://rest.ably.io/keys/${encodeURIComponent(tr.keyName)}/requestToken`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tr) }).then(async r => ({ status: r.status, body: (await r.text()).slice(0, 400).replace(/"token":"[^"]+"/, '"token":"…"') })).catch(e => ({ err: String(e) }));
+      const a2 = await fetch(`https://rest.ably.io/channels/diag-check/messages`, { method: 'POST', headers: { Authorization: 'Basic ' + Buffer.from(k).toString('base64'), 'Content-Type': 'application/json' }, body: '{"name":"x","data":"1"}' }).then(async r => ({ status: r.status, body: (await r.text()).slice(0, 300) })).catch(e => ({ err: String(e) }));
+      return out({ keyLen: k.length, colons: k.split(':').length - 1, space: /\s/.test(k), quote: /["']/.test(k), token: a1, publish: a2 });
+    }
     if (new URL(req.url).searchParams.get('token')) return ablyKey() ? out({ token: tokenRequest(me ? me.id : 'guest-' + randomBytes(6).toString('hex'), !me) }) : out({ err: 'Live updates are not set up.' });
     let T = await load();
     // nobody ticks a room that everyone walked away from; the next visit does (closes it, pays everyone)
