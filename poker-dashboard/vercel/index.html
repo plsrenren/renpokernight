@@ -43,6 +43,7 @@ h1 { font-family: var(--title); font-weight: 400; font-size: clamp(32px, 5vw, 46
 .h2h-link { background: linear-gradient(120deg, #4a3a8c, #7a5fd0); margin-left: 6px; }
 .casino-link { background: linear-gradient(120deg, #1f5a40, #2f7a55); margin-left: 6px; }
 a.rc-mu { text-decoration: none; color: inherit; }
+h1 .nb { white-space: nowrap; } /* phones break it as "Poker Club / @ The Study" (Renato) */
 .recap-link:focus-visible { outline: 2px solid var(--felt); outline-offset: 2px; }
 .sub { color: var(--muted); margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
@@ -231,9 +232,8 @@ a.rc-mu { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; b
 <div class="wrap">
   <header>
     <div>
-      <div class="brand"><div class="lg" role="img" aria-label="Poker Club @ The Study logo"></div>
-        <div><h1>Poker Club @ The Study</h1>
-        <div class="sub"><a class="recap-link" href="/recap">Latest recap →</a><a class="recap-link hof-link" href="/hall">🏆 Hall of Fame</a><a class="recap-link h2h-link" href="/h2h">⚔️ Head to head</a><a class="recap-link casino-link" href="/casino">🃏 Casino</a></div></div></div>
+      <div class="brand">
+        <div><h1><span class="nb">Poker Club</span> <span class="nb">@ The Study</span></h1></div></div>
     </div>
     <div class="controls" id="controls">
       <label class="lbl" for="oYear">Year</label>
