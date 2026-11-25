@@ -214,8 +214,8 @@ export async function pokerWeb(req, me, _sheet, out) {
       new Function('module', 'exports', src)(m, m.exports);
       const Ably = m.exports.Realtime ? m.exports : (m.exports.default || globalThis.Ably);
       const log = [];
-      const rt = new Ably.Realtime({ authCallback: (p, cb) => cb(null, tokenRequest('diag-lib', true)), autoConnect: true, echoMessages: false, logLevel: 0 });
-      rt.connection.on(ch => log.push([ch.previous, ch.current, ch.reason && (ch.reason.code + ' ' + ch.reason.message)]));
+      const rt = new Ably.Realtime({ authCallback: (p, cb) => q.get('ablylib') === 'str' ? fetch(`https://rest.ably.io/keys/${encodeURIComponent(ablyKey().split(':')[0])}/requestToken`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tokenRequest('diag-lib', true)) }).then(r => r.json()).then(j => cb(null, j.token), e => cb(String(e))) : cb(null, tokenRequest('diag-lib', true)), autoConnect: true, echoMessages: false, logLevel: 0 });
+      rt.connection.on(ch => log.push([ch.previous, ch.current, ch.reason && (ch.reason.code + ' ' + ch.reason.message + ' | cause: ' + (ch.reason.cause && (ch.reason.cause.code + ' ' + ch.reason.cause.statusCode + ' ' + ch.reason.cause.message)))]));
       const sub = new Promise(res => { rt.channels.get('poker:table').attach().then(() => res('attached'), e => res('attach fail ' + e.code + ' ' + e.message)); });
       const r = await Promise.race([sub, new Promise(res => setTimeout(() => res('timeout'), 7000))]);
       try { rt.close(); } catch (e) {}
