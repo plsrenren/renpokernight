@@ -11,8 +11,9 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { SHEET_URL, MEMBERS_URL, gameRecords, memberIds } from '../recap-core.js';
 import { syncRoles } from './_roles.js';
-import { payRewards } from './_rewards.js';
-import { kvUrl, kvToken } from './_blackjack.js';
+import { payRewards, nightRows } from './_rewards.js';
+import { kv, kvUrl, kvToken } from './_blackjack.js';
+import { buffsFrom, saveBuffCmds } from './_buffs.js';
 import { payRakeback } from './_rakeback.js';
 import { checkAccolades, weeklyAccolades, checkPoker } from './_accolades.js';
 import { pokerSweep } from './_poker.js';
@@ -67,6 +68,8 @@ export default async function handler(req, res) {
     if (hasKv && !Object.keys(ids).length) report.errors = [...(report.errors || []), 'Chip rewards skipped: no Discord IDs found on the Members tab.'];
     else if (hasKv) {
       try { report.chips = await payRewards(csv, ids); } catch (e) { console.error('rewards', e); report.errors = [...(report.errors || []), 'Chip rewards: ' + e.message]; }
+      // /daily buffs from poker night attendance (_buffs.js), rewritten from the whole sheet each save
+      try { const b = buffsFrom(nightRows(csv), ids); await kv(...saveBuffCmds(b)); report.buffs = Object.keys(b).length; } catch (e) { console.error('buffs', e); report.errors = [...(report.errors || []), 'Buffs: ' + e.message]; }
       try { report.accolades = await checkAccolades({ all: true, ids }); } catch (e) { console.error('accolades', e); }
       try { report.poker = await checkPoker(csv, ids); } catch (e) { console.error('poker accolades', e); }
     }

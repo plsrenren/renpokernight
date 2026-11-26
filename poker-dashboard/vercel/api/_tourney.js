@@ -27,7 +27,9 @@ export function gameDayEnd(text, now = Date.now()) {
   const left = Math.floor((end - now) / 1000);
   return left > 60 && left < 70 * 86400 ? left : KEEP;
 }
-const SEEN_V = 'v2|'; // bump to make every card redraw once (v2 = button removed)
+/** When a Discord message was posted, from its id. */
+const snowTime = id => { try { return Number(BigInt(id) >> 22n) + 1420070400000; } catch (e) { return 0; } };
+const SEEN_V = 'v3|'; // bump to make every card redraw once (v2 = button removed, v3 = RSVP buff list saved)
 
 const inviteOptions = buyinHint => [
   { type: 3, name: 'date', description: 'e.g. Fri Nov 21', required: true, max_length: 40 },
@@ -214,10 +216,15 @@ export async function refreshInvite(getNames = async () => ({})) {
   const last = JSON.parse(raw);
   const got = await readReacts(last.c, last.m, await getNames());
   if (got.error) { if (got.status === 404) await kv(['DEL', LAST]); return 'discord said ' + got.status; }
-  const list = got.lists[0].map(u => u.name), key = SEEN_V + list.join('|');
+  const list = got.lists[0].map(u => u.name), key = SEEN_V + got.lists[0].map(u => u.id + ':' + u.name).join('|');
   if (seen === key) return 'no change';
+  // who has the RSVP buff (_buffs.js): everyone who reacted, until game day ends (when tv:last runs out)
+  const [ttl] = await kv(['TTL', LAST]);
+  if (ttl > 0) await kv(['SET', 'bf:rsvp', JSON.stringify({ ids: got.lists[0].map(u => u.id), end: Date.now() + ttl * 1000, at: snowTime(last.m) }), 'EX', ttl]);
   const m = await dc(`/channels/${last.c}/messages/${last.m}`);
   if (!m) return 'invite not found';
+  // RSVP chips for anyone new on the list, paid now with the buff (one #casino note per check); loaded here to avoid an import loop
+  try { const { payRsvpNow } = await import('./_rewards.js'); await payRsvpNow(last.m, got.lists[0], infoFrom(m, stateOf(m, last)).date); } catch (e) { console.error('rsvp chips', e); }
   const r = await fetch(`${API}/channels/${last.c}/messages/${last.m}`, { method: 'PATCH',
     headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ embeds: [inviteEmbed(infoFrom(m, stateOf(m, last)), [list], stateOf(m, last).image)], components: [], allowed_mentions: { parse: [] } }) });

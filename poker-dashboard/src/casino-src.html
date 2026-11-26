@@ -317,6 +317,8 @@ details.pay summary { cursor: pointer; font: 400 17px var(--title); letter-spaci
 .club .cday .t { font-size: 12.5px; color: var(--soft); min-width: 0; }
 .club .cday .t b { display: block; font: 400 20px/1 var(--title); letter-spacing: .05em; color: var(--fg); }
 .club .cday .cd { font: 400 26px/1 var(--title); letter-spacing: .03em; white-space: nowrap; }
+.club .cbf { margin: -8px 16px 14px; display: flex; flex-wrap: wrap; gap: 5px; }
+.club .cday .t s { color: var(--soft); opacity: .7; }
 .club .ckv { padding: 0 16px 10px; }
 .club .ckv > * { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--soft); text-decoration: none; background: none; width: 100%; text-align: left; font-family: var(--body); }
 .club .ckv > *:last-child { border: 0; }
@@ -676,10 +678,15 @@ function lobby() {
       <div><a class="dbtn" href="/api/login">${DISCORD_SVG}Sign in with Discord</a><div class="fine">The site only gets your Discord name, pfp and ID. No password, no email, no messages.</div></div></section>
     ${jackpot()}${lottery()}<div class="cols">${board()}${feed()}</div>`;
   const me = S.me, d = me.daily, b = plateOf(me.id), L = S.lottery, O = S.open || {};
-  const msg = T.got ? `<div class="note ok">+${money(T.got)} added${T.weekly ? ' (weekly bonus)' : ''}. Good luck.</div>` : '';
+  const msg = T.got ? `<div class="note ok">+${money(T.got)} added${T.weekly ? ' (weekly bonus)' : ''}${T.gotBuff ? ` (buffs +${T.gotBuff}%)` : ''}. Good luck.</div>` : '';
   // you
-  const day = !d.wait ? `<div class="cday"><span class="t"><b>Day job</b>Your pay is ready. Same as /daily.</span><button class="cbtn up" data-do="daily"${busy ? ' disabled' : ''}>Collect ${money(d.amt)}</button></div>`
-    : `<div class="cday"><span class="t"><b>Day job</b>next pay +${money(d.amt)} · 16:00 UTC</span><span class="cd">${Math.floor(Math.ceil(d.wait / 60e3) / 60)}h ${Math.ceil(d.wait / 60e3) % 60}m</span></div>`;
+  // buffs from poker nights (api/_buffs.js) make the day job pay more: total + struck-out base, then one chip each (nothing when none)
+  const bf = d.buffs && d.buffs.list && d.buffs.list.length ? d.buffs : null;
+  const bfLeft = x => x.k === 'rsvp' ? 'until game night' : (n => n <= 1 ? 'last day' : n + ' days left')(Math.ceil((x.until - Date.now()) / 864e5));
+  const bfChips = bf ? `<div class="cbf">${bf.list.map(x => `<span class="bf-chip bf-${esc(x.k)}" title="${esc(x.why)} · ${bfLeft(x)}">${esc(x.icon)} ${esc(x.name.toUpperCase())} <small>+${Math.round(x.pct * 100)}%</small></span>`).join('')}</div>` : '';
+  const bfLine = bf && d.base && d.base !== d.amt ? `Buffs +${Math.round(bf.pct * 100)}%: <s>${money(d.base)}</s> → ${money(d.amt)}` : '';
+  const day = (!d.wait ? `<div class="cday"><span class="t"><b>Day job</b>${bfLine || 'Your pay is ready. Same as /daily.'}</span><button class="cbtn up" data-do="daily"${busy ? ' disabled' : ''}>Collect ${money(d.amt)}</button></div>`
+    : `<div class="cday"><span class="t"><b>Day job</b>next pay +${money(d.amt)} · 16:00 UTC</span><span class="cd">${Math.floor(Math.ceil(d.wait / 60e3) / 60)}h ${Math.ceil(d.wait / 60e3) % 60}m</span></div>`) + bfChips;
   const mineL = L && L.holders.find(x => x.name === me.name && x.in !== false), lotTot = L ? L.total || 0 : 0;
   const rows = [`<div><span>Rakeback so far</span><b>${money(me.rake || 0)}</b></div>`];
   if (L) rows.push(`<button class="go" data-lot><span>${esc(L.quarter)} lottery tickets</span><b>${mineL ? `${mineL.t} (${(100 * mineL.t / (lotTot || 1)).toFixed(1)}%)` : '0'}</b></button>`);
@@ -861,7 +868,7 @@ function wire() {
   document.querySelectorAll('[data-uth]').forEach(b => b.onclick = () => { pressed = `data-uth="${b.dataset.uth}"`; actSound(b.dataset.uth); play({ a: 'uth-act', id: T.uth.id, do: b.dataset.uth }, j => { T.uth = j.hand; }); });
   document.querySelectorAll('[data-do]').forEach(b => b.onclick = () => {
     const d = b.dataset.do; pressed = `data-do="${d}"`; if (d.endsWith('-deal')) { SND.chips(0, 3); setPref('lastg', d.slice(0, -5)); }
-    if (d === 'daily') play({ a: 'daily' }, j => { S.me.daily = j.daily; T.got = j.got; T.weekly = j.weekly; load(); });
+    if (d === 'daily') play({ a: 'daily' }, j => { S.me.daily = j.daily; T.got = j.got; T.weekly = j.weekly; T.gotBuff = j.buffs && j.buffs.pct ? Math.round(j.buffs.pct * 100) : 0; load(); });
     if (d === 'bj-deal') play({ a: 'bj', bet: pref('bj', 20) }, j => { T.bj = j.hand; });
     if (d === 'fb-deal') play({ a: 'bj', mode: 'free', bet: pref('fb', 20), side: pref('p22', 0) }, j => { T.fb = j.hand; });
     if (d === 'uth-deal') play({ a: 'uth', ante: pref('ante', 10), trips: pref('trips', 0) }, j => { T.uth = j.hand; });
