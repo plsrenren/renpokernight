@@ -5,7 +5,7 @@
 //   K.card('AH', 'lg')            -> card HTML (four-color deck), K.card(null) = face down
 //   K.chips(135)                  -> chip stack HTML ($1 white, $5 red, $25 green, $100 black, $500 purple)
 //   K.deal(el, fromEl, {delay, flip}) -> slide a card in from the shoe / dealer spot, turning it over if flip
-//   K.SND.card() / flip() / chips(n) / check() / fold() / turn() / win() / lose() / push()
+//   K.SND.card() / flip() / chips(n) / check() / fold() / turn() / win() / lose() / push() / jackpot() / jpOther() / tick()
 //   K.sndButton() + K.toggleSound() -> the one speaker button; the setting is shared by every table (localStorage tk:snd)
 //
 // Sounds are made with Web Audio on the fly (no files). Browsers only allow sound after the first tap on the page.
@@ -118,9 +118,114 @@ const RAW = {
   pot: (at = 0) => RAW.chips(at, 10),                                                                                                   // someone else wins
   lose: (at = 0) => { tone(392, at, .18, { type: 'triangle', vol: .09 }); tone(294, at + .15, .3, { type: 'triangle', vol: .09 }); },      // bust / dealer wins
   push: (at = 0) => { tone(587, at, .22, { type: 'triangle', vol: .08 }); tone(587, at + .2, .22, { type: 'triangle', vol: .06 }); },     // tie: bet comes back
+  // casino jackpot (Nov 26 2026): your win = a bell run up, a held chord, then a long chip pour; someone else's = a short bell + a pot of chips
+  jackpot: (at = 0) => {
+    [784, 988, 1175, 1568, 1976, 2349].forEach((f, k) => tone(f, at + k * .07, .5, { type: 'triangle', vol: .1 }));
+    [523, 659, 784, 1047].forEach(f => tone(f, at + .48, 1.5, { type: 'sine', vol: .055 }));
+    for (let k = 0; k < 6; k++) RAW.chips(at + .55 + k * .2, 5);
+  },
+  jpOther: (at = 0) => { [1175, 1568, 1976].forEach((f, k) => tone(f, at + k * .08, .35, { type: 'triangle', vol: .07 })); RAW.chips(at + .3, 8); },
+  tick: (at = 0) => tone(2000 + (Math.random() - .5) * 300, at, .03, { type: 'square', vol: .018 }),                                   // a number counting up
 };
 /** every sound checks the shared mute first, so pages just call K.SND.x() */
 const SND = Object.fromEntries(Object.entries(RAW).map(([k, f]) => [k, (...a) => { if (ready()) f(...a); }]));
 
-window.TK = { chipColor, card, reveal, chips, deal, flipTo, soundOn, toggleSound, sndButton, SND };
+// ---------- casino jackpot (Nov 26 2026, Renato's picks: "Gold Card" for the winner + a banner for everyone else) ----------
+// Mockup: https://claude.ai/artifact/B4DAA1nAaMCZ3ER4aoJvof. Used by /casino and /live; the look is in table-kit.css (.tk-jp*).
+const usd = n => '$' + (Math.round(n * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const CROWN = c => `<svg viewBox="0 0 48 36" aria-hidden="true"><path d="M4 30 L2 8 L14 18 L24 2 L34 18 L46 8 L44 30 Z" fill="${c}"/><rect x="4" y="31" width="40" height="4" fill="${c}"/></svg>`;
+const play = (k, alt) => (SND[k] || SND[alt] || (() => {}))();
+let jpLayer = null;
+/** takes the gold card off the table (next deal, leaving the table, a tap on the card) */
+function jpClear() { if (jpLayer) { jpLayer.remove(); jpLayer = null; } }
+if (typeof addEventListener === 'function') { addEventListener('hashchange', jpClear); addEventListener('resize', jpClear); }
+function countUp(el, to, ms) {
+  return new Promise(res => {
+    if (REDUCED) { el.textContent = usd(to); return res(); }
+    const t0 = performance.now(); let lt = 0;
+    const f = t => { const p = Math.min(1, (t - t0) / ms); el.textContent = usd(to * (1 - Math.pow(1 - p, 3))); if (t - lt > 75 && p < 1) { SND.tick && SND.tick(); lt = t; } p < 1 ? requestAnimationFrame(f) : res(); };
+    requestAnimationFrame(f);
+  });
+}
+// chips popping out of a spot (x, y inside host), drawn on a canvas so dozens cost nothing
+const POP = ['#f1c75b', '#ffe7a1', '#d93a4a', '#2e9e5b', '#22202f', '#8f78f0', '#f2f2f2'];
+function chipBurst(host, x, y, n = 60, ms = 2000) {
+  if (REDUCED) return;
+  const cv = document.createElement('canvas'); cv.className = 'tk-jpburst'; host.appendChild(cv);
+  const W = host.clientWidth, H = host.clientHeight, dpr = Math.min(2, devicePixelRatio || 1);
+  cv.width = W * dpr; cv.height = H * dpr; const g = cv.getContext('2d'); g.scale(dpr, dpr);
+  const P = Array.from({ length: n }, () => ({ x, y, vx: (Math.random() - .5) * 10, vy: -Math.random() * 9 - 3, r: 5 + Math.random() * 5, a: Math.random() * 6, va: (Math.random() - .5) * .4, c: POP[Math.random() * POP.length | 0] }));
+  const t0 = performance.now();
+  const f = t => {
+    const el = t - t0; g.clearRect(0, 0, W, H); g.globalAlpha = el > ms - 500 ? Math.max(0, (ms - el) / 500) : 1;
+    for (const p of P) {
+      p.vy += .28; p.x += p.vx; p.y += p.vy; p.a += p.va;
+      g.save(); g.translate(p.x, p.y); g.scale(1, Math.max(.15, Math.abs(Math.cos(p.a))));
+      g.beginPath(); g.arc(0, 0, p.r, 0, 6.283); g.fillStyle = p.c; g.fill();
+      g.setLineDash([2.5, 2.5]); g.lineWidth = 1.6; g.strokeStyle = p.c === '#f2f2f2' ? '#3b6fd6' : 'rgba(255,255,255,.8)'; g.beginPath(); g.arc(0, 0, p.r * .66, 0, 6.283); g.stroke();
+      g.restore();
+    }
+    el < ms ? requestAnimationFrame(f) : cv.remove();
+  };
+  requestAnimationFrame(f);
+}
+/** chips flying from one element to another (your balance), fixed to the window so a redraw underneath can't stop them */
+function flyChips(fromEl, toEl, n = 14) {
+  if (REDUCED || !fromEl || !toEl || !document.body.animate) return Promise.resolve();
+  const a = fromEl.getBoundingClientRect(), b = toEl.getBoundingClientRect();
+  if (!b.width && !b.height) return Promise.resolve();
+  const ax = a.left + a.width / 2, ay = a.top + a.height / 2, bx = b.left + b.width / 2, by = b.top + b.height / 2, cls = ['kg', 'k100', 'k500', 'k25', 'k5', 'kg'];
+  return Promise.all(Array.from({ length: n }, (_, i) => {
+    const c = document.createElement('i'); c.className = 'tk-jpchip ' + cls[i % cls.length];
+    c.style.left = (ax - 11) + 'px'; c.style.top = (ay - 11) + 'px'; document.body.appendChild(c);
+    const jx = (Math.random() - .5) * 140, jy = -40 - Math.random() * 70;
+    return c.animate([{ transform: 'translate(0,0) scale(.6)', opacity: 0 }, { transform: `translate(${jx}px,${jy}px) scale(1.1)`, opacity: 1, offset: .35 }, { transform: `translate(${bx - ax}px,${by - ay}px) scale(.5)`, opacity: .9 }],
+      { duration: 650 + Math.random() * 250, delay: i * 50, easing: 'cubic-bezier(.5,0,.35,1)', fill: 'forwards' }).finished.then(() => { c.remove(); if (i % 3 === 0) SND.chips(0, 1); }, () => c.remove());
+  }));
+}
+/** The winner's moment. felt = the table element. A gold card drops onto it, turns over and counts up to the pot, the rail glows,
+ *  then the chips fly to toEl (your balance) and onPaid() runs (put the new balance on screen there). Stays until the next deal or a tap. */
+async function jpCard(felt, { win, toEl, onPaid = () => {} }) {
+  jpClear();
+  if (!felt || !document.body.contains(felt)) { onPaid(); return; }
+  const r = felt.getBoundingClientRect(), L = document.createElement('div');
+  L.className = 'tk-jp'; L.style.cssText = `left:${r.left + scrollX}px;top:${r.top + scrollY}px;width:${r.width}px;height:${r.height}px;border-radius:${getComputedStyle(felt).borderRadius}`;
+  const face = `<div class="tk-jpf fc"><span class="ix t">J</span><span class="ix b">J</span>${CROWN('#d6a32f')}<span class="w">JACKPOT</span><span class="a">${usd(REDUCED ? win : 0)}</span><span class="g">mystery drop</span></div>`;
+  L.innerHTML = `<div class="tk-jpc" role="img" aria-label="Jackpot ${usd(win)}" title="Tap to put it away">${REDUCED ? face : `<div class="tk-jpf bk">${CROWN('rgba(110,70,0,.75)')}</div>`}</div><span class="tk-jptag" hidden>Jackpot +${usd(win)}</span>`;
+  document.body.appendChild(L); jpLayer = L;
+  const c = L.firstElementChild, tag = L.querySelector('.tk-jptag'), mine = L;
+  c.addEventListener('click', () => { if (jpLayer === mine) jpClear(); });
+  if (REDUCED) { L.classList.add('on'); tag.hidden = false; play('jackpot', 'win'); onPaid(); return; }
+  requestAnimationFrame(() => L.classList.add('on'));
+  SND.flip();
+  await c.animate([{ transform: 'translateY(-260px) rotate(-18deg) scale(1.3)', opacity: 0 }, { transform: 'translateY(8px) rotate(2deg) scale(1)', opacity: 1, offset: .7 }, { transform: 'none' }], { duration: 650, easing: 'cubic-bezier(.3,.8,.3,1)' }).finished.catch(() => {});
+  await new Promise(res => setTimeout(res, 250));
+  if (jpLayer !== mine) return onPaid();
+  const turn = c.animate([{ transform: 'scaleX(1)' }, { transform: 'scaleX(0) scale(1.08)', offset: .5 }, { transform: 'scaleX(1) scale(1)' }], { duration: 420, easing: 'ease-in-out' });
+  setTimeout(() => { c.innerHTML = face; }, 210); SND.flip();
+  await turn.finished.catch(() => {});
+  if (jpLayer !== mine) return onPaid();
+  play('jackpot', 'win');
+  const cr = c.getBoundingClientRect(), lr = L.getBoundingClientRect();
+  chipBurst(L, cr.left - lr.left + cr.width / 2, cr.top - lr.top + cr.height / 3, 70, 2200);
+  await countUp(c.querySelector('.a'), win, 1500);
+  tag.hidden = false;
+  await new Promise(res => setTimeout(res, 300));
+  const fly = flyChips(c, toEl, 14);
+  setTimeout(onPaid, 550);
+  await fly;
+}
+/** "X hit the jackpot": a gold strip at the top of the window for 6 seconds. you = it was you (roulette, where the card can't show). */
+function jpBanner({ name, win, game, you }) {
+  const b = document.createElement('div'); b.className = 'tk-jpban'; b.setAttribute('role', 'status');
+  const on = game ? ` on ${esc(game)}` : '';
+  b.innerHTML = `${CROWN('#6d4c07')}<span>${you ? `You hit the jackpot · <b>${usd(win)}</b>${on}. It's in your chips.` : `${esc(name || 'Someone')} hit the jackpot · <b>${usd(win)}</b>${on}`}</span>`;
+  document.body.appendChild(b);
+  requestAnimationFrame(() => requestAnimationFrame(() => b.classList.add('show')));
+  play('jpOther', 'pot');
+  const bye = () => { b.classList.remove('show'); setTimeout(() => b.remove(), 500); };
+  b.addEventListener('click', bye); setTimeout(bye, 6000);
+}
+
+window.TK = { chipColor, card, reveal, chips, deal, flipTo, soundOn, toggleSound, sndButton, SND, jpCard, jpClear, jpBanner, chipBurst, flyChips };
 })();

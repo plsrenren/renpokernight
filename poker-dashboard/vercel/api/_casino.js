@@ -15,7 +15,7 @@
 // https://www.thepoker.study/api/login (and the old https://renpokernight.vercel.app/api/login) added there. The app's client ID is looked up with DISCORD_BOT_TOKEN.
 import { createHmac, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { buffReads, buffView } from './_buffs.js';
-import { kv, kvUrl, kvToken, MAX_BET, FEED_KEEP, claimDaily, dailyStatus, boardFrom, dailyFrom, weekKey, rakeFor, sheetNames, hasIds, newHand as bjStart, handAction, publicHand, MAX_PUSH22 } from './_blackjack.js';
+import { kv, jpSink, kvUrl, kvToken, MAX_BET, FEED_KEEP, claimDaily, dailyStatus, boardFrom, dailyFrom, weekKey, rakeFor, sheetNames, hasIds, newHand as bjStart, handAction, publicHand, MAX_PUSH22 } from './_blackjack.js';
 import { newHand as uthStart, uthAction, publicUth, MAX_ANTE, MAX_TRIPS, UTH_PAYTABLE } from './_uth.js';
 import { playHand } from './_baccarat.js';
 import { REWARD_LIST } from './_rewards.js';
@@ -165,6 +165,31 @@ const remember = (me, game, gid) => kv(['HSET', 'cas:cur:' + me.id, game, gid], 
 const actResult = (r, view) => r.gone ? out({ err: 'That hand expired. Deal a new one.' }) : r.notYours ? out({ err: "That's not your hand." })
   : r.busy ? out({ busy: true }) : r.err ? out({ err: plain(r.err) }) : out({ bal: r.bal, hand: view(r.g, r.bal) });
 
+// ---------- jackpot win on the site (Nov 26 2026, Renato's pick: the gold card + a banner for everyone else) ----------
+// A game request runs inside jpSink (see kv in _blackjack.js), so a jackpot this hand paid comes back as { jackpot: { win, game } }
+// and the page turns the gold card over. Alongside the hand, one HMGET of the pot's last hit ({ jp: { wins, last } }) lets every
+// casino table show "X hit the jackpot" when someone else wins. That read runs at the same time as the hand, so it adds no wait.
+const GAME_ACTS = new Set(['bj', 'bj-act', 'uth', 'uth-act', 'bac', 'ro-open', 'ro-bet']);
+async function gameAct(req, me) {
+  let a = ''; try { a = (await req.clone().json()).a; } catch (e) {}
+  if (!GAME_ACTS.has(a)) return act(req, me);
+  const wins = [], jpRead = kv(['HMGET', 'jp', 'wins', 'lastId', 'lastName', 'lastWin', 'lastAt', 'lastGame']).catch(() => null);
+  const res = await jpSink.run(wins, () => act(req, me));
+  const h = ((await jpRead) || [])[0], mine = wins.find(w => w.id === me.id);
+  if ((!h && !wins.length) || res.status !== 200) return res;
+  let body; try { body = await res.clone().json(); } catch (e) { return res; }
+  const w = wins[wins.length - 1];
+  body.jp = w ? { wins: (h ? +h[0] || 0 : 0) + 1, last: { id: w.id, name: w.name, win: w.win, at: Date.now(), game: w.game } }
+    : { wins: +h[0] || 0, last: h[1] ? { id: h[1], name: h[2], win: +h[3], at: +h[4], game: h[5] } : null };
+  if (mine) {
+    body.jackpot = { win: mine.win, game: mine.game };
+    // the hand's own balance may have been read before the pot paid: send the real one (rare, so one extra read is fine)
+    const [bal] = await kv(['HGET', 'bj:bal', me.id]);
+    body.bal = Math.floor(+bal * 100) / 100;
+  }
+  return out(body);
+}
+
 async function act(req, me) {
   let b; try { b = await req.json(); } catch (e) { return out({ err: 'Bad request.' }, 400); }
   const who = { id: me.id, name: me.name, src: 'site' };
@@ -232,7 +257,7 @@ export async function casinoWeb(req, what, sheet) {
     if (what === 'shop') return await shopWeb(req, me, sheet, out);
     if (what === 'poker') return await pokerWeb(req, me, sheet, out);
     if (what === 'live') return await liveWeb(req, me, out);
-    return await act(req, me);
+    return await gameAct(req, me);
   } catch (e) {
     console.error('casino', e);
     return out({ err: "Couldn't reach the chip storage just now. Try again in a moment." }, 500);

@@ -75,7 +75,7 @@ poker-dashboard/
                        sounds before the first tap are skipped), sndButton(), chips(amount) stacks ($1 white, $5 red, $25 green, $100 black, $500 purple),
                        chipColor(v) (casino bet pickers), card()/deal()/flipTo(). CSS: --tk-felt1/2 green felt, four-color deck colors, card back, .tk-stk.
                        Casino tables now use the four-color deck, a chip stack + amount tag for the bet, full sounds; live tables the same green felt,
-                       cards slide from a shoe face down and turn over (CSS deal/turn keyframes, --fx/--fy aimed by aimCards()), sounds via animationstart.
+                       cards slide from a shoe face down and turn over (CSS deal/turn keyframes, --fx/--fy aimed by aimCards()), sounds via animationstart. Jackpot (Nov 26 2026): SND.jackpot/jpOther/tick + jpCard/jpBanner/chipBurst/flyChips (.tk-jp* CSS).
                        Change a sound/color here, not in a page. Discord table pictures (_bjcards.js) match it by hand: SUITC four-color deck, flat felt
                        #1f4433 + purple rail (FELT; a gradient made PNGs ~4x bigger), chip stacks + $ tag on bets (chipStacks/betTag). Keep both in step.
     pokerhands.js      Poker room hand histories in the browser (Nov 23 2026, picked options A + B): My hands button (table bar + closed-room lobby) opens an
@@ -170,6 +170,13 @@ poker-dashboard/
                        touch rakeback or accolade counts. Wins go to jp:news; afterJackpot() (after every bot/site answer + after roulette spins) posts them in
                        #casino. Game replies do NOT mention the jackpot (removed Nov 22 by request). /jackpot command, /earn line, site lobby banner
                        (GET /api/casino?jp=1 every 15s), feed game 'jackpot'
+                       jackpot win on the site (Nov 26 2026, Renato's pick "Gold Card" + banner, mockup https://claude.ai/artifact/B4DAA1nAaMCZ3ER4aoJvof): kv() in _blackjack.js
+                       pushes every paying jackpot EVAL into jpSink (AsyncLocalStorage list) when the request runs inside jpSink.run. _casino.js gameAct wraps game
+                       actions (bj/bj-act/uth/uth-act/bac/ro-open/ro-bet): your win -> {jackpot:{win,game}} + real bal (1 extra read, wins only); plus one HMGET of
+                       jp's last hit in parallel -> {jp:{wins,last}} (1 read per game action). Page: the hand plays on the losing balance, then TK.jpCard (gold
+                       card drops on the felt, flips, counts up, rail glows, chips fly to the balance); someone else's hit = TK.jpBanner (gold strip, 6s),
+                       deduped by id:win. Lobby jackpot card shows JUST HIT (winner + amount) for 10 min after a hit. /live: payOut runs feedCmds inside
+                       jpSink, the update that paid it carries table.jp (Ably + the answer): winner gets the card, others the banner + seat spotlight (.jpspot).
                        buffs: _buffs.js (Nov 26 2026, Renato's picks, mockup https://claude.ai/artifact/H6hXqg54zscUZxDUzXFJ6K): poker night attendance boosts /daily
                        (Discord + site). RSVP +25% (reacted to the newest invite, until game day ends; stops once a Showed Up from that night lands),
                        Showed Up +50%, Regular +25% (last 3 game nights), Comeback Kid +75% (back after missing 3+), Plus One +100% (brought a first-timer).

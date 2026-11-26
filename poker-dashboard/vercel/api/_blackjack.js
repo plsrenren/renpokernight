@@ -9,6 +9,7 @@
 // Balances live in Upstash Redis (Vercel: Storage > Upstash > connect to this project). It sets KV_REST_API_URL and
 // KV_REST_API_TOKEN (or UPSTASH_REDIS_REST_URL / _TOKEN); either pair works. Keys: bj:bal, bj:last, bj:name (hashes
 // keyed by Discord user ID) and bj:g:<id> (a hand in progress, expires after an hour).
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomInt, randomBytes } from 'node:crypto';
 
 const SITE = 'https://www.thepoker.study';
@@ -47,11 +48,18 @@ export const kvToken = () => process.env.KV_REST_API_TOKEN || process.env.UPSTAS
 // after-answer title + jackpot checks on poker room / live table requests that counted nothing (Nov 25 2026, saves Redis commands).
 // Shared by concurrent requests on one instance: a false "something changed" only means an extra check, never a missed one.
 export const kvMarks = { n: 0 };
+// Jackpot wins seen by kv() during one site request (Nov 26 2026, the gold card): the site wraps a game request in
+// jpSink.run([], ...) and every jackpot EVAL (see jackpotCmds in _jackpot.js) that paid out lands in that list as
+// { id, name, game, win }, so the page can play the win without any extra Redis reads. Discord requests have no list: nothing happens.
+export const jpSink = new AsyncLocalStorage();
 export async function kv(...cmds) {
   if (cmds.some(c => c && c.includes('ac:dirty') && (c[0] === 'SADD' || c[0] === 'EVAL'))) kvMarks.n++;
   const r = await fetch(kvUrl().replace(/\/$/, '') + '/pipeline', { method: 'POST', headers: { Authorization: `Bearer ${kvToken()}`, 'Content-Type': 'application/json' }, body: JSON.stringify(cmds) });
   if (!r.ok) throw new Error('storage said ' + r.status);
   const out = await r.json();
+  const sink = jpSink.getStore();
+  // jackpot EVAL: KEYS start at [3] ('jp', 'bj:bal', ...), ARGV at [11]: id, ..., [17] name, [18] game. It returns the amount won or '0'.
+  if (sink) cmds.forEach((c, i) => { if (c && c[0] === 'EVAL' && c[3] === 'jp' && c[4] === 'bj:bal' && out[i] && +out[i].result > 0) sink.push({ id: c[11], name: c[17], game: c[18], win: +out[i].result }); });
   return out.map(x => { if (x.error) throw new Error(x.error); return x.result; });
 }
 

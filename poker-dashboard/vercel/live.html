@@ -183,6 +183,9 @@ select { background: var(--panel2); color: var(--fg); border: 0; padding: 8px 8p
 .st-ttl { justify-self: start; max-width: 100%; margin-top: -1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 12px/1 var(--title); letter-spacing: .09em; text-transform: uppercase; color: var(--ink); background: var(--tc); padding: 3px 12px 1px 7px; clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 100%, 0 100%); }
 .seat.you .st-name { border-left-color: var(--gold); }
 .seat.turn .st-name { box-shadow: 0 0 0 2px var(--gold), 0 0 18px rgba(241,199,91,.4); }
+/* someone at the table hit the casino jackpot: their seat gets a gold spotlight for a few seconds (jpLive) */
+.seat.jpspot::before { content: ""; position: absolute; left: 50%; top: 60%; width: 260px; height: 220px; transform: translate(-50%, -50%); background: radial-gradient(closest-side, rgba(241,199,91,.5), rgba(241,199,91,0)); z-index: -1; pointer-events: none; }
+.seat.jpspot .st-name { box-shadow: 0 0 0 2px var(--gold), 0 0 22px rgba(241,199,91,.6); }
 .seat.out .pfw, .seat.out .st-np, .seat.out .st-ttl { opacity: .45; }
 .tmr { width: 100%; height: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
 .tmr i { display: block; height: 100%; background: var(--up); animation: drain linear forwards; transform-origin: left; }
@@ -324,14 +327,28 @@ function take(j) {
   if (j.table && S.table && j.table.v < S.table.v) return; // an answer slower than a live update: keep the newer table
   if (j.table) { S.table = j.table; skew = j.table.now - Date.now(); }
   if ('me' in j) { S.me = j.me || null; myKey = keyOf(S.table); }
-  render(); schedule();
+  render(); schedule(); jpLive(S.table);
 }
 // your own bits (UTH hole cards, chips after a round) only come with your own answer: fetch once per new deal / street / result
 const keyOf = t => t ? [t.round, t.phase, t.board.length].join(':') : '';
 let myKey = '';
 function onTable(t) { if (S && S.table && t.v <= S.table.v) return; S.table = t; skew = t.now - Date.now();
   if (S.me && mySeat() >= 0 && keyOf(t) !== myKey) { myKey = keyOf(t); api().catch(() => {}); }
-  render(); schedule(); }
+  render(); schedule(); jpLive(t); }
+// ---------- casino jackpot hit on this table's hands (Nov 26 2026): the winner gets the gold card (table kit jpCard),
+// everyone else the banner (jpBanner) + a spotlight on the winner's seat. The table update that paid it carries t.jp (see payOut in api/_live.js).
+let jpSpot = null; const jpDone = new Set();
+function jpLive(t) {
+  if (!t || !t.jp || !t.jp.length) return;
+  t.jp.forEach(w => {
+    const k = t.round + ':' + w.id + ':' + w.win; if (jpDone.has(k)) return; jpDone.add(k);
+    setTimeout(() => {
+      if (S && S.me && w.id === S.me.id) return K.jpCard && K.jpCard($('#felt'), { win: w.win, toEl: document.getElementById('sb'), onPaid: () => { if (window.SB && S.me) window.SB.bal(S.me.bal); } });
+      jpSpot = { id: w.id, until: Date.now() + 5000 }; render(); setTimeout(render, 5100);
+      if (K.jpBanner) K.jpBanner({ name: w.name, win: w.win, game: 'the live table' });
+    }, 2600);
+  });
+}
 if (window.LIVE_API) window.liveUpdate = onTable; // the preview's stand-in for Ably
 async function act(body, okMsg) {
   if (busy) return; busy = true;
@@ -541,7 +558,7 @@ function seatHTML(t, s, i, resDelay) {
   const lc = /^(Bust|Fold)/.test(label) ? 'fold' : /^(Double|Split|Bet|Free)/.test(label) ? 'hot' : /^(Blackjack|In)$/.test(label) ? 'gold' : '';
   const b = plateOf(s.id), ttl = titleOf(s.id), size = PHONE.matches ? 34 : 42;
   const timer = s.deciding && s.dl ? (() => { const dur = t.cfg.clock, left = Math.max(0, (s.dl - serverNow()) / 1000); return `<div class="tmr"><i style="animation-duration:${dur}s;animation-delay:-${Math.max(0, dur - left).toFixed(2)}s"></i></div>`; })() : '<div class="tmr none"></div>';
-  return `<div class="seat${i === me ? ' you' : ''}${s.deciding ? ' turn' : ''}${out ? ' out' : ''}" style="left:${x}%;top:${y}%">
+  return `<div class="seat${i === me ? ' you' : ''}${s.deciding ? ' turn' : ''}${out ? ' out' : ''}${jpSpot && jpSpot.id === s.id && Date.now() < jpSpot.until ? ' jpspot' : ''}" style="left:${x}%;top:${y}%">
     <div class="act ${label ? lc : 'none'}">${esc(label) || '·'}</div>
     <div class="hands">${hands}</div>
     <div class="bets">${bets}</div>
