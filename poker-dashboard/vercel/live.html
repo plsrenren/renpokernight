@@ -55,9 +55,14 @@ select { background: var(--panel2); color: var(--fg); border: 0; padding: 8px 8p
 .gpick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 6px 0 14px; }
 .gcard { display: grid; grid-template-rows: auto auto 1fr; justify-items: start; gap: 6px; text-align: left; padding: 12px 12px 11px; background: var(--panel2); color: var(--fg); border: 2px solid transparent; cursor: pointer; position: relative; }
 .gcard:hover:not(:disabled) { border-color: var(--line); background: #322c5e; }
-.gcard.on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 6px 18px rgba(241,199,91,.18); }
-.gcard.on::after { content: "✓"; position: absolute; top: 6px; right: 8px; font: 900 14px var(--round); color: var(--gold); }
-.gcard:disabled { cursor: default; opacity: .45; }
+.gcard.on { border-color: var(--gc); box-shadow: 0 0 0 1px var(--gc), 0 6px 18px rgba(0,0,0,.35); background: #322c5e; }
+.gcard.on::after { content: "✓"; position: absolute; top: 6px; right: 8px; font: 900 14px var(--round); color: var(--gc); }
+.gcard:disabled { cursor: default; }
+.gcard:disabled:not(.on) { opacity: .4; } .gcard.on:disabled { opacity: 1; }
+/* host panel: the game on now wears a PLAYING tag (and stays bright mid-round); a tapped one says SWITCHING until the table answers */
+.gpick.sm .gcard.on::after, .gpick.sm .gcard.pend::after { content: "PLAYING"; top: -9px; right: -2px; font: 400 12px/1 var(--title); letter-spacing: .1em; color: var(--ink); background: var(--gc); padding: 4px 7px 2px; }
+.gpick.sm .gcard.pend { border-color: var(--gc); border-style: dashed; }
+.gpick.sm .gcard.pend::after { content: "SWITCHING…"; }
 .gcard .gfan { display: flex; padding: 6px 8px; background: radial-gradient(120% 90% at 50% 10%, var(--tk-felt1), var(--tk-felt2) 72%); }
 .gcard .gfan .tk-cd { --cw: 26px; box-shadow: 0 2px 4px rgba(0,0,0,.4); }
 .gcard .gfan .tk-cd + .tk-cd { margin-left: -9px; transform: rotate(8deg); }
@@ -76,11 +81,13 @@ select { background: var(--panel2); color: var(--fg); border: 0; padding: 8px 8p
 .err { background: rgba(224,80,127,.15); border-left: 4px solid var(--pink); padding: 8px 12px; margin-top: 12px; font-size: 13.5px; }
 #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--panel2); border-left: 4px solid var(--pink); padding: 10px 14px; font-size: 14px; z-index: 60; max-width: min(92vw, 520px); box-shadow: 0 8px 24px rgba(0,0,0,.5); }
 
+/* which game is on (Nov 26 2026): each game has its own color, used by the bar tag, the felt print, the switch banner and the picker */
+.g-bj { --gc: #f1c75b; } .g-fb { --gc: #ff86ab; } .g-uth { --gc: #b9a9ff; }
 /* table bar */
 .tbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--panel); padding: 8px 12px; font-size: 13px; color: var(--soft); margin-top: 16px; position: relative; }
 .live { font: 600 11px var(--mono); background: var(--panel2); color: var(--muted); padding: 2px 6px; }
 .live.on { background: var(--pink); color: #fff; }
-.tbar .gm { font: 400 22px var(--title); letter-spacing: .06em; color: var(--fg); }
+.tbar .gm { font: 400 22px/1 var(--title); letter-spacing: .06em; color: var(--ink); background: var(--gc); padding: 5px 18px 2px 10px; clip-path: polygon(0 0,100% 0,calc(100% - 10px) 100%,0 100%); }
 .tbar .r { margin-left: auto; display: flex; gap: 8px; align-items: center; }
 .tbtn { font: 400 15px var(--title); letter-spacing: .1em; background: var(--panel2); padding: 5px 12px 3px; }
 .tbtn.on { background: var(--gold); color: var(--ink); }
@@ -98,7 +105,21 @@ select { background: var(--panel2); color: var(--fg); border: 0; padding: 8px 8p
 .dealer { position: absolute; left: 50%; top: 3%; transform: translateX(-50%); text-align: center; display: grid; justify-items: center; gap: 4px; }
 .lbl { font: 400 14px var(--title); letter-spacing: .14em; color: rgba(255,255,255,.55); }
 .lbl b { color: var(--gold); font-weight: 400; margin-left: 4px; }
-.rules { position: absolute; left: 50%; top: 23%; transform: translateX(-50%); font: 400 13px var(--title); letter-spacing: .16em; color: rgba(241,199,91,.55); white-space: nowrap; }
+.rules { position: absolute; left: 50%; top: 19.5%; transform: translateX(-50%); font: 400 13px var(--title); letter-spacing: .16em; color: rgba(241,199,91,.55); white-space: nowrap; text-align: center; }
+/* the game's name printed on the felt, like a real table's layout */
+.rules b { display: block; font: 400 clamp(17px, 2.3vw, 27px)/1 var(--title); letter-spacing: .12em; color: var(--gc); opacity: .85; margin-bottom: 2px; }
+/* switch banner: shows for everyone at the table for a few seconds when the host changes the game */
+.gswitch { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; pointer-events: none; background: rgba(12,10,28,.6); animation: gsw 3.2s ease both; }
+.gswitch .in { display: grid; justify-items: center; gap: 6px; text-align: center; background: var(--panel); border-top: 5px solid var(--gc); padding: 16px 36px 18px; box-shadow: 0 16px 40px rgba(0,0,0,.6); max-width: 90%; animation: gswin .5s cubic-bezier(.2,.9,.3,1.25) both; animation-delay: inherit; }
+.gswitch small { font: 400 15px/1 var(--title); letter-spacing: .24em; color: var(--muted); }
+.gswitch b { font: 400 clamp(28px, 5vw, 58px)/1 var(--title); letter-spacing: .05em; color: var(--gc); }
+.gswitch .rl { font-size: 13px; color: var(--soft); }
+.gswitch .was { font-size: 12px; color: var(--muted); } .gswitch .was s { color: var(--soft); }
+.gswitch .gfan { display: flex; margin-bottom: 4px; } .gswitch .gfan .tk-cd { --cw: 40px; box-shadow: 0 3px 8px rgba(0,0,0,.45); }
+.gswitch .gfan .tk-cd + .tk-cd { margin-left: -12px; transform: rotate(9deg); } .gswitch .gfan .tk-cd:first-child { transform: rotate(-7deg); }
+@keyframes gsw { 0% { opacity: 0; } 7%, 82% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes gswin { 0% { transform: scale(.7) translateY(14px); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@media (max-width: 640px) { .gswitch .in { padding: 12px 18px 14px; } .gswitch .gfan .tk-cd { --cw: 30px; } }
 .status { position: absolute; left: 50%; top: 28%; transform: translateX(-50%); text-align: center; width: 70%; pointer-events: none; }
 .status .big { font: 400 clamp(20px, 2.6vw, 30px)/1 var(--title); letter-spacing: .06em; color: #fff; }
 .status .sm { font-size: 12.5px; color: rgba(255,255,255,.72); margin-top: 4px; min-height: 1.3em; }
@@ -214,7 +235,8 @@ html button.chip, html button.bspot { border-radius: 50%; } /* lateshow.css squa
   .me .nm { display: none; }
   .felt { aspect-ratio: auto; height: 720px; border-radius: 0 0 40% 40% / 0 0 9% 9%; border-width: 0 6px 8px; }
   .seat { width: 32%; }
-  .rules { top: 18%; font-size: 11.5px; white-space: normal; width: 92%; text-align: center; }
+  .rules { top: 18%; font-size: 0; white-space: normal; width: 92%; text-align: center; } /* phones: just the game's name; the rule line is in the switch banner + host picker */
+  .rules b { font-size: 17px; margin: 0; }
   .status { top: 22%; width: 94%; }
   .dealer .cd { width: 44px; height: 62px; font-size: 20px; }
   .cd { width: 38px; height: 54px; font-size: 17px; } .cd i { font-size: 14px; }
@@ -263,7 +285,7 @@ const GFAN = { bj: ['AS', 'KH'], fb: ['9D', '9C'], uth: ['AH', 'KH'] };
 let oGame = 'bj';
 /** the game picker: a card per game, cur = picked one; small = host panel version; off = not clickable right now */
 const gameCards = (cur, small, off) => `<div class="gpick${small ? ' sm' : ''}" role="radiogroup" aria-label="Game">${Object.keys(GAMES).map(k =>
-  `<button type="button" class="gcard${k === cur ? ' on' : ''}" data-g="${k}" role="radio" aria-checked="${k === cur}"${off ? ' disabled' : ''}>
+  `<button type="button" class="gcard g-${k}${k === cur ? ' on' : ''}" data-g="${k}" role="radio" aria-checked="${k === cur}"${off ? ' disabled' : ''}>
     <span class="gfan">${GFAN[k].map(c => K.card(c)).join('')}</span><b>${small ? SHORT[k] : GAMES[k]}</b><small>${RULES[k]}</small></button>`).join('')}</div>`;
 const RULES = { bj: 'Blackjack pays 3 to 2 · dealer stands on 17', fb: 'Free doubles 9–11 · free splits · dealer 22 pushes', uth: 'Dealer needs a pair to open the ante' };
 const API = window.LIVE_API || '/api/live';
@@ -273,6 +295,9 @@ let S = null, skew = 0, err = '', drop = false, busy = false, tickT = 0, pollT =
 // animations survive redraws: each one is timed from when it first showed (key -> time), so a redraw mid-way carries on instead of restarting
 let seen = new Map(), seenRound = -1, backs = new Set();
 const ANIM_MS = 650;
+// game switch banner: the game the page last showed, and when it saw a switch (timed so redraws carry the banner on)
+let lastGame = null, swAt = 0, swFrom = '', swT = 0;
+const SWITCH_MS = 3200;
 /** class + style for an animation that should start `delay` ms after `key` first appeared ('' once it has finished) */
 function anim(key, delay) { const now = Date.now(); if (!seen.has(key)) seen.set(key, now); const el = now - seen.get(key); return el < delay + ANIM_MS ? { on: true, style: `animation-delay:${delay - el}ms` } : { on: false, style: '' }; }
 let spotK = 'bet', hist = [], bumped = ''; // which spot at your seat takes chips, undo steps, the spot that just grew
@@ -395,7 +420,9 @@ function render() {
   const v = $('#view'); if (!S) return;
   renderMe();
   const t = T();
-  if (!t || !t.open) { v.innerHTML = closedHTML(); bindClosed(); return; }
+  if (!t || !t.open) { lastGame = null; v.innerHTML = closedHTML(); bindClosed(); return; }
+  if (lastGame && t.game !== lastGame) { swAt = Date.now(); swFrom = lastGame; SND.turn(); clearTimeout(swT); swT = setTimeout(render, SWITCH_MS + 50); }
+  lastGame = t.game;
   if (t.round !== seenRound) { seen = new Map([...seen].filter(([k]) => k.startsWith('r' + t.round + ':') || k.startsWith('r' + (t.round - 1) + ':'))); seenRound = t.round; backs = new Set([...backs].filter(k => k.startsWith('r' + t.round + ':'))); played = new Set([...played].filter(k => k.startsWith('r' + t.round + ':'))); }
   // keep the host panel's open state and focus across redraws
   // the dock keeps its buttons when nothing in it changed, so a quick run of chip taps isn't lost to a table update mid-tap
@@ -434,7 +461,7 @@ function bindClosed() {
 function barHTML(t) {
   const me = S.me, seated = mySeat() >= 0;
   const max = t.betMax;
-  return `<div class="tbar"><span class="live${liveOn ? ' on' : ''}" id="live">${liveOn ? 'LIVE' : S.ably ? 'SYNCING' : 'LIVE'}</span><span class="gm">${GAMES[t.game]}</span><span>${t.game === 'uth' ? 'Ante ' : ''}$${t.cfg.min}–$${max} · hosted by ${esc(t.host ? t.host.name : '…')}${t.pause ? ' · <b style="color:var(--gold)">paused</b>' : ''}${t.closing ? ' · <b style="color:var(--pink)">closing after this round</b>' : ''}</span>
+  return `<div class="tbar"><span class="live${liveOn ? ' on' : ''}" id="live">${liveOn ? 'LIVE' : S.ably ? 'SYNCING' : 'LIVE'}</span><span class="gm g-${t.game}">${GAMES[t.game]}</span><span>${t.game === 'uth' ? 'Ante ' : ''}$${t.cfg.min}–$${max} · hosted by ${esc(t.host ? t.host.name : '…')}${t.pause ? ' · <b style="color:var(--gold)">paused</b>' : ''}${t.closing ? ' · <b style="color:var(--pink)">closing after this round</b>' : ''}</span>
     <span class="r">${K.sndButton()}${me && me.host ? `<button class="tbtn${drop ? ' on' : ''}" id="hostBtn">Host</button>` : ''}${seated ? '<button class="tbtn" id="leaveBtn">Leave seat</button>' : ''}</span>
     ${drop && me && me.host ? hostHTML(t) : ''}</div>`;
 }
@@ -467,7 +494,13 @@ function feltHTML(t) {
     sm = uth && ms && ms.res && ms.res.hand ? 'You: ' + esc(ms.res.hand) : 'Next round in a moment'; }
   const status = `<div class="status"><div class="big"${done ? ` style="animation:pop .3s both;${resStyle}"` : ''}>${esc(big)}</div><div class="sm">${sm}</div>${board}</div>`;
   return `${shoe}<div class="dealer"><div class="lbl">Dealer<b>${dtot === '' || dtot === null ? '' : esc(String(dtot))}</b></div><div class="cards">${dcards}</div></div>
-    <div class="rules">${RULES[t.game]}</div>${status}${t.seats.map((s, i) => seatHTML(t, s, i, resStyle)).join('')}`;
+    <div class="rules"><b>${GAMES[t.game]}</b>${RULES[t.game]}</div>${status}${t.seats.map((s, i) => seatHTML(t, s, i, resStyle)).join('')}${switchHTML(t)}`;
+}
+/** big "now playing" card over the felt for a few seconds after the game changes (everyone sees it, not just the host) */
+function switchHTML(t) {
+  const ago = Date.now() - swAt; if (!swAt || ago >= SWITCH_MS) return '';
+  return `<div class="gswitch" style="animation-delay:-${ago}ms"><div class="in"><span class="gfan">${GFAN[t.game].map(c => K.card(c)).join('')}</span>
+    <small>Now playing</small><b>${GAMES[t.game]}</b><span class="rl">${RULES[t.game]}</span>${swFrom && GAMES[swFrom] ? `<span class="was">was <s>${GAMES[swFrom]}</s></span>` : ''}</div></div>`;
 }
 function resTag(n, word, delay) { if (n == null) return ''; const c = word === 'Blackjack' ? 'bj' : n > 0 ? 'w' : n < 0 ? 'l' : 'p';
   return `<span class="res ${c}" style="${delay}">${word ? esc(word) + ' ' : ''}${n > 0 ? '+' + money(n) : n < 0 ? money(n) : 'Push'}</span>`; }
@@ -586,7 +619,8 @@ function bindTable() {
   const d = $('#drop');
   if (d) {
     d.onclick = e => e.stopPropagation();
-    document.querySelectorAll('#drop .gcard').forEach(b => b.onclick = () => { if (b.dataset.g !== t.game) act({ a: 'game', game: b.dataset.g }); });
+    document.querySelectorAll('#drop .gcard').forEach(b => b.onclick = () => { if (b.dataset.g === t.game || b.disabled) return;
+      document.querySelectorAll('#drop .gcard').forEach(x => x.classList.toggle('pend', x === b)); act({ a: 'game', game: b.dataset.g }); });
     $('#hPause').onclick = () => act({ a: 'pause', on: !t.pause });
     $('#hClose').onclick = () => { drop = false; act({ a: 'close' }); };
   }
