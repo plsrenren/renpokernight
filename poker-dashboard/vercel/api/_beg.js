@@ -10,7 +10,7 @@
 // Keys: bg:last (hash id -> last house beg), bg:n:<reset> (hash id -> house begs that day), bg:p:<reset> (hash from:to -> begs),
 // bg:a:<ask id> (an ask, JSON, a day), bg:open:<id> (their open ask id, 10 min), bg:lock:<id> (double taps), bg:done:<ask id>.
 import { randomBytes, randomInt } from 'node:crypto';
-import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds, DEBIT, lastReset, weekKey } from './_blackjack.js';
+import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds, DEBIT, lastReset, weekKey, nameCmd } from './_blackjack.js';
 
 export const BEG = { cooldown: 3600e3, perDay: 3, under: 250, def: 10, max: 100, answer: 600e3, pairPerDay: 3 };
 const DAY = 86400e3, KEEP_WEEKS = 120 * 86400;
@@ -111,7 +111,7 @@ export async function begHouse(me, now = Date.now()) {
     let line = null;
     if (r.kind === 'nothing') { for (let k = 0; k < 10 && !line; k++) line = fill(pick(NOTHING), others); }
     else line = pick(r.kind === 'crumbs' ? CRUMBS : r.kind === 'regular' ? REGULAR : r.kind === 'whale' ? WHALE : PICKPOCKET).replace('$X', `**${money(Math.abs(r.amt))}**`);
-    const cmds = [['HSET', 'bg:last', me.id, now], ['HINCRBY', nKey, me.id, 1], ['EXPIRE', nKey, 2 * 86400], ['HSET', 'bj:name', me.id, me.name],
+    const cmds = [['HSET', 'bg:last', me.id, now], ['HINCRBY', nKey, me.id, 1], ['EXPIRE', nKey, 2 * 86400], nameCmd(me),
       ...stat(me.id, 'beg'), ['HSET', 'ac:n:' + me.id, 'beglast', now],
       ...(r.kind === 'nothing' ? stat(me.id, 'begzero') : r.kind === 'whale' ? stat(me.id, 'begwhale') : r.kind === 'pickpocket' ? stat(me.id, 'begpick') : [])];
     if (r.amt) cmds.push(['HINCRBYFLOAT', 'bj:bal', me.id, r.amt], ...bookCmds('beg', -r.amt), ...feedCmds(me, 'beg', r.amt));
@@ -161,7 +161,7 @@ export async function begPlayer(i, me, to, amt, note, now = Date.now()) {
   if ((+theirs || 0) < amt) return quiet(`${to.name} only has ${money(+theirs || 0)}. Beg someone who can afford it.`);
   const a = { id: randomBytes(6).toString('hex'), from: me, to: { id: to.id, name: to.name }, amt, note, at: now };
   await kv(['SET', 'bg:a:' + a.id, JSON.stringify(a), 'EX', 86400], ['SET', 'bg:open:' + me.id, a.id, 'PX', BEG.answer],
-    ['HINCRBY', pKey, pair, 1], ['EXPIRE', pKey, 2 * 86400], ['HSET', 'bj:name', me.id, me.name], ['HSETNX', 'bj:name', to.id, to.name]);
+    ['HINCRBY', pKey, pair, 1], ['EXPIRE', pKey, 2 * 86400], nameCmd(me), ['HSETNX', 'bj:name', to.id, to.name]);
   const v = askView(a);
   return json({ type: 4, data: { ...v, content: `<@${to.id}>`, allowed_mentions: { users: [to.id] } } });
 }

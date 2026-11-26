@@ -15,7 +15,7 @@
 // plus Renato / admins / pitbosses; once the opener leaves the table, any server member can pick them up.
 // Live updates: after each change the public table is published to Ably "live:table" (same ABLY_API_KEY as the poker room).
 import { createHmac, randomBytes } from 'node:crypto';
-import { kv, takeChips, feedCmds } from './_blackjack.js';
+import { kv, takeChips, feedCmds, nameCmd } from './_blackjack.js';
 import { postChannel } from './_rewards.js';
 import { isHost, isMember } from './_poker.js';
 import * as E from './_livegame.js';
@@ -130,7 +130,7 @@ export async function liveWeb(req, me, out) {
 
   switch (b.a) {
     case 'token': return ablyKey() ? out({ token: tokenRequest(me.id) }) : out({ err: 'Live updates are not set up.' });
-    case 'sit': { const r = await change((T, now) => E.sit(T, who, int(b.seat), now), t); if (!r.err) await kv(['HSET', 'bj:name', me.id, me.name]).catch(() => {}); return done(r); }
+    case 'sit': { const r = await change((T, now) => E.sit(T, who, int(b.seat), now), t); if (!r.err) await kv(nameCmd(me)).catch(() => {}); return done(r); }
     case 'leave': return done(await change((T, now) => E.leave(T, who, now), t));
     case 'bet': {
       const pre = await load(), i = E.seatOf(pre, me.id), bet = int(b.bet), side = Math.max(0, int(b.side) || 0);

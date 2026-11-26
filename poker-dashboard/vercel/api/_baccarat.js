@@ -3,7 +3,7 @@
 //   Tie 8:1. Player and Banker bets push on a tie.
 // The buttons under a result deal a new hand for whoever presses them (same bet), so anyone can join in.
 import { randomInt } from 'node:crypto';
-import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, MAX_BET, feedCmds, takeChips } from './_blackjack.js';
+import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, MAX_BET, feedCmds, takeChips, nameCmd } from './_blackjack.js';
 
 const SITE = 'https://www.thepoker.study';
 export const DEFAULT_BET = 20;
@@ -50,7 +50,7 @@ export async function playHand(me, side, bet) {
   if (took.short && took.had === null) return { err: "You don't have any chips yet. Use **/daily** to get some free." };
   if (took.short) return { err: `You only have ${money(took.had)}. Bet that or less.` };
   const c = coup(), back = payout(side, bet, c.winner), net = Math.round((back - bet) * 100) / 100;
-  const [bal] = await kv(back ? ['HINCRBYFLOAT', 'bj:bal', me.id, back] : ['HGET', 'bj:bal', me.id], ['HSET', 'bj:name', me.id, me.name], ...feedCmds(me, 'baccarat', net, bet));
+  const [bal] = await kv(back ? ['HINCRBYFLOAT', 'bj:bal', me.id, back] : ['HGET', 'bj:bal', me.id], nameCmd(me), ...feedCmds(me, 'baccarat', net, bet));
   return { c, back, net, bal: +bal };
 }
 

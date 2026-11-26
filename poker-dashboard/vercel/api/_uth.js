@@ -10,7 +10,7 @@
 //   (royal 50, straight flush 40, quads 30, full house 8, flush 7, straight 4, three of a kind 3).
 // Keys: uth:g:<id> (the hand, 1 hour), uth:lock:<id> (stops double taps).
 import { randomBytes } from 'node:crypto';
-import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, freshDeck, feedCmds, takeChips } from './_blackjack.js';
+import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, freshDeck, feedCmds, takeChips, nameCmd } from './_blackjack.js';
 
 const SITE = 'https://www.thepoker.study';
 export const MAX_ANTE = 100, MAX_TRIPS = 100, DEFAULT_ANTE = 10;
@@ -164,7 +164,7 @@ export async function newHand(me, ante, trips) {
   if (took.short) return { err: `This hand needs ${money(need)} to start: ante + blind${trips ? ' + trips' : ''}, plus ${money(ante)} held so you can always make the river bet (you get it back if you fold). You have ${money(took.had)}.` };
   const deck = freshDeck(), g = { id: randomBytes(5).toString('hex'), uid: me.id, name: me.name, ante, trips, play: 0, held: ante, step: 0, stage: 'pre' };
   g.me = [deck.pop(), deck.pop()]; g.dealer = [deck.pop(), deck.pop()]; g.board = [deck.pop(), deck.pop(), deck.pop(), deck.pop(), deck.pop()];
-  await kv(['HSET', 'bj:name', me.id, me.name], ['SET', 'uth:g:' + g.id, JSON.stringify(g), 'EX', 3600]);
+  await kv(nameCmd(me), ['SET', 'uth:g:' + g.id, JSON.stringify(g), 'EX', 3600]);
   return { g, bal: took.bal };
 }
 

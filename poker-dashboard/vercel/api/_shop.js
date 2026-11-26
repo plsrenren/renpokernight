@@ -13,7 +13,7 @@
 // or the site picks it back up); once its sh:pk key runs out, whatever was still face down simply shows up.
 // Chips come off with one storage script (DEBIT) so two taps can never spend chips you don't have.
 import { randomBytes, randomInt } from 'node:crypto';
-import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds, DEBIT } from './_blackjack.js';
+import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds, DEBIT, nameCmd } from './_blackjack.js';
 import { ITEMS, BY_ID, PRICE, REFUND, ODDS, TIERS, SLOT_NAMES, PACKS, rollPack, itemFor, tierRank, championsFrom, RETIRED } from '../loot.js';
 import { earnedIds } from './_accolades.js';
 
@@ -104,6 +104,7 @@ export async function ownersAll(sh) {
   if (sh && sh.ids && sh.recs) for (const [name, ids] of Object.entries(championsFrom(sh.recs))) {
     const u = sh.ids[name]; if (!u) continue; if (!people[u]) people[u] = name; ids.forEach(id => add(id, u));
   }
+  if (sh && sh.ids) for (const [name, u] of Object.entries(sh.ids)) if (u && people[u]) people[u] = name; // linked players: Members-tab name
   const holders = new Set(Object.values(own).flat());
   for (const u of Object.keys(people)) if (!holders.has(u)) delete people[u];
   const body = { own, people, n: holders.size };
@@ -127,7 +128,7 @@ export async function buyPack(me) {
     const back = cards.reduce((s, [id, dup]) => s + (dup ? REFUND[BY_ID[id].tier] : 0), 0);
     const pack = { id: randomBytes(6).toString('hex'), uid: me.id, name: me.name, d: PACKS[randomInt(PACKS.length)].id, cards, f: [0, 0, 0], torn: false, back, at: Date.now() };
     const res = await kv(...cards.map(([id]) => ['HINCRBY', 'sh:own:' + me.id, id, 1]),
-      ['HINCRBYFLOAT', 'bj:bal', me.id, back], ['HINCRBY', 'sh:packs', me.id, 1], ['DEL', 'sh:cnt'], ['HSET', 'bj:name', me.id, me.name], ['HLEN', 'sh:own:' + me.id],
+      ['HINCRBYFLOAT', 'bj:bal', me.id, back], ['HINCRBY', 'sh:packs', me.id, 1], ['DEL', 'sh:cnt'], nameCmd(me), ['HLEN', 'sh:own:' + me.id],
       ...feedCmds(me, 'study cards', back - PRICE));
     pack.bal = +res[3]; pack.owned = +res[7];
     await kv(savePack(pack), ['SADD', 'sh:open:' + me.id, pack.id]);
@@ -173,7 +174,7 @@ export async function tip(from, to, amount) {
   try {
     const [r] = await kv(['EVAL', MOVE, 1, 'bj:bal', from.id, to.id, amount]);
     if (String(r[0]) === '-1') return { err: +r[1] > 0 ? `You only have ${money(+r[1])}.` : "You don't have any chips yet. Use **/daily** to get some free." };
-    await kv(['HSET', 'bj:name', from.id, from.name], ['HSETNX', 'bj:name', to.id, to.name], ...feedCmds(from, 'tip to ' + to.name, -amount), ...feedCmds({ ...to, src: from.src }, 'tip from ' + from.name, amount));
+    await kv(nameCmd(from), ['HSETNX', 'bj:name', to.id, to.name], ...feedCmds(from, 'tip to ' + to.name, -amount), ...feedCmds({ ...to, src: from.src }, 'tip from ' + from.name, amount));
     return { from: +r[0], to: +r[1] };
   } finally { await unlock(from.id); }
 }

@@ -115,6 +115,7 @@ async function sheet() {
   cache = { at: Date.now(), recs: gameRecords(csv), ids: memberIds(members), csv };
   return cache;
 }
+sheet.peek = () => cache; // whatever copy is in memory right now, without fetching (empty on a cold start)
 
 // names for the invite list come from the sheet copy in memory (no wait on Google); Discord names when there's none yet
 const webRoute = req => { const w = new URL(req.url).searchParams.get('web'); return w === 'login' || w === 'casino' || w === 'shop' || w === 'poker' || w === 'live' || w === 'me' ? w : null; };
