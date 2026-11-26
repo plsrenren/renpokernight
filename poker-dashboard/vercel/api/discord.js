@@ -122,7 +122,7 @@ sheet.peek = () => cache; // whatever copy is in memory right now, without fetch
 const webRoute = req => { const w = new URL(req.url).searchParams.get('web'); return w === 'login' || w === 'casino' || w === 'shop' || w === 'poker' || w === 'live' || w === 'me' ? w : null; };
 
 // casino replies carry their table picture as an upload (see _attach.js), so it shows with the message instead of loading after it
-const PIC_BUTTONS = /^(bj|du|uth|ro|ba|sh):/, PIC_COMMANDS = ['blackjack', 'freebet', 'duel', 'uth', 'baccarat', 'roulette', 'pack'];
+const PIC_BUTTONS = /^(bj|du|uth|ro|ba|sh):/, PIC_COMMANDS = ['blackjack', 'freebet', 'madness', 'duel', 'uth', 'baccarat', 'roulette', 'pack'];
 // after an answer is sent: checks the players whose casino numbers just changed for new accolades (see _accolades.js)
 const accoladesLater = () => { if (!kvUrl() || !kvToken()) return;
   waitUntil(checkAccolades({ ids: cache.ids }).catch(e => console.error('accolades', e)));
@@ -232,7 +232,7 @@ async function answer(i) {
   }
   // chip commands answer from the sheet copy already in memory (names only) instead of waiting on Google: a slow sheet read
   // could push the reply past Discord's 3 seconds after the bet was already taken. The copy refreshes in the background.
-  const CHIP = ['daily', 'blackjack', 'freebet', 'chips', 'pack', 'loadout', 'tip', 'duel', 'uth', 'baccarat', 'house', 'earn', 'jackpot', 'beg'];
+  const CHIP = ['daily', 'blackjack', 'freebet', 'madness', 'chips', 'pack', 'loadout', 'tip', 'duel', 'uth', 'baccarat', 'house', 'earn', 'jackpot', 'beg'];
   const chipCmd = CHIP.includes(i.data.name);
   if (chipCmd && (i.data.name === 'daily' || i.data.name === 'duel')) waitUntil(sweepDuels().catch(e => console.error('duel sweep', e))); // refunds stuck duels
   const s = chipCmd ? (cache.recs ? cache : null) : await sheet();
@@ -291,7 +291,7 @@ function earnEmbed() {
       { name: '🤝 /tip', value: 'Any player can send you chips.' },
       { name: '🥺 /beg', value: `Beg the house for spare chips (${BEG.perDay} a day, only under $${BEG.under}), or /beg someone and see if they give, gamble it for you or laugh.` },
     ],
-    footer: { text: 'Spend them at /blackjack, /freebet, /uth, /baccarat, /roulette, /duel, /pack or the site casino' } };
+    footer: { text: 'Spend them at /blackjack, /freebet, /madness, /uth, /baccarat, /roulette, /duel, /pack or the site casino' } };
 }
 
 const stampNow = () => Math.floor(Date.now() / 600e3); // Discord re-fetches pictures at most every 10 minutes

@@ -5,6 +5,8 @@
 //   r=win.lose         result per hand when over (win, bj, push, lose, bust)
 //   b=20.20            bet per hand, n=player name
 //   f=0.20             Free Bet: free money per hand (gold FREE tag); s=5 Push 22 side bet; x=d22.sw (dealer 22 pushed, side bet won / sl lost)
+//   sb=War~5~WIN 1:1|Match~5~LOSE   side bet lines (name~amount~result tag, tag empty while open): War / Match (Double Down Madness), Pot of Gold (Free Bet)
+//   mx=4               Double Down Madness: the bet is 4x the first one (orange tag)
 //                      Up to 6 hands: 3 or more switch to two columns of smaller cards (5+ cards fan out), same width, just taller.
 //   m=uth&d=XX.XX&b=7H.6C.KH.__.__&p=9H.8H&n=Renato&ph=Flush&dh=Pair of kings&r=win   the /uth table instead (__ = card not out yet)
 //   m=bac&p=9S.KD&b=4H.2C.7S&w=player&n=Renato&s=banker   the /baccarat picture: Player and Banker hands, winner tagged
@@ -68,7 +70,7 @@ const label = (text, extra) => h('div', { alignItems: 'center', gap: 8 * S, font
 const RES = { win: ['WIN', '#8ee0b0', '#0e2a1c'], bj: ['BLACKJACK', '#f1c75b', '#2a1f00'], push: ['PUSH', '#9a94c4', '#16132b'], lose: ['LOSE', '#f59bb0', '#3a0d18'], bust: ['BUST', '#f59bb0', '#3a0d18'] };
 const tag = r => RES[r] ? h('div', { backgroundColor: RES[r][1], color: RES[r][2], fontFamily: 'Nunito', fontWeight: 900, fontSize: 11 * S, letterSpacing: 1 * S, padding: `${2 * S}px ${7 * S}px`, borderRadius: 5 * S }, RES[r][0]) : null;
 
-export function table({ dealer, hands, activeIdx, results, bets, frees = [], side = 0, flags = [], name }) {
+export function table({ dealer, hands, activeIdx, results, bets, frees = [], side = 0, flags = [], name, sides = [], mx = 0 }) {
   const shown = dealer.filter(c => c !== 'XX');
   const dTot = total(shown).t, hidden = shown.length < dealer.length;
   const many = hands.length > 2;
@@ -79,13 +81,16 @@ export function table({ dealer, hands, activeIdx, results, bets, frees = [], sid
     label(hands.length > 1 ? (many ? `Hand ${k + 1}` : `${name} · hand ${k + 1}`) : name,
       [betTag(bets[k]),
        +frees[k] ? tagText(`FREE $${frees[k]}`, '#f1c75b', '#2a1f00') : null,
+       mx > 1 && k === 0 ? tagText(`${mx}X`, '#ff9f5a', '#2a1200') : null,
        activeIdx === k && hands.length > 1 ? h('div', { color: '#a9b4f6' }, '· PLAYING') : null, tag(results[k])]),
     row(cs, handTot(cs, k), activeIdx !== null && hands.length > 1 && activeIdx !== k, many));
   const d22 = flags.includes('d22'), sw = flags.includes('sw'), sl = flags.includes('sl');
   return h('div', { width: W * S, flexDirection: 'column', gap: 12 * S, padding: `${14 * S}px ${16 * S}px`, ...FELT, boxSizing: 'border-box' },
     h('div', { flexDirection: 'column', gap: 6 * S }, label('Dealer', d22 ? tagText('22 PUSHES', '#9a94c4', '#16132b') : null), row(dealer, hidden ? `${dTot} + ?` : String(dTot), false, false)),
     many ? h('div', { flexWrap: 'wrap', columnGap: 16 * S, rowGap: 10 * S }, hands.map(handBox)) : hands.map(handBox),
-    side ? label('Push 22 side bet', [betTag(side), sw ? tagText('WIN 12:1', '#8ee0b0', '#0e2a1c') : sl ? tag('lose') : null]) : null);
+    side ? label('Push 22 side bet', [betTag(side), sw ? tagText('WIN 12:1', '#8ee0b0', '#0e2a1c') : sl ? tag('lose') : null]) : null,
+    sides.length ? h('div', { flexWrap: 'wrap', columnGap: 18 * S, rowGap: 6 * S }, sides.map(([nm, amt, t]) => label(nm, [betTag(amt), t ? tagText(t,
+      /^WIN/.test(t) ? '#8ee0b0' : /^LOSE/.test(t) ? '#f59bb0' : /^TIE/.test(t) ? '#9a94c4' : '#f1c75b', /^WIN/.test(t) ? '#0e2a1c' : /^LOSE/.test(t) ? '#3a0d18' : '#16132b') : null]))) : null);
 }
 const tagText = (t, bg, fg) => h('div', { backgroundColor: bg, color: fg, fontFamily: 'Nunito', fontWeight: 900, fontSize: 11 * S, letterSpacing: 1 * S, padding: `${2 * S}px ${7 * S}px`, borderRadius: 5 * S }, t);
 
@@ -154,7 +159,9 @@ export async function render(q) {
   const hands = split(q.get('p'), '-').slice(0, 6).map(x => split(x, '.').slice(0, 12));
   const a = q.get('a'), activeIdx = a === null || a === '' ? null : +a;
   const svg = await satori(table({ dealer, hands, activeIdx, results: split(q.get('r'), '.'), bets: split(q.get('b'), '.'), frees: split(q.get('f'), '.'),
-    side: Math.min(25, Math.max(0, Math.floor(+q.get('s') || 0))), flags: split(q.get('x'), '.'), name: (q.get('n') || 'You').slice(0, 24) }),
+    side: Math.min(25, Math.max(0, Math.floor(+q.get('s') || 0))), flags: split(q.get('x'), '.'), name: (q.get('n') || 'You').slice(0, 24),
+    sides: split(q.get('sb'), '|').slice(0, 3).map(x => x.split('~')).map(([nm, amt, t]) => [String(nm || '').slice(0, 14), Math.min(25, Math.max(0, Math.floor(+amt || 0))), String(t || '').slice(0, 16)]),
+    mx: Math.min(1024, Math.max(0, Math.floor(+q.get('mx') || 0))) }),
     { width: W * S, fonts: fonts() });
   return new Resvg(svg, { fitTo: { mode: 'width', value: W * S } }).render().asPng();
 }

@@ -225,6 +225,8 @@ export const ACC = [
   { k: 'bjenjoyer', slot: 'Title', name: 'BJ Enjoyer', why: '250 blackjack hands', need: '250 hands of blackjack', hands: 'blackjack' },
   { k: 'ultimate', slot: 'Title', name: 'The Ultimate', why: '250 UTH hands', need: "250 hands of Ultimate Texas Hold'em", hands: 'UTH' },
   { k: 'freebjs', slot: 'Title', name: 'Free BJs', why: '250 free bet hands', need: '250 hands of Free Bet Blackjack', hands: 'free bet' },
+  { k: 'madman', slot: 'Title', name: 'Certified Madman', why: '250 madness hands', need: '250 hands of Double Down Madness', hands: 'madness' },
+  { k: 'madlad', slot: 'Title', name: 'Absolute Madlad', why: 'Won a hand at 8x', need: 'double three times in one hand of Double Down Madness and win it' },
   { k: 'asianmale', slot: 'Title', name: 'Asian Male', why: '250 baccarat hands', need: '250 hands of baccarat', hands: 'baccarat' },
   { k: 'allonblack', slot: 'Title', name: 'All on Black', why: '250 roulette spins', need: '250 roulette spins', hands: 'roulette' },
   { k: 'believer', slot: 'Title', name: 'True Believer', why: 'Won a lone number bet', need: 'every chip on one roulette number, and it hits' },
