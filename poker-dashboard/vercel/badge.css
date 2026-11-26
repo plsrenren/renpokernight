@@ -68,11 +68,16 @@ html .sbar-mk b { font: 400 24px/1 "Bebas Neue", Impact, sans-serif; letter-spac
 html .sbar-mk:hover b { color: #f1c75b; }
 html .sbar-nav { display: flex; gap: 2px; margin-left: 14px; height: 100%; }
 html .sbn { position: relative; display: flex; align-items: center; }
-html .sbn > button { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 6px; height: 34px; padding: 3px 12px 0;
-  font: 400 17px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .1em; color: #9a94c4; }
-html .sbn > button:hover, html .sbn.open > button { color: #ece9fb; }
-html .sbn.cur > button { color: #15132a; background: #f1c75b; }
-html .sbn > button:focus-visible, html .sbar-all:focus-visible { outline: 2px solid #f1c75b; outline-offset: 2px; }
+/* name = link to the group's main page, caret = opens the list (one pill) */
+html .sbn-h { display: flex; align-items: stretch; height: 34px; color: #9a94c4; }
+html .sbn-h > a, html .sbn-h > button { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; color: inherit;
+  font: 400 17px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .1em; }
+html .sbn-h > a { padding: 3px 4px 0 12px; }
+html .sbn-h > a, html .sbn-h > a:visited { color: inherit; text-decoration: none; }
+html .sbn-h > button { padding: 1px 12px 0 4px; }
+html .sbn-h > a:hover, html .sbn-h > button:hover, html .sbn:hover .sbn-h, html .sbn.open .sbn-h { color: #ece9fb; }
+html .sbn.cur .sbn-h, html .sbn.cur .sbn-h > a:hover, html .sbn.cur .sbn-h > button:hover { color: #15132a; background: #f1c75b; }
+html .sbn-h > a:focus-visible, html .sbn-h > button:focus-visible, html .sbar-all:focus-visible { outline: 2px solid #f1c75b; outline-offset: 2px; }
 html .sbn-c { width: 10px; height: 6px; margin-top: -2px; }
 html .sbn-m { position: absolute; left: 0; top: calc(100% - 4px); min-width: 190px; display: none; flex-direction: column; padding: 4px 0;
   background: #1d1a37; border-top: 3px solid #f1c75b; box-shadow: 0 14px 30px rgba(0,0,0,.55); z-index: 95; }
@@ -95,7 +100,8 @@ html .sbar-all .sbn-c { width: 12px; height: 8px; margin: 0; }
 html .sbar-sheet { position: absolute; left: 0; right: 0; top: 100%; background: #1d1a37; border-top: 3px solid #f1c75b; box-shadow: 0 14px 30px rgba(0,0,0,.55); padding: 6px 0 10px; }
 html .sbar-sheet[hidden] { display: none; }
 html .sbs-g { display: flex; flex-direction: column; }
-html .sbs-g > span { font: 400 13px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .14em; color: #9a94c4; padding: 12px 16px 4px; }
+html .sbar-sheet a.sbs-h { font: 400 13px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .14em; color: #9a94c4; padding: 12px 16px 4px; }
+html .sbar-sheet a.sbs-h:hover { background: none; color: #ece9fb; }
 
 /* phones: logo + THE STUDY + caret for every page, badge = face + chips (name and title live in the card) */
 @media (max-width: 640px) {

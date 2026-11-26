@@ -4,7 +4,7 @@
 // this quarter on the sheet, cosmetics owned, links. Phones show just face + chips; name and title move into the card.
 // Load: <script type="module" src="/badge.js"></script>. The badge lives in the SITE BAR this script also draws (Nov 25 2026,
 // Renato's pick B + "1 Menus"): one slim bar across the top of every page = logo + THE STUDY (home), three menus Stats / Casino /
-// Cards (hover or tap for their pages), badge on the right. Phones: the menus fold into a caret next to THE STUDY (no bottom
+// Cards (click the name for the group's main page; hover, or tap the caret, for the rest), badge on the right. Phones: the menus fold into a caret next to THE STUDY (no bottom
 // tab bar on any page, Renato's call Nov 25 2026). Pages keep only their own big title.
 // Cost: signed out = no call at all (the readable cas_in cookie says nobody signed in; a browser without it asks /api/me once a
 // week, for sessions made before the marker existed). Signed in = GET /api/me, kept 2 minutes in localStorage so clicking
@@ -40,22 +40,23 @@ function mount() {
   bar.className = 'sbar'; bar.setAttribute('role', 'banner');
   bar.innerHTML = `<a class="sbar-mk" href="/" aria-label="Poker Club @ The Study, dashboard"><i aria-hidden="true"></i><b>THE STUDY</b></a>
     <button type="button" class="sbar-all" aria-label="Pages" aria-expanded="false">${CARET}</button>
-    <nav class="sbar-nav" aria-label="Pages">${MENU.map(([g, pages]) => `<div class="sbn${groupOn(pages) ? ' cur' : ''}"><button type="button" aria-expanded="false">${g}${CARET}</button><div class="sbn-m">${list(pages)}</div></div>`).join('')}</nav>
+    <nav class="sbar-nav" aria-label="Pages">${MENU.map(([g, pages]) => `<div class="sbn${groupOn(pages) ? ' cur' : ''}"><span class="sbn-h"><a href="${pages[0][0]}">${g}</a><button type="button" aria-label="${g} pages" aria-expanded="false">${CARET}</button></span><div class="sbn-m">${list(pages)}</div></div>`).join('')}</nav>
     <div class="sb" id="sb"></div>
-    <div class="sbar-sheet" hidden>${MENU.map(([g, pages]) => `<div class="sbs-g"><span>${g}</span>${list(pages)}</div>`).join('')}</div>`;
+    <div class="sbar-sheet" hidden>${MENU.map(([g, pages]) => `<div class="sbs-g"><a class="sbs-h" href="${pages[0][0]}">${g}</a>${list(pages)}</div>`).join('')}</div>`;
   document.body.prepend(bar);
   const sp = document.createElement('div'); sp.className = 'sbar-sp'; bar.after(sp); // keeps the page clear of the bar
   document.documentElement.classList.add('has-sbar');
   host = bar.querySelector('#sb');
-  // menus: hover opens on a mouse (CSS); a tap/click toggles, one at a time
-  bar.querySelectorAll('.sbn > button').forEach(b => b.addEventListener('click', e => {
-    e.stopPropagation(); const g = b.parentNode, o = !g.classList.contains('open');
+  // menus: the name is a link to the group's main page (Stats = dashboard, Casino = lobby, Cards = shop & loadout; Renato, Nov 26
+  // 2026). Hover opens the list on a mouse (CSS); the caret next to the name toggles it on a tap/click, one at a time
+  bar.querySelectorAll('.sbn-h > button').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation(); const g = b.closest('.sbn'), o = !g.classList.contains('open');
     closeMenus(); g.classList.toggle('open', o); b.setAttribute('aria-expanded', o); }));
   const all = bar.querySelector('.sbar-all'), sheet = bar.querySelector('.sbar-sheet');
   all.addEventListener('click', e => { e.stopPropagation(); const o = sheet.hidden; closeMenus(); sheet.hidden = !o; all.setAttribute('aria-expanded', o); });
 }
 function closeMenus() {
-  document.querySelectorAll('.sbn.open').forEach(g => { g.classList.remove('open'); const b = g.querySelector('button'); b && b.setAttribute('aria-expanded', 'false'); });
+  document.querySelectorAll('.sbn.open').forEach(g => { g.classList.remove('open'); const b = g.querySelector('.sbn-h > button'); b && b.setAttribute('aria-expanded', 'false'); });
   const sh = document.querySelector('.sbar-sheet'); if (sh) sh.hidden = true;
   const all = document.querySelector('.sbar-all'); if (all) all.setAttribute('aria-expanded', 'false');
 }

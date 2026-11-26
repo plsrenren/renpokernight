@@ -60,7 +60,7 @@ poker-dashboard/
     badge.js/.css      Site bar + sign-in badge (Nov 25 2026, Renato's picks: badge B "seat plate", header B "slim site bar", links "1 Menus").
                        badge.js (script tag on index/recap/hall/h2h/casino/shop/poker/live/collection) injects <header class="sbar"> at the very top of
                        every page: logo + THE STUDY (links home), three dropdown menus from MENU (Stats: Dashboard/Recap/Hall of Fame/Head to head;
-                       Casino: Lobby/Poker room/Live tables; Cards: Shop & loadout/Collection; hover or click, current group gold), then the badge
+                       Casino: Lobby/Poker room/Live tables; Cards: Shop & loadout/Collection; the menu name links to the first page (Stats = /, Casino = /casino, Cards = /shop; Nov 26 2026), hover or tap the caret for the list, current group gold), then the badge
                        (<div id="sb">). Pages no longer carry their own logo/back links/"me" corners. Phones: menus become a caret sheet listing every
                        page; no bottom tab bar on any page (removed Nov 25 2026, Renato's call). Dashboard h1 breaks as
                        "Poker Club / @ The Study" (span.nb nowrap). Add a page = add it to MENU. No flash on load (Nov 25 2026): every page links badge.css + lateshow/cosmetics/plates/table-kit CSS in <head> (they used to sit at the end of <body>, so pages painted unstyled first), and badge.css holds the bar's 54px spot (html:not(.has-sbar) body::before) until badge.js draws it. New pages: put stylesheets in <head>. Badge: signed out = Discord SIGN IN tag
