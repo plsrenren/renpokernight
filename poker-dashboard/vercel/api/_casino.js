@@ -140,7 +140,7 @@ async function state(me, sheet) {
   await fixNames(names, sn);
   const body = { me: null, board: board.slice(0, 15), players: board.length, feed, maxBet: MAX_BET, maxPush22: MAX_PUSH22, maxAnte: MAX_ANTE, maxTrips: MAX_TRIPS, uthPaytable: plain(UTH_PAYTABLE), rewards: REWARD_LIST, jackpot: jackpotView(jp),
     open: { live: liveSummary(ltRaw), poker: roomSummary(pkRaw) } };
-  // Game of the Week (see _featured.js): this week's game, the Player of the Week race, your own line
+  // Game of the Week (see _featured.js): this week's game, the Headliner race, your own line
   { const nm = {}; for (let k = 0; k < (names || []).length; k += 2) nm[names[k]] = names[k + 1];
     body.featured = featuredView(gwNet, gwN, id => sn[id] || nm[id] || 'Someone', me ? me.id : null); }
   // the quarter lottery panel (needs the sheet; left out if it can't be read)

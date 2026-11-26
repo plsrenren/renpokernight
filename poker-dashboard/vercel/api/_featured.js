@@ -4,9 +4,11 @@
 //   - Losing hands on the featured game put GOTW.cut (4%) into the mystery jackpot instead of JP.cut (2%), see jackpotCmds.
 //     A bigger slice also makes those hands twice as likely to be the one that crosses the secret drop point, so the
 //     "double odds" need no rule of their own.
-//   - Player of the Week: biggest net win on the featured game that week, GOTW.minHands hands or more (ties: more hands).
-//     Monday's cron (roles.js ?rakeback=1, after rakeback) bumps ac:n:<id> potw, checkAccolades stamps the title, and one
+//   - Headliner: biggest net win on the featured game that week, GOTW.minHands hands or more (ties: more hands).
+//     Monday's cron (roles.js ?rakeback=1, after rakeback) bumps ac:n:<id> gwwin, checkAccolades stamps the title, and one
 //     #casino post names the winner and kicks off the new week's game.
+//   - Titles (ACC in loot.js): Headliner (gwwin 1), Floor Favorite (gwwin 3), VIP (gwbest 4 = minHands+ featured hands 4 weeks
+//     running; gwrun/gwbest kept by awardWeek, gw:run = who has a run going), Comped (gwjack, bumped by the jackpot Lua on a featured hand).
 // Live table hands count too: they go through feedCmds like every other house hand.
 // Redis: gw:<week> (id -> net on the featured game), gw:n:<week> (id -> hands), 30 days; gw:done:<week> (award paid once).
 import { kv, money, weekKey, weekStart } from './_blackjack.js';
@@ -23,6 +25,8 @@ export const GAME_INFO = {
 };
 const WEEK = 7 * 864e5, ANCHOR = Date.UTC(2026, 10, 23), ANCHOR_IDX = 4, KEEP = 30 * 86400;
 const SITE = 'https://www.thepoker.study';
+// one more week in a row for VIP: gwrun + 1, keep the best in gwbest
+const RUN = "local r=redis.call('HINCRBY',KEYS[1],'gwrun',1) if r>tonumber(redis.call('HGET',KEYS[1],'gwbest') or '0') then redis.call('HSET',KEYS[1],'gwbest',r) end return r";
 
 /** The featured game ('blackjack' | 'UTH' | 'free bet' | 'baccarat' | 'roulette') for the casino week holding `now`. */
 export function featuredGame(now = Date.now()) {
@@ -34,7 +38,7 @@ export const featuredEnds = (now = Date.now()) => weekStart(now) + WEEK;
 
 // one command per featured hand: net + hand count for the week, kept 30 days
 const COUNT = "redis.call('HINCRBYFLOAT',KEYS[1],ARGV[1],ARGV[2]) redis.call('HINCRBY',KEYS[2],ARGV[1],1) redis.call('EXPIRE',KEYS[1],ARGV[3]) redis.call('EXPIRE',KEYS[2],ARGV[3]) return 1";
-/** Player of the Week counters for one finished house hand ([] unless it was the featured game). Appended by feedCmds. */
+/** Headliner race counters for one finished house hand ([] unless it was the featured game). Appended by feedCmds. */
 export function featuredCmds(id, game, net) {
   if (!id || game !== featuredGame()) return [];
   const wk = weekKey();
@@ -61,19 +65,24 @@ export function featuredView(netRaw, nRaw, nameOf, meId, now = Date.now()) {
     race: list.slice(0, 5), me: meId ? { net: mine ? mine.net : 0, hands: mine ? mine.hands : 0, rank: mine && mine.ok ? list.filter(r => r.ok).indexOf(mine) + 1 : null } : null };
 }
 
-/** Monday (cron, after rakeback): names last week's Player of the Week once, then posts the new week's game in #casino. */
+/** Monday (cron, after rakeback): names last week's Headliner once, moves VIP runs, then posts the new week's game in #casino. */
 export async function awardWeek(now = Date.now(), pot = null) {
   const last = weekKey(weekStart(now) - 1), lastGame = featuredGame(weekStart(now) - 1), game = featuredGame(now), G = GAME_INFO[game];
   const [first] = await kv(['SET', 'gw:done:' + last, String(now), 'NX', 'EX', 120 * 86400]);
   if (!first) return { week: last, skipped: 'already done' };
-  const [netRaw, nRaw, names] = await kv(['HGETALL', 'gw:' + last], ['HGETALL', 'gw:n:' + last], ['HGETALL', 'bj:name']);
+  const [netRaw, nRaw, names, runs] = await kv(['HGETALL', 'gw:' + last], ['HGETALL', 'gw:n:' + last], ['HGETALL', 'bj:name'], ['SMEMBERS', 'gw:run']);
   const nm = pairs(names), list = race(netRaw, nRaw, id => nm[id] || 'Someone'), w = winnerOf(list);
-  if (w) await kv(['HINCRBY', 'ac:n:' + w.id, 'potw', 1], ['SADD', 'ac:dirty', w.id]);
+  // VIP: weeks in a row with minHands+ featured hands (a week without them ends the run)
+  const ok = list.filter(r => r.ok).map(r => r.id), broke = (runs || []).filter(id => !ok.includes(id));
+  const cmds = [...ok.flatMap(id => [['EVAL', RUN, 1, 'ac:n:' + id], ['SADD', 'ac:dirty', id]]), ...broke.map(id => ['HSET', 'ac:n:' + id, 'gwrun', 0]),
+    ['DEL', 'gw:run'], ...(ok.length ? [['SADD', 'gw:run', ...ok]] : [])];
+  if (w) cmds.push(['HINCRBY', 'ac:n:' + w.id, 'gwwin', 1], ['SADD', 'ac:dirty', w.id]);
+  await kv(...cmds);
   const lines = [];
-  if (w) lines.push(`🏆 **Player of the Week:** <@${w.id}>, **+${money(w.net)}** on ${GAME_INFO[lastGame].short} over ${w.hands} hands. New title unlocked.`);
+  if (w) lines.push(`🏆 **Headliner:** <@${w.id}>, **+${money(w.net)}** on ${GAME_INFO[lastGame].short} over ${w.hands} hands. New title unlocked.`);
   const embed = { color: G.color, title: `⭐ Game of the Week: ${G.name}`, url: `${SITE}/casino#${G.route}`,
     description: `Every losing ${G.short} hand puts **${Math.round(GOTW.cut * 100)}%** into the mystery jackpot this week (other games 2%), so ${G.short} hands are twice as likely to drop it.\n`
-      + `Biggest ${G.short} winner by next Monday (${GOTW.minHands}+ hands) gets the **Player of the Week** title.`,
+      + `Biggest ${G.short} winner by next Monday (${GOTW.minHands}+ hands) is the week's **Headliner**.`,
     fields: [...(pot != null ? [{ name: 'Jackpot now', value: money(pot), inline: true }] : []),
       { name: 'Ends', value: `<t:${Math.floor(featuredEnds(now) / 1000)}:F>`, inline: true },
       { name: 'Play', value: `\`${G.cmd}\` or the site`, inline: true }] };

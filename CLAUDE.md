@@ -130,7 +130,8 @@ poker-dashboard/
                        Game of the Week: _featured.js (Nov 26 2026, Renato's pick, mockup https://claude.ai/artifact/WzSVBFfwQPHRjNk2CA4aov): one house game featured per casino week
                        (Mon 16:00 UTC), rotation blackjack > UTH > free bet > baccarat > roulette (week of Nov 23 2026 = roulette). Featured losing hands put GOTW.cut 4% in the jackpot
                        (jackpotCmds; double drop odds come with it). gw:<week>/gw:n:<week> = net/hands per player (featuredCmds via feedCmds, 1 EVAL). Monday cron (roles.js ?rakeback=1)
-                       awardWeek(): Player of the Week (top net, 20+ hands, ac:n potw -> title a:potw) + one #casino kickoff post. Lobby banner + race (state() reads gw), FEATURED tags,
+                       awardWeek(): Headliner (top net, 20+ hands, ac:n gwwin) + VIP runs (gwrun/gwbest, gw:run) + one #casino kickoff post. Titles: VIP (20+ featured hands 4 weeks running),
+                       Comped (jackpot on a featured hand, gwjack in the jackpot Lua), Headliner (win a week), Floor Favorite (win 3 weeks); 'Player of the Week' was renamed before anyone won it. Lobby banner + race (state() reads gw), FEATURED tags,
                        table line; Discord featured replies get a '⭐ Game of the Week' footer (featuredTag in discord.js), no jackpot talk in replies.
                        roulette: _roulette.js (/roulette shared 30s table; the opening call stays awake to spin, so discord.js maxDuration is 60; a table that never spun
                        is spun by the next tap, New round or /roulette for up to a day) + roulette.js (wheel picture)
