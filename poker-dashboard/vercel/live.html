@@ -201,14 +201,19 @@ select { background: var(--panel2); color: var(--fg); border: 0; padding: 8px 8p
 .dock .info .right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
 .dock .info .bal { font: 600 13px var(--mono); color: var(--gold); }
 .dock .info button.lk { background: none; color: var(--muted); font-size: 12px; text-decoration: underline; padding: 0; }
-.btns { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.ab { font: 400 20px var(--title); letter-spacing: .08em; background: var(--panel2); color: var(--fg); padding: 8px 6px 6px; min-height: 52px; }
-.ab.go { background: var(--pink); color: #fff; } .ab.up { background: var(--up); color: #0e2a1c; } .ab.gold { background: var(--gold); color: var(--ink); }
-.ab small { display: block; font: 500 10.5px var(--mono); letter-spacing: 0; opacity: .85; }
-.ab.ghost { visibility: hidden; }
+/* buttons = the solo tables' buttons on /casino (Nov 26 2026, Renato: "make sure the live table buttons are the same as the solo tables"):
+   same slanted .cbtn, colors, labels and places. Blackjack Hit gold / Stand pink / Double + Split dark (green when free); UTH Check|Fold left, Bet Nx $X gold right */
+.btns { display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); gap: 10px; align-items: center; }
+.dock .cbtn { transition: transform .08s, filter .12s, opacity .15s; }
+.dock .cbtn:disabled { opacity: .45; }
+.dock .cbtn:not(:disabled):active { transform: translateY(2px) scale(.97); filter: brightness(1.15); }
+.dock .cbtn.pressed:disabled { opacity: 1; filter: brightness(1.2); }
+.dock .cbtn.free { background: var(--up); color: #0e2a1c; }
+.btns .cbtn { font-size: 22px; padding: 11px 8px 9px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btns .cbtn.blank { visibility: hidden; }
 .dock .center { grid-column: 1 / -1; display: grid; place-items: center; }
 /* betting = chip rack (Nov 25 2026, Renato's pick A): tap a spot at your seat, tap chips to add, Undo / Clear / 2x, then Bet */
-.rackb { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(150px, 220px); gap: 12px; align-items: center; }
+.rackb { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(150px, 240px); gap: 12px; align-items: center; }
 .rack { display: flex; gap: 8px; }
 .chip { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; font: 400 18px/1 var(--title); color: #fff; letter-spacing: .02em; position: relative; flex: none; padding: 0;
   background: var(--c); box-shadow: inset 0 0 0 4px var(--c), inset 0 0 0 7px rgba(255,255,255,.85), 0 3px 0 rgba(0,0,0,.45); }
@@ -217,10 +222,10 @@ select { background: var(--panel2); color: var(--fg); border: 0; padding: 8px 8p
 html button.chip, html button.bspot { border-radius: 50%; } /* lateshow.css squares every button */
 .chip.c1 { --c: #f2f2f2; color: #15132a; } .chip.c1::before { border-color: #3b6fd6; } .chip.c5 { --c: #d93a4a; } .chip.c25 { --c: #2e9e5b; } .chip.c100 { --c: #22202f; } .chip.c500 { --c: #8f78f0; }
 .chip:disabled { opacity: .35; }
-.chip:not(:disabled):active, .ab:not(:disabled):active { transform: translateY(2px) scale(.97); filter: brightness(1.15); }
+.chip:not(:disabled):active { transform: translateY(2px) scale(.97); filter: brightness(1.15); }
 .tools { display: flex; gap: 6px; justify-content: flex-end; }
-.tools .ab { min-height: 44px; font-size: 17px; padding: 6px 12px 4px; flex: 0 1 76px; }
-.rackb .ab.go { min-height: 54px; }
+.tools .cbtn { font-size: 17px; padding: 9px 14px 7px; flex: 0 1 80px; text-align: center; }
+.rackb .cbtn.deal { font-size: 22px; padding: 14px 10px 12px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bspot { width: 62px; height: 62px; border-radius: 50%; border: 2px solid rgba(241,199,91,.55); background: rgba(0,0,0,.18); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0; color: rgba(241,199,91,.9); font: 400 11px/1 var(--title); letter-spacing: .1em; }
 .bspot .stks { transform: scale(.8); margin-bottom: -2px; } .bspot .btag { font-size: 11px; padding: 2px 4px 0; }
 .bspot.sm { width: 50px; height: 50px; } .bspot.on { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(241,199,91,.25), 0 0 16px rgba(241,199,91,.4); }
@@ -249,11 +254,12 @@ html button.chip, html button.bspot { border-radius: 50%; } /* lateshow.css squa
   .seat .cards .cd { width: 34px; height: 48px; font-size: 15px; padding: 3px 0 0 4px; } .seat .cards .cd i { font-size: 12px; } .seat .cards .cd + .cd { margin-left: -18px; }
   .seat .cards.sm .cd { width: 28px; height: 40px; font-size: 13px; } .seat .cards.sm .cd + .cd { margin-left: -15px; }
   .bets .btag { font-size: 11.5px; }
-  .ab { font-size: 18px; }
+  .btns .cbtn { font-size: 19px; padding: 11px 4px 9px; }
+  .btns .cbtn.free { font-size: 13px; letter-spacing: .02em; padding-left: 6px; padding-right: 10px; }
   .dock { height: 162px; }
   .rackb { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 8px; }
   .rack { grid-column: 1 / -1; justify-content: space-between; gap: 4px; } .chip { width: 50px; height: 50px; font-size: 17px; }
-  .tools .ab { padding: 6px 4px 4px; flex: 1; font-size: 16px; } .rackb .ab.go { min-height: 44px; }
+  .tools .cbtn { flex: 1; font-size: 15px; padding: 9px 4px 7px 2px; } .rackb .cbtn.deal { font-size: 19px; padding: 11px 6px 9px 4px; }
   .tbar .r { margin-left: 0; width: 100%; justify-content: flex-end; }
 }
 @media (prefers-reduced-motion: reduce) { .cd.in, .cd.turn, .res { animation: none; } .cd.in::after, .cd.turn::after { display: none; } }
@@ -350,11 +356,12 @@ function jpLive(t) {
   });
 }
 if (window.LIVE_API) window.liveUpdate = onTable; // the preview's stand-in for Ably
+let pressed = null; // the dock button just tapped (stays lit while the table answers, like /casino)
 async function act(body, okMsg) {
   if (busy) return; busy = true;
   try { const j = await api(body); if (j.err) toast(j.err); else if (okMsg) toast(okMsg); }
   catch (e) { toast("Couldn't reach the table. Try again."); }
-  finally { busy = false; render(); }
+  finally { busy = false; pressed = null; render(); }
 }
 let toastT = 0;
 function toast(msg) { const el = $('#toast'); el.textContent = msg; el.classList.remove('hidden'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.add('hidden'), 3600); }
@@ -570,7 +577,9 @@ function seatHTML(t, s, i, resDelay) {
 }
 
 // ---------- your buttons ----------
-const ghost = () => '<button class="ab ghost" disabled>·</button>';
+const ghost = () => '<button class="cbtn blank" disabled tabindex="-1" aria-hidden="true">·</button>';
+// same helper as /casino: a button that stays lit (pressed) while the table answers the tap
+const btn = (attr, label, cls, ok = true) => `<button class="cbtn ${cls}${pressed === attr ? ' pressed' : ''}" ${attr}${ok ? '' : ' disabled'}>${label}</button>`;
 function dockHTML(t) {
   const me = mySeat(), s = me >= 0 ? t.seats[me] : null, uth = t.game === 'uth';
   const bal = S.me ? `<span class="bal">Chips ${money(S.me.bal)}</span>` : '';
@@ -590,24 +599,25 @@ function dockHTML(t) {
     const cap = spotK === 'side' ? t.sideMax : max, cur = spotK === 'side' ? pend.side : pend.bet;
     const chips = [1, 5, 25, 100, 500].map(v => `<button class="chip c${v}" data-chip="${v}"${cur >= cap ? ' disabled' : ''} aria-label="Add ${money(v)}"><span>$${v}</span></button>`).join('');
     return `<div class="info"><span>${info}</span><span class="right">${bal}</span></div><div class="rackb"><div class="rack">${chips}</div>
-      <div class="tools"><button class="ab" data-b="undo"${hist.length ? '' : ' disabled'}>Undo</button><button class="ab" data-b="clear"${pend.bet || pend.side ? '' : ' disabled'}>Clear</button><button class="ab" data-b="x2"${pend.bet && pend.bet < max ? '' : ' disabled'}>2x</button></div>
-      <button class="ab go" data-b="bet"${low || S.me.bal < need ? ' disabled' : ''}>Bet<small>${money(need)}</small></button></div>`;
+      <div class="tools">${btn('data-b="undo"', 'Undo', 'ghost', hist.length > 0)}${btn('data-b="clear"', 'Clear', 'ghost', pend.bet + pend.side > 0)}${btn('data-b="x2"', '2x', 'ghost', pend.bet > 0 && pend.bet < max)}</div>
+      ${btn('data-b="bet"', `Bet ${money(need)}`, 'gold deal', !low && S.me.bal >= need && !busy)}</div>`;
   } else if (t.phase === 'act' && s.deciding) {
     if (uth) {
       const o = { pre: [['Check', 'chk'], ['Bet 4x', 'b4', 4]], flop: [['Check', 'chk'], ['Bet 2x', 'b2', 2]], river: [['Fold', 'fold'], ['Bet 1x', 'b1', 1]] }[t.street];
       const extra = m => Math.max(0, s.bet * m - s.bet); // the held 1x ante goes in first
       info = S.me.mine && S.me.mine.hand ? 'You have ' + S.me.mine.hand : 'Your move';
-      b = [`<button class="ab ${o[0][1] === 'fold' ? '' : 'gold'}" data-m="${o[0][1]}">${o[0][0]}</button>`, ghost(), ghost(),
-        `<button class="ab go" data-m="${o[1][1]}"${S.me.bal < extra(o[1][2]) ? ' disabled' : ''}>${o[1][0]}<small>${money(s.bet * o[1][2])}</small></button>`];
+      // check / fold on the left, the bet on the right: two wide buttons, like /casino
+      b = [btn(`data-m="${o[0][1]}"`, o[0][0], 'ghost'), btn(`data-m="${o[1][1]}"`, `${o[1][0]} ${money(s.bet * o[1][2])}`, 'gold', S.me.bal >= extra(o[1][2]))];
+      return `<div class="info"><span>${info}</span><span class="right">${bal}</span></div><div class="btns" style="--n:2">${b.join('')}</div>`;
     } else {
       const h = s.hands[s.active], two = h.cards.length === 2, splitAces = h.cards[0][0] === 'A' && s.hands.length > 1;
       const hard = !h.soft, fb = t.game === 'fb';
       const dblFree = fb && two && !splitAces && hard && h.t >= 9 && h.t <= 11, canDbl = two && !splitAces;
       const pair = two && !splitAces && cv(h.cards[0]) === cv(h.cards[1]) && s.hands.length < 6, splFree = fb && pair && cv(h.cards[0]) !== 10;
       info = s.hands.length > 1 ? `Hand ${s.active + 1} of ${s.hands.length}` : 'Your move';
-      b = [`<button class="ab up" data-m="hit">Hit</button>`, `<button class="ab gold" data-m="stand">Stand</button>`,
-        `<button class="ab" data-m="double"${!canDbl || (!dblFree && S.me.bal < s.bet) ? ' disabled' : ''}>${dblFree ? 'Free double' : 'Double'}<small>${dblFree ? 'on the house' : money(s.bet)}</small></button>`,
-        `<button class="ab" data-m="split"${!pair || (!splFree && S.me.bal < s.bet) ? ' disabled' : ''}>${splFree ? 'Free split' : 'Split'}<small>${splFree ? 'on the house' : money(s.bet)}</small></button>`];
+      b = [btn('data-m="hit"', 'Hit', 'gold'), btn('data-m="stand"', 'Stand', ''),
+        btn('data-m="double"', dblFree ? 'Free double' : 'Double', dblFree ? 'free' : 'ghost', canDbl && (dblFree || S.me.bal >= s.bet)),
+        btn('data-m="split"', splFree ? 'Free split' : 'Split', splFree ? 'free' : 'ghost', pair && (splFree || S.me.bal >= s.bet))];
     }
   } else {
     info = t.phase === 'bet' ? (s.locked ? `You're in. ${t.deadline ? 'Dealing in <b data-cd="bet"></b>' : ''}` : '') : t.phase === 'paused' ? 'The table is paused.'
@@ -641,6 +651,7 @@ function bindTable() {
     $('#hPause').onclick = () => act({ a: 'pause', on: !t.pause });
     $('#hClose').onclick = () => { drop = false; act({ a: 'close' }); };
   }
+  $('#dock').onpointerdown = e => { const b = e.target.closest('[data-m],[data-b="bet"]'); if (b && !b.disabled) b.classList.add('pressed'); };
   $('#dock').onclick = e => {
     const btn = e.target.closest('button'); if (!btn || btn.disabled) return;
     if (btn.dataset.chip) {
@@ -650,13 +661,13 @@ function bindTable() {
       try { localStorage.setItem('lt:bet', JSON.stringify(pend)); } catch (er) {}
       return render();
     }
-    if (btn.dataset.m) return act({ a: 'move', do: btn.dataset.m });
+    if (btn.dataset.m) { pressed = `data-m="${btn.dataset.m}"`; return act({ a: 'move', do: btn.dataset.m }); }
     const k = btn.dataset.b; if (!k) return;
     if (k === 'undo' && hist.length) Object.assign(pend, hist.pop());
     if (k === 'clear') { hist.push({ ...pend }); pend.bet = 0; pend.side = 0; }
     if (k === 'x2') { hist.push({ ...pend }); pend.bet = Math.min(t.betMax, pend.bet * 2); pend.side = Math.min(t.sideMax || 0, pend.side * 2); SND.chips(0, 2); }
     try { localStorage.setItem('lt:bet', JSON.stringify(pend)); } catch (er) {}
-    if (k === 'bet') return act({ a: 'bet', bet: pend.bet, side: pend.side });
+    if (k === 'bet') { pressed = 'data-b="bet"'; return act({ a: 'bet', bet: pend.bet, side: pend.side }); }
     render();
   };
 }
