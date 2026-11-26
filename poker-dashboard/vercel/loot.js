@@ -217,7 +217,11 @@ export const ACC = [
   { k: 'dipper', slot: 'Title', name: 'Double Dipper', why: 'Won the lottery twice', need: 'two quarter lottery jackpots' },
   { k: 'mystery', slot: 'Title', name: 'Mystery Machine', why: 'Hit the casino jackpot', need: 'win the casino jackpot (mystery drop)' },
   { k: 'struck', slot: 'Title', name: 'Struck Twice', why: 'Hit the jackpot twice', need: 'win the casino jackpot twice' },
-  { k: 'potw', slot: 'Title', name: 'Player of the Week', why: 'Won Game of the Week', need: 'biggest net win on the Game of the Week (20+ hands)' },
+  // Game of the Week titles (Nov 26 2026, Renato's picks; see api/_featured.js)
+  { k: 'vip', slot: 'Title', name: 'VIP', why: 'Featured game 4 weeks', need: '20+ featured-game hands 4 weeks in a row' },
+  { k: 'comped', slot: 'Title', name: 'Comped', why: 'Jackpot on featured game', need: 'drop the jackpot on a Game of the Week hand' },
+  { k: 'headliner', slot: 'Title', name: 'Headliner', why: 'Won Game of the Week', need: 'top net win on the Game of the Week (20+ hands)' },
+  { k: 'floorfav', slot: 'Title', name: 'Floor Favorite', why: 'Headliner 3 times', need: 'win Game of the Week 3 times' },
   { k: 'bjenjoyer', slot: 'Title', name: 'BJ Enjoyer', why: '250 blackjack hands', need: '250 hands of blackjack', hands: 'blackjack' },
   { k: 'ultimate', slot: 'Title', name: 'The Ultimate', why: '250 UTH hands', need: "250 hands of Ultimate Texas Hold'em", hands: 'UTH' },
   { k: 'freebjs', slot: 'Title', name: 'Free BJs', why: '250 free bet hands', need: '250 hands of Free Bet Blackjack', hands: 'free bet' },

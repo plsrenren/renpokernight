@@ -970,14 +970,14 @@ function gotwBanner() {
       <div class="perks">
         <div class="perk"><span class="k">${Math.round(f.cut * 100)}%</span><div>of every losing bet goes to the jackpot<small>Twice the usual 2%, so the pot fills faster while people play it</small></div></div>
         <div class="perk"><span class="k">2x</span><div>odds to be the hand that drops the jackpot<small>Your hand puts twice as much in, so it covers twice as much of the pot</small></div></div>
-        <div class="perk"><span class="k">TITLE</span><div>Player of the Week for the top ${esc(f.short)} winner<small>Biggest net win on ${esc(f.short)} this week, ${f.minHands} hands or more</small></div></div>
+        <div class="perk"><span class="k">TITLE</span><div>Headliner for the top ${esc(f.short)} winner<small>Biggest net win on ${esc(f.short)} this week, ${f.minHands} hands or more</small></div></div>
       </div>
       <div class="meta"><a class="cbtn" style="background:var(--gc);color:#15132a" href="#${f.route}">Play ${esc(f.short)}</a><span>${fLeft(f)} · switches ${fEnds(f)}</span></div></div>
-    <div><div class="rh">PLAYER OF THE WEEK RACE</div>${rows || `<div class="empty">Nobody has played ${esc(f.short)} yet this week. First ${f.minHands} hands put you on the board.</div>`}
+    <div><div class="rh">HEADLINER RACE</div>${rows || `<div class="empty">Nobody has played ${esc(f.short)} yet this week. First ${f.minHands} hands put you on the board.</div>`}
       ${mine ? `<div class="hint" style="margin:8px 0 0">${mine}</div>` : ''}</div></div></section>`;
 }
 const gotwLine = () => { const f = F(); if (!f || f.route !== route()) return '';
-  const me = f.me; return `<div class="gotwl" style="--gc:${f.css}">⭐ <b>Game of the Week.</b> Losing hands here put ${Math.round(f.cut * 100)}% in the jackpot (twice as likely to drop it).${me ? ` Player of the Week race: ${me.hands >= f.minHands ? `${me.rank ? '#' + me.rank + ', ' : ''}${signed(me.net)}` : `${me.hands} of ${f.minHands} hands`}.` : ''}</div>`; };
+  const me = f.me; return `<div class="gotwl" style="--gc:${f.css}">⭐ <b>Game of the Week.</b> Losing hands here put ${Math.round(f.cut * 100)}% in the jackpot (twice as likely to drop it).${me ? ` Headliner race: ${me.hands >= f.minHands ? `${me.rank ? '#' + me.rank + ', ' : ''}${signed(me.net)}` : `${me.hands} of ${f.minHands} hands`}.` : ''}</div>`; };
 
 // ---------- roulette: the shared #casino table (api/_roulette.js) ----------
 // The table lives on the server; this page watches it (GET /api/casino?ro=1 every few seconds while it's on screen)

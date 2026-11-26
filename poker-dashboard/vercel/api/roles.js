@@ -41,7 +41,7 @@ export default async function handler(req, res) {
     if (new URL(req.url, 'http://x').searchParams.has('rakeback')) {
       if (!kvUrl() || !kvToken()) { res.status(500).json({ error: 'chip storage not set up' }); return; }
       const out = await payRakeback();
-      // Game of the Week: last week's Player of the Week (title stamped by checkAccolades below) + this week's game, in #casino
+      // Game of the Week: last week's Headliner (title stamped by checkAccolades below) + this week's game, in #casino
       try { out.featured = await awardWeek(Date.now(), (await readJackpot()).pot); } catch (e) { console.error('gotw', e); out.featured = { error: e.message }; }
       try { out.accolades = { weekly: await weeklyAccolades(), everyone: await checkAccolades({ all: true }) }; } catch (e) { console.error('accolades', e); out.accolades = { error: e.message }; }
       // poker accolades too, in case nobody saved a night since they shipped (reads Google's copy of the sheet)
