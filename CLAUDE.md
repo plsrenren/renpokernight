@@ -162,6 +162,13 @@ poker-dashboard/
                        touch rakeback or accolade counts. Wins go to jp:news; afterJackpot() (after every bot/site answer + after roulette spins) posts them in
                        #casino. Game replies do NOT mention the jackpot (removed Nov 22 by request). /jackpot command, /earn line, site lobby banner
                        (GET /api/casino?jp=1 every 15s), feed game 'jackpot'
+                       buffs: _buffs.js (Nov 26 2026, Renato's picks, mockup https://claude.ai/artifact/H6hXqg54zscUZxDUzXFJ6K): poker night attendance boosts /daily
+                       (Discord + site). RSVP +25% (reacted to the newest invite, until game day ends; stops once a Showed Up from that night lands),
+                       Showed Up +50%, Regular +25% (last 3 game nights), Comeback Kid +75% (back after missing 3+), Plus One +100% (brought a first-timer).
+                       All add up, no cap, multiply the claim incl. the weekly $100; 7 days = until 16:00 UTC 8 days after the night's date. Redis bf hash
+                       (roles.js rewrites it from the sheet after every save; Members Discord ID needed) + bf:rsvp (refreshInvite, when reactions change).
+                       claimDaily reads both in its first pipeline. Shown: /daily embed lines, badge card BUFFS row (/api/me buffs), lobby day job + chips.
+                       No "how to get buffs" notes anywhere, by request.
                        beg: _beg.js (Nov 24 2026, mockup https://claude.ai/artifact/RmvzYgAXX5C7Wx8FooM8Uf): /beg alone = beg the house (50% nothing, 33% $1-5,
                        12% $6-12, 3% $20, 1% $50 whale, 1% pickpocket -$1-5, ~$3 avg; 1h apart, 3 a day from the daily reset, only under $250; house books 'beg',
                        no rakeback/jackpot; "nothing" lines can @ random bj:name players with allowed_mentions parse [] = no ping). /beg who amount note =

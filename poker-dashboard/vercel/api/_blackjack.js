@@ -13,6 +13,7 @@ import { randomInt, randomBytes } from 'node:crypto';
 
 const SITE = 'https://www.thepoker.study';
 import { jackpotCmds } from './_jackpot.js';
+import { buffReads, activeBuffs, boosted, buffView } from './_buffs.js';
 export const MAX_BET = 500;
 /** Most hands one deal can be split into (both games). */
 export const MAX_HANDS = 6;
@@ -169,23 +170,31 @@ export const FEED_KEEP = 300;
 /** Shared by /daily and the site: { wait } (ms until the next claim) or { amt, bal, first }. */
 export async function claimDaily(me, { names = false } = {}) {
   const now = Date.now();
-  // a short lock so two taps (or Discord and the site at once) can't both claim; Discord also reads the player list for the @ lines
-  const [last, got, ids] = await kv(['HGET', 'bj:last', me.id], ['SET', 'bj:dlock:' + me.id, '1', 'NX', 'PX', 3000], ...(names ? [['HKEYS', 'bj:name']] : []));
+  // a short lock so two taps (or Discord and the site at once) can't both claim; Discord also reads the player list for the @ lines.
+  // Buffs (_buffs.js) come in the same trip: poker night attendance makes the claim pay more.
+  const [last, got, bfRaw, rsRaw, ids] = await kv(['HGET', 'bj:last', me.id], ['SET', 'bj:dlock:' + me.id, '1', 'NX', 'PX', 3000], ...buffReads(me.id), ...(names ? [['HKEYS', 'bj:name']] : []));
   const others = (ids || []).filter(id => id && id !== me.id);
   const wait = dailyWait(last, now);
-  if (wait) return { wait, amt: claimAmt(last, now + wait), others };
-  if (!got) return { wait: 0, busy: true, amt: claimAmt(last, now) };
-  const amt = claimAmt(last, now);
+  if (wait) { const later = activeBuffs(bfRaw, rsRaw, me.id, now + wait); return { wait, amt: boosted(claimAmt(last, now + wait), later), buffs: later, others }; }
+  const buffs = activeBuffs(bfRaw, rsRaw, me.id, now);
+  if (!got) return { wait: 0, busy: true, amt: boosted(claimAmt(last, now), buffs) };
+  const base = claimAmt(last, now), amt = boosted(base, buffs);
   const [bal] = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, amt], ['HSET', 'bj:last', me.id, now], nameCmd(me), ...feedCmds(me, 'daily', amt));
-  return { amt, bal: +bal, weekly: amt === WEEKLY_CLAIM, next: claimAmt(now, lastReset(now) + DAY), others };
+  const at = lastReset(now) + DAY, later = activeBuffs(bfRaw, rsRaw, me.id, at);
+  return { amt, base, buffs, bal: +bal, weekly: base === WEEKLY_CLAIM, next: boosted(claimAmt(now, at), later), others };
 }
 /** What a claim at `at` pays: WEEKLY_CLAIM if it's the first since this week started (or ever), else DAILY. */
 export const claimAmt = (last, at = Date.now()) => !last || +last < weekStart(at) ? WEEKLY_CLAIM : DAILY;
-/** When the next daily is ready (ms from now, 0 = ready) and how much it gives. */
-export const dailyFrom = (last, now = Date.now()) => { const wait = dailyWait(last, now); return { wait, amt: claimAmt(last, now + wait) }; };
+/** '6 days left' / 'last day' / 'until game night' (RSVP) */
+export const buffLeft = (b, now = Date.now()) => { if (b.k === 'rsvp') return 'until game night'; const n = Math.ceil((b.until - now) / DAY); return n <= 1 ? 'last day' : `${n} days left`; };
+/** When the next daily is ready (ms from now, 0 = ready) and how much it gives. bf/rs/id = the buffReads() answers, to count buffs in. */
+export const dailyFrom = (last, now = Date.now(), bf = null, rs = null, id = null) => {
+  const wait = dailyWait(last, now), base = claimAmt(last, now + wait), buffs = activeBuffs(bf, rs, id, now + wait);
+  return { wait, amt: boosted(base, buffs), base, buffs: buffView(activeBuffs(bf, rs, id, now)) };
+};
 export async function dailyStatus(id) {
-  const [last] = await kv(['HGET', 'bj:last', id]);
-  return dailyFrom(last);
+  const [last, bf, rs] = await kv(['HGET', 'bj:last', id], ...buffReads(id));
+  return dailyFrom(last, Date.now(), bf, rs, id);
 }
 
 // Funny lines for /daily (one picked at random per reply, like /beg). /daily is your pay from a day job, never the casino handing
@@ -258,12 +267,15 @@ async function daily(i, s) {
     const left = Math.ceil(r.wait / 60e3), hrs = Math.floor(left / 60), mins = left % 60;
     return quiet(`${lineFor(CLAIMED_LINES, r.others)}\nNext **+${money(r.amt)}** in ${hrs}h ${mins}m.`);
   }
-  const { amt, bal } = r;
-  const line = lineFor(r.weekly ? WEEKLY_LINES : DAILY_LINES, r.others).replace('$X', `**${money(amt)}**`);
+  const { amt, bal, base } = r;
+  const line = lineFor(r.weekly ? WEEKLY_LINES : DAILY_LINES, r.others).replace('$X', `**${money(base)}**`);
+  // buffs: one line each, then the total (nothing at all when there are none)
+  const pc = n => `+${Math.round(n * 100)}%`;
+  const buffs = r.buffs.length ? '\n\n' + r.buffs.map(b => `${b.icon} **${b.name}** ${pc(b.pct)} · ${buffLeft(b)}`).join('\n') + `\nBuffs **${pc(r.buffs.pct)}**: ~~${money(base)}~~ → **${money(amt)}**` : '';
   const extra = +bal < DAILY_BROKE ? lineFor(BROKE_LINES, r.others) : +bal > DAILY_RICH ? lineFor(RICH_LINES, r.others) : '';
   return json({ type: 4, data: { allowed_mentions: { parse: [] }, embeds: [{ color: 0x8ee0b0,
     title: r.weekly ? `💼 ${me.name} got the weekly paycheck: ${money(amt)}` : `💼 ${me.name} got paid ${money(amt)}`,
-    description: `${line}${extra ? '\n' + extra : ''}\n\n**+${money(amt)}** in chips · Balance **${money(+bal)}**`,
+    description: `${line}${extra ? '\n' + extra : ''}${buffs}\n\n**+${money(amt)}** in chips · Balance **${money(+bal)}**`,
     footer: { text: `Next +${money(r.next)} after ${DAILY_RESET_UTC}:00 UTC` } }] } });
 }
 

@@ -6,6 +6,8 @@ import { loadout, champsFor } from './_shop.js';
 import { marker } from './_casino.js';
 import { ITEMS, ACC_ITEMS } from '../loot.js';
 import { latestQuarter } from '../recap-core.js';
+import { kv } from './_blackjack.js';
+import { buffReads, activeBuffs, buffView } from './_buffs.js';
 
 const r2 = n => Math.round(n * 100) / 100;
 /** this quarter on the sheet for one player: { label, net, nights, place, players } (nights 0 = hasn't played yet) */
@@ -20,7 +22,7 @@ export function quarterOf(recs, name) {
 
 export async function meWeb(me, sheet, out) {
   if (!me) return out({ me: null }, 200, { 'Set-Cookie': marker(false) });
-  const [L, s] = await Promise.all([loadout(me.id), sheet ? sheet().catch(() => null) : null]);
+  const [L, s, bf] = await Promise.all([loadout(me.id), sheet ? sheet().catch(() => null) : null, kv(...buffReads(me.id)).catch(() => [])]);
   const ids = (s && s.ids) || {}, sheetName = Object.keys(ids).find(n => ids[n] === me.id) || null;
   // same count as /collection: pack items you have + accolades you've earned, out of everything in play (champion borders on top)
   const got = ITEMS.filter(i => L.owned[i.id]).length + ACC_ITEMS.filter(i => L.earned.includes(i.id)).length;
@@ -28,5 +30,6 @@ export async function meWeb(me, sheet, out) {
     id: me.id, name: me.name, player: sheetName, bal: L.bal || 0, rank: L.rank, of: L.of, eq: L.eq, packs: L.packs,
     own: got, all: ITEMS.length + ACC_ITEMS.length, champs: (champsFor(me.id, s) || []).length,
     q: sheetName && s ? quarterOf(s.recs, sheetName) : null,
+    buffs: buffView(activeBuffs(bf[0], bf[1], me.id)),   // /daily buffs from poker nights (_buffs.js)
   } }, 200, { 'Set-Cookie': marker(true) });
 }

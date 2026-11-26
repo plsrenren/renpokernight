@@ -42,6 +42,12 @@ html .sbc-st strong { display: block; font: 400 26px/1 "Bebas Neue", Impact, san
 html .sbc-st strong small { font-size: 17px; color: #9a94c4; }
 html .sbc-st strong.g { color: #f1c75b; } html .sbc-st strong.u { color: #8ee0b0; } html .sbc-st strong.d { color: #e0507f; } html .sbc-st strong.n { color: #9a94c4; }
 html .sbc-st em { display: block; font: 500 11.5px/1.3 "IBM Plex Mono", ui-monospace, monospace; color: #9a94c4; font-style: normal; }
+/* /daily buff chips (Nov 26 2026), badge card + casino lobby */
+html .bf-chips { display: flex !important; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+html .bf-chip { display: inline-flex; align-items: center; gap: 5px; font: 700 11px/1 "Space Grotesk", system-ui, sans-serif; letter-spacing: .04em; padding: 4px 10px 4px 7px; clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 100%, 0 100%); background: #f1c75b; color: #15132a; white-space: nowrap; }
+html .bf-chip small { font-size: 11px; font-weight: 500; opacity: .8; }
+html .bf-chip.bf-reg { background: #e0507f; color: #fff; } html .bf-chip.bf-plus { background: #8ee0b0; color: #0e2a1c; }
+html .bf-chip.bf-rsvp { background: #6fb7ff; color: #0d2236; } html .bf-chip.bf-back { background: #8f78f0; color: #fff; }
 html .sbc-ln { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 14px 14px; }
 html .sbc-ln a, html .sbc-ln button { all: unset; cursor: pointer; font: 400 15px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .08em; color: #ece9fb; background: #26224a; padding: 7px 12px 5px 9px; clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 100%, 0 100%); }
 html .sbc-ln a:hover { background: #3a3560; }

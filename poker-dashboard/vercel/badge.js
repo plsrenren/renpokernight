@@ -66,6 +66,10 @@ function signedOut(msg) {
   host.innerHTML = `<a class="sb-out" href="/api/login?to=${page()}" title="Sign in with Discord">${DC}<span>SIGN IN</span></a>${msg ? `<div class="sb-msg" role="status">${esc(msg)}</div>` : ''}`;
 }
 
+/** /daily buffs from poker nights (api/_buffs.js): a full-width row with the total + one chip each; nothing when there are none. */
+const buffChips = b => b.list.map(x => `<span class="bf-chip bf-${esc(x.k)}" title="${esc(x.why)}">${esc(x.icon)} ${esc(x.name.toUpperCase())} <small>+${Math.round(x.pct * 100)}%</small></span>`).join('');
+const buffRow = b => b && b.list && b.list.length ? `<div class="w"><span>BUFFS</span><strong class="g">+${Math.round(b.pct * 100)}% <small>on dailies</small></strong><em class="bf-chips">${buffChips(b)}</em></div>` : '';
+window.SBbuffChips = buffChips;   // the casino lobby draws the same chips
 function plate(m, L, bits) {
   const b = bits(L, m.eq || {}), t = L.itemFor((m.eq || {})['Title']);
   const pfp = s => `<img class="sb-pf" src="/api/avatar?id=${esc(m.id)}" alt="" width="${s}" height="${s}" onerror="this.onerror=null;this.src='/icon-192.png'">`;
@@ -82,6 +86,7 @@ function plate(m, L, bits) {
       <div class="sbc-st">
         <div><span>CHIPS</span><strong class="g sb-bal2">${money(m.bal)}</strong><em>${m.rank ? `#${m.rank} of ${m.of} stacks` : 'casino chips'}</em></div>
         ${qLine || `<div><span>PACKS</span><strong>${m.packs || 0}</strong><em>opened</em></div>`}
+        ${buffRow(m.buffs)}
         <div class="w"><span>COSMETICS</span><strong>${m.own} <small>/ ${m.all}</small></strong><em>${m.champs ? `+ ${m.champs} champion border${m.champs > 1 ? 's' : ''} · ` : ''}${m.packs || 0} pack${m.packs === 1 ? '' : 's'} opened</em></div>
       </div>
       <div class="sbc-ln"><a class="pri" href="/shop#lo">My loadout</a><a href="/collection">Collection</a>${m.player ? `<a href="/#player-${encodeURIComponent(m.player)}">My card</a>` : ''}<button type="button" class="out">Sign out</button></div>

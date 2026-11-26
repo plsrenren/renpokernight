@@ -13,6 +13,7 @@
 // Needs Vercel env var DISCORD_CLIENT_SECRET (Developer Portal > OAuth2) and the redirect
 // https://www.thepoker.study/api/login (and the old https://renpokernight.vercel.app/api/login) added there. The app's client ID is looked up with DISCORD_BOT_TOKEN.
 import { createHmac, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { buffReads, buffView } from './_buffs.js';
 import { kv, kvUrl, kvToken, MAX_BET, FEED_KEEP, claimDaily, dailyStatus, boardFrom, dailyFrom, weekKey, rakeFor, sheetNames, hasIds, newHand as bjStart, handAction, publicHand, MAX_PUSH22 } from './_blackjack.js';
 import { newHand as uthStart, uthAction, publicUth, MAX_ANTE, MAX_TRIPS, UTH_PAYTABLE } from './_uth.js';
 import { playHand } from './_baccarat.js';
@@ -124,11 +125,11 @@ async function fixNames(names, sn) {
 
 async function state(me, sheet) {
   // two storage trips: everything for the lobby at once, then any unfinished hands
-  const [bal, names, feedRaw, last, cur, wkNet, wkVol, jp, ltRaw, pkRaw, acN, acOwn] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['LRANGE', 'cas:feed', 0, FEED_KEEP - 1],
+  const [bal, names, feedRaw, last, cur, wkNet, wkVol, jp, ltRaw, pkRaw, bfRaw, rsRaw, acN, acOwn] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['LRANGE', 'cas:feed', 0, FEED_KEEP - 1],
     ['HGET', 'bj:last', me ? me.id : '-'], ['HGETALL', 'cas:cur:' + (me ? me.id : '-')],
     ['HGET', 'rb:wk:' + weekKey(), me ? me.id : '-'], ['HGET', 'rb:vol:' + weekKey(), me ? me.id : '-'], ['HGETALL', 'jp'],
     // what's open right now (live table, poker room) + your counters for the "next unlock" line, in the same trip
-    ['GET', 'lt:t'], ['GET', 'pk:t'], ...(me ? [['HGETALL', 'ac:n:' + me.id], ['HKEYS', 'ac:own:' + me.id]] : []));
+    ['GET', 'lt:t'], ['GET', 'pk:t'], ...(me ? [...buffReads(me.id), ['HGETALL', 'ac:n:' + me.id], ['HKEYS', 'ac:own:' + me.id]] : []));
   const sh = sheet ? await sheet().catch(() => null) : null, sn = sheetNames(sh);
   const board = boardFrom(bal, names, sh);
   // linked players show their Members-tab name everywhere, even on older feed lines and stored names saved as their Discord name
@@ -140,7 +141,7 @@ async function state(me, sheet) {
   try { if (sh && sh.csv) { const v = await lotteryView(sh.csv, null, sh.ids || {}); v.holders = v.holders.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); if (v.lastBoard) v.lastBoard = v.lastBoard.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); body.lottery = v; } } catch (e) { console.error('lottery view', e); }
   if (!me) return body;
   const mine = board.find(r => r.id === me.id);
-  body.me = { id: me.id, name: me.name, bal: mine ? mine.bal : null, rank: mine ? board.indexOf(mine) + 1 : null, daily: dailyFrom(last), rake: rakeFor(wkNet, wkVol),   // rakeback so far this week (never the loss itself)
+  body.me = { id: me.id, name: me.name, bal: mine ? mine.bal : null, rank: mine ? board.indexOf(mine) + 1 : null, daily: dailyFrom(last, Date.now(), bfRaw, rsRaw, me.id), rake: rakeFor(wkNet, wkVol),   // rakeback so far this week (never the loss itself)
     next: (() => { const n = {}; for (let k = 0; k < (acN || []).length; k += 2) n[acN[k]] = +acN[k + 1] || 0; try { return nextAccolade(n, acOwn || []); } catch (e) { return null; } })() };   // the casino title you're closest to
   // an unfinished hand started on the site comes back after a reload
   const c = {}; for (let k = 0; k < (cur || []).length; k += 2) c[cur[k]] = cur[k + 1];
@@ -169,7 +170,7 @@ async function act(req, me) {
       const r = await claimDaily(who);
       if (r.busy) return out({ busy: true });
       if (r.wait !== undefined) return out({ err: 'Already claimed today.', daily: { wait: r.wait, amt: r.amt } });
-      return out({ bal: r.bal, got: r.amt, weekly: r.weekly, daily: await dailyStatus(me.id) });
+      return out({ bal: r.bal, got: r.amt, base: r.base, buffs: buffView(r.buffs), weekly: r.weekly, daily: await dailyStatus(me.id) });
     }
     case 'bj': {
       const free = b.mode === 'free';
