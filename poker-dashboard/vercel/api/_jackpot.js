@@ -7,10 +7,12 @@
 //   ('jackpot' = slices, 'jackpot seed' = seeds), next to rakeback. A jackpot win isn't a house-game result, so it doesn't
 //   touch rakeback (rb:wk / rb:vol) or the accolade counts.
 // Redis: jp (hash: pot, drop, since, wins, last*), jp:news (wins waiting to be announced in #casino, see announceJackpots).
+// Game of the Week (_featured.js): the featured game's losing hands put in 4% instead of 2%.
 // Run inside every house hand's own pipeline: houseCmds() in _blackjack.js appends jackpotCmds().
 import { randomInt } from 'node:crypto';
 import { kv, money, FEED_KEEP, weekKey } from './_blackjack.js';
 import { postCasino } from './_rewards.js';
+import { featuredGame, GOTW, GAME_INFO } from './_featured.js';
 
 export const JP = { cut: 0.02, seed: 500, cap: 2000, minBet: 5 };
 const SITE = 'https://www.thepoker.study';
@@ -40,7 +42,8 @@ return tostring(win)`;
 /** The pot command for one finished house hand (net = the player's result, wager = what they bet). [] if the house didn't win it. */
 export function jackpotCmds(me, game, net, wager) {
   if (!me || !me.id || !(net < 0)) return [];
-  const slice = Math.round(-net * JP.cut * 100) / 100, wk = weekKey();
+  // Game of the Week hands put in GOTW.cut (4%) instead of JP.cut (see _featured.js)
+  const slice = Math.round(-net * (game === featuredGame() ? GOTW.cut : JP.cut) * 100) / 100, wk = weekKey();
   return [['EVAL', JACKPOT, 8, 'jp', 'bj:bal', 'cas:feed', 'hs:wk:' + wk, 'hs:all', 'jp:news', 'ac:n:' + me.id, 'ac:dirty',
     me.id, slice, (+wager || 0) >= JP.minBet ? 1 : 0, JP.seed, JP.cap, randomInt(1e6) / 1e6, me.name || 'Someone', game, me.src || 'discord', Date.now(), FEED_KEEP]];
 }
@@ -49,7 +52,9 @@ const pairs = a => { const o = {}; for (let k = 0; k < (a || []).length; k += 2)
 /** What anyone may see: pot, cap, last win. Never the drop point. */
 export function jackpotView(raw) {
   const h = pairs(raw);
-  return { pot: h.pot === undefined ? JP.seed : Math.round(+h.pot * 100) / 100, seed: JP.seed, cap: JP.cap, wins: +h.wins || 0,
+  const fg = featuredGame();
+  return { pot: h.pot === undefined ? JP.seed : Math.round(+h.pot * 100) / 100, seed: JP.seed, cap: JP.cap, wins: +h.wins || 0, cut: JP.cut,
+    featured: { game: fg, short: GAME_INFO[fg].short, cut: GOTW.cut },
     last: h.lastId ? { id: h.lastId, name: h.lastName, win: +h.lastWin, at: +h.lastAt, game: h.lastGame } : null };
 }
 export async function readJackpot() { const [raw] = await kv(['HGETALL', 'jp']); return jackpotView(raw); }
@@ -62,8 +67,8 @@ export function jackpotEmbed(v) {
   return { color: 0xf1c75b, title: `🎰 Casino jackpot: ${usd(v.pot)}`, url: `${SITE}/casino`,
     description: `Drops at a secret amount before **${usd(v.cap)}**. The losing hand that pushes it over takes the whole pot.`,
     fields: [
-      { name: 'How it grows', value: `${Math.round(JP.cut * 100)}% of every hand the house wins goes in. Blackjack, free bet, UTH, baccarat and roulette all count.` },
-      { name: 'To win', value: `Bet ${money(JP.minBet)} or more. Pot resets to ${money(JP.seed)} after a hit.` },
+      { name: 'How it grows', value: `${Math.round(JP.cut * 100)}% of every hand the house wins goes in, **${Math.round(GOTW.cut * 100)}% on ${GAME_INFO[featuredGame()].short}** this week (Game of the Week). Blackjack, free bet, UTH, baccarat and roulette all count.` },
+      { name: 'To win', value: `Bet ${money(JP.minBet)} or more. Pot resets to ${money(JP.seed)} after a hit. ${GAME_INFO[featuredGame()].short} hands are twice as likely this week.` },
       ...(v.last ? [{ name: 'Last hit', value: `<@${v.last.id}> won **${usd(v.last.win)}** · ${ago(v.last.at)}` }] : []),
     ] };
 }

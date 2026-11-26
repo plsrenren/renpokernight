@@ -127,8 +127,16 @@ poker-dashboard/
                        duel: _duel.js (/duel rock paper scissors or high card for the same chips; high card picture = bjcards?m=duel; both stakes taken in one Lua step;
                        RPS: "Call it off" refunds both after 3 min, sweepDuels refunds duels stuck 30+ min (run on /duel and /daily, du:live hash))
                        uth: _uth.js (/uth Ultimate Texas Hold'em vs the dealer for the same chips; no 3x pre-flop bet (only 4x or check), by request; table picture = bjcards?m=uth)
+                       Game of the Week: _featured.js (Nov 26 2026, Renato's pick, mockup https://claude.ai/artifact/WzSVBFfwQPHRjNk2CA4aov): one house game featured per casino week
+                       (Mon 16:00 UTC), rotation blackjack > UTH > free bet > baccarat > roulette (week of Nov 23 2026 = roulette). Featured losing hands put GOTW.cut 4% in the jackpot
+                       (jackpotCmds; double drop odds come with it). gw:<week>/gw:n:<week> = net/hands per player (featuredCmds via feedCmds, 1 EVAL). Monday cron (roles.js ?rakeback=1)
+                       awardWeek(): Player of the Week (top net, 20+ hands, ac:n potw -> title a:potw) + one #casino kickoff post. Lobby banner + race (state() reads gw), FEATURED tags,
+                       table line; Discord featured replies get a '⭐ Game of the Week' footer (featuredTag in discord.js), no jackpot talk in replies.
                        roulette: _roulette.js (/roulette shared 30s table; the opening call stays awake to spin, so discord.js maxDuration is 60; a table that never spun
                        is spun by the next tap, New round or /roulette for up to a day) + roulette.js (wheel picture)
+                       site roulette (Nov 26 2026): /casino#roulette plays the SAME #casino table (rouletteWeb): GET /api/casino?ro=1&ch= = one GET of ro:cur:<channel>
+                       (copy of the newest table) + balance, polled 2.5s while open / 9s idle, never hidden; POST ro-open (bot posts the table in #casino, site request waits 30s and spins)
+                       / ro-bet (any amount, Discord message redrawn with '(site)'); t.msg = interaction webhook token or bot message id; a watcher spins a table whose opener died
                        baccarat: _baccarat.js (/baccarat Player/Banker/Tie; picture = bjcards?m=bac)
                        seats: _seats.js (/seats random seat order from the latest invite's reactions) + seats.js (table picture)
                        info: _info.js (/info posts the 2-card welcome post (links + Start here) as a normal bot message in that channel, for #info + pin; running it again in that channel edits the same post (id in Redis info:msg:<channel>), so wording changes = edit _info.js, deploy, /info; pitbosses/Renato/admins only)

@@ -65,6 +65,7 @@ export function earnedFrom(st) {
   add('natural', (n.naturals || 0) >= NEED.natural); add('royal', (n.royal || 0) >= 1); add('believer', (n.believer || 0) >= 1);
   add('lucky', !!st.lucky); add('retired', !!st.lucky || (n.lotto || 0) >= 1); add('dipper', (n.lotto || 0) >= 2);
   add('mystery', (n.jackpots || 0) >= 1); add('struck', (n.jackpots || 0) >= 2); // jackpot wins, counted by _jackpot.js and _lottery.js
+  add('potw', (n.potw || 0) >= 1); // Player of the Week (Game of the Week winner, bumped by awardWeek in _featured.js)
   // earned bars: best runs (bjbest / dubest / rlbest, kept by the STREAK script in _blackjack.js), big wins, clean sweeps
   add('hotshoe', (n.bjbest || 0) >= NEED.run); add('unbeaten', (n.dubest || 0) >= NEED.run); add('hottable', (n.rlbest || 0) >= NEED.run);
   add('heavy', (n.heavy || 0) >= 1); add('sweep', (n.sweep || 0) >= 1);

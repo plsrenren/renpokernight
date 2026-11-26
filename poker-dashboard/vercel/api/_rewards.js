@@ -199,21 +199,27 @@ export async function inServer(uids) {
   }));
   return out;
 }
+/** The Discord id of #casino (which = 'casino') or #the-table ('table'), found by name and remembered a day; '' if none. */
+export async function channelId(which = 'casino') {
+  const token = process.env.DISCORD_BOT_TOKEN, ch = CHANS[which];
+  if (!token) return '';
+  let [chan] = await kv(['GET', ch.key]);
+  if (chan) return chan;
+  const get = path => fetch(API + path, { headers: { Authorization: `Bot ${token}` } }).then(r => r.ok ? r.json() : null).catch(() => null);
+  for (const g of ((await get('/users/@me/guilds')) || []).slice(0, 3)) {
+    const c = ((await get(`/guilds/${g.id}/channels`)) || []).find(x => (x.type === 0 || x.type === 5) && ch.test(x.name));
+    if (c) { chan = c.id; break; }
+  }
+  if (chan) await kv(['SET', ch.key, chan, 'EX', 86400]);
+  return chan || '';
+}
 /** Posts in #casino (which = 'casino') or #the-table ('table'); the channel id is found by name and remembered a day. Returns where it went, or why not. */
 export async function postChannel(payload, which = 'casino') {
   const token = process.env.DISCORD_BOT_TOKEN, ch = CHANS[which];
   if (!token) return 'no bot token';
   const H = { Authorization: `Bot ${token}`, 'Content-Type': 'application/json' };
-  const get = path => fetch(API + path, { headers: H }).then(r => r.ok ? r.json() : null);
-  let [chan] = await kv(['GET', ch.key]);
-  if (!chan) {
-    for (const g of ((await get('/users/@me/guilds')) || []).slice(0, 3)) {
-      const c = ((await get(`/guilds/${g.id}/channels`)) || []).find(x => (x.type === 0 || x.type === 5) && ch.test(x.name));
-      if (c) { chan = c.id; break; }
-    }
-    if (!chan) return `no #${ch.name} channel found`;
-    await kv(['SET', ch.key, chan, 'EX', 86400]);
-  }
+  const chan = await channelId(which);
+  if (!chan) return `no #${ch.name} channel found`;
   const r = await fetch(`${API}/channels/${chan}/messages`, { method: 'POST', headers: H,
     body: JSON.stringify(payload) });
   if (!r.ok) { await kv(['DEL', ch.key]); return `Discord said ${r.status} (does the bot have Send Messages in #${ch.name}?)`; }

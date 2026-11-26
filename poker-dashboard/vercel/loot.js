@@ -217,6 +217,7 @@ export const ACC = [
   { k: 'dipper', slot: 'Title', name: 'Double Dipper', why: 'Won the lottery twice', need: 'two quarter lottery jackpots' },
   { k: 'mystery', slot: 'Title', name: 'Mystery Machine', why: 'Hit the casino jackpot', need: 'win the casino jackpot (mystery drop)' },
   { k: 'struck', slot: 'Title', name: 'Struck Twice', why: 'Hit the jackpot twice', need: 'win the casino jackpot twice' },
+  { k: 'potw', slot: 'Title', name: 'Player of the Week', why: 'Won Game of the Week', need: 'biggest net win on the Game of the Week (20+ hands)' },
   { k: 'bjenjoyer', slot: 'Title', name: 'BJ Enjoyer', why: '250 blackjack hands', need: '250 hands of blackjack', hands: 'blackjack' },
   { k: 'ultimate', slot: 'Title', name: 'The Ultimate', why: '250 UTH hands', need: "250 hands of Ultimate Texas Hold'em", hands: 'UTH' },
   { k: 'freebjs', slot: 'Title', name: 'Free BJs', why: '250 free bet hands', need: '250 hands of Free Bet Blackjack', hands: 'free bet' },

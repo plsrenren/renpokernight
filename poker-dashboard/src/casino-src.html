@@ -357,6 +357,75 @@ details.pay summary { cursor: pointer; font: 400 17px var(--title); letter-spaci
 .club-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 760px) { .club-two { grid-template-columns: minmax(0,1fr); } }
 .club-m .earn { margin-top: 0; }
+/* Game of the Week (lobby banner + table line), see api/_featured.js */
+.gotw { position: relative; background: var(--panel); border-left: 6px solid var(--gc); overflow: hidden; }
+.gotw::before { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, color-mix(in srgb, var(--gc) 15%, transparent) 0 34%, transparent 36%); pointer-events: none; }
+.gotw .in { position: relative; display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); gap: 18px; padding: 16px 18px; }
+@media (max-width: 760px) { .gotw .in { grid-template-columns: minmax(0,1fr); padding: 14px; } }
+.gotw .gw { display: inline-block; background: var(--gc); color: #15132a; font: 400 15px/1 var(--title); letter-spacing: .1em; padding: 5px 16px 3px 8px; clip-path: polygon(0 0,100% 0,calc(100% - 8px) 100%,0 100%); }
+.gotw .gname { font: 400 44px/.92 var(--title); letter-spacing: .02em; margin: 10px 0 12px; text-wrap: balance; }
+@media (max-width: 640px) { .gotw .gname { font-size: 36px; } }
+.gotw .perks { display: grid; gap: 8px; margin-bottom: 14px; }
+.gotw .perk { display: flex; gap: 10px; align-items: baseline; font-size: 13.5px; line-height: 1.35; }
+.gotw .perk .k { flex: none; min-width: 56px; text-align: center; font: 400 19px/1 var(--title); letter-spacing: .04em; background: #15132a; color: var(--gc); padding: 5px 6px 3px; }
+.gotw .perk small { display: block; color: var(--muted); font-size: 12px; }
+.gotw .meta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 12.5px; color: var(--muted); }
+.gotw .rh { font: 400 17px/1 var(--title); letter-spacing: .1em; color: var(--soft); margin: 2px 0 6px; }
+.gotw .rrow { display: flex; align-items: center; gap: 9px; padding: 6px 4px; border-bottom: 1px solid var(--line); font-size: 13.5px; min-width: 0; }
+.gotw .rrow .rk { width: 26px; flex: none; text-align: center; font: 400 19px/1 var(--title); background: var(--panel2); color: var(--muted); padding: 4px 0 2px; }
+.gotw .rrow.first .rk { background: var(--gc); color: #15132a; }
+.gotw .rrow b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gotw .rrow small { font: 500 11.5px var(--mono); color: var(--muted); white-space: nowrap; }
+.gotw .rrow .m { font: 600 13px var(--mono); white-space: nowrap; }
+.gotw .rrow.out { opacity: .55; } .gotw .rrow.you { background: rgba(241,199,91,.08); }
+.gotw .empty { font-size: 13px; color: var(--muted); padding: 8px 0; }
+.ftag { display: inline-block; font: 600 10px/1 var(--mono); letter-spacing: .04em; background: var(--gc); color: #15132a; padding: 3px 9px 2px 5px; clip-path: polygon(0 0,100% 0,calc(100% - 6px) 100%,0 100%); vertical-align: 3px; margin-left: 6px; }
+.gotwl { margin-top: 10px; font-size: 13px; color: var(--soft); border-left: 4px solid var(--gc); background: color-mix(in srgb, var(--gc) 10%, transparent); padding: 8px 12px; }
+.gotwl b { color: var(--fg); }
+/* roulette: one shared table with Discord #casino (api/_roulette.js) */
+.rl-top { display: grid; grid-template-columns: 250px minmax(0,1fr); gap: 18px; align-items: center; }
+@media (max-width: 760px) { .rl-top { grid-template-columns: minmax(0,1fr); justify-items: center; text-align: center; } }
+.wheel { position: relative; width: 230px; height: 230px; max-width: 100%; }
+.wheel .disc { position: absolute; inset: 0; border-radius: 50%; border: 8px solid #5a3a1c; box-shadow: 0 0 0 3px var(--gold), 0 10px 30px rgba(0,0,0,.45); background: var(--wheel); transition: transform 4.2s cubic-bezier(.12,.7,.16,1); }
+.wheel .hub { position: absolute; inset: 31%; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #3a2a6e, #15132a); border: 3px solid var(--gold); display: grid; place-items: center; font: 400 44px/1 var(--title); color: #fff; z-index: 1; }
+.wheel .hub.red { background: radial-gradient(circle at 40% 35%, #e05050, #8c1d2c); } .wheel .hub.black { background: radial-gradient(circle at 40% 35%, #3b3a48, #111018); } .wheel .hub.green { background: radial-gradient(circle at 40% 35%, #3cb46e, #146b3a); }
+.wheel .ptr { position: absolute; left: 50%; top: -12px; transform: translateX(-50%); width: 0; height: 0; border-left: 11px solid transparent; border-right: 11px solid transparent; border-top: 20px solid var(--gold); z-index: 2; filter: drop-shadow(0 2px 2px rgba(0,0,0,.5)); }
+.rl-info .clock { font: 400 64px/.9 var(--title); color: var(--gold); letter-spacing: .02em; }
+.rl-info .clock small { display: block; font: 400 17px var(--title); letter-spacing: .12em; color: #cfe9da; }
+.rl-info .res { font: 400 40px/1 var(--title); letter-spacing: .03em; }
+.rl-info .sub { font-size: 13px; color: #cfe9da; margin-top: 6px; line-height: 1.45; }
+.rl-hist { display: flex; gap: 5px; margin-top: 10px; flex-wrap: wrap; }
+@media (max-width: 760px) { .rl-hist { justify-content: center; } }
+.rl-hist span { width: 28px; height: 28px; display: grid; place-items: center; font: 600 12px var(--mono); color: #fff; border-radius: 50%; }
+.c-red { background: #c2283e; } .c-black { background: #1e1f22; } .c-green { background: #248046; }
+.rl-board { display: grid; grid-template-columns: 44px repeat(12, minmax(0,1fr)); grid-auto-rows: 44px; gap: 3px; margin-top: 18px; }
+.rl-board button { grid-row: var(--r); grid-column: var(--c); position: relative; font: 400 19px/1 var(--title); letter-spacing: .03em; color: #fff; background: rgba(0,0,0,.18); border: 1px solid rgba(255,255,255,.28); padding: 0; min-width: 0; }
+.rl-board button.n-red { background: #b3243a; } .rl-board button.n-black { background: #22212c; } .rl-board button.n-green { background: #1f7a45; }
+.rl-board button:not(:disabled):hover { outline: 2px solid var(--gold); z-index: 2; }
+.rl-board button:disabled { opacity: 1; cursor: default; }
+.rl-board button.won { outline: 3px solid var(--gold); z-index: 2; box-shadow: 0 0 16px rgba(241,199,91,.7); }
+.rl-board .bt { position: absolute; right: 2px; bottom: 2px; font: 600 10px/1 var(--mono); background: var(--gold); color: #15132a; padding: 2px 4px; border-radius: 8px; letter-spacing: 0; }
+.rl-board .bt.o { left: 2px; right: auto; background: rgba(255,255,255,.85); }
+.rl-board button.flash { animation: bump .25s ease-out; }
+@media (max-width: 760px) {
+  .rl-board { grid-template-columns: repeat(3, minmax(0,1fr)); grid-auto-rows: 36px; }
+  .rl-board button { grid-row: var(--pr); grid-column: var(--pc); font-size: 17px; }
+}
+.rl-rack { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 14px; background: var(--panel); padding: 8px; }
+.rl-rack .lab { font: 400 17px var(--title); letter-spacing: .1em; color: var(--soft); margin-right: 4px; }
+.rl-rack .chip[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--gold), 0 0 16px rgba(241,199,91,.6); transform: translateY(-3px); }
+.rl-rack .tot { margin-left: auto; font: 500 12.5px var(--mono); color: var(--soft); text-align: right; }
+.rl-rack .tot b { display: block; font-size: 15px; color: var(--fg); }
+@media (max-width: 640px) { .rl-rack .chip { width: 46px; height: 46px; font-size: 15px; } .rl-rack .tot { margin-left: 0; width: 100%; text-align: left; } }
+.rl-open { text-align: center; padding: 18px 10px 4px; }
+.rl-who { margin-top: 14px; }
+.rl-who .row { display: flex; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; min-width: 0; }
+.rl-who .row .w { flex: 1; min-width: 0; }
+.rl-who .row .w b { display: block; } .rl-who .row .w small { color: var(--muted); font-size: 12px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rl-who .row .m { font: 600 13px var(--mono); white-space: nowrap; }
+.rl-who .src { font: 600 10px/1 var(--mono); padding: 2px 5px; background: var(--panel2); color: var(--muted); margin-left: 5px; vertical-align: 2px; }
+.rl-who .src.dc { background: var(--blurple); color: #fff; }
+@media (max-width: 640px) { .felt[data-hid="ro"] { padding-bottom: 14px; min-height: 0; } }
 </style>
 <link rel="stylesheet" href="/badge.css">
 <style>
@@ -450,11 +519,12 @@ function render() {
   $('#note').innerHTML = err && ERRS[err] ? `<div class="note">${esc(ERRS[err])}</div>` : '';
   const r = route(), v = $('#view');
   const before = onTable();
-  if (!S.me || !['blackjack', 'freebet', 'uth', 'baccarat'].includes(r)) v.innerHTML = lobby();
-  else v.innerHTML = r === 'blackjack' ? blackjack(false) : r === 'freebet' ? blackjack(true) : r === 'uth' ? uth() : baccarat();
+  if (!S.me || !['blackjack', 'freebet', 'uth', 'baccarat', 'roulette'].includes(r)) v.innerHTML = lobby();
+  else v.innerHTML = r === 'blackjack' ? blackjack(false) : r === 'freebet' ? blackjack(true) : r === 'uth' ? uth() : r === 'roulette' ? roulette() : baccarat();
   onTable(before);
   wire();
   choreograph(before);
+  rlAfterRender();
 }
 // Only newly dealt cards (and a new result stamp) animate. Cards already on the table keep still when the page redraws.
 // Without a set: returns what's on the table now. With one: marks the cards that were already there.
@@ -646,12 +716,12 @@ function jackpot() {
   return `<div class="jpb" id="jpb"><div><div class="k">🎰 Casino jackpot</div><div class="n" id="jpN">${cents(J.pot)}</div></div>
     <div class="jps"><b>MUST DROP BY ${money(J.cap)}</b>at a secret amount</div>
     <div class="meter"><i id="jpBar" style="width:${pct}%"></i></div>
-    <div class="hint" id="jpHint">${J.last ? `Last hit: ${esc(J.last.name)} ${cents(J.last.win)} · ${jpAgo(J.last.at)}` : '2% of every hand the house wins goes in. The losing hand that pushes it past the secret amount wins it all.'}</div></div>`;
+    <div class="hint" id="jpHint">${J.last ? `Last hit: ${esc(J.last.name)} ${cents(J.last.win)} · ${jpAgo(J.last.at)}` : `2% of every hand the house wins goes in${J.featured ? ` (${Math.round(J.featured.cut * 100)}% on ${esc(J.featured.short)} this week)` : ''}. The losing hand that pushes it past the secret amount wins it all.`}</div></div>`;
 }
 function jackpotCard(J) {
   const pct = Math.max(0, Math.min(100, (J.pot - J.seed) / Math.max(1, J.cap - J.seed) * 100));
   return `<div class="nowc" id="jpb" style="--c:var(--gold)"><span class="k">Jackpot</span><b id="jpN">${cents(J.pot)}</b><span class="meter"><i id="jpBar" style="width:${pct}%"></i></span>
-    <span class="s" id="jpHint">${J.last ? `Last hit: ${esc(J.last.name)} ${cents(J.last.win)} · ${jpAgo(J.last.at)}` : `2% of every hand the house wins goes in. Drops at a secret amount before ${money(J.cap)}.`}</span><span class="go">Must drop by ${money(J.cap)}</span></div>`;
+    <span class="s" id="jpHint">${J.last ? `Last hit: ${esc(J.last.name)} ${cents(J.last.win)} · ${jpAgo(J.last.at)}` : `2% of every hand the house wins goes in${J.featured ? `, ${Math.round(J.featured.cut * 100)}% on ${esc(J.featured.short)} this week` : ''}. Drops at a secret amount before ${money(J.cap)}.`}</span><span class="go">Must drop by ${money(J.cap)}</span></div>`;
 }
 let jpTimer = null;
 function jpRefresh() {
@@ -704,20 +774,21 @@ function lobby() {
   // what's open now
   const faces = list => `<span class="faces">${list.map(x => av(x.id, x.name)).join('')}</span>`;
   const pk = O.poker, lv = O.live;
-  const nowc = `<div class="nowg">${jackpot()}
+  const nowc = `${gotwBanner()}<div class="nowg">${jackpot()}
     <a class="nowc" href="/poker" style="--c:var(--pink)"><span class="k">Poker room${pk ? ' <i>OPEN</i>' : ''}</span><b>${pk ? `${pk.seats.length} of ${pk.of} seated` : 'Closed'}</b>${pk && pk.seats.length ? faces(pk.seats) : ''}
       <span class="s">${pk ? `${money(pk.sb)}/${money(pk.bb)} no-limit${pk.host ? ` · hosted by ${esc(pk.host)}` : ''}` : "No-limit Hold'em with the group. Anyone in the Discord can open it, and practice vs bots is always on."}</span><span class="go">${pk ? 'Take a seat →' : 'Open or practice →'}</span></a>
     <a class="nowc" href="/live" style="--c:var(--up)"><span class="k">Live table${lv ? ' <i>OPEN</i>' : ''}</span><b>${lv ? esc(lv.game) : 'None open'}</b>${lv && lv.seats.length ? faces(lv.seats) : ''}
       <span class="s">${lv ? `${money(lv.min)} to ${money(lv.max)} · ${lv.of - lv.seats.length} seat${lv.of - lv.seats.length === 1 ? '' : 's'} open${lv.host ? ` · host ${esc(lv.host)}` : ''}` : 'Blackjack, Free Bet or UTH with the group: everyone plays at once against one dealer.'}</span><span class="go">${lv ? 'Take a seat →' : 'Open a table →'}</span></a></div>`;
   // your own table: who's been playing each game in the last 10 minutes comes from the feed
   const recent = g => [...new Set(S.feed.filter(f => f.game === g && Date.now() - f.at < 10 * 60e3).map(f => f.name))];
-  const game = (route, g, ic, c, name, rule, live) => { const who = recent(g); return `<a class="grow" href="#${route}" style="--c:${c}"><span class="ic">${ic}</span><span style="min-width:0"><b>${name}</b><small>${rule}</small></span>
+  const game = (route, g, ic, c, name, rule, live) => { const who = recent(g); return `<a class="grow" href="#${route}" style="--c:${c}"><span class="ic">${ic}</span><span style="min-width:0"><b>${name}${fTag(route)}</b><small>${rule}</small></span>
     <span class="stat">${live ? '<b>Hand in progress</b>yours' : who.length ? `<b>${esc(who.slice(0, 2).join(', '))}${who.length > 2 ? ` +${who.length - 2}` : ''}</b>playing now` : ''}</span><span class="cbtn gold">${live ? 'Back' : 'Play'}</span></a>`; };
   const games = `<div class="glist panel"><h2 class="g">Your own table</h2>
     ${game('blackjack', 'blackjack', '♠', 'var(--gold)', 'Blackjack', `$1 to $${S.maxBet} · pays 3:2, split up to 6 hands`, T.bj && !T.bj.over)}
     ${game('freebet', 'free bet', '♦', 'var(--up)', 'Free Bet Blackjack', 'Free doubles on 9 to 11, free splits, dealer 22 pushes · Push 22 pays 12:1', T.fb && !T.fb.over)}
     ${game('uth', 'UTH', '♣', 'var(--pink)', "Ultimate Hold'em", `Ante $1 to $${S.maxAnte} + blind vs the dealer · Trips up to 50:1`, T.uth && T.uth.stage !== 'done')}
-    ${game('baccarat', 'baccarat', '♥', 'var(--vio)', 'Baccarat', `Player, Banker or Tie · $1 to $${S.maxBet}`, false)}</div>`;
+    ${game('baccarat', 'baccarat', '♥', 'var(--vio)', 'Baccarat', `Player, Banker or Tie · $1 to $${S.maxBet}`, false)}
+    ${game('roulette', 'roulette', '◉', 'var(--sky, #7fb6ff)', 'Roulette', 'One table with Discord #casino · 30 second rounds · number pays 35:1', false)}</div>`;
   // the full lottery panel (wheel, how it works) opens from the tickets line; it opens by itself when a new draw happened
   const fresh = L && L.last && L.last.quarter !== L.quarter && Date.now() - L.last.at < 14 * 864e5 && L.lastBoard && !pref('lotSeen:' + L.last.quarter, false);
   const lot = L ? `<div id="lotbox"${pref('lotOpen', false) || fresh ? '' : ' hidden'}>${lottery()}</div>` : '';
@@ -726,7 +797,7 @@ function lobby() {
 }
 
 // ---------- shared table bits ----------
-const balBar = (title, net) => `<div class="tablebar"><a class="cbtn vio" href="#">← Lobby</a><span class="bal">Chips<b id="balNum">${money(shownBal === null ? S.me.bal || 0 : shownBal)}</b>${net ? `<i data-late class="${net > 0 ? 'pos' : 'neg'}">${signed(net)}</i>` : ''}${K.sndButton()}</span></div>`;
+const balBar = (title, net) => (title === 'Roulette' ? '' : gotwLine()) + `<div class="tablebar"><a class="cbtn vio" href="#">← Lobby</a><span class="bal">Chips<b id="balNum">${money(shownBal === null ? S.me.bal || 0 : shownBal)}</b>${net ? `<i data-late class="${net > 0 ? 'pos' : 'neg'}">${signed(net)}</i>` : ''}${K.sndButton()}</span></div>`;
 const felt = (hid, inner, extra = '') => `<div class="felt${extra}" data-hid="${hid}"${extra.includes('bac') ? '' : ' data-dealer="0"'}><div class="shoe" aria-hidden="true"></div>${inner}<div class="wait${busy ? ' on' : ''}"></div></div>`;
 const betChip = amt => `<div class="betchip">${K.chips(amt)}<span class="tk-amt">${money(amt)}</span></div>`;
 const resultStamp = net => `<div data-late class="result${net < 0 ? ' lost' : net === 0 ? ' even' : ''}">${net > 0 ? 'You win' : net < 0 ? 'You lose' : 'Push'}<small>${net ? signed(net) : 'bet back'}</small></div>`;
@@ -830,6 +901,135 @@ function baccarat() {
 
 // ---------- buttons ----------
 const LIMIT = { bj: [1, () => S.maxBet], fb: [1, () => S.maxBet], p22: [0, () => S.maxPush22 || 25], bac: [1, () => S.maxBet], ante: [1, () => S.maxAnte], trips: [0, () => S.maxTrips] };
+// ---------- Game of the Week (api/_featured.js) ----------
+const F = () => S && S.featured;
+const fEnds = f => new Date(f.ends).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+const fLeft = f => { const ms = f.ends - Date.now(), d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24; return ms <= 0 ? 'switching now' : d > 0 ? `${d}d ${h}h left` : `${h}h ${Math.floor(ms / 6e4) % 60}m left`; };
+const fTag = r => F() && F().route === r ? `<span class="ftag" style="--gc:${F().css}">FEATURED</span>` : '';
+function gotwBanner() {
+  const f = F(); if (!f) return '';
+  let rank = 0;
+  const rows = f.race.map(r => { const ok = r.hands >= f.minHands; if (ok) rank++;
+    return `<div class="rrow${ok && rank === 1 ? ' first' : ''}${S.me && r.id === S.me.id ? ' you' : ''}${ok ? '' : ' out'}"><span class="rk">${ok ? rank : '–'}</span>${av(r.id, r.name)}<b>${esc(r.name)}</b>
+      <small>${r.hands} hand${r.hands === 1 ? '' : 's'}${ok ? '' : ` · needs ${f.minHands}`}</small><span class="m ${r.net > 0 ? 'pos' : r.net < 0 ? 'neg' : ''}">${signed(r.net)}</span></div>`; }).join('');
+  const me = f.me, mine = me ? (me.hands >= f.minHands ? `You: ${me.rank ? '#' + me.rank + ' · ' : ''}${me.hands} hands · ${signed(me.net)}` : `You: ${me.hands} of ${f.minHands} hands to qualify`) : '';
+  return `<section class="gotw" style="--gc:${f.css}" aria-label="Game of the Week"><div class="in"><div>
+      <span class="gw">GAME OF THE WEEK</span><div class="gname">${esc(f.name)}</div>
+      <div class="perks">
+        <div class="perk"><span class="k">${Math.round(f.cut * 100)}%</span><div>of every losing bet goes to the jackpot<small>Twice the usual 2%, so the pot fills faster while people play it</small></div></div>
+        <div class="perk"><span class="k">2x</span><div>odds to be the hand that drops the jackpot<small>Your hand puts twice as much in, so it covers twice as much of the pot</small></div></div>
+        <div class="perk"><span class="k">TITLE</span><div>Player of the Week for the top ${esc(f.short)} winner<small>Biggest net win on ${esc(f.short)} this week, ${f.minHands} hands or more</small></div></div>
+      </div>
+      <div class="meta"><a class="cbtn" style="background:var(--gc);color:#15132a" href="#${f.route}">Play ${esc(f.short)}</a><span>${fLeft(f)} · switches ${fEnds(f)}</span></div></div>
+    <div><div class="rh">PLAYER OF THE WEEK RACE</div>${rows || `<div class="empty">Nobody has played ${esc(f.short)} yet this week. First ${f.minHands} hands put you on the board.</div>`}
+      ${mine ? `<div class="hint" style="margin:8px 0 0">${mine}</div>` : ''}</div></div></section>`;
+}
+const gotwLine = () => { const f = F(); if (!f || f.route !== route()) return '';
+  const me = f.me; return `<div class="gotwl" style="--gc:${f.css}">⭐ <b>Game of the Week.</b> Losing hands here put ${Math.round(f.cut * 100)}% in the jackpot (twice as likely to drop it).${me ? ` Player of the Week race: ${me.hands >= f.minHands ? `${me.rank ? '#' + me.rank + ', ' : ''}${signed(me.net)}` : `${me.hands} of ${f.minHands} hands`}.` : ''}</div>`; };
+
+// ---------- roulette: the shared #casino table (api/_roulette.js) ----------
+// The table lives on the server; this page watches it (GET /api/casino?ro=1 every few seconds while it's on screen)
+// and bets with one tap per chip. Discord players tap the same table in #casino.
+const WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+const REDN = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+const ncol = n => n === 0 ? 'green' : REDN.has(n) ? 'red' : 'black';
+const WHEEL_BG = (() => { const seg = 360 / 37; return 'conic-gradient(from ' + (-seg / 2) + 'deg, ' + WHEEL.map((n, i) => `${ncol(n) === 'red' ? '#c2283e' : ncol(n) === 'black' ? '#1e1f22' : '#248046'} ${i * seg}deg ${(i + 1) * seg}deg`).join(', ') + ')'; })();
+const OUT = { red: 'Red', black: 'Black', odd: 'Odd', even: 'Even', low: '1–18', high: '19–36', d1: '1st 12', d2: '2nd 12', d3: '3rd 12' };
+const RL = { ch: '', t: null, skew: 0, chip: [1, 5, 25, 100, 500].includes(pref('rochip', 5)) ? pref('rochip', 5) : 5, err: '', busy: false, loaded: false, shown: '', rot: 0, spinning: '', timer: null, tick: null };
+const rlNow = () => Date.now() + RL.skew;
+const rlKey = (type, num) => type === 'num' ? 'n' + num : type;
+const rlWins = (type, num, n) => type === 'num' ? num === n : type === 'red' ? ncol(n) === 'red' : type === 'black' ? ncol(n) === 'black' : n === 0 ? false
+  : type === 'odd' ? n % 2 === 1 : type === 'even' ? n % 2 === 0 : type === 'low' ? n <= 18 : type === 'high' ? n >= 19 : type === 'd1' ? n <= 12 : type === 'd2' ? n >= 13 && n <= 24 : n >= 25;
+function rlTake(j) {
+  if (!j) return;
+  if (j.ch) RL.ch = j.ch;
+  if (j.now) RL.skew = j.now - Date.now();
+  if (j.t !== undefined) RL.t = j.t;
+  if (j.max) RL.max = j.max;
+  if (typeof j.bal === 'number' && S.me && !RL.spinning) setBal(j.bal);
+  RL.loaded = true;
+}
+async function rlPoll() {
+  clearTimeout(RL.timer);
+  if (route() !== 'roulette' || !S || !S.me) return;
+  if (!document.hidden) {
+    try { const j = await (await fetch('/api/casino?ro=1' + (RL.ch ? '&ch=' + encodeURIComponent(RL.ch) : ''), { cache: 'no-store', credentials: 'same-origin' })).json(); if (!j.err) { rlTake(j); if (!RL.spinning) render(); } } catch (e) {}
+  }
+  const t = RL.t, open = t && !t.spun;
+  RL.timer = setTimeout(rlPoll, open ? (t.ends - rlNow() < 4000 ? 1200 : 2500) : 9000);
+}
+async function rlPost(body) {
+  if (RL.busy) return; RL.busy = true; RL.err = '';
+  try {
+    const r = await fetch('/api/casino', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' });
+    const j = await r.json().catch(() => ({ err: 'Something went wrong. Try again.' }));
+    if (j.signedOut) { S.me = null; } else if (j.err) { RL.err = j.err; rlTake(j); } else if (!j.busy) rlTake(j);
+  } catch (e) { RL.err = "Couldn't reach the table. Check your connection."; }
+  finally { RL.busy = false; render(); rlPoll(); }
+}
+function rlBoard(t, open) {
+  const mine = {}, all = {}, won = t && t.spun ? t.result : null;
+  if (t) t.bets.forEach(b => { const k = rlKey(b.type, b.num); all[k] = (all[k] || 0) + b.amt; if (b.uid === S.me.id) mine[k] = (mine[k] || 0) + b.amt; });
+  const tag = k => (mine[k] ? `<span class="bt">${money(mine[k]).replace('.00', '')}</span>` : '') + (all[k] && all[k] !== mine[k] ? `<span class="bt o">${money(all[k] - (mine[k] || 0)).replace('.00', '')}</span>` : '');
+  const cell = (type, num, label, r, c, pr, pc, cls) => { const k = rlKey(type, num), w = won !== null && rlWins(type, num, won);
+    return `<button class="${cls || ''}${w ? ' won' : ''}" style="--r:${r};--c:${c};--pr:${pr};--pc:${pc}" data-rl="${type}" data-num="${num ?? ''}"${open && !RL.busy ? '' : ' disabled'} aria-label="${esc(label)}${mine[k] ? ', yours ' + money(mine[k]) : ''}">${label}${tag(k)}</button>`; };
+  let h = cell('num', 0, '0', '1 / 4', 1, 1, '1 / 4', 'n-green');
+  for (let n = 1; n <= 36; n++) h += cell('num', n, String(n), 3 - ((n - 1) % 3), 1 + Math.ceil(n / 3), 1 + Math.ceil(n / 3), ((n - 1) % 3) + 1, 'n-' + ncol(n));
+  h += cell('d1', null, '1st 12', 4, '2 / 6', 14, 1) + cell('d2', null, '2nd 12', 4, '6 / 10', 14, 2) + cell('d3', null, '3rd 12', 4, '10 / 14', 14, 3);
+  h += cell('low', null, '1–18', 5, '2 / 4', 15, 1) + cell('even', null, 'Even', 5, '4 / 6', 15, 2) + cell('red', null, 'Red', 5, '6 / 8', 15, 3, 'n-red')
+    + cell('black', null, 'Black', 5, '8 / 10', 16, 1, 'n-black') + cell('odd', null, 'Odd', 5, '10 / 12', 16, 2) + cell('high', null, '19–36', 5, '12 / 14', 16, 3);
+  return `<div class="rl-board">${h}</div>`;
+}
+function rlPlayers(t) {
+  if (!t || !t.bets.length) return '';
+  const by = new Map();
+  t.bets.forEach(b => { if (!by.has(b.uid)) by.set(b.uid, { name: b.name, site: false, amt: 0, labels: new Map() }); const p = by.get(b.uid); p.amt += b.amt; if (b.site) p.site = true; p.labels.set(b.label, (p.labels.get(b.label) || 0) + b.amt); });
+  const showNet = t.spun && RL.spinning !== t.id;
+  const rows = [...by.entries()].map(([uid, p]) => { const net = showNet && t.nets ? t.nets[uid] || 0 : null;
+    return [net ?? p.amt, `<div class="row">${av(uid, p.name)}<span class="w"><b>${esc(p.name)}<span class="src${p.site ? '' : ' dc'}">${p.site ? 'SITE' : 'DISCORD'}</span></b><small>${[...p.labels].map(([l, a]) => `${esc(l)} ${money(a)}`).join(' · ')}</small></span>
+      <span class="m ${net > 0 ? 'pos' : net < 0 ? 'neg' : ''}">${net === null ? money(p.amt) : signed(net)}</span></div>`]; }).sort((a, b) => b[0] - a[0]).map(r => r[1]).join('');
+  return `<div class="panel rl-who"><h2>${t.spun ? 'This spin' : 'At the table'}</h2>${rows}</div>`;
+}
+function roulette() {
+  const t = RL.t, open = t && !t.spun && t.ends > rlNow(), spinning = t && t.spun && RL.spinning === t.id;
+  const myBets = t ? t.bets.filter(b => b.uid === S.me.id) : [], myAmt = myBets.reduce((a, b) => a + b.amt, 0), myNet = t && t.spun && t.nets ? t.nets[S.me.id] : undefined;
+  const res = t && t.spun && !spinning;
+  let info;
+  if (!RL.loaded) info = `<div class="rl-info"><div class="res">Finding the table…</div></div>`;
+  else if (open) info = `<div class="rl-info"><div class="clock"><small>SPINS IN</small><span id="rlClock">${Math.max(0, Math.ceil((t.ends - rlNow()) / 1000))}s</span></div>
+      <div class="sub">Tap a chip, then tap the table. Every tap is one bet.${t.by ? ` Opened on the site by ${esc(t.by)}.` : ''} Discord players are betting on this same spin in #casino.</div></div>`;
+  else if (t && !t.spun) info = `<div class="rl-info"><div class="res">No more bets</div><div class="sub">The wheel is spinning…</div></div>`;
+  else if (spinning) info = `<div class="rl-info"><div class="res">No more bets</div><div class="sub">The wheel is spinning…</div></div>`;
+  else info = `<div class="rl-info">${res ? `<div class="res">${t.result} ${t.color.toUpperCase()}</div><div class="sub">${myNet !== undefined ? (myNet > 0 ? `You won ${money(myNet)}.` : myNet < 0 ? `You lost ${money(-myNet)}.` : 'You broke even.') : 'Last spin.'}</div>` : '<div class="res">No table open</div>'}
+      <div class="rl-open"><button class="cbtn gold big" data-rlopen${RL.busy ? ' disabled' : ''}>Open a table (30s)</button><div class="sub">It shows up in #casino too, so anyone there can bet on it.</div></div></div>`;
+  const hist = t && t.hist && t.hist.length && !spinning ? `<div class="rl-hist">${t.hist.map(n => `<span class="c-${ncol(n)}">${n}</span>`).join('')}</div>` : '';
+  const hubN = res ? `<div class="hub ${t.color}">${t.result}</div>` : '<div class="hub">🎡</div>';
+  const wheel = `<div class="wheel"><div class="ptr"></div><div class="disc" id="rlDisc" style="--wheel:${WHEEL_BG};transform:rotate(${RL.pending ? RL.from : RL.rot}deg)"></div>${hubN}</div>`;
+  const chips = [1, 5, 25, 100, 500].map(v => `<button class="chip c${v}" data-rlchip="${v}" aria-pressed="${RL.chip === v}" aria-label="Chip ${money(v)}"><span>$${v}</span></button>`).join('');
+  return `${balBar('Roulette', res && myNet ? myNet : 0)}${gotwLine()}${RL.err ? `<div class="err">${esc(RL.err)}</div>` : ''}
+    <div class="felt" data-hid="ro"><div class="rl-top">${wheel}<div>${info}${hist}</div></div>${rlBoard(t, open)}</div>
+    <div class="rl-rack"><span class="lab">CHIP</span>${chips}<span class="tot">${open ? `On this spin<b>${money(myAmt)}</b>` : `Up to ${money(RL.max || 1000)} a spin`}</span></div>
+    ${rlPlayers(t)}${syncLine}`;
+}
+// spin the drawn wheel to the result once per spin, then show the result
+function rlAfterRender() {
+  clearInterval(RL.tick);
+  if (route() !== 'roulette') return;
+  const t = RL.t;
+  if (t && !t.spun && t.ends > rlNow()) RL.tick = setInterval(() => { const el = $('#rlClock'); if (!el) return clearInterval(RL.tick); const s = Math.max(0, Math.ceil((t.ends - rlNow()) / 1000)); el.textContent = s + 's'; if (s <= 0) { clearInterval(RL.tick); render(); } }, 250);
+  if (t && t.spun && RL.shown !== t.id) {
+    RL.shown = t.id;
+    const fresh = Date.now() - (t.ends - RL.skew) < 25000; // only animate spins that just happened
+    const idx = WHEEL.indexOf(t.result), seg = 360 / 37;
+    const target = 360 * (fresh && !REDUCED ? 5 : 0) + (360 - idx * seg);
+    RL.from = RL.rot; RL.rot = Math.ceil(RL.rot / 360) * 360 + target;
+    if (!fresh || REDUCED) { const d = $('#rlDisc'); if (d) { d.style.transition = 'none'; d.style.transform = `rotate(${RL.rot}deg)`; } return; }
+    RL.spinning = t.id; RL.pending = true; render();
+    requestAnimationFrame(() => requestAnimationFrame(() => { RL.pending = false; const d = $('#rlDisc'); if (d) d.style.transform = `rotate(${RL.rot}deg)`; }));
+    setTimeout(() => { RL.spinning = ''; const net = t.nets && t.nets[S.me.id]; if (net > 0) SND.win(); else if (net < 0) SND.lose(); render(); rlPoll(); }, 4300);
+  }
+}
+
 function wire() {
   document.querySelectorAll('[data-bj],[data-uth],[data-do]').forEach(b => b.addEventListener('pointerdown', () => { b.classList.add('pressed'); }));
   document.querySelectorAll('details.earn').forEach(d => d.ontoggle = () => setPref('earn', d.open));
@@ -874,6 +1074,13 @@ function wire() {
     if (d === 'uth-deal') play({ a: 'uth', ante: pref('ante', 10), trips: pref('trips', 0) }, j => { T.uth = j.hand; });
     if (d === 'bac-deal') { const bet = pref('bac', 20), side = pref('side', 'banker'); play({ a: 'bac', bet, side }, j => { T.bac = { ...j, bet, n: (T.bac ? T.bac.n : 0) + 1 }; }); }
   });
+  // roulette: pick a chip, tap the table (one bet per tap), or open a table
+  document.querySelectorAll('[data-rlchip]').forEach(b => b.onclick = () => { RL.chip = +b.dataset.rlchip; setPref('rochip', RL.chip); SND.chips(0, 1); render(); });
+  document.querySelectorAll('[data-rl]').forEach(b => b.onclick = () => {
+    if (!RL.t || RL.t.spun || RL.busy) return;
+    b.classList.add('flash'); SND.chips(0, RL.chip >= 100 ? 3 : 1);
+    rlPost({ a: 'ro-bet', id: RL.t.id, type: b.dataset.rl, num: b.dataset.num === '' ? undefined : +b.dataset.num, amt: RL.chip }); });
+  document.querySelectorAll('[data-rlopen]').forEach(b => b.onclick = () => { SND.chips(0, 2); rlPost({ a: 'ro-open' }); });
   if (busy) document.querySelectorAll('[data-bj],[data-uth],[data-do]').forEach(b => b.disabled = true);
 }
 // the move's own sound as you tap it: knock for stand / check, chips for double / split / bets, swish for fold (hit = the card)
@@ -889,7 +1096,9 @@ function incomingCard() {
   const s = f.querySelector('.shoe').getBoundingClientRect(), e = el.getBoundingClientRect();
   el.animate([{ transform: `translate(${s.left - e.left}px, ${s.top - e.top}px) rotate(-12deg) scale(.8)` }, { transform: 'none' }], { duration: 280, easing: 'cubic-bezier(.2,.8,.25,1)' });
 }
-load();
+window.addEventListener('hashchange', () => { if (route() === 'roulette') { RL.loaded = !!RL.t; rlPoll(); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && route() === 'roulette') rlPoll(); });
+load().then(() => { if (route() === 'roulette') rlPoll(); });
 </script>
 
 <!-- phones: hide the header buttons (the site bar menu covers them) -->

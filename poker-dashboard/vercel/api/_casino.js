@@ -5,7 +5,8 @@
 //   GET  /api/login?code=…       ← Discord sends you back here; sets the session cookie, then goes to /casino
 //   GET  /api/casino             → who you are, your chips, daily, leaderboard, "just now" feed, any unfinished hand
 //   GET  /api/casino?jp=1        → just the casino jackpot (pot, cap, last win) for the lobby banner's refresh
-//   POST /api/casino {a: …}      → daily | bj (mode 'free' = Free Bet, side = Push 22) | bj-act | uth | uth-act | bac | logout
+//   GET  /api/casino?ro=1        → the shared #casino roulette table (see rouletteWeb in _roulette.js)
+//   POST /api/casino {a: …}      → daily | bj (mode 'free' = Free Bet, side = Push 22) | bj-act | uth | uth-act | bac | ro-open | ro-bet | logout
 //   GET/POST /api/shop           → the /shop page (Study Cards), handled by shopWeb in _shop.js
 //
 // Chips are the Discord bot's (bj:bal keyed by Discord user ID), so the site and Discord stay in sync both ways.
@@ -26,6 +27,8 @@ import { pokerWeb, roomSummary } from './_poker.js';
 import { liveWeb, liveSummary } from './_live.js';
 import { meWeb } from './_me.js';
 import { nextAccolade } from './_accolades.js';
+import { featuredView, raceReads } from './_featured.js';
+import { rouletteWeb } from './_roulette.js';
 
 const DAYS30 = 30 * 24 * 3600;
 const out = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers } });
@@ -125,11 +128,11 @@ async function fixNames(names, sn) {
 
 async function state(me, sheet) {
   // two storage trips: everything for the lobby at once, then any unfinished hands
-  const [bal, names, feedRaw, last, cur, wkNet, wkVol, jp, ltRaw, pkRaw, bfRaw, rsRaw, acN, acOwn] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['LRANGE', 'cas:feed', 0, FEED_KEEP - 1],
+  const [bal, names, feedRaw, last, cur, wkNet, wkVol, jp, ltRaw, pkRaw, gwNet, gwN, bfRaw, rsRaw, acN, acOwn] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['LRANGE', 'cas:feed', 0, FEED_KEEP - 1],
     ['HGET', 'bj:last', me ? me.id : '-'], ['HGETALL', 'cas:cur:' + (me ? me.id : '-')],
     ['HGET', 'rb:wk:' + weekKey(), me ? me.id : '-'], ['HGET', 'rb:vol:' + weekKey(), me ? me.id : '-'], ['HGETALL', 'jp'],
     // what's open right now (live table, poker room) + your counters for the "next unlock" line, in the same trip
-    ['GET', 'lt:t'], ['GET', 'pk:t'], ...(me ? [...buffReads(me.id), ['HGETALL', 'ac:n:' + me.id], ['HKEYS', 'ac:own:' + me.id]] : []));
+    ['GET', 'lt:t'], ['GET', 'pk:t'], ...raceReads(), ...(me ? [...buffReads(me.id), ['HGETALL', 'ac:n:' + me.id], ['HKEYS', 'ac:own:' + me.id]] : []));
   const sh = sheet ? await sheet().catch(() => null) : null, sn = sheetNames(sh);
   const board = boardFrom(bal, names, sh);
   // linked players show their Members-tab name everywhere, even on older feed lines and stored names saved as their Discord name
@@ -137,6 +140,9 @@ async function state(me, sheet) {
   await fixNames(names, sn);
   const body = { me: null, board: board.slice(0, 15), players: board.length, feed, maxBet: MAX_BET, maxPush22: MAX_PUSH22, maxAnte: MAX_ANTE, maxTrips: MAX_TRIPS, uthPaytable: plain(UTH_PAYTABLE), rewards: REWARD_LIST, jackpot: jackpotView(jp),
     open: { live: liveSummary(ltRaw), poker: roomSummary(pkRaw) } };
+  // Game of the Week (see _featured.js): this week's game, the Player of the Week race, your own line
+  { const nm = {}; for (let k = 0; k < (names || []).length; k += 2) nm[names[k]] = names[k + 1];
+    body.featured = featuredView(gwNet, gwN, id => sn[id] || nm[id] || 'Someone', me ? me.id : null); }
   // the quarter lottery panel (needs the sheet; left out if it can't be read)
   try { if (sh && sh.csv) { const v = await lotteryView(sh.csv, null, sh.ids || {}); v.holders = v.holders.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); if (v.lastBoard) v.lastBoard = v.lastBoard.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); body.lottery = v; } } catch (e) { console.error('lottery view', e); }
   if (!me) return body;
@@ -187,6 +193,7 @@ async function act(req, me) {
       return out({ bal: r.bal, hand: publicUth(r.g, r.bal) });
     }
     case 'uth-act': return actResult(await uthAction(who, String(b.id || '').replace(/[^0-9a-f]/g, ''), String(b.do)), publicUth);
+    case 'ro-open': case 'ro-bet': return rouletteWeb(req, me, out, b); // the shared #casino roulette table (see _roulette.js)
     case 'bac': {
       const side = ['player', 'banker', 'tie'].includes(b.side) ? b.side : 'banker';
       // a short lock per person so a double tap doesn't deal two hands
@@ -215,6 +222,7 @@ export async function casinoWeb(req, what, sheet) {
     if (what === 'poker' && req.method === 'GET') return await pokerWeb(req, me, sheet, out);
     if (what === 'live' && req.method === 'GET') return await liveWeb(req, me, out);
     if (req.method === 'GET' && new URL(req.url).searchParams.get('jp')) return out({ jackpot: await readJackpot() }); // the lobby banner's live refresh
+    if (req.method === 'GET' && new URL(req.url).searchParams.get('ro')) return await rouletteWeb(req, me, out); // the roulette table (polled while open)
     if (req.method === 'GET') return out(await state(me, sheet));
     if (req.method !== 'POST') return out({ err: 'Method not allowed.' }, 405);
     // same-site only: the cookie is SameSite=Lax already; this also refuses posts from other sites
