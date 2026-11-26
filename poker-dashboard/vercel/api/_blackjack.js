@@ -154,16 +154,17 @@ export const FEED_KEEP = 300;
 
 // ---------- /daily ----------
 /** Shared by /daily and the site: { wait } (ms until the next claim) or { amt, bal, first }. */
-export async function claimDaily(me) {
+export async function claimDaily(me, { names = false } = {}) {
   const now = Date.now();
-  // a short lock so two taps (or Discord and the site at once) can't both claim
-  const [last, got] = await kv(['HGET', 'bj:last', me.id], ['SET', 'bj:dlock:' + me.id, '1', 'NX', 'PX', 3000]);
+  // a short lock so two taps (or Discord and the site at once) can't both claim; Discord also reads the player list for the @ lines
+  const [last, got, ids] = await kv(['HGET', 'bj:last', me.id], ['SET', 'bj:dlock:' + me.id, '1', 'NX', 'PX', 3000], ...(names ? [['HKEYS', 'bj:name']] : []));
+  const others = (ids || []).filter(id => id && id !== me.id);
   const wait = dailyWait(last, now);
-  if (wait) return { wait, amt: claimAmt(last, now + wait) };
+  if (wait) return { wait, amt: claimAmt(last, now + wait), others };
   if (!got) return { wait: 0, busy: true, amt: claimAmt(last, now) };
   const amt = claimAmt(last, now);
   const [bal] = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, amt], ['HSET', 'bj:last', me.id, now], ['HSET', 'bj:name', me.id, me.name], ...feedCmds(me, 'daily', amt));
-  return { amt, bal: +bal, weekly: amt === WEEKLY_CLAIM, next: claimAmt(now, lastReset(now) + DAY) };
+  return { amt, bal: +bal, weekly: amt === WEEKLY_CLAIM, next: claimAmt(now, lastReset(now) + DAY), others };
 }
 /** What a claim at `at` pays: WEEKLY_CLAIM if it's the first since this week started (or ever), else DAILY. */
 export const claimAmt = (last, at = Date.now()) => !last || +last < weekStart(at) ? WEEKLY_CLAIM : DAILY;
@@ -174,18 +175,82 @@ export async function dailyStatus(id) {
   return dailyFrom(last);
 }
 
+// Funny lines for /daily (one picked at random per reply, like /beg). /daily is your pay from a day job, never the casino handing
+// out chips. $X = the amount, {P} = a random other casino player as an @ mention (never pings: allowed_mentions parse []).
+export const DAILY_LINES = [
+  '💼 Clocked in. Clocked out. $X richer.',
+  '🧾 Payday! Your boss handed over $X and asked if you\'re "still doing the poker thing."',
+  '☕ Eight hours of meetings that should have been emails: $X.',
+  '🚚 You delivered 40 packages and only lost one. $X earned.',
+  '🍔 Flipped burgers all shift. $X and you smell like fries.',
+  '📊 Made a spreadsheet nobody will read. $X.',
+  '🧹 Mopped the floors, took out the trash, $X in your pocket.',
+  '🚗 Drove rideshare all day. Five stars, $X, zero respect.',
+  '🪑 You showed up to work, so you get paid. Wild concept.',
+  '🧠 A full day of honest work, about to be lost in one hand: $X.',
+  '🔧 Fixed the printer. Became a legend. $X.',
+  '📞 Said "per my last email" three times today. $X earned.',
+  '🧾 Payday! {P} already asked to borrow $X.',
+  '🚗 You drove {P} to work all week. Gas money: $X.',
+  '💼 Covered {P}\'s shift again. $X, and they owe you one.',
+  '📞 {P} called in sick, so you worked a double. $X.',
+  '🍔 Flipped burgers next to {P} all day. $X and you both smell like fries.',
+  '👀 {P} watched you clock in like it was a magic trick. $X.',
+  '☕ You fetched coffee for {P} all day. $X and zero thanks.',
+  '🧑‍💼 {P} is somehow your manager now. Still got paid $X.',
+  '🤝 {P} tried to split your paycheck "for the group." You kept all $X.',
+  '🪪 {P} borrowed your badge again. You still got your $X.'];
+export const WEEKLY_LINES = [
+  '🗓️ Weekly paycheck cleared: $X. Overtime counts.',
+  '💸 Direct deposit hit: $X. Monday money hits different.',
+  '🏆 Employee of the week bonus: $X.',
+  '📅 New week, new shift, and the boss paid double: $X.',
+  '🧼 Fresh week, clean slate, $X to ruin it with.',
+  '🎉 Back at work after the weekend. Welcome-back pay: $X.',
+  '🏆 Employee of the week: you. {P} is demanding a recount. $X.',
+  '🗓️ Weekly paycheck: $X. {P} has already planned how you\'ll lose it.',
+  '🎉 Back after the weekend. {P} is still hungover. $X.',
+  '💸 Direct deposit hit: $X. {P} is suddenly being very nice to you.'];
+/** Extra line when the balance after the claim is under DAILY_BROKE / over DAILY_RICH. */
+export const DAILY_BROKE = 100, DAILY_RICH = 5000;
+export const BROKE_LINES = ['🩹 This should stop the bleeding. For now.', '🕳️ Climbing out of the hole one shift at a time.', '📉 Your bankroll called. It said thanks.',
+  '📉 {P} started a GoFundMe for you.', '🍜 {P} dropped off some ramen. Hang in there.'];
+export const RICH_LINES = ['🤨 You have plenty of chips and you still clocked in.', '🐋 A whale still working the day job. Respect the grind.', '💎 Rich people stay rich by never skipping a shift.',
+  '🐋 {P} wants to know if you\'re hiring.', '🙄 {P} says you don\'t need the money. You clocked in anyway.'];
+export const CLAIMED_LINES = [
+  "⏳ You already worked today's shift. Go home.",
+  '🚫 Your boss says no double shifts.',
+  `🙅 HR says your next shift starts after ${DAILY_RESET_UTC}:00 UTC.`,
+  '👀 Clocking in twice is called time theft.',
+  '🧾 Payroll already paid you today.',
+  '🐢 Patience is a poker skill too.',
+  '💤 The office is closed. Get some sleep.',
+  '🪪 Your badge won\'t scan. You already clocked out.',
+  '🙅 {P} saw you clock in this morning. Nice try.',
+  '👀 {P} reported you to HR for clocking in twice.',
+  '🧾 Payroll says no. {P} got the same answer yesterday.',
+  '🕵️ {P} is timing your breaks now. Come back after reset.'];
+const pickLine = a => a[randomInt(a.length)];
+/** A random line from `pool` with {P} swapped for a random other player; lines with {P} are skipped when there's nobody to name. */
+const lineFor = (pool, others = []) => {
+  const ok = others.length ? pool : pool.filter(l => !l.includes('{P}'));
+  return pickLine(ok).replace('{P}', () => `<@${pickLine(others)}>`);
+};
+
 async function daily(i, s) {
   const me = whoIs(i, s);
-  const r = await claimDaily(me);
+  const r = await claimDaily(me, { names: true });
   if (r.busy) return quiet('One moment, that claim is already going through.');
   if (r.wait !== undefined) {
     const left = Math.ceil(r.wait / 60e3), hrs = Math.floor(left / 60), mins = left % 60;
-    return quiet(`⏳ Already claimed. Next **+${money(r.amt)}** in ${hrs}h ${mins}m.`);
+    return quiet(`${lineFor(CLAIMED_LINES, r.others)}\nNext **+${money(r.amt)}** in ${hrs}h ${mins}m.`);
   }
   const { amt, bal } = r;
+  const line = lineFor(r.weekly ? WEEKLY_LINES : DAILY_LINES, r.others).replace('$X', `**${money(amt)}**`);
+  const extra = +bal < DAILY_BROKE ? lineFor(BROKE_LINES, r.others) : +bal > DAILY_RICH ? lineFor(RICH_LINES, r.others) : '';
   return json({ type: 4, data: { allowed_mentions: { parse: [] }, embeds: [{ color: 0x8ee0b0,
-    title: r.weekly ? `🎁 ${me.name} claimed the weekly ${money(amt)}` : `🎁 ${me.name} claimed ${money(amt)}`,
-    description: `${r.weekly ? 'First claim of the week gets double. ' : ''}**+${money(amt)}** in chips\n\nBalance **${money(+bal)}**`,
+    title: r.weekly ? `💼 ${me.name} got the weekly paycheck: ${money(amt)}` : `💼 ${me.name} got paid ${money(amt)}`,
+    description: `${line}${extra ? '\n' + extra : ''}\n\n**+${money(amt)}** in chips · Balance **${money(+bal)}**`,
     footer: { text: `Next +${money(r.next)} after ${DAILY_RESET_UTC}:00 UTC` } }] } });
 }
 
