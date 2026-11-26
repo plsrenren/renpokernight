@@ -36,6 +36,7 @@ import { UTH_COMMAND, uthCommand, uthButton } from './_uth.js';
 import { ROULETTE_COMMAND, rouletteCommand, rouletteInteraction } from './_roulette.js';
 import { BACCARAT_COMMAND, baccaratCommand, baccaratButton } from './_baccarat.js';
 import { casinoWeb } from './_casino.js';
+import { featuredTag } from './_featured.js';
 import { checkAccolades } from './_accolades.js';
 import { houseEmbed } from './_rakeback.js';
 import { afterJackpot, readJackpot, jackpotEmbed, JP } from './_jackpot.js';
@@ -140,8 +141,9 @@ export async function POST(req) {
   if (i.type === 1) return json({ type: 1 }); // Discord's ping when you save the endpoint URL
   const pic = (i.type === 3 && i.data && PIC_BUTTONS.test(String(i.data.custom_id))) || (i.type === 2 && i.data && PIC_COMMANDS.includes(i.data.name));
   if (!pic) { const out = await answer(i); accoladesLater(); return out; }
+  // Game of the Week tables get a small footer tag (see _featured.js)
   warmPictures().catch(e => console.error('picture code', e)); // loads while the game talks to chip storage
-  const raw = answer(i);
+  const raw = answer(i).then(r => featuredTag(r, i));
   const out = await inTime(i, raw, raw.then(r => withPicture(r, startedAt)));
   accoladesLater();
   return out;

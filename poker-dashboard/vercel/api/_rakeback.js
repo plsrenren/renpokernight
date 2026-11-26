@@ -77,5 +77,5 @@ export async function houseEmbed(now = Date.now()) {
       { name: 'All time', value: block(num(all)), inline: true },
       { name: 'Rakeback so far this week', value: `${money(owedTotal)} to ${owed.length} player${owed.length === 1 ? '' : 's'}, paid Monday · ${money(bet)} bet this week` },
     ],
-    footer: { text: 'What the house won (+) or lost (−) at blackjack, free bet, UTH, baccarat and roulette. Jackpot slices = 2% of hands the house won, moved into the pot; jackpot seeds = new chips that restart the pot; poker free seats = chips the house gave out as free seats in the poker room; begging = what /beg paid out; beg roulette = /beg Gamble spins. Counted since rakeback went live.' } };
+    footer: { text: 'What the house won (+) or lost (−) at blackjack, free bet, UTH, baccarat and roulette. Jackpot slices = 2% of hands the house won (4% on the Game of the Week), moved into the pot; jackpot seeds = new chips that restart the pot; poker free seats = chips the house gave out as free seats in the poker room; begging = what /beg paid out; beg roulette = /beg Gamble spins. Counted since rakeback went live.' } };
 }

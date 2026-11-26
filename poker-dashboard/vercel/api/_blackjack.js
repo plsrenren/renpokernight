@@ -13,6 +13,7 @@ import { randomInt, randomBytes } from 'node:crypto';
 
 const SITE = 'https://www.thepoker.study';
 import { jackpotCmds } from './_jackpot.js';
+import { featuredCmds } from './_featured.js';
 import { buffReads, activeBuffs, boosted, buffView } from './_buffs.js';
 export const MAX_BET = 500;
 /** Most hands one deal can be split into (both games). */
@@ -106,7 +107,7 @@ export const noStorage = () => quiet("Blackjack isn't set up yet: the site needs
 // stats = extra counts for the casino accolades, e.g. { naturals: 1 } (see statCmds).
 export const feedCmds = (me, game, net, wager = 0, stats = {}) => [
   ['LPUSH', 'cas:feed', JSON.stringify({ id: me.id, name: me.name, game, net: Math.round(net * 100) / 100, src: me.src || 'discord', at: Date.now() })],
-  ['LTRIM', 'cas:feed', 0, FEED_KEEP - 1], ...houseCmds(me.id, game, net, wager), ...(HOUSE_GAMES.has(game) ? jackpotCmds(me, game, net, wager) : []), ...statCmds(me.id, game, net, stats)];
+  ['LTRIM', 'cas:feed', 0, FEED_KEEP - 1], ...houseCmds(me.id, game, net, wager), ...(HOUSE_GAMES.has(game) ? [...jackpotCmds(me, game, net, wager), ...featuredCmds(me.id, game, net)] : []), ...statCmds(me.id, game, net, stats)];
 
 // ---------- counts for the casino accolades (see _accolades.js and ACC in loot.js) ----------
 // Nobody sees these numbers; they only unlock titles and borders. One hash per player, ac:n:<id>:
