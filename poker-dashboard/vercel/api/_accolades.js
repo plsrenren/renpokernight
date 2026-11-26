@@ -70,6 +70,7 @@ export function earnedFrom(st) {
   // earned bars: best runs (bjbest / dubest / rlbest, kept by the STREAK script in _blackjack.js), big wins, clean sweeps
   add('hotshoe', (n.bjbest || 0) >= NEED.run); add('unbeaten', (n.dubest || 0) >= NEED.run); add('hottable', (n.rlbest || 0) >= NEED.run);
   add('heavy', (n.heavy || 0) >= 1); add('sweep', (n.sweep || 0) >= 1);
+  add('madlad', (n.madlad || 0) >= 1); // Double Down Madness hand doubled 3+ times that won (handStats in _blackjack.js)
   // bot games at the poker practice tables (ac:n practice, counted by api/_poker.js)
   add('betatester', (n.practice || 0) >= NEED.betatester);
   // the hosted poker room (ac:n fields counted by api/_poker.js)

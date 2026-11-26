@@ -68,7 +68,7 @@ export function jackpotEmbed(v) {
   return { color: 0xf1c75b, title: `🎰 Casino jackpot: ${usd(v.pot)}`, url: `${SITE}/casino`,
     description: `Drops at a secret amount before **${usd(v.cap)}**. The losing hand that pushes it over takes the whole pot.`,
     fields: [
-      { name: 'How it grows', value: `${Math.round(JP.cut * 100)}% of every hand the house wins goes in, **${Math.round(GOTW.cut * 100)}% on ${GAME_INFO[featuredGame()].short}** this week (Game of the Week). Blackjack, free bet, UTH, baccarat and roulette all count.` },
+      { name: 'How it grows', value: `${Math.round(JP.cut * 100)}% of every hand the house wins goes in, **${Math.round(GOTW.cut * 100)}% on ${GAME_INFO[featuredGame()].short}** this week (Game of the Week). Blackjack, free bet, Double Down Madness, UTH, baccarat and roulette all count.` },
       { name: 'To win', value: `Bet ${money(JP.minBet)} or more. Pot resets to ${money(JP.seed)} after a hit. ${GAME_INFO[featuredGame()].short} hands are twice as likely this week.` },
       ...(v.last ? [{ name: 'Last hit', value: `<@${v.last.id}> won **${usd(v.last.win)}** · ${ago(v.last.at)}` }] : []),
     ] };

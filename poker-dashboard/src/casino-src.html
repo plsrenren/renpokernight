@@ -135,6 +135,11 @@ button:disabled { cursor: default; opacity: .4; }
 .hands.many .card + .card { margin-left: -18px; }
 .ftag { font: 900 11px Nunito, sans-serif; letter-spacing: .08em; padding: 2px 7px; background: var(--gold); color: #2a1f00; }
 .cbtn.free { background: var(--up); color: #0e2a1c; }
+/* Double Down Madness (Nov 26 2026): orange multiplier tag on the bet, side bet results in one row */
+:root { --mad: #ff9f5a; }
+.ftag.dd { background: var(--mad); color: #2a1200; }
+.felt .lbl.sides2 { gap: 16px; flex-wrap: wrap; white-space: normal; font-size: 15px; }
+.felt .sb { display: inline-flex; gap: 6px; align-items: center; }
 .card { width: 74px; height: 104px; background: #f6f3ea; display: flex; flex-direction: column; align-items: center; justify-content: center; font: 900 32px/1 Nunito, sans-serif; color: #1b1b1b; box-shadow: 0 4px 10px rgba(0,0,0,.35); flex: none; position: relative; }
 /* four-color deck from the shared table kit: hearts red, diamonds blue, clubs green, spades black */
 .card.su-h { color: var(--tk-red); } .card.su-d { color: var(--tk-blue); } .card.su-c { color: var(--tk-green); } .card i { font-style: normal; font-size: 28px; margin-top: 4px; }
@@ -482,7 +487,7 @@ const pref = (k, d) => { try { const v = localStorage.getItem('cas.' + k); retur
 const setPref = (k, v) => { try { localStorage.setItem('cas.' + k, JSON.stringify(v)); } catch (e) {} };
 
 let S = null;                 // what /api/casino said
-let T = { bj: null, fb: null, uth: null, bac: null, err: '' };  // what's on each table (fb = Free Bet blackjack)
+let T = { bj: null, fb: null, mad: null, uth: null, bac: null, err: '' };  // what's on each table (fb = Free Bet blackjack, mad = Double Down Madness)
 let busy = false;
 let shownBal = null;          // the balance currently on screen (it rolls to the real one)
 let pressed = null;           // the button just tapped (stays lit while the table thinks)
@@ -500,6 +505,7 @@ async function load() {
   S = await api();
   if (S.bj) T.bj = S.bj;
   if (S.fb) T.fb = S.fb;
+  if (S.mad) T.mad = S.mad;
   if (S.uth) T.uth = S.uth;
   if (jpSeen === null) jpSeen = jpKey(S.jackpot && S.jackpot.last);
   render();
@@ -560,8 +566,8 @@ function render() {
   $('#note').innerHTML = err && ERRS[err] ? `<div class="note">${esc(ERRS[err])}</div>` : '';
   const r = route(), v = $('#view');
   const before = onTable();
-  if (!S.me || !['blackjack', 'freebet', 'uth', 'baccarat', 'roulette'].includes(r)) v.innerHTML = lobby();
-  else v.innerHTML = r === 'blackjack' ? blackjack(false) : r === 'freebet' ? blackjack(true) : r === 'uth' ? uth() : r === 'roulette' ? roulette() : baccarat();
+  if (!S.me || !['blackjack', 'freebet', 'madness', 'uth', 'baccarat', 'roulette'].includes(r)) v.innerHTML = lobby();
+  else v.innerHTML = r === 'blackjack' ? blackjack('bj') : r === 'freebet' ? blackjack('fb') : r === 'madness' ? blackjack('mad') : r === 'uth' ? uth() : r === 'roulette' ? roulette() : baccarat();
   onTable(before);
   wire();
   choreograph(before);
@@ -646,7 +652,7 @@ let PL = null;
 let COS = (() => { try { const m = (JSON.parse(localStorage.getItem('sb:me')) || {}).m; return m && m.all ? { own: m.own, all: m.all } : null; } catch (e) { return null; } })();
 window.addEventListener('sb:me', e => { const m = e.detail; if (m && m.all && (!COS || COS.own !== m.own)) { COS = { own: m.own, all: m.all }; if (S && S.me && !onGame()) render(); } });
 import('/plates.js').then(m => m.loadouts().then(lo => { PL = { ...lo, bits: m.bits }; if (S && !onGame()) render(); })).catch(() => {});
-const onGame = () => S && S.me && ['blackjack', 'freebet', 'uth', 'baccarat'].includes(route());
+const onGame = () => S && S.me && ['blackjack', 'freebet', 'madness', 'uth', 'baccarat'].includes(route());
 function plateOf(id) {
   const b = PL && PL.L && PL.bits(PL.L, PL.byId[id]);
   return b || { any: false, bar: '', title: '', sticker: '', face: h => h };
@@ -661,7 +667,7 @@ function feed() {
   const ago = t => { const m = Math.round((Date.now() - t) / 60e3); return m < 1 ? 'now' : m < 60 ? m + 'm' : m < 1440 ? Math.round(m / 60) + 'h' : Math.round(m / 1440) + 'd'; };
   const unit = g => g === 'roulette' ? 'spins' : g === 'study cards' ? 'packs' : g.startsWith('duel') ? 'duels' : 'hands';
   const sess = f => f.n > 1 ? `<span class="st">${f.n} ${unit(f.game)} · ${f.game === 'study cards' ? '' : `${f.w}W ${f.l}L · `}${Math.max(1, Math.round((f.at - f.first) / 60e3))} min</span>` : '';
-  const rows = S.feed.map(f => `<div>${av(f.id, f.name)}<span class="who">${esc(f.name)} <small>${esc(f.game)} · ${ago(f.at)}</small>${sess(f)}${f.why ? `<em>${esc(f.why)}</em>` : ''}</span> <span class="src${f.src === 'site' ? '' : f.src === 'night' ? ' n' : ' d'}">${f.src === 'site' ? 'site' : f.src === 'night' ? 'reward' : 'discord'}</span><span class="amt ${f.net > 0 ? 'pos' : f.net < 0 ? 'neg' : ''}">${signed(f.net)}</span></div>`).join('');
+  const rows = S.feed.map(f => `<div>${av(f.id, f.name)}<span class="who">${esc(f.name)} <small>${esc(f.game === 'madness' ? 'double down madness' : f.game)} · ${ago(f.at)}</small>${sess(f)}${f.why ? `<em>${esc(f.why)}</em>` : ''}</span> <span class="src${f.src === 'site' ? '' : f.src === 'night' ? ' n' : ' d'}">${f.src === 'site' ? 'site' : f.src === 'night' ? 'reward' : 'discord'}</span><span class="amt ${f.net > 0 ? 'pos' : f.net < 0 ? 'neg' : ''}">${signed(f.net)}</span></div>`).join('');
   return `<div class="panel"><h2 class="p">Just now</h2><p class="hint">Latest play from Discord and the site, plus poker night rewards. A run of hands by one player is one line.</p><div class="feed">${rows || '<p class="hint">No hands yet.</p>'}</div></div>`;
 }
 function rewards() {
@@ -819,8 +825,8 @@ function lobby() {
     <div class="cbal"><div class="k">Your chips</div><div class="v">${me.bal === null ? '$0.00' : money(me.bal)}</div><div class="s">${me.rank ? `#${me.rank} of ${S.players} · ` : ''}same chips as Discord</div></div>
     ${day}<div class="ckv">${rows.join('')}</div>${next}</aside>`;
   // pick up where you left off: an unfinished hand, or the last table you dealt at with the bet still on it
-  const R = { bj: ['blackjack', 'Blackjack', () => pv('bj')], fb: ['freebet', 'Free Bet', () => pv('fb') + pv('p22')], uth: ['uth', "Ultimate Hold'em", () => pv('ante') * 3 + pv('trips')], bac: ['baccarat', 'Baccarat', () => pv('bac')] };
-  const open = ['bj', 'fb'].find(k => T[k] && !T[k].over) || (T.uth && T.uth.stage !== 'done' ? 'uth' : null), lastg = R[pref('lastg', '')] ? pref('lastg', '') : null;
+  const R = { bj: ['blackjack', 'Blackjack', () => pv('bj')], fb: ['freebet', 'Free Bet', () => pv('fb') + pv('p22') + pv('pog')], mad: ['madness', 'Double Down Madness', () => pv('mad') + pv('war') + pv('match')], uth: ['uth', "Ultimate Hold'em", () => pv('ante') * 3 + pv('trips')], bac: ['baccarat', 'Baccarat', () => pv('bac')] };
+  const open = ['bj', 'fb', 'mad'].find(k => T[k] && !T[k].over) || (T.uth && T.uth.stage !== 'done' ? 'uth' : null), lastg = R[pref('lastg', '')] ? pref('lastg', '') : null;
   const resume = open ? `<div class="resume"><div><b>${R[open][1]} · hand in progress</b><small>You left a hand on the table.</small></div><div><a class="cbtn gold" href="#${R[open][0]}">Back to your hand</a></div></div>`
     : lastg && R[lastg][2]() >= 1 ? `<div class="resume"><div><b>${R[lastg][1]} · last table</b><small>Your ${money(R[lastg][2]())} bet${lastg === 'uth' ? ' (ante, blind, play)' : ''} is still on the felt.</small></div><div><button class="cbtn gold" data-again="${lastg}"${busy || R[lastg][2]() > (me.bal || 0) ? ' disabled' : ''}>Deal ${money(R[lastg][2]())}</button> <a class="cbtn ghost" href="#${R[lastg][0]}">Change bet</a></div></div>` : '';
   // what's open now
@@ -837,7 +843,8 @@ function lobby() {
     <span class="stat">${live ? '<b>Hand in progress</b>yours' : who.length ? `<b>${esc(who.slice(0, 2).join(', '))}${who.length > 2 ? ` +${who.length - 2}` : ''}</b>playing now` : ''}</span><span class="cbtn gold">${live ? 'Back' : 'Play'}</span></a>`; };
   const games = `<div class="glist panel"><h2 class="g">Your own table</h2>
     ${game('blackjack', 'blackjack', '♠', 'var(--gold)', 'Blackjack', `$1 to $${S.maxBet} · pays 3:2, split up to 6 hands`, T.bj && !T.bj.over)}
-    ${game('freebet', 'free bet', '♦', 'var(--up)', 'Free Bet Blackjack', 'Free doubles on 9 to 11, free splits, dealer 22 pushes · Push 22 pays 12:1', T.fb && !T.fb.over)}
+    ${game('freebet', 'free bet', '♦', 'var(--up)', 'Free Bet Blackjack', 'Free doubles on 9 to 11, free splits, dealer 22 pushes · Push 22 12:1 · Pot of Gold up to 1,000:1', T.fb && !T.fb.over)}
+    ${game('madness', 'madness', '2×', 'var(--mad)', 'Double Down Madness', 'Start with one card, double as often as you like, dealer 22 pushes · War and Match side bets', T.mad && !T.mad.over)}
     ${game('uth', 'UTH', '♣', 'var(--pink)', "Ultimate Hold'em", `Ante $1 to $${S.maxAnte} + blind vs the dealer · Trips up to 50:1`, T.uth && T.uth.stage !== 'done')}
     ${game('baccarat', 'baccarat', '♥', 'var(--vio)', 'Baccarat', `Player, Banker or Tie · $1 to $${S.maxBet}`, false)}
     ${game('roulette', 'roulette', '◉', 'var(--sky, #7fb6ff)', 'Roulette', 'One table with Discord #casino · 30 second rounds · number pays 35:1', false)}</div>`;
@@ -855,7 +862,7 @@ const betChip = amt => `<div class="betchip">${K.chips(amt)}<span class="tk-amt"
 const resultStamp = net => `<div data-late class="result${net < 0 ? ' lost' : net === 0 ? ' even' : ''}">${net > 0 ? 'You win' : net < 0 ? 'You lose' : 'Push'}<small>${net ? signed(net) : 'bet back'}</small></div>`;
 // chip rack: pending bets live in prefs (bet stays the same for the next hand); spotOn = which spot on the felt takes chips
 let spotOn = 'main', hist = [], bumped = '', again = ''; // again = a deal to fire once the table opens (the lobby's Deal again)
-const DEF = { bj: 20, fb: 20, ante: 10, bac: 20, p22: 0, trips: 0 }, pv = k => +pref(k, DEF[k]) || 0; // pending bet on a spot
+const DEF = { bj: 20, fb: 20, mad: 20, ante: 10, bac: 20, p22: 0, pog: 0, war: 0, match: 0, trips: 0 }, pv = k => +pref(k, DEF[k]) || 0; // pending bet on a spot
 const pendMax = k => LIMIT[k][1]();
 function spotsHTML(list) { // [role, key, name, sub, cls]
   const out = list.map(([role, key, name, sub, cls]) => { const amt = pv(key), on = list.length > 1 && spotOn === role;
@@ -863,10 +870,11 @@ function spotsHTML(list) { // [role, key, name, sub, cls]
   bumped = '';
   return `<div class="bspots">${out}</div>`;
 }
+// sideKey = one side bet key, or a list of them (spots 'side', 'side2')
 function rackHTML(mainKey, sideKey, dealAttr, dealLabel, ok, hint) {
-  const key = spotOn === 'side' && sideKey ? sideKey : mainKey, cur = pv(key), cap = pendMax(key);
+  const sides = [].concat(sideKey || []), key = (spotOn === 'side' && sides[0]) || (spotOn === 'side2' && sides[1]) || mainKey, cur = pv(key), cap = pendMax(key);
   const chips = [1, 5, 25, 100, 500].map(v => `<button class="chip c${v}" data-chip="${v}"${cur >= cap ? ' disabled' : ''} aria-label="Add ${money(v)}"><span>$${v}</span></button>`).join('');
-  const any = pv(mainKey) + (sideKey ? pv(sideKey) : 0);
+  const any = pv(mainKey) + sides.reduce((a, k) => a + pv(k), 0);
   return `<div class="rackb"><div class="rack">${chips}</div>
     <div class="tools">${btn('data-rk="undo"', 'Undo', 'ghost', hist.length > 0)}${btn('data-rk="clear"', 'Clear', 'ghost', any > 0)}${btn('data-rk="x2"', '2x', 'ghost', pv(mainKey) > 0 && pv(mainKey) < pendMax(mainKey))}</div>
     ${btn(dealAttr, dealLabel, 'gold deal', ok && !busy)}</div><p class="rhint">${hint}</p>`;
@@ -874,33 +882,54 @@ function rackHTML(mainKey, sideKey, dealAttr, dealLabel, ok, hint) {
 const btn = (attr, label, cls, ok = true) => `<button class="cbtn ${cls}${pressed === attr ? ' pressed' : ''}" ${attr}${ok ? '' : ' disabled'}>${label}</button>`;
 const syncLine = '<div class="sync">🔗 Uses your Discord chips. Your balance and /chips on Discord update straight away.</div>';
 
-// ---------- blackjack (fm = Free Bet table, #freebet; same game code with mode 'free') ----------
-function blackjack(fm) {
-  const g = fm ? T.fb : T.bj, bk = fm ? 'fb' : 'bj', bet = pref(bk, 20) || 0, p22 = fm ? pref('p22', 0) || 0 : 0, live = g && !g.over;
-  if (!fm) spotOn = 'main';
-  const spots = live ? '' : spotsHTML([['main', bk, 'Bet', `$1 to $${S.maxBet}`], ...(fm ? [['side', 'p22', 'Push 22', 'pays 12:1', 'sm']] : [])]);
-  let inner = '<div class="lbl">Dealer</div><div class="hand">' + card('__') + card('__') + '</div><div class="lbl">' + esc(S.me.name) + '</div><div class="hand">' + card('__') + card('__') + '</div>';
+// ---------- blackjack: mode 'bj' (#blackjack), 'fb' (Free Bet, #freebet, mode 'free'), 'mad' (Double Down Madness, #madness, mode 'mad'); same game code ----------
+const POG_TXT = '1 free bet 3:1 · 2 12:1 · 3 30:1 · 4 60:1 · 5 100:1 · 6 300:1 · 7+ 1,000:1';
+function blackjack(mode) {
+  const fm = mode === 'fb', mm = mode === 'mad', g = T[mode], bk = mode, bet = pref(bk, 20) || 0, live = g && !g.over;
+  const sideKeys = fm ? ['p22', 'pog'] : mm ? ['war', 'match'] : [], sideAmt = sideKeys.reduce((a, k) => a + (pref(k, 0) || 0), 0);
+  if (!sideKeys.length) spotOn = 'main';
+  const spots = live ? '' : spotsHTML([['main', bk, 'Bet', `$1 to $${S.maxBet}`],
+    ...(fm ? [['side', 'p22', 'Push 22', 'pays 12:1', 'sm'], ['side2', 'pog', 'Pot of Gold', 'up to 1,000:1', 'sm']] : []),
+    ...(mm ? [['side', 'war', 'War', 'pays 1:1', 'sm'], ['side2', 'match', 'Match', 'up to 12:1', 'sm']] : [])]);
+  let inner = '<div class="lbl">Dealer</div><div class="hand">' + card('__') + card('__') + '</div><div class="lbl">' + esc(S.me.name) + '</div><div class="hand">' + card('__') + (mm ? '' : card('__')) + '</div>';
   if (g) {
     const many = g.hands.length > 2;
     const dTxt = g.over ? (g.d22 ? '22 · pushes' : g.dealerTotal > 21 ? `${g.dealerTotal} · bust` : g.dealerTotal) : `${g.dealerTotal} + ?`;
-    const stake = h => [h.bet ? money(h.bet) : '', h.free ? `<span class="ftag">FREE ${money(h.free)}</span>` : ''].filter(Boolean).join(' ');
+    const x = h => mm ? Math.round(h.bet / g.bet) : 1;
+    const stake = h => [h.bet ? money(h.bet) : '', h.free ? `<span class="ftag">FREE ${money(h.free)}</span>` : '', x(h) > 1 ? `<span class="ftag dd">${x(h)}x</span>` : ''].filter(Boolean).join(' ');
     const name = k => g.hands.length === 1 ? esc(S.me.name) : many ? `Hand ${k + 1}` : `${esc(S.me.name)} · hand ${k + 1}`;
+    const tagOf = (res, txt) => `<span data-late class="tag ${res}">${txt}</span>`;
+    const sd = g.sides || {};
     inner = `<div class="lbl">Dealer <span class="tot" data-late>${dTxt}</span></div><div class="hand">${g.dealer.map(card).join('')}</div><div class="hands${many ? ' many' : ''}">` +
-      g.hands.map((h, k) => `<div><div class="lbl${live && g.active === k && g.hands.length > 1 ? ' on' : ''}">${name(k)} · ${stake(h)}${h.freeDbl ? ' (free double)' : h.doubled ? ' (doubled)' : ''}
-        <span class="tot" data-late>${h.soft && h.total < 21 && live && g.active === k ? `${h.total - 10} / ${h.total}` : h.total}</span>${h.res ? `<span data-late class="tag ${h.res}">${{ win: 'WIN', bj: 'BLACKJACK', push: 'PUSH', lose: 'LOSE', bust: 'BUST' }[h.res]}</span>` : ''}</div>
-        <div class="hand">${h.cards.map(card).join('')}</div></div>`).join('') + '</div>' +
-      (g.side ? `<div class="lbl">Push 22 · ${money(g.side)}${g.over ? `<span data-late class="tag ${g.sideWin ? 'win' : 'lose'}">${g.sideWin ? 'WIN 12:1' : 'LOSE'}</span>` : ''}</div>` : '') +
-      (live ? betChip(g.hands.reduce((a, h) => a + h.bet, 0) + (g.side || 0)) : '') + (g.over ? resultStamp(g.net) : '');
+      g.hands.map((h, k) => `<div><div class="lbl${live && g.active === k && g.hands.length > 1 ? ' on' : ''}">${name(k)} · ${stake(h)}${h.freeDbl ? ' (free double)' : h.doubled && !mm ? ' (doubled)' : ''}
+        <span class="tot" data-late>${h.soft && h.total < 21 && live && g.active === k ? `${h.total - 10} / ${h.total}` : h.total}</span>${h.res ? tagOf(h.res, { win: 'WIN', bj: 'BLACKJACK', push: g.d22 ? 'DEALER 22 · PUSH' : 'PUSH', lose: 'LOSE', bust: 'BUST' }[h.res]) : ''}</div>
+        <div class="hand">${h.cards.map(card).join('')}${mm && live && h.cards.length === 1 ? card('__') : ''}</div></div>`).join('') + '</div>';
+    const sl = [];
+    if (g.side) sl.push(`<span class="sb">Push 22 ${money(g.side)}${g.over ? tagOf(g.sideWin ? 'win' : 'lose', g.sideWin ? 'WIN 12:1' : 'LOSE') : ''}</span>`);
+    if (g.pog) { const n = Math.min(g.fb, 7), odds = [0, 3, 12, 30, 60, 100, 300, 1000][n];
+      sl.push(`<span class="sb">Pot of Gold ${money(g.pog)} · ${g.fb} free bet${g.fb === 1 ? '' : 's'}${g.over ? tagOf(g.pogWin ? 'win' : 'lose', g.pogWin ? `WIN ${odds.toLocaleString()}:1` : 'LOSE') : ''}</span>`); }
+    if (g.war && sd.war) sl.push(`<span class="sb">War ${money(g.war)}${tagOf(sd.war.res === 'tie' ? 'push' : sd.war.res, sd.war.res === 'win' ? 'WIN 1:1' : sd.war.res === 'tie' ? 'TIE · HALF BACK' : 'LOSE')}</span>`);
+    if (g.match && sd.match) sl.push(`<span class="sb">Match ${money(g.match)}${tagOf(sd.match.res, sd.match.res === 'win' ? `${sd.match.kind.toUpperCase()} ${sd.match.x}:1` : 'LOSE')}</span>`);
+    if (sl.length) inner += `<div class="lbl sides2">${sl.join('')}</div>`;
+    inner += (live ? betChip(g.hands.reduce((a, h) => a + h.bet, 0) + (g.side || 0) + (g.pog || 0)) : '') + (g.over ? resultStamp(g.net) : '');
   }
   inner += spots;
-  // the same four buttons in the same places every time; the bet chips stay put underneath. Free doubles and splits turn green.
-  const need = bet + p22, hint = bet < 1 ? 'Tap chips to place your bet.' : fm ? `Chips go on ${spotOn === 'side' ? 'Push 22' : 'Bet'}. Tap ${spotOn === 'side' ? 'Bet' : 'Push 22'} on the table to bet there.` : 'Your bet stays on the table for the next hand.';
-  const controls = `<div class="ctlbox">${live ? `<div class="slots">${btn('data-bj="hit"', 'Hit', 'gold')}${btn('data-bj="stand"', 'Stand', '')}${btn('data-bj="double"', g.freeDouble ? 'Free double' : 'Double', g.freeDouble ? 'free' : 'ghost', g.canDouble)}${btn('data-bj="split"', g.freeSplit ? 'Free split' : 'Split', g.freeSplit ? 'free' : 'ghost', g.canSplit)}</div>`
-    : rackHTML(bk, fm ? 'p22' : null, `data-do="${bk}-deal"`, `Deal ${money(need)}`, bet >= 1 && need <= (S.me.bal || 0), hint)}</div>`;
+  const need = bet + sideAmt, spotName = { main: 'Bet', side: fm ? 'Push 22' : 'War', side2: fm ? 'Pot of Gold' : 'Match' };
+  const hint = bet < 1 ? 'Tap chips to place your bet.' : sideKeys.length ? `Chips go on ${spotName[spotOn] || 'Bet'}. Tap another spot on the table to bet there.` : 'Your bet stays on the table for the next hand.';
+  // the same buttons in the same places every time; the bet chips stay put underneath. Free doubles and splits turn green.
+  // Double Down Madness: Hit, Stand (from your second card on) and Double, which adds your whole bet again, as often as you like
+  const one = mm && g && g.hands[0].cards.length === 1, h0 = g && g.hands[0];
+  const madHint = !live || !mm ? '' : `<p class="rhint">${one ? (h0.cards[0][0] === 'A' ? 'You started with an ace: your next card is your last. Hit, or double first.' : 'One card each. Hit or double for your second card.')
+    : `Double any time: it adds your whole bet again (${money(h0.bet)} → ${money(h0.bet * 2)}) and gives you one more card. You can keep going.`}</p>`;
+  const controls = `<div class="ctlbox">${live && mm ? `<div class="slots" style="--n:3">${btn('data-bj="hit"', 'Hit', 'gold')}${btn('data-bj="stand"', 'Stand', '', g.canStand)}${btn('data-bj="double"', `Double +${money(g.dblCost)}`, 'free tight', g.canDouble)}</div>${madHint}`
+    : live ? `<div class="slots">${btn('data-bj="hit"', 'Hit', 'gold')}${btn('data-bj="stand"', 'Stand', '')}${btn('data-bj="double"', g.freeDouble ? 'Free double' : 'Double', g.freeDouble ? 'free' : 'ghost', g.canDouble)}${btn('data-bj="split"', g.freeSplit ? 'Free split' : 'Split', g.freeSplit ? 'free' : 'ghost', g.canSplit)}</div>`
+    : rackHTML(bk, sideKeys.length ? sideKeys : null, `data-do="${bk}-deal"`, `Deal ${money(need)}`, bet >= 1 && need <= (S.me.bal || 0), hint)}</div>`;
+  const max = S.maxSide || 25;
   const rules = fm
-    ? `Free double on a hard 9, 10 or 11 · free split on any pair except 10s (up to 6 hands) · a free bet pays even money when its hand wins and costs nothing when it loses · dealer hits soft 17 · dealer 22 pushes every standing hand · blackjack pays 3:2 · Push 22 side bet ($0 to $${S.maxPush22 || 25}) pays 12:1 · $1 to $${S.maxBet}. Same as /freebet.`
+    ? `Free double on a hard 9, 10 or 11 · free split on any pair except 10s (up to 6 hands) · a free bet pays even money when its hand wins and costs nothing when it loses · dealer hits soft 17 · dealer 22 pushes every standing hand · blackjack pays 3:2 · six decks, shuffled every hand · $1 to $${S.maxBet}. Push 22 ($0 to $${S.maxPush22 || 25}) pays 12:1. Pot of Gold ($0 to $${max}) pays for every free double and free split you get that hand, win or lose: ${POG_TXT} (loses to a dealer blackjack). Same as /freebet.`
+    : mm ? `You start with one card, the dealer with two (the dealer checks for blackjack with an ace or 10 showing) · hit or double for your second card and every card after: doubling adds your whole bet again ($20 → $40 → $80), as many times as you like · no splits · start with an ace and you get one more card only · suited blackjack pays 2:1, other blackjacks 3:2 (on the whole bet) · dealer hits soft 17 · dealer 22 pushes every hand still standing · six decks, shuffled every hand · $1 to $${S.maxBet}. War ($0 to $${max}): your first card beats the dealer's up card (ace high), 1:1, a tie gives back half. Match ($0 to $${max}): your first card vs the dealer's up card, suited pair 12:1, pair 4:1, same suit 1:1. Same as /madness.`
     : `Blackjack pays 3:2 · dealer stands on all 17s · double on any first two cards · split up to 6 hands (split aces get one card each) · $1 to $${S.maxBet}. Same as /blackjack.`;
-  return `${balBar(fm ? 'Free Bet' : 'Blackjack', g && g.over ? g.net : 0)}${felt(g ? g.id : '', inner)}${controls}<div class="err">${esc(T.err)}</div>
+  return `${balBar(fm ? 'Free Bet' : mm ? 'Double Down Madness' : 'Blackjack', g && g.over ? g.net : 0)}${felt(g ? g.id : '', inner)}${controls}<div class="err">${esc(T.err)}</div>
     <p class="rules">${rules}</p>${syncLine}`;
 }
 
@@ -952,7 +981,7 @@ function baccarat() {
 }
 
 // ---------- buttons ----------
-const LIMIT = { bj: [1, () => S.maxBet], fb: [1, () => S.maxBet], p22: [0, () => S.maxPush22 || 25], bac: [1, () => S.maxBet], ante: [1, () => S.maxAnte], trips: [0, () => S.maxTrips] };
+const LIMIT = { bj: [1, () => S.maxBet], fb: [1, () => S.maxBet], mad: [1, () => S.maxBet], p22: [0, () => S.maxPush22 || 25], pog: [0, () => S.maxSide || 25], war: [0, () => S.maxSide || 25], match: [0, () => S.maxSide || 25], bac: [1, () => S.maxBet], ante: [1, () => S.maxAnte], trips: [0, () => S.maxTrips] };
 // ---------- Game of the Week (api/_featured.js) ----------
 const F = () => S && S.featured;
 const fEnds = f => new Date(f.ends).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
@@ -1087,7 +1116,7 @@ function wire() {
   document.querySelectorAll('[data-bj],[data-uth],[data-do]').forEach(b => b.addEventListener('pointerdown', () => { b.classList.add('pressed'); }));
   document.querySelectorAll('details.earn').forEach(d => d.ontoggle = () => setPref('earn', d.open));
   document.querySelectorAll('[data-lot]').forEach(b => b.onclick = () => { const box = $('#lotbox'); if (!box) return; box.hidden = !box.hidden; setPref('lotOpen', !box.hidden); if (!box.hidden) box.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'start' }); });
-  document.querySelectorAll('[data-again]').forEach(b => b.onclick = () => { const g = b.dataset.again; again = g + '-deal'; location.hash = '#' + { bj: 'blackjack', fb: 'freebet', uth: 'uth', bac: 'baccarat' }[g]; });
+  document.querySelectorAll('[data-again]').forEach(b => b.onclick = () => { const g = b.dataset.again; again = g + '-deal'; location.hash = '#' + { bj: 'blackjack', fb: 'freebet', mad: 'madness', uth: 'uth', bac: 'baccarat' }[g]; });
   if (again) { const d = again; again = ''; const btn = document.querySelector(`[data-do="${d}"]`); if (btn && !btn.disabled) setTimeout(() => btn.click(), 0); }
   document.querySelectorAll('[data-tksnd]').forEach(b => b.onclick = () => { if (K.toggleSound()) setTimeout(() => SND.chips(), 30); render(); });
   // the lottery wheel spins to the winning ticket once per person per draw
@@ -1099,10 +1128,10 @@ function wire() {
     setTimeout(() => { if (t) t.style.opacity = 1; }, 5600);
   });
   // chip rack: which keys this table bets with
-  const rt = route(), RK = { blackjack: ['bj'], freebet: ['fb', 'p22'], uth: ['ante', 'trips'], baccarat: ['bac'] }[rt];
+  const rt = route(), RK = { blackjack: ['bj'], freebet: ['fb', 'p22', 'pog'], madness: ['mad', 'war', 'match'], uth: ['ante', 'trips'], baccarat: ['bac'] }[rt];
   const snap = () => RK ? RK.map(k => pv(k)) : [], restore = v => RK.forEach((k, i) => setPref(k, v[i]));
   document.querySelectorAll('[data-chip]').forEach(b => b.onclick = () => {
-    const k = spotOn === 'side' && RK[1] ? RK[1] : RK[0];
+    const k = spotOn === 'side' && RK[1] ? RK[1] : spotOn === 'side2' && RK[2] ? RK[2] : RK[0];
     hist.push(snap()); if (hist.length > 50) hist.shift();
     setPref(k, Math.min(pendMax(k), pv(k) + +b.dataset.chip)); bumped = spotOn; SND.chips(0, 1); render(); });
   document.querySelectorAll('[data-rk]').forEach(b => b.onclick = () => {
@@ -1123,7 +1152,8 @@ function wire() {
     const d = b.dataset.do; pressed = `data-do="${d}"`; if (d.endsWith('-deal')) { SND.chips(0, 3); setPref('lastg', d.slice(0, -5)); }
     if (d === 'daily') play({ a: 'daily' }, j => { S.me.daily = j.daily; T.got = j.got; T.weekly = j.weekly; T.gotBuff = j.buffs && j.buffs.pct ? Math.round(j.buffs.pct * 100) : 0; load(); });
     if (d === 'bj-deal') play({ a: 'bj', bet: pref('bj', 20) }, j => { T.bj = j.hand; });
-    if (d === 'fb-deal') play({ a: 'bj', mode: 'free', bet: pref('fb', 20), side: pref('p22', 0) }, j => { T.fb = j.hand; });
+    if (d === 'fb-deal') play({ a: 'bj', mode: 'free', bet: pref('fb', 20), side: pref('p22', 0), pog: pref('pog', 0) }, j => { T.fb = j.hand; });
+    if (d === 'mad-deal') play({ a: 'bj', mode: 'mad', bet: pref('mad', 20), war: pref('war', 0), match: pref('match', 0) }, j => { T.mad = j.hand; });
     if (d === 'uth-deal') play({ a: 'uth', ante: pref('ante', 10), trips: pref('trips', 0) }, j => { T.uth = j.hand; });
     if (d === 'bac-deal') { const bet = pref('bac', 20), side = pref('side', 'banker'); play({ a: 'bac', bet, side }, j => { T.bac = { ...j, bet, n: (T.bac ? T.bac.n : 0) + 1 }; }); }
   });
@@ -1139,12 +1169,13 @@ function wire() {
 // the move's own sound as you tap it: knock for stand / check, chips for double / split / bets, swish for fold (hit = the card)
 const actSound = m => m === 'stand' || m === 'chk' ? SND.check() : m === 'fold' ? SND.fold() : ['double', 'split', 'b4', 'b2', 'b1'].includes(m) ? SND.chips(0, 3) : null;
 // On Hit or Double a face-down card flies to your hand at once; it turns over when the server says what it is.
-const bjKey = () => route() === 'freebet' ? 'fb' : 'bj';
+const bjKey = () => route() === 'freebet' ? 'fb' : route() === 'madness' ? 'mad' : 'bj';
 function incomingCard() {
   const g = T[bjKey()], f = document.querySelector('.felt');
   if (!g || !f || REDUCED) return;
   const hands = f.querySelectorAll('.hands .hand'), h = hands[g.active] || hands[0];
   if (!h) return;
+  const ph = h.querySelector('.card.empty'); if (ph) ph.remove(); // Double Down Madness: the open spot for your second card
   const el = document.createElement('div'); el.className = 'card back'; h.appendChild(el); SND.card();
   const s = f.querySelector('.shoe').getBoundingClientRect(), e = el.getBoundingClientRect();
   el.animate([{ transform: `translate(${s.left - e.left}px, ${s.top - e.top}px) rotate(-12deg) scale(.8)` }, { transform: 'none' }], { duration: 280, easing: 'cubic-bezier(.2,.8,.25,1)' });

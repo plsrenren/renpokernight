@@ -15,7 +15,7 @@
 // https://www.thepoker.study/api/login (and the old https://renpokernight.vercel.app/api/login) added there. The app's client ID is looked up with DISCORD_BOT_TOKEN.
 import { createHmac, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { buffReads, buffView } from './_buffs.js';
-import { kv, jpSink, kvUrl, kvToken, MAX_BET, FEED_KEEP, claimDaily, dailyStatus, boardFrom, dailyFrom, weekKey, rakeFor, sheetNames, hasIds, newHand as bjStart, handAction, publicHand, MAX_PUSH22 } from './_blackjack.js';
+import { kv, jpSink, kvUrl, kvToken, MAX_BET, FEED_KEEP, claimDaily, dailyStatus, boardFrom, dailyFrom, weekKey, rakeFor, sheetNames, hasIds, newHand as bjStart, handAction, publicHand, MAX_PUSH22, MAX_SIDE } from './_blackjack.js';
 import { newHand as uthStart, uthAction, publicUth, MAX_ANTE, MAX_TRIPS, UTH_PAYTABLE } from './_uth.js';
 import { playHand } from './_baccarat.js';
 import { REWARD_LIST } from './_rewards.js';
@@ -34,7 +34,7 @@ const DAYS30 = 30 * 24 * 3600;
 const out = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers } });
 const go = (url, cookies = []) => { const h = new Headers({ Location: url, 'Cache-Control': 'no-store' }); cookies.forEach(c => h.append('Set-Cookie', c)); return new Response(null, { status: 302, headers: h }); };
 // messages from the shared game code are written for Discord; tidy them for the page
-const plain = m => String(m).replace(/\*\*/g, '').replace(/Use \/daily/g, 'Claim your daily chips').replace(/with \/(blackjack|freebet|uth)/g, 'from the lobby');
+const plain = m => String(m).replace(/\*\*/g, '').replace(/Use \/daily/g, 'Claim your daily chips').replace(/with \/(blackjack|freebet|madness|uth)/g, 'from the lobby');
 
 // ---------- session cookie: base64url(JSON).hmac ----------
 const secret = () => process.env.SESSION_SECRET || process.env.DISCORD_CLIENT_SECRET || process.env.DISCORD_BOT_TOKEN || '';
@@ -138,7 +138,7 @@ async function state(me, sheet) {
   // linked players show their Members-tab name everywhere, even on older feed lines and stored names saved as their Discord name
   const feed = groupFeed((feedRaw || []).map(x => { try { const f = JSON.parse(x); if (sn[f.id]) f.name = sn[f.id]; return f; } catch (e) { return null; } }).filter(Boolean));
   await fixNames(names, sn);
-  const body = { me: null, board: board.slice(0, 15), players: board.length, feed, maxBet: MAX_BET, maxPush22: MAX_PUSH22, maxAnte: MAX_ANTE, maxTrips: MAX_TRIPS, uthPaytable: plain(UTH_PAYTABLE), rewards: REWARD_LIST, jackpot: jackpotView(jp),
+  const body = { me: null, board: board.slice(0, 15), players: board.length, feed, maxBet: MAX_BET, maxPush22: MAX_PUSH22, maxSide: MAX_SIDE, maxAnte: MAX_ANTE, maxTrips: MAX_TRIPS, uthPaytable: plain(UTH_PAYTABLE), rewards: REWARD_LIST, jackpot: jackpotView(jp),
     open: { live: liveSummary(ltRaw), poker: roomSummary(pkRaw) } };
   // Game of the Week (see _featured.js): this week's game, the Headliner race, your own line
   { const nm = {}; for (let k = 0; k < (names || []).length; k += 2) nm[names[k]] = names[k + 1];
@@ -151,11 +151,12 @@ async function state(me, sheet) {
     next: (() => { const n = {}; for (let k = 0; k < (acN || []).length; k += 2) n[acN[k]] = +acN[k + 1] || 0; try { return nextAccolade(n, acOwn || []); } catch (e) { return null; } })() };   // the casino title you're closest to
   // an unfinished hand started on the site comes back after a reload
   const c = {}; for (let k = 0; k < (cur || []).length; k += 2) c[cur[k]] = cur[k + 1];
-  if (!c.bj && !c.fb && !c.uth) return body;
-  const [bjRaw, fbRaw, uthRaw] = await kv(['GET', 'bj:g:' + (c.bj || 'none')], ['GET', 'bj:g:' + (c.fb || 'none')], ['GET', 'uth:g:' + (c.uth || 'none')]);
+  if (!c.bj && !c.fb && !c.uth && !c.mad) return body;
+  const [bjRaw, fbRaw, uthRaw, madRaw] = await kv(['GET', 'bj:g:' + (c.bj || 'none')], ['GET', 'bj:g:' + (c.fb || 'none')], ['GET', 'uth:g:' + (c.uth || 'none')], ['GET', 'bj:g:' + (c.mad || 'none')]);
   const b = body.me.bal || 0;
   if (bjRaw) { const g = JSON.parse(bjRaw); if (!g.over && g.uid === me.id) body.bj = publicHand(g, b); }
   if (fbRaw) { const g = JSON.parse(fbRaw); if (!g.over && g.uid === me.id) body.fb = publicHand(g, b); }
+  if (madRaw) { const g = JSON.parse(madRaw); if (!g.over && g.uid === me.id) body.mad = publicHand(g, b); }
   if (uthRaw) { const g = JSON.parse(uthRaw); if (g.stage !== 'done' && g.uid === me.id) body.uth = publicUth(g, b); }
   return body;
 }
@@ -204,10 +205,11 @@ async function act(req, me) {
       return out({ bal: r.bal, got: r.amt, base: r.base, buffs: buffView(r.buffs), weekly: r.weekly, daily: await dailyStatus(me.id) });
     }
     case 'bj': {
-      const free = b.mode === 'free';
-      const r = await bjStart(who, int(b.bet, 1, MAX_BET, 20), free ? 'free' : '', free ? int(b.side, 0, MAX_PUSH22, 0) : 0);
+      const free = b.mode === 'free', mad = b.mode === 'mad'; // mad = Double Down Madness
+      const r = await bjStart(who, int(b.bet, 1, MAX_BET, 20), free ? 'free' : mad ? 'mad' : '', free ? int(b.side, 0, MAX_PUSH22, 0) : 0,
+        { pog: free ? int(b.pog, 0, MAX_SIDE, 0) : 0, war: mad ? int(b.war, 0, MAX_SIDE, 0) : 0, match: mad ? int(b.match, 0, MAX_SIDE, 0) : 0 });
       if (r.err) return out({ err: plain(r.err) });
-      if (!r.g.over) await remember(me, free ? 'fb' : 'bj', r.g.id);
+      if (!r.g.over) await remember(me, free ? 'fb' : mad ? 'mad' : 'bj', r.g.id);
       return out({ bal: r.bal, hand: publicHand(r.g, r.bal) });
     }
     case 'bj-act': return actResult(await handAction(who, String(b.id || '').replace(/[^0-9a-f]/g, ''), String(b.do)), publicHand);

@@ -101,7 +101,7 @@ export async function featuredTag(res, i) {
     if (!e || (d.flags & 64) || ![4, 7].includes(j.type)) return res;
     const key = i.type === 2 ? i.data.name : String(i.data.custom_id || '').split(':')[0];
     let game = BY_CMD[key];
-    if (key === 'bj') game = /Free Bet|Free doubles/.test(`${e.title || ''} ${(e.footer && e.footer.text) || ''}`) ? 'free bet' : 'blackjack';
+    if (key === 'bj') { const t = `${e.title || ''} ${(e.footer && e.footer.text) || ''}`; game = /Madness|Double as often/.test(t) ? 'madness' : /Free Bet|Free doubles/.test(t) ? 'free bet' : 'blackjack'; }
     if (!game || game !== featuredGame()) return res;
     const was = (e.footer && e.footer.text) || '';
     if (was.startsWith('⭐')) return res;

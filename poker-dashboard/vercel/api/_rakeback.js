@@ -22,7 +22,7 @@ export function rakeList(netRaw, volRaw) {
 export function rakeText(people, from, to) {
   const lines = people.map(p => `<@${p.id}> **+${money(p.amt)}**`);
   let text = [`💸 **Weekly rakeback** · ${day(from)} to ${day(to)} · thanks for playing`, ...lines,
-    `-# Already in your balance · blackjack, free bet, UTH, baccarat and roulette count · up to ${money(RAKE.cap)} a week · new week starts now`].join('\n');
+    `-# Already in your balance · blackjack, free bet, Double Down Madness, UTH, baccarat and roulette count · up to ${money(RAKE.cap)} a week · new week starts now`].join('\n');
   if (text.length > 1990) text = text.slice(0, 1985) + '…';
   return text;
 }
@@ -56,7 +56,7 @@ export async function houseBooks(now = Date.now()) {
   return { all: num(all), week: num(week) };
 }
 
-const LABEL = { blackjack: 'Blackjack', 'free bet': 'Free Bet', UTH: "Ultimate Hold'em", baccarat: 'Baccarat', roulette: 'Roulette', rakeback: 'Rakeback paid', jackpot: 'Jackpot slices', 'jackpot seed': 'Jackpot seeds', 'free seat': 'Poker free seats', beg: 'Begging (house paid)', 'beg flip': 'Beg roulette' };
+const LABEL = { blackjack: 'Blackjack', 'free bet': 'Free Bet', madness: 'Double Down Madness', UTH: "Ultimate Hold'em", baccarat: 'Baccarat', roulette: 'Roulette', rakeback: 'Rakeback paid', jackpot: 'Jackpot slices', 'jackpot seed': 'Jackpot seeds', 'free seat': 'Poker free seats', beg: 'Begging (house paid)', 'beg flip': 'Beg roulette' };
 const PAID_OUT = new Set(['rakeback', 'jackpot', 'jackpot seed', 'free seat', 'beg']); // money handed back, listed after the games
 const signed = n => (n < 0 ? '−' : '+') + money(Math.abs(n));
 const block = o => {
@@ -77,5 +77,5 @@ export async function houseEmbed(now = Date.now()) {
       { name: 'All time', value: block(num(all)), inline: true },
       { name: 'Rakeback so far this week', value: `${money(owedTotal)} to ${owed.length} player${owed.length === 1 ? '' : 's'}, paid Monday · ${money(bet)} bet this week` },
     ],
-    footer: { text: 'What the house won (+) or lost (−) at blackjack, free bet, UTH, baccarat and roulette. Jackpot slices = 2% of hands the house won (4% on the Game of the Week), moved into the pot; jackpot seeds = new chips that restart the pot; poker free seats = chips the house gave out as free seats in the poker room; begging = what /beg paid out; beg roulette = /beg Gamble spins. Counted since rakeback went live.' } };
+    footer: { text: 'What the house won (+) or lost (−) at blackjack, free bet, Double Down Madness, UTH, baccarat and roulette. Jackpot slices = 2% of hands the house won (4% on the Game of the Week), moved into the pot; jackpot seeds = new chips that restart the pot; poker free seats = chips the house gave out as free seats in the poker room; begging = what /beg paid out; beg roulette = /beg Gamble spins. Counted since rakeback went live.' } };
 }
