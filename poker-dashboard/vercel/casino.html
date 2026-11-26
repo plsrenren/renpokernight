@@ -685,7 +685,7 @@ function lobby() {
   if (L) rows.push(`<button class="go" data-lot><span>${esc(L.quarter)} lottery tickets</span><b>${mineL ? `${mineL.t} (${(100 * mineL.t / (lotTot || 1)).toFixed(1)}%)` : '0'}</b></button>`);
   rows.push(`<a class="go" href="/collection"><span>Cosmetics</span><b>${COS ? `${COS.own}/${COS.all}` : 'See yours'}</b></a>`);
   const nx = me.next;
-  const next = nx ? `<div class="cnext"><b>Next: ${esc(nx.name)}</b> (${esc(nx.slot.toLowerCase())}) · ${esc(nx.why)}${/in a row/.test(nx.why) ? `, best so far ${nx.have}` : ` · ${nx.have.toLocaleString()} of ${nx.need.toLocaleString()}`}<div class="bar"><i style="width:${Math.round(100 * nx.have / nx.need)}%"></i></div></div>` : '';
+  const next = nx ? `<div class="cnext"><b>Next unlock: a secret ${esc(nx.slot.toLowerCase())}</b> · ${esc(nx.why)}${/in a row/.test(nx.why) ? `, best so far ${nx.have}` : ` · ${nx.have.toLocaleString()} of ${nx.need.toLocaleString()}`}<div class="bar"><i style="width:${Math.round(100 * nx.have / nx.need)}%"></i></div></div>` : '';
   const club = `<aside class="club"><div class="ctop">${b.face(av(me.id, me.name), 56, true)}<div class="nm"><b>${esc(me.name)}</b>${b.title}</div></div>
     <div class="cbal"><div class="k">Your chips</div><div class="v">${me.bal === null ? '$0.00' : money(me.bal)}</div><div class="s">${me.rank ? `#${me.rank} of ${S.players} · ` : ''}same chips as Discord</div></div>
     ${day}<div class="ckv">${rows.join('')}</div>${next}</aside>`;
