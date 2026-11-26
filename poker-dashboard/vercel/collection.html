@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <!-- Public collection (Nov 24 2026, Renato's ask): every Study Cards cosmetic, drawn with the same cosmetics.css + loot.js, but the ones the signed-in
      player doesn't own are blurred out (signed out = everything blurred). Ownership comes from GET /api/shop (me.owned / earned / champs).
-     The blur is only a look: loot.js is public, so this hides nothing from someone who digs. -->
+     The blur is only a look: loot.js is public, so this hides nothing from someone who digs.
+     Owner count tag (Nov 25 2026, Renato's ask): the same corner tag as the /shop loadout, from the owners list GET /api/shop already
+     returns when signed in (ownersAll, cached 5 min in sh:cnt), so no extra Redis reads. Shown on blurred tiles too: a count + who has it
+     never names the item (the popup keeps the dots / ? ? ?). -->
 <title>Collection</title>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
@@ -66,7 +69,7 @@ h3{font:400 19px/1 'Bebas Neue',Impact,sans-serif;letter-spacing:.08em;margin:16
 .dsign{display:inline-flex;align-items:center;gap:8px;background:#5865f2;color:#fff!important;padding:7px 12px;font-weight:700}
 .prog{height:6px;background:var(--panel);margin:-8px 0 16px;max-width:420px}.prog i{display:block;height:100%;background:var(--gold)}
 h2 em{font-style:normal;color:var(--gold);font:600 13px 'IBM Plex Mono',monospace}
-.ti.lk .sw>*{filter:blur(9px) grayscale(.6) brightness(.7);pointer-events:none;user-select:none}
+.ti.lk .sw>*:not(.own-a){filter:blur(9px) grayscale(.6) brightness(.7);pointer-events:none;user-select:none}
 .ti.lk .sw::after{content:'';position:absolute;inset:0;background:radial-gradient(circle,rgba(16,14,34,.1),rgba(16,14,34,.55))}
 .ti.lk .sw .lock{filter:none;position:absolute;z-index:2;width:26px;height:26px;fill:#ece9ff;opacity:.85}
 .ti.lk .nm{color:var(--muted);letter-spacing:.2em}
@@ -74,6 +77,24 @@ h2 em{font-style:normal;color:var(--gold);font:600 13px 'IBM Plex Mono',monospac
 .ti.lk .tg{opacity:.7}
 .ti .have{font:600 11px 'IBM Plex Mono',monospace;color:var(--gold)}
 .empty{color:var(--muted);font-size:14px;padding:12px 0}
+/* owner count tag + who-has-it list: same look as the /shop loadout */
+.own-a{position:absolute;top:6px;right:6px;z-index:6;display:inline-flex;align-items:center;gap:3px;font-family:'Bebas Neue',Impact,sans-serif;font-size:14px;line-height:1;letter-spacing:.04em;background:rgba(0,0,0,.66);color:#fff;padding:3px 6px 1px;cursor:pointer;border:0}
+.own-a svg{width:11px;height:11px;margin-top:-2px;fill:currentColor}
+.own-a.solo{background:var(--gold);color:#15132a}
+.own-a.none{cursor:default;color:var(--muted)}
+.own-a:hover{outline:1.5px solid #fff}.own-a.none:hover{outline:0}
+.whobg{position:fixed;inset:0;z-index:80;background:rgba(10,8,24,.6);display:flex;align-items:center;justify-content:center;padding:16px}
+.whobox{width:min(360px,100%);max-height:80vh;overflow:auto;background:#1d1a37;border-top:5px solid var(--c,#f0c75e);padding:16px 18px 18px;box-shadow:0 20px 50px rgba(0,0,0,.6)}
+.whobox h3{margin:0;font:400 28px/1 'Bebas Neue',Impact,sans-serif;letter-spacing:.04em;color:#fff}
+.whobox p{margin:4px 0 12px;font:500 13px/1.4 'Space Grotesk',system-ui,sans-serif;color:#a9a3cf}
+.whobox ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.whobox li{display:flex;align-items:center;gap:10px;background:#24204a;padding:6px 10px 6px 6px;font:500 14px 'Space Grotesk',system-ui,sans-serif;color:#ece9ff}
+.whobox li .pfp{width:30px;height:30px;flex:none;object-fit:cover}
+.whobox li .pfp-ini{display:grid;place-items:center;font:800 12px/1 'Space Grotesk',sans-serif}
+.whobox li span.n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.whobox li small{font:400 13px/1 'Bebas Neue',Impact,sans-serif;letter-spacing:.08em;padding:3px 6px 1px;background:var(--gold);color:#15132a}
+.whobox li small.you{background:#8f78f0;color:#fff}
+.whobox .x{margin-top:14px;font:inherit;font-size:14px;color:var(--fg);background:var(--panel);border:1px solid var(--line);padding:7px 14px;cursor:pointer}
 @media (max-width:520px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.grid.wide{grid-template-columns:1fr}}
 </style>
 <link rel="stylesheet" href="/lateshow.css"><!-- the site-wide look + page frame (same width and title spot as every page) -->
@@ -90,6 +111,7 @@ h2 em{font-style:normal;color:var(--gold);font:600 13px 'IBM Plex Mono',monospac
 </div>
 <script type="module">
 import { ITEMS, ACC_ITEMS, TIERS, TCOL, STICKERS, CHAMP, champItem, itemFor, decoFor } from '/loot.js';
+import { hueFor, initials } from '/recap-core.js';
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const COL = { ...TCOL, Earned: '#5fd6f0', Champion: '#f0c75e' };
@@ -97,7 +119,7 @@ const SLOTS = [['Pfp border', 'Pfp borders'], ['Title', 'Titles'], ['Overall bar
 const GROUPS = ['Champion', 'Earned', ...[...TIERS].reverse()];
 const LOCK = '<svg class="lock" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3h1.5v11h-13V10zm2 0h6V7a3 3 0 0 0-6 0z"/></svg>';
 
-let ME = null, slot = 'all', show = 'all', q = '';
+let ME = null, OWN = null, WEAR = {}, slot = 'all', show = 'all', q = '';
 try { slot = localStorage.getItem('col-slot') || 'all'; show = localStorage.getItem('col-show') || 'all'; } catch (e) {}
 
 // what the signed-in player has: pack cards (owned), accolades (earned), champion borders (champs, worked out from the sheet)
@@ -130,10 +152,38 @@ const has1 = (list, k) => list.split(' ').includes(k);
 const where = it => it.tier === 'Champion' ? 'Hall of Fame' : it.tier !== 'Earned' ? 'From packs'
   : has1(NIGHT, it.k) ? 'Earned at poker night' : has1(ROOM, it.k) ? 'Earned in the poker room' : has1(BEG, it.k) ? 'Earned with /beg'
   : has1(SHOP, it.k) ? 'Earned in the shop' : 'Earned in the casino';
+// owner counts: the server's list (up to 5 minutes old), with you added/removed by what you really have, so a fresh pull counts straight away
+const ownersOf = it => { const l = OWN ? (OWN.own[it.id] || []).filter(u => !ME || u !== ME.id) : []; if (ME && has(it)) l.unshift(ME.id); return l; };
+const PERSON = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="4.6" r="3.2"/><path d="M1.6 15.4c0-3.6 2.9-6 6.4-6s6.4 2.4 6.4 6z"/></svg>';
+function ownTag(it) {
+  if (!OWN) return '';
+  const l = ownersOf(it), n = l.length;
+  if (!n) return `<span class="own-a none" title="Nobody has this yet">${PERSON}0</span>`;
+  if (n === 1 && l[0] === (ME && ME.id)) return `<span class="own-a solo" data-who="${esc(it.id)}" role="button" tabindex="0" title="Only you have this">ONLY YOU</span>`;
+  return `<span class="own-a" data-who="${esc(it.id)}" role="button" tabindex="0" title="${n} ${n > 1 ? 'people have' : 'person has'} this. Tap to see who">${PERSON}${n}</span>`;
+}
+const BADPFP = window.BADPFP = new Set();
+const pic = (id, name) => { const ini = `<span class="pfp pfp-ini" style="background:hsl(${hueFor(name)} 75% 82%);color:hsl(${hueFor(name)} 45% 25%)">${esc(initials(name))}</span>`;
+  return id && !BADPFP.has(id) ? `<img class="pfp" src="/api/avatar?id=${esc(id)}" alt="" data-ini="${esc(ini)}" onerror="BADPFP.add('${esc(id)}');this.outerHTML=this.dataset.ini">` : ini; };
+function openWho(id) {
+  const it = allItems().find(i => i.id === id) || itemFor(id); if (!it || !OWN) return;
+  const own = has(it), l = ownersOf(it), n = l.length, me = ME && ME.id;
+  const wears = u => ((u === me ? ME.eq : WEAR[u]) || {})[it.slot] === it.id, w = l.filter(wears).length;
+  const name = u => u === me ? ME.name : OWN.people[u] || 'Someone';
+  // a locked item keeps its name hidden here too
+  const title = own ? it.name : it.slot === 'Title' ? hide(it.name) : '? ? ?';
+  const bg = document.createElement('div'); bg.className = 'whobg';
+  bg.innerHTML = `<div class="whobox" style="--c:${COL[it.tier] || '#f0c75e'}" role="dialog" aria-label="Who has this"><h3>${esc(title)}</h3>
+    <p>${n === 1 && l[0] === me ? 'Only you have this one.' : `${n} of the ${Math.max(n, OWN.n)} people with cosmetics ${n === 1 ? 'has' : 'have'} it${w ? `, ${w} wearing it` : ''}.`}</p>
+    <ul>${l.map(u => `<li>${pic(u, name(u))}<span class="n">${esc(name(u))}</span>${u === me ? '<small class="you">YOU</small>' : ''}${wears(u) ? '<small>WEARING</small>' : ''}</li>`).join('')}</ul>
+    <button class="x">Close</button></div>`;
+  bg.onclick = e => { if (e.target === bg || e.target.classList.contains('x')) bg.remove(); };
+  document.body.appendChild(bg); bg.querySelector('.x').focus();
+}
 const tile = it => {
   const own = has(it), c = own && it.tier !== 'Earned' && it.tier !== 'Champion' ? ME.owned[it.id] : 0;
   const why = own ? it.why : where(it);
-  return `<div class="ti${own ? '' : ' lk'}" style="--c:${COL[it.tier]}"><div class="sw">${preview(it, own)}${own ? '' : LOCK}</div><div class="meta"><div class="nm">${own ? esc(it.name) : '? ? ?'}</div><div class="tg">${esc(it.tier.toUpperCase())}${c > 1 ? ` <span class="have">x${c}</span>` : ''}</div>${why ? `<div class="why">${esc(why)}</div>` : ''}</div></div>`;
+  return `<div class="ti${own ? '' : ' lk'}" style="--c:${COL[it.tier]}"><div class="sw">${preview(it, own)}${own ? '' : LOCK}${ownTag(it)}</div><div class="meta"><div class="nm">${own ? esc(it.name) : '? ? ?'}</div><div class="tg">${esc(it.tier.toUpperCase())}${c > 1 ? ` <span class="have">x${c}</span>` : ''}</div>${why ? `<div class="why">${esc(why)}</div>` : ''}</div></div>`;
 };
 
 function render() {
@@ -166,14 +216,20 @@ function render() {
   // who you are + sign in/out: the sign-in badge (badge.js)
 }
 document.addEventListener('click', e => {
+  const w = e.target.closest('[data-who]'); if (w) { openWho(w.dataset.who); return; }
+  if (e.target.closest('.whobg')) return; // the popup handles its own taps
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.s) { slot = b.dataset.s; try { localStorage.setItem('col-slot', slot); } catch (x) {} }
   if (b.dataset.f) { show = b.dataset.f; try { localStorage.setItem('col-show', show); } catch (x) {} }
   render();
 });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.whobg').forEach(b => b.remove());
+  const w = (e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('[data-who]'); if (w) { e.preventDefault(); openWho(w.dataset.who); }
+});
 document.getElementById('q').addEventListener('input', e => { q = e.target.value; render(); });
 render();
-fetch('/api/shop', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(d => { ME = d && d.me || null; render(); }).catch(() => {});
+fetch('/api/shop', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(d => { ME = d && d.me || null; OWN = d && d.owners || null; WEAR = d && d.byId || {}; render(); }).catch(() => {});
 </script>
 <script type="module" src="/badge.js"></script>
 </body>
