@@ -90,6 +90,7 @@ function plate(m, L, bits) {
 
 async function draw(m) {
   ME = m;
+  window.dispatchEvent(new CustomEvent('sb:me', { detail: m })); // the casino lobby shows your cosmetics count from this, no extra call
   css('/cosmetics.css'); css('/plates.css');
   mods ||= Promise.all([import('/loot.js'), import('/plates.js')]);
   let L, P; try { [L, P] = await mods; } catch (e) { return; }

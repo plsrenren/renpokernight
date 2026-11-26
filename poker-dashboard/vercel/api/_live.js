@@ -60,6 +60,16 @@ async function payOut(list) {
 // ---------- /live on Discord (Nov 25 2026, by request: info only, playing stays on the site) ----------
 export const LIVE_COMMAND = { name: 'live', description: 'Is a live table open? Game, who is seated, open seats, and a link to sit down', type: 1 };
 /** read-only: never saves, so it costs one Redis GET. A table that is due to auto-close shows as closed. */
+/** For the casino lobby's "open now" card: what /live shows, from the raw lt:t the lobby already read (a table due to auto-close counts as closed). */
+export function liveSummary(raw, now = Date.now()) {
+  let c; try { c = { ...E.fresh(), ...JSON.parse(raw || 'null') }; } catch (e) { return null; }
+  if (!raw) return null;
+  E.tick(c, now);
+  if (!c.open) return null;
+  const seated = c.seats.filter(Boolean);
+  return { game: E.GAMES[c.game], seats: seated.map(s => ({ id: s.id, name: s.name })), of: E.SEATS, min: c.cfg.min, max: E.betMax(c), host: c.host ? c.host.name : null };
+}
+
 export async function liveCommand(origin = 'https://www.thepoker.study') {
   const T = await load(), now = Date.now(), c = JSON.parse(JSON.stringify(T));
   E.tick(c, now);

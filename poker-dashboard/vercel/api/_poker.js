@@ -36,6 +36,15 @@ const CAS = "local v=redis.call('GET',KEYS[1]) or '0' if v~=ARGV[1] then return 
 const $ = n => '$' + (Math.round(n * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); // cents on every amount (Renato, Nov 25 2026)
 const int = v => { const n = Math.floor(+v); return Number.isFinite(n) ? n : NaN; };
 
+/** For the casino lobby's "open now" card, from the raw pk:t the lobby already read. A room nobody has touched for 3h, or empty for 30 min, counts as closed (the next visit closes it). */
+export function roomSummary(raw, now = Date.now()) {
+  let T; try { T = JSON.parse(raw || 'null'); } catch (e) { return null; }
+  if (!T || !T.open || T.practice) return null;
+  const seated = (T.seats || []).filter(s => s && !s.left && !s.bot);
+  if ((T.at && now - T.at > 3 * 3600e3) || (!seated.length && T.emptyAt && now - T.emptyAt > 30 * 60e3)) return null;
+  return { seats: seated.map(s => ({ id: s.id, name: s.name })), of: E.SEATS, sb: T.cfg.sb, bb: T.cfg.bb, host: T.host ? T.host.name : null };
+}
+
 async function load(ref = ROOM) {
   const [raw] = await kv(['GET', ref.key]);
   if (!raw) return E.fresh();

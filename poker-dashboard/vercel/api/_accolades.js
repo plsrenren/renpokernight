@@ -82,6 +82,22 @@ export function earnedFrom(st) {
   return out;
 }
 
+/** The casino accolade someone is closest to (counted ones only), for the lobby: { name, slot, why, have, need } or null.
+ *  n = ac:n numbers, own = the accolade keys they already have (HKEYS ac:own:<id>). */
+export function nextAccolade(n = {}, own = []) {
+  const has = new Set(own), list = [];
+  const add = (k, have, need) => { if (!has.has(k) && have > 0 && have < need) list.push({ k, have, need }); };
+  for (const a of ACC) if (a.hands) add(a.k, n[a.hands] || 0, NEED.hands);
+  add('cardshark', [...HOUSE_GAMES].reduce((t, g) => t + (n[g] || 0), 0), NEED.cardshark);
+  add('natural', n.naturals || 0, NEED.natural); add('clockedin', n.daily || 0, NEED.clockedin);
+  add('hotshoe', n.bjbest || 0, NEED.run); add('unbeaten', n.dubest || 0, NEED.run); add('hottable', n.rlbest || 0, NEED.run);
+  add('beggar', n.beg || 0, NEED.beggar); add('patch', n.beg || 0, NEED.patch); add('penny', n.begzero || 0, NEED.penny);
+  if (!list.length) return null;
+  list.sort((a, b) => b.have / b.need - a.have / a.need || a.need - b.need);
+  const top = list[0], it = accItem('a:' + top.k);
+  return it ? { name: it.name, slot: it.slot, why: it.why, have: top.have, need: top.need } : null;
+}
+
 /** weekly ones for week i of weeks = [{ wk, vol: {id: bet}, net: {id: net} }] (oldest first, one per casino week, gaps allowed as empty):
  *  { id: [keys] } for High Roller (most bet, ties share it), Beat the House (finished up), Whale ($10k bet), Regular (played 4 weeks running) */
 export function weeklyFrom(weeks, i) {
