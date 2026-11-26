@@ -56,6 +56,8 @@ export function setGame(T, game, now) {
   if (!between(T)) return 'Change the game between rounds.';
   if (T.game === game) return false;
   T.game = game; log(T, `Now playing ${GAMES[game]}`); seated(T).forEach(s => { s.res = null; s.last = ''; });
+  // clear the last round's cards so the felt doesn't show old blackjack hands under a UTH sign (the round is already paid)
+  if (T.phase === 'done') { T.dealer = []; T.board = []; T.dealerHand = ''; seated(T).forEach(s => Object.assign(s, { g: null, bet: 0, side: 0, locked: false })); } // unlocked too, so a close/leave can't refund a paid bet
   return true;
 }
 export function pause(T, on, now) {
