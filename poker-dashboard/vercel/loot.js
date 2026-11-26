@@ -5,7 +5,7 @@
 // (satori can't draw the CSS ones, so those are simpler versions with the same colours).
 export const PRICE = 100;
 export const TIERS = ['Common', 'Uncommon', 'Rare', 'Epic'];
-export const ODDS = { Common: 55, Uncommon: 30, Rare: 11, Epic: 4 };
+export const ODDS = { Common: 60, Uncommon: 30, Rare: 8, Epic: 2 }; // was 55/30/11/4 until Nov 26 2026 (Epics too easy per item)
 export const REFUND = { Common: 7, Uncommon: 13, Rare: 40, Epic: 100 };
 export const TCOL = { Common: '#a9a3c9', Uncommon: '#8fe0b0', Rare: '#e0507f', Epic: '#f0c75e' };
 export const SLOT_NAMES = ['Title', 'Pfp border', 'Overall bar', 'Sticker'];
@@ -36,8 +36,10 @@ export const byName = (slot, name) => ITEMS.find(i => i.slot === slot && i.name 
 const BY_TIER = Object.fromEntries(TIERS.map(t => [t, ITEMS.filter(i => i.tier === t)]));
 /** rand() returns [0, 1). Card 1 and 2 use ODDS, card 3 skips Common. */
 export function rollTier(rand, upOnly = false) {
-  const r = rand() * (upOnly ? 45 : 100) + (upOnly ? 55 : 0);
-  return r < 55 ? 'Common' : r < 85 ? 'Uncommon' : r < 96 ? 'Rare' : 'Epic';
+  const tiers = upOnly ? TIERS.slice(1) : TIERS;
+  let r = rand() * tiers.reduce((a, t) => a + ODDS[t], 0);
+  for (const t of tiers) if ((r -= ODDS[t]) < 0) return t;
+  return tiers[tiers.length - 1];
 }
 export const rollItem = (rand, upOnly) => { const pool = BY_TIER[rollTier(rand, upOnly)]; return pool[Math.floor(rand() * pool.length)]; };
 export const rollPack = rand => [rollItem(rand), rollItem(rand), rollItem(rand, true)];
