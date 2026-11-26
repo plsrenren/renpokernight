@@ -40,4 +40,37 @@
 .tk-snd { background: none; border: 0; padding: 2px 6px; font-size: 15px; line-height: 18px; cursor: pointer; color: #9a94c4; }
 .tk-snd.on { color: var(--tk-gold); }
 
-@media (prefers-reduced-motion: reduce) { .tk-cd { transition: none !important; animation: none !important; } }
+/* ---------- casino jackpot: the gold card (winner) + the banner (everyone else), see jpCard / jpBanner in table-kit.js ---------- */
+.tk-jp { position: absolute; z-index: 50; pointer-events: none; transition: box-shadow .5s; }
+.tk-jp.on { box-shadow: 0 0 0 3px var(--tk-gold), 0 0 46px rgba(241,199,91,.55); animation: tk-jprail 1.1s ease-in-out 3; }
+@keyframes tk-jprail { 50% { box-shadow: 0 0 0 4px #ffe7a1, 0 0 70px rgba(241,199,91,.8); } }
+.tk-jpc { position: absolute; left: 50%; top: 18%; width: 128px; height: 180px; margin-left: -64px; pointer-events: auto; cursor: pointer; }
+.tk-jpf { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 12px 30px rgba(0,0,0,.55), 0 0 40px rgba(241,199,91,.5); }
+.tk-jpf.bk { background: radial-gradient(circle at 50% 50%, #ffe7a1, #d6a32f 70%); border: 6px solid var(--tk-cardbg); }
+.tk-jpf.bk svg { width: 54px; opacity: .8; }
+.tk-jpf.fc { background: var(--tk-cardbg); border: 5px solid var(--tk-gold); color: #2b1d00; }
+.tk-jpf.fc svg { width: 34px; }
+.tk-jpf .w { font: 400 30px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .06em; color: #8a5d00; }
+.tk-jpf .a { font: 400 26px/1 "Bebas Neue", Impact, sans-serif; color: #15132a; font-variant-numeric: tabular-nums; }
+.tk-jpf .g { font: 600 10px "IBM Plex Mono", ui-monospace, monospace; color: #6b5a2a; }
+.tk-jpf .ix { position: absolute; font: 900 15px/1 Nunito, system-ui, sans-serif; color: #b07d0c; }
+.tk-jpf .ix.t { left: 7px; top: 6px; } .tk-jpf .ix.b { right: 7px; bottom: 6px; transform: rotate(180deg); }
+.tk-jptag { position: absolute; left: 50%; top: calc(18% + 192px); transform: translateX(-50%); white-space: nowrap; font: 400 26px/1 "Bebas Neue", Impact, sans-serif; letter-spacing: .05em;
+  padding: 6px 16px 3px 12px; clip-path: polygon(0 0, 100% 0, calc(100% - 9px) 100%, 0 100%); background: linear-gradient(100deg, var(--tk-gold), #ffe7a1 50%, var(--tk-gold)); color: #2b1d00; animation: tk-jpin .45s cubic-bezier(.2,.9,.3,1.3); }
+@keyframes tk-jpin { from { transform: translateX(-60%) scale(.8); opacity: 0; } }
+.tk-jpburst { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.tk-jpchip { position: fixed; z-index: 1000; width: 22px; height: 22px; border-radius: 50%; background: var(--c); pointer-events: none; box-shadow: inset 0 0 0 3px rgba(0,0,0,.18), 0 2px 4px rgba(0,0,0,.5); }
+.tk-jpchip::after { content: ""; position: absolute; inset: 3px; border: 2px dashed rgba(255,255,255,.8); border-radius: 50%; }
+.tk-jpchip.kg { --c: var(--tk-gold); } .tk-jpchip.k100 { --c: #22202f; } .tk-jpchip.k500 { --c: #8f78f0; } .tk-jpchip.k25 { --c: #2e9e5b; } .tk-jpchip.k5 { --c: #d93a4a; }
+.tk-jpban { position: fixed; z-index: 1000; left: 50%; top: calc(10px + env(safe-area-inset-top, 0px)); max-width: calc(100vw - 24px); display: flex; align-items: center; gap: 10px; padding: 9px 22px 7px 14px; cursor: pointer;
+  background: linear-gradient(100deg, var(--tk-gold), #ffe7a1 50%, var(--tk-gold)); color: #2b1d00; font: 400 22px/1.1 "Bebas Neue", Impact, sans-serif; letter-spacing: .04em;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%); box-shadow: 0 10px 30px rgba(0,0,0,.45); transform: translate(-50%, calc(-100% - 20px)); transition: transform .45s cubic-bezier(.2,.9,.3,1.1); overflow: hidden; }
+.tk-jpban.show { transform: translate(-50%, 0); }
+.tk-jpban b { font-weight: 400; color: #6b1a3a; }
+.tk-jpban svg { width: 24px; flex: none; }
+.tk-jpban.show::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.7) 48%, transparent 66%); transform: translateX(-120%); animation: tk-jpshine 1.2s .4s ease-in-out; }
+@keyframes tk-jpshine { to { transform: translateX(120%); } }
+@media (max-width: 640px) { .tk-jpc { width: 104px; height: 146px; margin-left: -52px; } .tk-jpf .w { font-size: 25px; } .tk-jpf .a { font-size: 21px; } .tk-jptag { top: calc(18% + 156px); font-size: 22px; } .tk-jpban { font-size: 18px; } }
+
+@media (prefers-reduced-motion: reduce) { .tk-cd { transition: none !important; animation: none !important; }
+  .tk-jp.on, .tk-jptag, .tk-jpban.show::after { animation: none !important; } .tk-jpban { transition: none; } }

@@ -345,6 +345,18 @@ details.pay summary { cursor: pointer; font: 400 17px var(--title); letter-spaci
 .nowc .go { margin-top: auto; font: 400 15px var(--title); letter-spacing: .1em; color: var(--c, var(--vio)); }
 .nowc .meter { height: 6px; background: var(--panel2); } .nowc .meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--gold), var(--pink)); transition: width .9s; }
 .nowc.hit { animation: jpflash 1.6s ease-out; }
+/* jackpot "just hit" (10 min after a win): gold card with the winner, chips pop when it happens while you watch */
+.nowc.jhit { position: relative; overflow: hidden; background: linear-gradient(120deg, #3a2a0a, #2a2550 70%); box-shadow: inset 0 0 0 2px var(--gold); }
+.nowc.jhit.hit { animation: none; }
+.nowc.jhit.hit::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 20%, rgba(255,231,161,.55) 45%, transparent 70%); transform: translateX(-120%); animation: jpshine 1s ease-in-out 2; pointer-events: none; }
+@keyframes jpshine { to { transform: translateX(120%); } }
+.nowc .k i.g { background: var(--gold); color: #2b1d00; }
+.nowc .jwho { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.nowc .jwho .av { width: 38px; height: 38px; flex: none; }
+.nowc .jwho b { display: block; font: 400 30px/1 var(--title); color: var(--gold); font-variant-numeric: tabular-nums; }
+.nowc .jwho small { font-size: 12px; color: var(--soft); }
+.nowc .s b { color: var(--fg); font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .nowc.jhit.hit::after { animation: none; } }
 .glist { background: var(--panel); padding: 0 16px 6px; }
 .grow { display: grid; grid-template-columns: 40px minmax(0,1fr) auto auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
 .grow:last-child { border: 0; }
@@ -489,21 +501,50 @@ async function load() {
   if (S.bj) T.bj = S.bj;
   if (S.fb) T.fb = S.fb;
   if (S.uth) T.uth = S.uth;
+  if (jpSeen === null) jpSeen = jpKey(S.jackpot && S.jackpot.last);
   render();
   jpRefresh();
 }
 const setBal = b => { if (S.me && typeof b === 'number') S.me.bal = b; };
 
 async function play(body, apply, early) {
-  if (busy) return; busy = true; T.err = ''; render();
+  if (busy) return; busy = true; T.err = ''; K.jpClear && K.jpClear(); render();
   if (early) early();   // something moves straight away while the server answers
+  let jw = null;
   try {
     const j = await api(body);
     if (j.busy) return;
     if (j.err) { T.err = j.err; if (j.daily) S.me.daily = j.daily; return; }
-    setBal(j.bal); apply(j);
+    // a jackpot hit on this hand: the hand plays out on the losing balance first, then the gold card pays it (jpWin)
+    jw = j.jackpot && j.jackpot.win > 0 && typeof j.bal === 'number' ? j.jackpot : null;
+    setBal(jw ? Math.round((j.bal - jw.win) * 100) / 100 : j.bal); apply(j);
+    jpTake(j.jp, !!jw);
   } catch (e) { T.err = "Couldn't reach the table. Check your connection."; }
   finally { busy = false; pressed = null; render(); }
+  if (jw) jpWin(jw);
+}
+
+// ---------- jackpot win (Nov 26 2026, Renato's picks: the gold card on your own table + a banner when someone else hits it) ----------
+// The card, banner, chips and sounds live in the table kit (jpCard / jpBanner). Game answers carry { jackpot } when your hand
+// won the pot and { jp: { wins, last } } (the pot's last hit) so a hit by anyone shows here; see gameAct in api/_casino.js.
+let jpSeen = null, lastEnd = 0;
+const jpKey = l => l ? l.id + ':' + l.win : '';
+const JP_FRESH = 10 * 60e3;   // "just hit" lasts 10 minutes
+function jpTake(jp, mineNow) {
+  if (!jp || !S) return;
+  if (S.jackpot) { if (jp.last) S.jackpot.last = jp.last; if (jp.wins > (S.jackpot.wins || 0)) { S.jackpot.wins = jp.wins; S.jackpot.pot = S.jackpot.seed; } }
+  const k = jpKey(jp.last);
+  if (jpSeen === null) { jpSeen = k; return; }
+  if (!k || k === jpSeen) return;
+  jpSeen = k;
+  if (mineNow || Date.now() - jp.last.at > JP_FRESH || document.getElementById('jpb')) return; // your own hand: the card shows it; lobby: its card shows it
+  const you = S.me && jp.last.id === S.me.id;  // roulette: everyone's hits come from the spin, so yours shows as a banner
+  setTimeout(() => K.jpBanner && K.jpBanner({ name: jp.last.name, win: jp.last.win, game: jp.last.game, you }), RL.spinning ? 6500 : lastEnd + 400);
+}
+function jpWin(jw) {
+  const paid = () => { setBal(Math.round(((S.me.bal || 0) + jw.win) * 100) / 100); rollBal(0); if (window.SB) window.SB.bal(S.me.bal); };
+  if (!K.jpCard) return paid();
+  setTimeout(() => K.jpCard(document.querySelector('#view .felt'), { win: jw.win, toEl: document.getElementById('balNum') || document.getElementById('sb'), onPaid: paid }), lastEnd + 700);
 }
 
 // ---------- page frame ----------
@@ -573,6 +614,7 @@ function choreograph(before) {
   const show = () => { late.forEach(el => { el.classList.remove('late-hide'); if (!el.classList.contains('still')) el.classList.add(el.classList.contains('result') ? 'slide' : 'late-show'); }); resultSound(); };
   const row = document.querySelector('#view .slots');
   if (end) { late.forEach(el => el.classList.add('late-hide')); if (row) row.classList.add('hold'); setTimeout(() => { show(); if (row) row.classList.remove('hold'); }, end); } else show();
+  lastEnd = end;
   rollBal(end);
 }
 // a new result stamp: win / lose / push sound
@@ -720,6 +762,10 @@ function jackpot() {
 }
 function jackpotCard(J) {
   const pct = Math.max(0, Math.min(100, (J.pot - J.seed) / Math.max(1, J.cap - J.seed) * 100));
+  // for 10 minutes after a hit the card turns gold with the winner (the pot under it has already started over)
+  if (J.last && Date.now() - J.last.at < JP_FRESH) return `<div class="nowc jhit" id="jpb" style="--c:var(--gold)"><span class="k">Jackpot <i class="g">JUST HIT</i></span>
+    <span class="jwho">${av(J.last.id, J.last.name)}<span><b>${cents(J.last.win)}</b><small>${esc(J.last.name)} won it${J.last.game ? ` on ${esc(J.last.game)}` : ''} · ${jpAgo(J.last.at)}</small></span></span>
+    <span class="s">New pot <b id="jpN">${cents(J.pot)}</b></span><span class="meter"><i id="jpBar" style="width:${pct}%"></i></span><span class="go">Must drop by ${money(J.cap)}</span></div>`;
   return `<div class="nowc" id="jpb" style="--c:var(--gold)"><span class="k">Jackpot</span><b id="jpN">${cents(J.pot)}</b><span class="meter"><i id="jpBar" style="width:${pct}%"></i></span>
     <span class="s" id="jpHint">${J.last ? `Last hit: ${esc(J.last.name)} ${cents(J.last.win)} · ${jpAgo(J.last.at)}` : `2% of every hand the house wins goes in${J.featured ? `, ${Math.round(J.featured.cut * 100)}% on ${esc(J.featured.short)} this week` : ''}. Drops at a secret amount before ${money(J.cap)}.`}</span><span class="go">Must drop by ${money(J.cap)}</span></div>`;
 }
@@ -733,7 +779,13 @@ function jpRefresh() {
     const old = S.jackpot, hit = old && j.jackpot.wins > old.wins;
     S.jackpot = j.jackpot;
     const box = document.getElementById('jpb'); if (!box) return;
-    if (hit) { box.outerHTML = jackpot(); const b = document.getElementById('jpb'); if (!REDUCED) b.classList.add('hit'); return; }
+    if (hit) {
+      jpSeen = jpKey(j.jackpot.last);
+      box.outerHTML = jackpot(); const b = document.getElementById('jpb');
+      if (!REDUCED) { b.classList.add('hit'); if (K.chipBurst) K.chipBurst(b, 40, b.clientHeight * .45, 34, 1600); }
+      if (SND.jpOther) SND.jpOther();
+      return;
+    }
     const from = old ? old.pot : j.jackpot.pot, to = j.jackpot.pot, el = document.getElementById('jpN'), t0 = performance.now();
     document.getElementById('jpBar').style.width = Math.max(0, Math.min(100, (to - j.jackpot.seed) / Math.max(1, j.jackpot.cap - j.jackpot.seed) * 100)) + '%';
     if (REDUCED || from === to) { el.textContent = cents(to); return; }
@@ -947,6 +999,7 @@ function rlTake(j) {
   if (j.t !== undefined) RL.t = j.t;
   if (j.max) RL.max = j.max;
   if (typeof j.bal === 'number' && S.me && !RL.spinning) setBal(j.bal);
+  jpTake(j.jp, false);
   RL.loaded = true;
 }
 async function rlPoll() {

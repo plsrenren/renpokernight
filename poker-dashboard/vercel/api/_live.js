@@ -15,7 +15,7 @@
 // plus Renato / admins / pitbosses; once the opener leaves the table, any server member can pick them up.
 // Live updates: after each change the public table is published to Ably "live:table" (same ABLY_API_KEY as the poker room).
 import { createHmac, randomBytes } from 'node:crypto';
-import { kv, takeChips, feedCmds, nameCmd } from './_blackjack.js';
+import { kv, jpSink, takeChips, feedCmds, nameCmd } from './_blackjack.js';
 import { postChannel } from './_rewards.js';
 import { isHost, isMember } from './_poker.js';
 import * as E from './_livegame.js';
@@ -40,9 +40,9 @@ async function change(fn, t = Date.now()) {
     const pays = T._pay || []; delete T._pay;
     const [ok] = await kv(['EVAL', CAS, 2, REF.ver, REF.key, String(was), String(T.v), JSON.stringify(T)]);
     if (+ok === 1) {
-      if (pays.length) await payOut(pays).catch(e => console.error('live payout', e, JSON.stringify(pays)));
-      await publish(T, t);
-      return { T };
+      const jp = pays.length ? await payOut(pays).catch(e => { console.error('live payout', e, JSON.stringify(pays)); return []; }) : [];
+      await publish(T, t, jp);
+      return { T, jp };
     }
     await new Promise(res => setTimeout(res, 30 + Math.random() * 90));
   }
@@ -54,7 +54,10 @@ async function payOut(list) {
     if (p.amt > 0) cmds.push(['HINCRBYFLOAT', 'bj:bal', p.id, p.amt]);
     if (p.feed) cmds.push(...feedCmds({ id: p.id, name: p.name, src: 'site' }, p.feed.game, p.feed.net, p.feed.wager, p.feed.stats));
   }
-  if (cmds.length) await kv(...cmds);
+  // jackpot wins from these hands (see jpSink in _blackjack.js): sent with this update so the whole table sees them
+  const jp = [];
+  if (cmds.length) await jpSink.run(jp, () => kv(...cmds));
+  return jp.map(w => ({ id: w.id, name: w.name, win: w.win }));
 }
 
 // ---------- /live on Discord (Nov 25 2026, by request: info only, playing stays on the site) ----------
@@ -91,7 +94,7 @@ export async function liveCommand(origin = 'https://www.thepoker.study') {
 
 // ---------- Ably ----------
 const ablyKey = () => process.env.ABLY_API_KEY || '';
-async function publish(T, t) {
+async function publish(T, t, jp = []) {
   const key = ablyKey(); if (!key) return;
   const c = new AbortController(), timer = setTimeout(() => c.abort(), 1500);
   try {
@@ -99,7 +102,7 @@ async function publish(T, t) {
     // nobody got live tables and every page fell back to polling Redis (found Nov 25 2026)
     const r = await fetch(`https://rest.ably.io/channels/${encodeURIComponent(CHAN)}/messages`, { method: 'POST', signal: c.signal,
       headers: { Authorization: 'Basic ' + Buffer.from(key).toString('base64'), 'X-Ably-ClientId': Buffer.from('server').toString('base64'), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 't', data: JSON.stringify(E.publicView(T, t)) }) });
+      body: JSON.stringify({ name: 't', data: JSON.stringify(jp.length ? { ...E.publicView(T, t), jp } : E.publicView(T, t)) }) });
     if (!r.ok) console.error('ably publish', r.status, (await r.text().catch(() => '')).slice(0, 200));
   } catch (e) { console.error('ably publish', e.name); } finally { clearTimeout(timer); }
 }
@@ -115,7 +118,7 @@ function tokenRequest(clientId) {
 // ---------- the page's data ----------
 const canHost = async (T, id) => T.open && T.host && T.host.id === id ? true : (await isHost(id)) || (E.hostFree(T) && (await isMember(id)));
 async function view(T, me, t, extra = {}) {
-  const body = { table: E.publicView(T, t), ably: !!ablyKey() };
+  const body = { table: extra.jp && extra.jp.length ? { ...E.publicView(T, t), jp: extra.jp } : E.publicView(T, t), ably: !!ablyKey() };
   if (!me) return body;
   const i = E.seatOf(T, me.id);
   const [bal] = extra.bal !== undefined ? [extra.bal] : await kv(['HGET', 'bj:bal', me.id]);
@@ -133,7 +136,7 @@ export async function liveWeb(req, me, out) {
   }
   let b; try { b = await req.json(); } catch (e) { return out({ err: 'Bad request.' }, 400); }
   const who = { id: me.id, name: me.name };
-  const done = async (r, extra = {}) => r.err ? out({ err: r.err, ...(r.T ? await view(r.T, me, t) : {}) }) : out(await view(r.T, me, t, extra));
+  const done = async (r, extra = {}) => r.err ? out({ err: r.err, ...(r.T ? await view(r.T, me, t) : {}) }) : out(await view(r.T, me, t, { ...extra, jp: r.jp }));
   const HOST = ['close', 'pause', 'game'];
   if (b.a === 'open' && !(await isMember(me.id))) return out({ err: 'Tables are for people in the Poker Club Discord. Join the server, then try again.' }, 403);
   if (HOST.includes(b.a) && !(await canHost(await load(), me.id))) return out({ err: 'Only the host can do that.' }, 403);
