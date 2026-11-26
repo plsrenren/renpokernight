@@ -82,7 +82,8 @@ export function earnedFrom(st) {
   return out;
 }
 
-/** The casino accolade someone is closest to (counted ones only), for the lobby: { name, slot, why, have, need } or null.
+/** The casino accolade someone is closest to (counted ones only), for the lobby: { slot, why, have, need } or null.
+ *  The name stays a surprise until it unlocks (Renato, Nov 26 2026), so it isn't sent.
  *  n = ac:n numbers, own = the accolade keys they already have (HKEYS ac:own:<id>). */
 export function nextAccolade(n = {}, own = []) {
   const has = new Set(own), list = [];
@@ -95,7 +96,7 @@ export function nextAccolade(n = {}, own = []) {
   if (!list.length) return null;
   list.sort((a, b) => b.have / b.need - a.have / a.need || a.need - b.need);
   const top = list[0], it = accItem('a:' + top.k);
-  return it ? { name: it.name, slot: it.slot, why: it.why, have: top.have, need: top.need } : null;
+  return it ? { slot: it.slot, why: it.why, have: top.have, need: top.need } : null;
 }
 
 /** weekly ones for week i of weeks = [{ wk, vol: {id: bet}, net: {id: net} }] (oldest first, one per casino week, gaps allowed as empty):
