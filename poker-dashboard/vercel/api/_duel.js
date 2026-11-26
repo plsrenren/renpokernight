@@ -10,7 +10,7 @@
 // Keys: du:<id> (the duel, 1 day), du:lock:<id> (stops double taps), du:rec (hash "<lo id>:<hi id>:<winner id>" → wins),
 //       du:live (hash duel id → {a, b, bet, at}: RPS duels with stakes taken and no winner yet).
 import { randomBytes } from 'node:crypto';
-import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, freshDeck, MAX_BET, feedCmds } from './_blackjack.js';
+import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, freshDeck, MAX_BET, feedCmds, nameCmd } from './_blackjack.js';
 
 const SITE = 'https://www.thepoker.study';
 const DEFAULT_BET = 20, EXPIRES = 10 * 60e3, TTL = 86400, CALL_OFF = 3 * 60e3, STUCK = 30 * 60e3;
@@ -122,7 +122,7 @@ function highCard(d) {
 // shown to anyone and just expires (no chips move until Accept)
 async function challenge(me, other, bet, game) {
   const d = { id: randomBytes(5).toString('hex'), a: me, b: other, bet, game, made: Date.now(), state: 'open', picks: {} };
-  const [raw] = await kv(['HGET', 'bj:bal', me.id], save(d), ['HSET', 'bj:name', me.id, me.name]);
+  const [raw] = await kv(['HGET', 'bj:bal', me.id], save(d), nameCmd(me));
   const why = broke(raw === null ? null : +raw, bet);
   return why ? { err: why } : { d };
 }
@@ -179,7 +179,7 @@ export async function duelButton(i, s, waitUntil) {
       if (r[0] === 'b') return quiet(broke(+r[1] < 0 ? null : +r[1], d.bet));
       if (r[0] === 'a') { d.state = 'off'; await store(save(d)); return json({ type: 7, data: view(d, { note: `${d.a.name} doesn't have ${money(d.bet)} anymore, so the duel is off. No chips moved.` }) }); }
       d.b = { id: me.id, name: me.name };
-      const name = ['HSET', 'bj:name', me.id, me.name];
+      const name = nameCmd(me);
       if (d.game === 'high' || d.game === 'coin') { (d.game === 'high' ? highCard : coinFlip)(d); await done(name); }
       else { d.state = 'pick'; d.pickAt = Date.now(); await store(name, ['HSET', 'du:live', d.id, JSON.stringify({ a: d.a.id, b: d.b.id, bet: d.bet, at: d.pickAt })], save(d)); }
       return json({ type: 7, data: view(d) });

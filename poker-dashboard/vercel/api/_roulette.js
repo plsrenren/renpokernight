@@ -10,7 +10,7 @@
 //       ro:hist:<channel> (last spins).
 import { attachPicture, discordBody } from './_attach.js';
 import { randomBytes, randomInt } from 'node:crypto';
-import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds, takeChips } from './_blackjack.js';
+import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, feedCmds, takeChips, nameCmd } from './_blackjack.js';
 import { afterJackpot } from './_jackpot.js';
 
 const SITE = 'https://www.thepoker.study', API = 'https://discord.com/api/v10';
@@ -166,7 +166,7 @@ async function placeBet(i, s, id, type, num, amtWanted, waitUntil) {
     if (took.short) return quiet(`You only have ${money(took.had || 0)} left. Pick a smaller chip size.`);
     t.bets.push({ uid: me.id, name: me.name, type, ...(type === 'num' ? { num } : {}), amt });
     const left = took.bal;
-    await kv(['HSET', 'bj:name', me.id, me.name], save(t));
+    await kv(nameCmd(me), save(t));
     if (waitUntil) waitUntil(fetch(`${API}/webhooks/${i.application_id}/${i.token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ flags: 64, content: `${money(amt)} on ${betName(t.bets.at(-1))}. You have ${money(mine + amt)} on this spin and ${money(+left)} left.` }) }).catch(() => {}));
     return json({ type: 7, data: tableView(t) });

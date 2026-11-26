@@ -25,7 +25,7 @@
 // Hand histories: every finished hand (_pokergame.js T.rec) is saved once as pk:h:<hand id> (90 days), and each real player dealt in gets it
 // in their own list pk:hp:<id> (sorted set, score = time). Reading gives you back only your own cards plus the ones shown to the table.
 import { createHmac, randomBytes } from 'node:crypto';
-import { kv, takeChips, FEED_KEEP, weekKey } from './_blackjack.js';
+import { kv, takeChips, FEED_KEEP, weekKey, nameCmd } from './_blackjack.js';
 import { postChannel } from './_rewards.js';
 import * as E from './_pokergame.js';
 
@@ -253,7 +253,7 @@ export async function pokerWeb(req, me, _sheet, out) {
       if (r.err) return done(r);
       await joined(r);
       const amt = r.T.seats[E.seatOf(r.T, me.id)].gift, wk = weekKey(t);
-      await kv(['HSET', 'bj:name', me.id, me.name], ['HINCRBYFLOAT', 'hs:wk:' + wk, 'free seat', -amt], ['EXPIRE', 'hs:wk:' + wk, 120 * 86400], ['HINCRBYFLOAT', 'hs:all', 'free seat', -amt],
+      await kv(nameCmd(me), ['HINCRBYFLOAT', 'hs:wk:' + wk, 'free seat', -amt], ['EXPIRE', 'hs:wk:' + wk, 120 * 86400], ['HINCRBYFLOAT', 'hs:all', 'free seat', -amt],
         ['LPUSH', 'cas:feed', JSON.stringify({ id: me.id, name: me.name, game: 'free seat', why: 'poker room, on the house', net: amt, src: 'site', at: Date.now() })], ['LTRIM', 'cas:feed', 0, FEED_KEEP - 1]).catch(e => console.error('poker gift books', e));
       return done(r);
     } // fall through: a normal buy-in
@@ -273,7 +273,7 @@ export async function pokerWeb(req, me, _sheet, out) {
       if (paid.short) return done({ T: pre, err: `You only have ${$(paid.had || 0)} in chips.` });
       const r = await change((T, now) => { if (b.a === 'sit') return E.sit(T, who, int(b.seat), amt, now); const i = E.seatOf(T, me.id); return i >= 0 && T.seats[i].free ? 'Try again.' : E.topUp(T, who, amt, now); }, t);
       if (r.err) { const [back] = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, amt]); return done(r, { bal: +back }); }
-      await kv(['HSET', 'bj:name', me.id, me.name]).catch(() => {});
+      await kv(nameCmd(me)).catch(() => {});
       await joined(r);
       return done(r, { bal: paid.bal });
     }

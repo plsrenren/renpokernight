@@ -13,7 +13,7 @@
 // Needs Vercel env var DISCORD_CLIENT_SECRET (Developer Portal > OAuth2) and the redirect
 // https://www.thepoker.study/api/login (and the old https://renpokernight.vercel.app/api/login) added there. The app's client ID is looked up with DISCORD_BOT_TOKEN.
 import { createHmac, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { kv, kvUrl, kvToken, MAX_BET, FEED_KEEP, claimDaily, dailyStatus, boardFrom, dailyFrom, weekKey, rakeFor, newHand as bjStart, handAction, publicHand, MAX_PUSH22 } from './_blackjack.js';
+import { kv, kvUrl, kvToken, MAX_BET, FEED_KEEP, claimDaily, dailyStatus, boardFrom, dailyFrom, weekKey, rakeFor, sheetNames, hasIds, newHand as bjStart, handAction, publicHand, MAX_PUSH22 } from './_blackjack.js';
 import { newHand as uthStart, uthAction, publicUth, MAX_ANTE, MAX_TRIPS, UTH_PAYTABLE } from './_uth.js';
 import { playHand } from './_baccarat.js';
 import { REWARD_LIST } from './_rewards.js';
@@ -113,16 +113,27 @@ export function groupFeed(feed, lines = 10) {
   return out;
 }
 
+/** Writes Members-tab names over any stored Discord names for linked players (one command, only when something is off),
+ *  so Discord /chips, rakeback and reward notes read the right name too. */
+async function fixNames(names, sn) {
+  const n = {}; for (let k = 0; k < (names || []).length; k += 2) n[names[k]] = names[k + 1];
+  const off = Object.keys(n).filter(id => sn[id] && sn[id] !== n[id]);
+  if (off.length) await kv(['HSET', 'bj:name', ...off.flatMap(id => [id, sn[id]])]).catch(() => {});
+}
+
 async function state(me, sheet) {
   // two storage trips: everything for the lobby at once, then any unfinished hands
   const [bal, names, feedRaw, last, cur, wkNet, wkVol, jp] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['LRANGE', 'cas:feed', 0, FEED_KEEP - 1],
     ['HGET', 'bj:last', me ? me.id : '-'], ['HGETALL', 'cas:cur:' + (me ? me.id : '-')],
     ['HGET', 'rb:wk:' + weekKey(), me ? me.id : '-'], ['HGET', 'rb:vol:' + weekKey(), me ? me.id : '-'], ['HGETALL', 'jp']);
-  const board = boardFrom(bal, names);
-  const feed = groupFeed((feedRaw || []).map(x => { try { return JSON.parse(x); } catch (e) { return null; } }).filter(Boolean));
+  const sh = sheet ? await sheet().catch(() => null) : null, sn = sheetNames(sh);
+  const board = boardFrom(bal, names, sh);
+  // linked players show their Members-tab name everywhere, even on older feed lines and stored names saved as their Discord name
+  const feed = groupFeed((feedRaw || []).map(x => { try { const f = JSON.parse(x); if (sn[f.id]) f.name = sn[f.id]; return f; } catch (e) { return null; } }).filter(Boolean));
+  await fixNames(names, sn);
   const body = { me: null, board: board.slice(0, 15), players: board.length, feed, maxBet: MAX_BET, maxPush22: MAX_PUSH22, maxAnte: MAX_ANTE, maxTrips: MAX_TRIPS, uthPaytable: plain(UTH_PAYTABLE), rewards: REWARD_LIST, jackpot: jackpotView(jp) };
   // the quarter lottery panel (needs the sheet; left out if it can't be read)
-  try { const sh = sheet && await sheet(); if (sh && sh.csv) { const v = await lotteryView(sh.csv, null, sh.ids || {}); v.holders = v.holders.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); if (v.lastBoard) v.lastBoard = v.lastBoard.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); body.lottery = v; } } catch (e) { console.error('lottery view', e); }
+  try { if (sh && sh.csv) { const v = await lotteryView(sh.csv, null, sh.ids || {}); v.holders = v.holders.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); if (v.lastBoard) v.lastBoard = v.lastBoard.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); body.lottery = v; } } catch (e) { console.error('lottery view', e); }
   if (!me) return body;
   const mine = board.find(r => r.id === me.id);
   body.me = { id: me.id, name: me.name, bal: mine ? mine.bal : null, rank: mine ? board.indexOf(mine) + 1 : null, daily: dailyFrom(last), rake: rakeFor(wkNet, wkVol) };   // rakeback so far this week (never the loss itself)
@@ -189,6 +200,10 @@ export async function casinoWeb(req, what, sheet) {
   try {
     if (what === 'login') return await login(req, sheet);
     const me = readSession(req);
+    if (me) { // the cookie keeps the name from sign-in: use the Members-tab name if the sheet copy in memory has one (no wait on Google)
+      const sh = sheet && sheet.peek ? sheet.peek() : null, real = sheetNames(sh)[me.id];
+      if (real) me.name = real; else if (!hasIds(sh)) me.guess = true; // a guess never overwrites a stored name (see nameCmd)
+    }
     if (what === 'me') return await meWeb(me, sheet, out); // the sign-in badge (badge.js), see _me.js
     if (what === 'shop' && req.method === 'GET') return await shopWeb(req, me, sheet, out);
     if (what === 'poker' && req.method === 'GET') return await pokerWeb(req, me, sheet, out);

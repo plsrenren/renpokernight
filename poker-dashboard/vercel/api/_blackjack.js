@@ -80,11 +80,24 @@ export const money = n => (n < 0 ? '−' : '') + '$' + Math.abs(n).toLocaleStrin
 export const json = body => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
 export const quiet = content => json({ type: 4, data: { content, flags: 64, allowed_mentions: { parse: [] } } });
 
+// Names: a player linked on the Members tab (Discord ID column) always shows their sheet name; anyone else their server nickname,
+// then Discord display name. Chip commands answer from the sheet copy in memory, which is empty on a cold start, so a name picked
+// then is only a guess: nameCmd() lets a guess fill a blank bj:name but never overwrite one (it used to flip linked players back to
+// their Discord name). Lists that have the sheet at hand also swap in sheet names as they're shown (sheetNames).
 export function whoIs(i, s) {
   const u = (i.member && i.member.user) || i.user || {};
   const sheetName = s && s.ids ? Object.keys(s.ids).find(n => s.ids[n] === u.id) : null;
-  return { id: u.id, name: sheetName || (i.member && i.member.nick) || u.global_name || u.username || 'Someone' };
+  return { id: u.id, name: sheetName || (i.member && i.member.nick) || u.global_name || u.username || 'Someone', ...(hasIds(s) ? {} : { guess: true }) };
 }
+/** True when a sheet copy has the Members tab's Discord IDs (a failed Members read leaves them empty: names from it are guesses). */
+export const hasIds = s => !!(s && s.ids && Object.keys(s.ids).length);
+/** { discordId: Members-tab name } from a sheet copy (its ids are { name: discordId }). */
+export function sheetNames(s) {
+  const o = {}; for (const [n, id] of Object.entries((s && s.ids) || {})) if (id) o[id] = n;
+  return o;
+}
+/** The Redis command that saves a player's shown name (see whoIs). */
+export const nameCmd = me => [me.guess ? 'HSETNX' : 'HSET', 'bj:name', me.id, me.name];
 export const noStorage = () => quiet("Blackjack isn't set up yet: the site needs its chip storage (Upstash) connected in Vercel.");
 
 // "Just now" feed on the site's /casino page: the last 300 finished hands, spins, duels and daily claims from Discord and the site.
@@ -163,7 +176,7 @@ export async function claimDaily(me, { names = false } = {}) {
   if (wait) return { wait, amt: claimAmt(last, now + wait), others };
   if (!got) return { wait: 0, busy: true, amt: claimAmt(last, now) };
   const amt = claimAmt(last, now);
-  const [bal] = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, amt], ['HSET', 'bj:last', me.id, now], ['HSET', 'bj:name', me.id, me.name], ...feedCmds(me, 'daily', amt));
+  const [bal] = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, amt], ['HSET', 'bj:last', me.id, now], nameCmd(me), ...feedCmds(me, 'daily', amt));
   return { amt, bal: +bal, weekly: amt === WEEKLY_CLAIM, next: claimAmt(now, lastReset(now) + DAY), others };
 }
 /** What a claim at `at` pays: WEEKLY_CLAIM if it's the first since this week started (or ever), else DAILY. */
@@ -260,16 +273,16 @@ export async function chipBoard() {
   const [bal, names] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name']);
   return boardFrom(bal, names);
 }
-/** The leaderboard from raw HGETALL bj:bal and bj:name replies. */
-export function boardFrom(bal, names) {
+/** The leaderboard from raw HGETALL bj:bal and bj:name replies. s = a sheet copy, when there is one: linked players get their sheet name. */
+export function boardFrom(bal, names, s) {
   const pairs = a => { const o = {}; for (let k = 0; k < (a || []).length; k += 2) o[a[k]] = a[k + 1]; return o; };
-  const b = pairs(bal), n = pairs(names);
-  return Object.entries(b).map(([id, v]) => ({ id, name: n[id] || 'Someone', bal: +v })).sort((x, y) => y.bal - x.bal);
+  const b = pairs(bal), n = pairs(names), sn = sheetNames(s);
+  return Object.entries(b).map(([id, v]) => ({ id, name: sn[id] || n[id] || 'Someone', bal: +v })).sort((x, y) => y.bal - x.bal);
 }
-async function chips(i) {
-  const me = whoIs(i), wk = weekKey();
+async function chips(i, opts, s) {
+  const me = whoIs(i, s), wk = weekKey();
   const [bal, names, net, vol] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['HGET', 'rb:wk:' + wk, me.id || '-'], ['HGET', 'rb:vol:' + wk, me.id || '-']);
-  const rows = boardFrom(bal, names).slice(0, 15).map(r => [r.name, r.bal]);
+  const rows = boardFrom(bal, names, s).slice(0, 15).map(r => [r.name, r.bal]);
   const week = weekLine(net, vol);
   const medal = ['🥇', '🥈', '🥉'];
   const lines = rows.map(([nm, v], k) => `${medal[k] || `\`${k + 1}.\``} **${nm}** · ${money(v)}${v < 1 ? ' · broke 💀' : ''}`);
@@ -379,7 +392,7 @@ export async function newHand(me, bet, mode = '', side = 0) {
   g.nat = natural(g.hands[0]) ? 1 : 0; // a dealt blackjack, for the Natural accolade
   if (natural(g.hands[0]) || total(g.dealer).t === 21) settle(g);
   // the bet is already off (takeChips); this pays a hand that settled on the deal and saves it
-  const res = await kv(g.over && g.payout ? ['HINCRBYFLOAT', 'bj:bal', me.id, g.payout] : ['HGET', 'bj:bal', me.id], ['HSET', 'bj:name', me.id, me.name], ['SET', 'bj:g:' + g.id, JSON.stringify(g), 'EX', 3600],
+  const res = await kv(g.over && g.payout ? ['HINCRBYFLOAT', 'bj:bal', me.id, g.payout] : ['HGET', 'bj:bal', me.id], nameCmd(me), ['SET', 'bj:g:' + g.id, JSON.stringify(g), 'EX', 3600],
     ...(g.over ? feedCmds(me, GAME(g), g.net, staked(g), { naturals: g.nat, sweep: sweep(g) }) : []));
   return { g, bal: +res[0] };
 }

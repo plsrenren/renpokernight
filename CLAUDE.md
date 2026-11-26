@@ -110,6 +110,10 @@ poker-dashboard/
                        blackjack: _blackjack.js (/daily /blackjack /freebet /chips; splits up to 6 hands (MAX_HANDS) in both games; /freebet = mode 'free' on the same hand code:
                        free double hard 9-11, free split any pair but 10s, dealer hits soft 17, dealer 22 pushes, Push 22 side bet 12:1 (11:1 before Nov 25 2026) (g.side, max 25), hand.free = house money;
                        site table #freebet (cas:cur fb), feed game name "free bet"; play chips in Upstash Redis via KV_REST_API_URL/TOKEN; daily resets once a day at 16:00 UTC, not 24h after the last claim; first claim of each week (Monday 16:00 UTC on) pays WEEKLY_CLAIM $100, the rest DAILY $50, no separate welcome bonus; replies pick a random funny line (DAILY_LINES/WEEKLY_LINES, extra BROKE_LINES/RICH_LINES by balance, CLAIMED_LINES when already claimed; {P} = random other bj:name player as a non-pinging @, read by HKEYS in the claim's first pipeline, Discord only): /daily = pay from your day job, never the casino giving you chips (Renato, Nov 25 2026)),
+                       names (Nov 26 2026): bj:name = shown name. Linked players (Members Discord ID) = sheet name, others = server nick > display name.
+                       Chip commands on a cold start have no sheet copy, so whoIs marks the name a guess and nameCmd() saves it with HSETNX (never
+                       overwrites); site sessions get the sheet name from sheet.peek() (memory only). Lobby board/feed + /chips + owner lists swap in
+                       sheet names as shown; the lobby's fixNames() HSETs any stored Discord name of a linked player back (only when one is off).
                        bjcards (table picture under each hand)
                        pictures: _attach.js draws the bjcards/roulette picture inside the discord.js reply and uploads it as attachment://table.png
                        (multipart), so Discord doesn't fetch it afterwards; falls back to the /api/bjcards link if drawing runs past ~1.8s.
