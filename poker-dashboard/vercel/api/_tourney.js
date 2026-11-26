@@ -223,6 +223,8 @@ export async function refreshInvite(getNames = async () => ({})) {
   if (ttl > 0) await kv(['SET', 'bf:rsvp', JSON.stringify({ ids: got.lists[0].map(u => u.id), end: Date.now() + ttl * 1000, at: snowTime(last.m) }), 'EX', ttl]);
   const m = await dc(`/channels/${last.c}/messages/${last.m}`);
   if (!m) return 'invite not found';
+  // RSVP chips for anyone new on the list, paid now with the buff (one #casino note per check); loaded here to avoid an import loop
+  try { const { payRsvpNow } = await import('./_rewards.js'); await payRsvpNow(last.m, got.lists[0], infoFrom(m, stateOf(m, last)).date); } catch (e) { console.error('rsvp chips', e); }
   const r = await fetch(`${API}/channels/${last.c}/messages/${last.m}`, { method: 'PATCH',
     headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ embeds: [inviteEmbed(infoFrom(m, stateOf(m, last)), [list], stateOf(m, last).image)], components: [], allowed_mentions: { parse: [] } }) });

@@ -140,21 +140,21 @@ async function captureRsvp(rows, idsByName) {
   const msg = await latestInvite(me.id);
   if (!msg) return null;
   const [used] = await kv(['GET', 'rw:invite:' + msg.id]);
-  if (used) return used;
+  if (used) return { night: used, msg: msg.id };
   // the invite belongs to the newest night dated from 1 day before it was posted to 10 days after
   const posted = new Date(msg.timestamp), day = 864e5, iso = t => new Date(t).toISOString().slice(0, 10);
   const lo = iso(posted - day), hi = iso(+posted + 10 * day);
   const night = [...new Set(rows.filter(r => r.key >= lo && r.key <= hi && r.key >= REWARDS_START).map(r => r.night))].sort().pop();
   if (!night) return null;
   const [have] = await kv(['GET', 'rw:rsvp:' + night]);
-  if (have) return night;
+  if (have) return { night, msg: msg.id };
   const names = Object.fromEntries(Object.entries(idsByName).map(([n, id]) => [id, n]));
   const got = await readReacts(msg.channel_id, msg.id, names);
   if (got.error) return null;
   const list = got.lists[0];
   await kv(['SET', 'rw:rsvp:' + night, JSON.stringify(list.map(u => u.id))], ['SET', 'rw:invite:' + msg.id, night],
     ...list.map(u => ['HSETNX', 'bj:name', u.id, u.name]));
-  return night;
+  return { night, msg: msg.id };
 }
 
 // ---------- the #casino channel note ----------
@@ -220,14 +220,34 @@ export async function postChannel(payload, which = 'casino') {
   return `posted in #${ch.name}`;
 }
 
+/** RSVP chips at the 5-minute invite check (Nov 26 2026, Renato: pay them when the RSVP buff turns on). Everyone new on the
+ *  invite gets R.rsvp now, once per invite (kept if they take the reaction back), and ONE #casino note per check lists them.
+ *  rw:rsvpnow:<invite message id> = who was paid; payRewards counts those as paid for the night. Nothing once the night was saved
+ *  (rw:invite:<id> set = the save already paid that invite's RSVPs). list = [{ id, name }], date = the invite's date text. */
+export async function payRsvpNow(msgId, list, date = '') {
+  if (!list.length || !msgId) return null;
+  const key = 'rw:rsvpnow:' + msgId;
+  const [done] = await kv(['GET', 'rw:invite:' + msgId]);
+  if (done) return null;   // the night was already saved, and that save paid this invite's RSVPs
+  const got = await kv(...list.map(u => ['HSETNX', key, u.id, String(R.rsvp)]), ['EXPIRE', key, 45 * 86400]);
+  const fresh = list.filter((u, k) => got[k] === 1);
+  if (!fresh.length) return null;
+  const at = Date.now();
+  await kv(...fresh.flatMap(u => [['HINCRBYFLOAT', 'bj:bal', u.id, R.rsvp], ['HSETNX', 'bj:name', u.id, u.name],
+    ['LPUSH', 'cas:feed', JSON.stringify({ id: u.id, name: u.name, game: 'poker night', why: 'RSVP', net: R.rsvp, src: 'night', at })]]), ['LTRIM', 'cas:feed', 0, FEED_KEEP - 1]);
+  const text = `✉️ **RSVP chips**${date ? ' · ' + String(date).slice(0, 40) : ''} · ${fresh.map(u => `<@${u.id}>`).join(', ')} got **+$${R.rsvp}**${fresh.length > 1 ? ' each' : ''} and the RSVP buff (+25% on /daily)`;
+  try { return { paid: fresh.length, posted: await postCasino({ content: text.slice(0, 1990), allowed_mentions: { parse: [] } }) }; }
+  catch (e) { console.error('rsvp post', e); return { paid: fresh.length, posted: 'failed' }; }
+}
+
 /** Pays what's owed minus what was paid. csv = Input tab CSV, ids = { sheetName: discordId }. Returns a short report. */
 export async function payRewards(csv, ids) {
   const [lock] = await kv(['SET', 'rw:lock', '1', 'NX', 'EX', 25]);
   if (!lock) return { skipped: 'already running' };
   try {
     const rows = nightRows(csv);
-    let rsvpNight = null;
-    try { rsvpNight = await captureRsvp(rows, ids); } catch (e) { console.error('rewards rsvp', e); }
+    let rsvpNight = null, rsvpMsg = null;
+    try { const c = await captureRsvp(rows, ids); if (c) { rsvpNight = c.night; rsvpMsg = c.msg; } } catch (e) { console.error('rewards rsvp', e); }
     const nights = [...new Set(rows.filter(r => r.key >= REWARDS_START).map(r => r.night))];
     const saved = nights.length ? await kv(...nights.map(n => ['GET', 'rw:rsvp:' + n])) : [];
     const rsvps = {}; nights.forEach((n, k) => { try { if (saved[k]) rsvps[n] = JSON.parse(saved[k]); } catch (e) {} });
@@ -239,6 +259,12 @@ export async function payRewards(csv, ids) {
     // copy of the sheet would otherwise claw back every chip ever paid. Fixing a night that is still there adjusts as usual.
     const present = new Set([...rows.map(r => r.night), ...rows.map(r => 'Q:' + r.quarter)]);
     const cmds = [], perPerson = {}, noId = new Set(), nightsPaid = new Set(), keptMissing = new Set();
+    // RSVP chips already paid at the 5-minute invite check (payRsvpNow) count as paid for that night, so they never pay twice
+    // or show up again in the night's note. Only people still on the night's RSVP list (an unreact keeps the $25, nothing taken back).
+    if (rsvpNight && rsvpMsg) {
+      const [early] = await kv(['HKEYS', 'rw:rsvpnow:' + rsvpMsg]);
+      for (const id of early || []) { const k = `${rsvpNight}|rsvp|${id}`; if (want[k] && !paid[k]) { paid[k] = want[k].amt; cmds.push(['HSET', 'rw:paid', k, want[k].amt]); } }
+    }
     for (const key of new Set([...Object.keys(want), ...Object.keys(paid)])) {
       const w = want[key], delta = r2((w ? w.amt : 0) - (paid[key] || 0));
       if (!delta) continue;
@@ -259,7 +285,7 @@ export async function payRewards(csv, ids) {
       p.name = p.name || nm[p.id] || 'Someone';
       cmds.push(['LPUSH', 'cas:feed', JSON.stringify({ id: p.id, name: p.name, game: 'poker night', why: p.lines.map(l => l.replace(/ [+-][\d.]+$/, '')).join(' · '), net: p.total, src: 'night', at: Date.now() })]);
     }
-    if (cmds.length) cmds.push(['LTRIM', 'cas:feed', 0, FEED_KEEP - 1]);
+    if (Object.keys(perPerson).length) cmds.push(['LTRIM', 'cas:feed', 0, FEED_KEEP - 1]);
     if (cmds.length) await kv(...cmds);
     let posted = null;
     if (Object.keys(perPerson).length) { try { posted = await postToCasino(Object.values(perPerson), [...nightsPaid]); } catch (e) { console.error('rewards post', e); posted = 'failed: ' + e.message; } }
