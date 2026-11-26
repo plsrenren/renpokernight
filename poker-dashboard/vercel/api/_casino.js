@@ -21,9 +21,10 @@ import { lotteryView } from './_lottery.js';
 import { jackpotView, readJackpot } from './_jackpot.js';
 import { shopWeb } from './_shop.js';
 import { sweepDuels } from './_duel.js';
-import { pokerWeb } from './_poker.js';
-import { liveWeb } from './_live.js';
+import { pokerWeb, roomSummary } from './_poker.js';
+import { liveWeb, liveSummary } from './_live.js';
 import { meWeb } from './_me.js';
+import { nextAccolade } from './_accolades.js';
 
 const DAYS30 = 30 * 24 * 3600;
 const out = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers } });
@@ -123,20 +124,24 @@ async function fixNames(names, sn) {
 
 async function state(me, sheet) {
   // two storage trips: everything for the lobby at once, then any unfinished hands
-  const [bal, names, feedRaw, last, cur, wkNet, wkVol, jp] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['LRANGE', 'cas:feed', 0, FEED_KEEP - 1],
+  const [bal, names, feedRaw, last, cur, wkNet, wkVol, jp, ltRaw, pkRaw, acN, acOwn] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['LRANGE', 'cas:feed', 0, FEED_KEEP - 1],
     ['HGET', 'bj:last', me ? me.id : '-'], ['HGETALL', 'cas:cur:' + (me ? me.id : '-')],
-    ['HGET', 'rb:wk:' + weekKey(), me ? me.id : '-'], ['HGET', 'rb:vol:' + weekKey(), me ? me.id : '-'], ['HGETALL', 'jp']);
+    ['HGET', 'rb:wk:' + weekKey(), me ? me.id : '-'], ['HGET', 'rb:vol:' + weekKey(), me ? me.id : '-'], ['HGETALL', 'jp'],
+    // what's open right now (live table, poker room) + your counters for the "next unlock" line, in the same trip
+    ['GET', 'lt:t'], ['GET', 'pk:t'], ...(me ? [['HGETALL', 'ac:n:' + me.id], ['HKEYS', 'ac:own:' + me.id]] : []));
   const sh = sheet ? await sheet().catch(() => null) : null, sn = sheetNames(sh);
   const board = boardFrom(bal, names, sh);
   // linked players show their Members-tab name everywhere, even on older feed lines and stored names saved as their Discord name
   const feed = groupFeed((feedRaw || []).map(x => { try { const f = JSON.parse(x); if (sn[f.id]) f.name = sn[f.id]; return f; } catch (e) { return null; } }).filter(Boolean));
   await fixNames(names, sn);
-  const body = { me: null, board: board.slice(0, 15), players: board.length, feed, maxBet: MAX_BET, maxPush22: MAX_PUSH22, maxAnte: MAX_ANTE, maxTrips: MAX_TRIPS, uthPaytable: plain(UTH_PAYTABLE), rewards: REWARD_LIST, jackpot: jackpotView(jp) };
+  const body = { me: null, board: board.slice(0, 15), players: board.length, feed, maxBet: MAX_BET, maxPush22: MAX_PUSH22, maxAnte: MAX_ANTE, maxTrips: MAX_TRIPS, uthPaytable: plain(UTH_PAYTABLE), rewards: REWARD_LIST, jackpot: jackpotView(jp),
+    open: { live: liveSummary(ltRaw), poker: roomSummary(pkRaw) } };
   // the quarter lottery panel (needs the sheet; left out if it can't be read)
   try { if (sh && sh.csv) { const v = await lotteryView(sh.csv, null, sh.ids || {}); v.holders = v.holders.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); if (v.lastBoard) v.lastBoard = v.lastBoard.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); body.lottery = v; } } catch (e) { console.error('lottery view', e); }
   if (!me) return body;
   const mine = board.find(r => r.id === me.id);
-  body.me = { id: me.id, name: me.name, bal: mine ? mine.bal : null, rank: mine ? board.indexOf(mine) + 1 : null, daily: dailyFrom(last), rake: rakeFor(wkNet, wkVol) };   // rakeback so far this week (never the loss itself)
+  body.me = { id: me.id, name: me.name, bal: mine ? mine.bal : null, rank: mine ? board.indexOf(mine) + 1 : null, daily: dailyFrom(last), rake: rakeFor(wkNet, wkVol),   // rakeback so far this week (never the loss itself)
+    next: (() => { const n = {}; for (let k = 0; k < (acN || []).length; k += 2) n[acN[k]] = +acN[k + 1] || 0; try { return nextAccolade(n, acOwn || []); } catch (e) { return null; } })() };   // the casino title you're closest to
   // an unfinished hand started on the site comes back after a reload
   const c = {}; for (let k = 0; k < (cur || []).length; k += 2) c[cur[k]] = cur[k + 1];
   if (!c.bj && !c.fb && !c.uth) return body;

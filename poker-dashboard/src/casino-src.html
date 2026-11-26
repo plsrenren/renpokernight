@@ -85,7 +85,7 @@ button:disabled { cursor: default; opacity: .4; }
 .earn { background: var(--panel); border-left: 4px solid var(--gold); margin-top: 16px; }
 .earn summary { display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; list-style: none; }
 .earn summary::-webkit-details-marker { display: none; }
-.earn summary b { font: 400 22px var(--title); letter-spacing: .06em; white-space: nowrap; }
+.earn summary b { font: 400 22px var(--title); letter-spacing: .06em; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .earn summary span { color: var(--muted); font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .earn summary i { margin-left: auto; font: 400 17px var(--title); letter-spacing: .08em; color: var(--gold); font-style: normal; white-space: nowrap; }
 .earn summary i::after { content: ' ▾'; } .earn[open] summary i::after { content: ' ▴'; }
@@ -300,6 +300,61 @@ details.pay summary { cursor: pointer; font: 400 17px var(--title); letter-spaci
 .lot .won .tkt { font: 400 22px var(--title); letter-spacing: .08em; background: var(--gold); color: #15132a; padding: 4px 14px 1px; clip-path: polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%); }
 .lot .won b { font: 400 26px/1 var(--title); letter-spacing: .03em; } .lot .won small { display: block; font: 500 12px var(--mono); color: var(--soft); margin-top: 3px; }
 @media (max-width: 640px) { .lot .ltiles { grid-template-columns: 1fr 1fr; } .lot .tl.jp { grid-column: 1 / -1; } .lot .lcols { grid-template-columns: 1fr; } .lot .won { flex-wrap: wrap; } }
+/* ---------- lobby, "Players Club" (Nov 26 2026, Renato's pick C): you on the left, what to play on the right ---------- */
+.club-g { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 6px; }
+@media (max-width: 900px) { .club-g { grid-template-columns: minmax(0, 1fr); } }
+.club { background: var(--panel); min-width: 0; }
+.club .ctop { background: linear-gradient(100deg, #3a2a6e, #a23b58); padding: 16px; display: flex; gap: 12px; align-items: center; min-width: 0; }
+.club .ctop .av { width: 56px; height: 56px; font-size: 20px; }
+.club .ctop .nm { min-width: 0; }
+.club .ctop b { display: block; font: 400 28px/1 var(--title); letter-spacing: .03em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.club .ctop .pl-ttl, .club .ctop .ttl { margin-top: 4px; }
+.club .cbal { padding: 14px 16px 10px; }
+.club .cbal .k { font: 400 15px var(--title); letter-spacing: .12em; color: var(--soft); }
+.club .cbal .v { font: 400 54px/.95 var(--title); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.club .cbal .s { font: 500 12px var(--mono); color: var(--soft); margin-top: 4px; }
+.club .cday { margin: 0 16px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: rgba(142,224,176,.1); border-left: 4px solid var(--up); padding: 10px 12px; }
+.club .cday .t { font-size: 12.5px; color: var(--soft); min-width: 0; }
+.club .cday .t b { display: block; font: 400 20px/1 var(--title); letter-spacing: .05em; color: var(--fg); }
+.club .cday .cd { font: 400 26px/1 var(--title); letter-spacing: .03em; white-space: nowrap; }
+.club .ckv { padding: 0 16px 10px; }
+.club .ckv > * { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--soft); text-decoration: none; background: none; width: 100%; text-align: left; font-family: var(--body); }
+.club .ckv > *:last-child { border: 0; }
+.club .ckv b { font: 600 13px var(--mono); color: var(--fg); white-space: nowrap; }
+.club .ckv a:hover b, .club .ckv button:hover b { color: var(--gold); }
+.club .ckv .go b::after { content: ' →'; color: var(--gold); }
+.club .cnext { margin: 0 16px 16px; font-size: 12.5px; color: var(--soft); line-height: 1.4; }
+.club .cnext b { color: var(--fg); }
+.club .cnext .bar { height: 6px; background: var(--panel2); margin-top: 6px; } .club .cnext .bar i { display: block; height: 100%; background: var(--vio); }
+.club-m { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.club-m .panel { margin-top: 0; }
+.resume { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 14px; align-items: center; background: var(--panel); border-left: 4px solid var(--gold); padding: 12px 16px; }
+.resume b { display: block; font: 400 22px/1 var(--title); letter-spacing: .04em; }
+.resume small { font-size: 12.5px; color: var(--muted); }
+@media (max-width: 640px) { .resume { grid-template-columns: minmax(0,1fr); } }
+.nowg { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+@media (max-width: 760px) { .nowg { grid-template-columns: minmax(0,1fr); } }
+.nowc { background: var(--panel); padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; border-top: 4px solid var(--c, var(--vio)); text-decoration: none; color: inherit; min-width: 0; }
+.nowc .k { font: 400 15px var(--title); letter-spacing: .12em; color: var(--soft); display: flex; gap: 8px; align-items: center; }
+.nowc .k i { font: 600 10.5px/1 var(--mono); font-style: normal; background: var(--pink); color: #fff; padding: 3px 6px 2px; letter-spacing: .04em; }
+.nowc > b { font: 400 26px/1 var(--title); letter-spacing: .03em; }
+.nowc .faces { display: flex; gap: 3px; flex-wrap: wrap; } .nowc .faces .av { width: 24px; height: 24px; font-size: 10px; }
+.nowc .s { font-size: 12px; color: var(--muted); line-height: 1.35; }
+.nowc .go { margin-top: auto; font: 400 15px var(--title); letter-spacing: .1em; color: var(--c, var(--vio)); }
+.nowc .meter { height: 6px; background: var(--panel2); } .nowc .meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--gold), var(--pink)); transition: width .9s; }
+.nowc.hit { animation: jpflash 1.6s ease-out; }
+.glist { background: var(--panel); padding: 0 16px 6px; }
+.grow { display: grid; grid-template-columns: 40px minmax(0,1fr) auto auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
+.grow:last-child { border: 0; }
+.grow .ic { width: 40px; height: 40px; display: grid; place-items: center; background: var(--panel2); font: 400 22px var(--title); color: var(--c); border-left: 3px solid var(--c); }
+.grow b { font: 400 21px/1 var(--title); letter-spacing: .04em; }
+.grow small { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.grow .stat { font: 500 11.5px var(--mono); color: var(--soft); text-align: right; white-space: nowrap; }
+.grow .stat b { font: 600 13px var(--mono); display: block; letter-spacing: 0; color: var(--up); }
+@media (max-width: 640px) { .grow { grid-template-columns: 36px minmax(0,1fr) auto; } .grow .stat { display: none; } .grow .ic { width: 36px; height: 36px; } }
+.club-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .club-two { grid-template-columns: minmax(0,1fr); } }
+.club-m .earn { margin-top: 0; }
 </style>
 <link rel="stylesheet" href="/badge.css">
 <style>
@@ -474,6 +529,8 @@ window.addEventListener('hashchange', () => { T.err = ''; T.got = 0; spotOn = 'm
 // "Nameplates": chip leader rows get each player's equipped overall bar as a soft wash, plus border, title and sticker (plates.js).
 // Loaded once; the lobby redraws when it arrives.
 let PL = null;
+let COS = (() => { try { const m = (JSON.parse(localStorage.getItem('sb:me')) || {}).m; return m && m.all ? { own: m.own, all: m.all } : null; } catch (e) { return null; } })();
+window.addEventListener('sb:me', e => { const m = e.detail; if (m && m.all && (!COS || COS.own !== m.own)) { COS = { own: m.own, all: m.all }; if (S && S.me && !onGame()) render(); } });
 import('/plates.js').then(m => m.loadouts().then(lo => { PL = { ...lo, bits: m.bits }; if (S && !onGame()) render(); })).catch(() => {});
 const onGame = () => S && S.me && ['blackjack', 'freebet', 'uth', 'baccarat'].includes(route());
 function plateOf(id) {
@@ -576,24 +633,23 @@ function lottery() {
         <li>Tickets start over every quarter. /lottery odds shows this in Discord too.</li></ul>
         ${past ? `<div class="sub">Past winners</div>${past}` : ''}</div></div></div>`;
 }
-const POKER_LINK = `<a class="shopln" href="/poker" style="border-left-color:var(--up)"><div class="ic">♠️</div><div><b>Poker Room</b><span>No-limit Hold'em against the group with your chips. Open on game night.</span></div><div class="go" style="color:var(--up)">Take a seat →</div></a>`;
 // live tables (/live): the line says when one is open (read once when the lobby loads)
-let LIVE = null;
-fetch('/api/live', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.json()).then(j => { LIVE = j.table || null; render(); }).catch(() => {});
-const LIVE_NAMES = { bj: 'Blackjack', fb: 'Free Bet', uth: "Ultimate Hold'em" };
-const liveLink = () => { const t = LIVE && LIVE.open ? LIVE : null, n = t ? t.seats.filter(Boolean).length : 0;
-  return `<a class="shopln" href="/live" style="border-left-color:var(--pink)"><div class="ic">🎰</div><div><b>Live Tables${t ? ' <span style="font:600 11px var(--mono);background:var(--pink);color:#fff;padding:2px 6px;vertical-align:4px">OPEN</span>' : ''}</b><span>${t ? `${esc(LIVE_NAMES[t.game])} with ${esc(t.host ? t.host.name : 'the group')}, ${n} of 5 seats taken, $${t.cfg.min} to $${t.betMax}.` : 'Blackjack, Free Bet or UTH with the group: everyone plays at once against one dealer. Anyone in the Discord can open one.'}</span></div><div class="go" style="color:var(--pink)">${t ? 'Take a seat →' : 'Open a table →'}</div></a>`; };
-const SHOP_LINK =`<a class="shopln" href="/shop"><div class="ic">🃏</div><div><b>Study Cards</b><span>Open packs, equip titles, borders and stickers.</span></div><div class="go">Shop →</div></a>`;
 // ---------- casino jackpot banner (data from /api/casino, refreshed every 15s while the lobby is open) ----------
 const jpAgo = ms => { const m = Math.round((Date.now() - ms) / 60e3); return m < 60 ? `${Math.max(1, m)} min ago` : m < 2880 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`; };
 const cents = n => money(Math.round(n * 100) / 100).replace(/(\.\d)$/, '$10').replace(/^(\D*\d[\d,]*)$/, '$1.00');
 function jackpot() {
   const J = S.jackpot; if (!J) return '';
+  if (S.me) return jackpotCard(J);
   const pct = Math.max(0, Math.min(100, (J.pot - J.seed) / Math.max(1, J.cap - J.seed) * 100));
   return `<div class="jpb" id="jpb"><div><div class="k">🎰 Casino jackpot</div><div class="n" id="jpN">${cents(J.pot)}</div></div>
     <div class="jps"><b>MUST DROP BY ${money(J.cap)}</b>at a secret amount</div>
     <div class="meter"><i id="jpBar" style="width:${pct}%"></i></div>
     <div class="hint" id="jpHint">${J.last ? `Last hit: ${esc(J.last.name)} ${cents(J.last.win)} · ${jpAgo(J.last.at)}` : '2% of every hand the house wins goes in. The losing hand that pushes it past the secret amount wins it all.'}</div></div>`;
+}
+function jackpotCard(J) {
+  const pct = Math.max(0, Math.min(100, (J.pot - J.seed) / Math.max(1, J.cap - J.seed) * 100));
+  return `<div class="nowc" id="jpb" style="--c:var(--gold)"><span class="k">Jackpot</span><b id="jpN">${cents(J.pot)}</b><span class="meter"><i id="jpBar" style="width:${pct}%"></i></span>
+    <span class="s" id="jpHint">${J.last ? `Last hit: ${esc(J.last.name)} ${cents(J.last.win)} · ${jpAgo(J.last.at)}` : `2% of every hand the house wins goes in. Drops at a secret amount before ${money(J.cap)}.`}</span><span class="go">Must drop by ${money(J.cap)}</span></div>`;
 }
 let jpTimer = null;
 function jpRefresh() {
@@ -618,31 +674,48 @@ function lobby() {
   if (!S.me) return `<section class="hero"><div><h2>Same chips as Discord</h2>
       <p>Play blackjack, Ultimate Hold'em and baccarat with your Discord chips. Win here and /chips on Discord shows it, and the other way round. Sign in once so the site knows whose chips they are.</p></div>
       <div><a class="dbtn" href="/api/login">${DISCORD_SVG}Sign in with Discord</a><div class="fine">The site only gets your Discord name, pfp and ID. No password, no email, no messages.</div></div></section>
-    ${jackpot()}${SHOP_LINK}${lottery()}<div class="cols">${board()}${feed()}</div>`;
-  const me = S.me, top = S.board[0];
+    ${jackpot()}${lottery()}<div class="cols">${board()}${feed()}</div>`;
+  const me = S.me, d = me.daily, b = plateOf(me.id), L = S.lottery, O = S.open || {};
   const msg = T.got ? `<div class="note ok">+${money(T.got)} added${T.weekly ? ' (weekly bonus)' : ''}. Good luck.</div>` : '';
-  return `${msg}<div class="strip">
-      <div class="tl"><div class="k">Your chips</div><div class="v">${me.bal === null ? '$0' : money(me.bal)}</div><div class="s">${me.rank ? `#${me.rank} of ${S.players} · same balance as /chips on Discord` : 'Claim your daily chips to get started'}</div>${me.rake >= 0.01 ? `<div class="s rk">💸 ${money(me.rake)} rakeback so far · paid Monday</div>` : ''}</div>
-      ${dailyTile()}
-      <div class="tl" style="border-left-color:var(--pink)"><div class="k">Top stack</div><div class="v">${top ? esc(top.name) : '–'}</div><div class="s">${top ? money(top.bal) : ''}</div></div>
-    </div>
-    ${jackpot()}
-    ${T.err ? `<div class="err">${esc(T.err)}</div>` : ''}
-    <div class="panel"><h2>Pick a table</h2><p class="hint">Same games, rules and limits as the Discord commands.</p>
-      <div class="games">
-        <a class="game" href="#blackjack" style="--c:var(--gold)"><div class="ic">🂡</div><b>Blackjack</b><span>$1 to $${S.maxBet}. Hit, stand, double, split.</span><div class="go">${T.bj && !T.bj.over ? 'Back to your hand →' : 'Play →'}</div></a>
-        <a class="game" href="#freebet" style="--c:var(--up)"><div class="ic">🎟️</div><b>Free Bet Blackjack</b><span>Free doubles on 9-11, free splits, dealer 22 pushes. Push 22 side bet.</span><div class="go">${T.fb && !T.fb.over ? 'Back to your hand →' : 'Play →'}</div></a>
-        <a class="game" href="#uth" style="--c:var(--pink)"><div class="ic">🤠</div><b>Ultimate Hold'em</b><span>Ante $1 to $${S.maxAnte} + blind, optional trips.</span><div class="go">${T.uth && T.uth.stage !== 'done' ? 'Back to your hand →' : 'Play →'}</div></a>
-        <a class="game" href="#baccarat" style="--c:var(--vio)"><div class="ic">🎴</div><b>Baccarat</b><span>Player, Banker or Tie.</span><div class="go">Play →</div></a>
-        <div class="game soon" style="--c:var(--up)"><div class="ic">🎡</div><b>Roulette</b><span>Play it with /roulette in the Discord server.</span><div class="go">Discord only</div></div>
-        <div class="game soon" style="--c:#7fb6ff"><div class="ic">⚔️</div><b>Duel</b><span>Challenge someone with /duel in the Discord server.</span><div class="go">Discord only</div></div>
-      </div></div>
-    ${liveLink()}
-    ${POKER_LINK}
-    ${SHOP_LINK}
-    ${lottery()}
-    <div class="cols">${board()}${feed()}</div>
-    ${rewards()}`;
+  // you
+  const day = !d.wait ? `<div class="cday"><span class="t"><b>Day job</b>Your pay is ready. Same as /daily.</span><button class="cbtn up" data-do="daily"${busy ? ' disabled' : ''}>Collect ${money(d.amt)}</button></div>`
+    : `<div class="cday"><span class="t"><b>Day job</b>next pay +${money(d.amt)} · 16:00 UTC</span><span class="cd">${Math.floor(Math.ceil(d.wait / 60e3) / 60)}h ${Math.ceil(d.wait / 60e3) % 60}m</span></div>`;
+  const mineL = L && L.holders.find(x => x.name === me.name && x.in !== false), lotTot = L ? L.total || 0 : 0;
+  const rows = [`<div><span>Rakeback so far</span><b>${money(me.rake || 0)}</b></div>`];
+  if (L) rows.push(`<button class="go" data-lot><span>${esc(L.quarter)} lottery tickets</span><b>${mineL ? `${mineL.t} (${(100 * mineL.t / (lotTot || 1)).toFixed(1)}%)` : '0'}</b></button>`);
+  rows.push(`<a class="go" href="/collection"><span>Cosmetics</span><b>${COS ? `${COS.own}/${COS.all}` : 'See yours'}</b></a>`);
+  const nx = me.next;
+  const next = nx ? `<div class="cnext"><b>Next: ${esc(nx.name)}</b> (${esc(nx.slot.toLowerCase())}) · ${esc(nx.why)}${/in a row/.test(nx.why) ? `, best so far ${nx.have}` : ` · ${nx.have.toLocaleString()} of ${nx.need.toLocaleString()}`}<div class="bar"><i style="width:${Math.round(100 * nx.have / nx.need)}%"></i></div></div>` : '';
+  const club = `<aside class="club"><div class="ctop">${b.face(av(me.id, me.name), 56, true)}<div class="nm"><b>${esc(me.name)}</b>${b.title}</div></div>
+    <div class="cbal"><div class="k">Your chips</div><div class="v">${me.bal === null ? '$0.00' : money(me.bal)}</div><div class="s">${me.rank ? `#${me.rank} of ${S.players} · ` : ''}same chips as Discord</div></div>
+    ${day}<div class="ckv">${rows.join('')}</div>${next}</aside>`;
+  // pick up where you left off: an unfinished hand, or the last table you dealt at with the bet still on it
+  const R = { bj: ['blackjack', 'Blackjack', () => pv('bj')], fb: ['freebet', 'Free Bet', () => pv('fb') + pv('p22')], uth: ['uth', "Ultimate Hold'em", () => pv('ante') * 3 + pv('trips')], bac: ['baccarat', 'Baccarat', () => pv('bac')] };
+  const open = ['bj', 'fb'].find(k => T[k] && !T[k].over) || (T.uth && T.uth.stage !== 'done' ? 'uth' : null), lastg = R[pref('lastg', '')] ? pref('lastg', '') : null;
+  const resume = open ? `<div class="resume"><div><b>${R[open][1]} · hand in progress</b><small>You left a hand on the table.</small></div><div><a class="cbtn gold" href="#${R[open][0]}">Back to your hand</a></div></div>`
+    : lastg && R[lastg][2]() >= 1 ? `<div class="resume"><div><b>${R[lastg][1]} · last table</b><small>Your ${money(R[lastg][2]())} bet${lastg === 'uth' ? ' (ante, blind, play)' : ''} is still on the felt.</small></div><div><button class="cbtn gold" data-again="${lastg}"${busy || R[lastg][2]() > (me.bal || 0) ? ' disabled' : ''}>Deal ${money(R[lastg][2]())}</button> <a class="cbtn ghost" href="#${R[lastg][0]}">Change bet</a></div></div>` : '';
+  // what's open now
+  const faces = list => `<span class="faces">${list.map(x => av(x.id, x.name)).join('')}</span>`;
+  const pk = O.poker, lv = O.live;
+  const nowc = `<div class="nowg">${jackpot()}
+    <a class="nowc" href="/poker" style="--c:var(--pink)"><span class="k">Poker room${pk ? ' <i>OPEN</i>' : ''}</span><b>${pk ? `${pk.seats.length} of ${pk.of} seated` : 'Closed'}</b>${pk && pk.seats.length ? faces(pk.seats) : ''}
+      <span class="s">${pk ? `${money(pk.sb)}/${money(pk.bb)} no-limit${pk.host ? ` · hosted by ${esc(pk.host)}` : ''}` : "No-limit Hold'em with the group. Anyone in the Discord can open it, and practice vs bots is always on."}</span><span class="go">${pk ? 'Take a seat →' : 'Open or practice →'}</span></a>
+    <a class="nowc" href="/live" style="--c:var(--up)"><span class="k">Live table${lv ? ' <i>OPEN</i>' : ''}</span><b>${lv ? esc(lv.game) : 'None open'}</b>${lv && lv.seats.length ? faces(lv.seats) : ''}
+      <span class="s">${lv ? `${money(lv.min)} to ${money(lv.max)} · ${lv.of - lv.seats.length} seat${lv.of - lv.seats.length === 1 ? '' : 's'} open${lv.host ? ` · host ${esc(lv.host)}` : ''}` : 'Blackjack, Free Bet or UTH with the group: everyone plays at once against one dealer.'}</span><span class="go">${lv ? 'Take a seat →' : 'Open a table →'}</span></a></div>`;
+  // your own table: who's been playing each game in the last 10 minutes comes from the feed
+  const recent = g => [...new Set(S.feed.filter(f => f.game === g && Date.now() - f.at < 10 * 60e3).map(f => f.name))];
+  const game = (route, g, ic, c, name, rule, live) => { const who = recent(g); return `<a class="grow" href="#${route}" style="--c:${c}"><span class="ic">${ic}</span><span style="min-width:0"><b>${name}</b><small>${rule}</small></span>
+    <span class="stat">${live ? '<b>Hand in progress</b>yours' : who.length ? `<b>${esc(who.slice(0, 2).join(', '))}${who.length > 2 ? ` +${who.length - 2}` : ''}</b>playing now` : ''}</span><span class="cbtn gold">${live ? 'Back' : 'Play'}</span></a>`; };
+  const games = `<div class="glist panel"><h2 class="g">Your own table</h2>
+    ${game('blackjack', 'blackjack', '♠', 'var(--gold)', 'Blackjack', `$1 to $${S.maxBet} · pays 3:2, split up to 6 hands`, T.bj && !T.bj.over)}
+    ${game('freebet', 'free bet', '♦', 'var(--up)', 'Free Bet Blackjack', 'Free doubles on 9 to 11, free splits, dealer 22 pushes · Push 22 pays 12:1', T.fb && !T.fb.over)}
+    ${game('uth', 'UTH', '♣', 'var(--pink)', "Ultimate Hold'em", `Ante $1 to $${S.maxAnte} + blind vs the dealer · Trips up to 50:1`, T.uth && T.uth.stage !== 'done')}
+    ${game('baccarat', 'baccarat', '♥', 'var(--vio)', 'Baccarat', `Player, Banker or Tie · $1 to $${S.maxBet}`, false)}</div>`;
+  // the full lottery panel (wheel, how it works) opens from the tickets line; it opens by itself when a new draw happened
+  const fresh = L && L.last && L.last.quarter !== L.quarter && Date.now() - L.last.at < 14 * 864e5 && L.lastBoard && !pref('lotSeen:' + L.last.quarter, false);
+  const lot = L ? `<div id="lotbox"${pref('lotOpen', false) || fresh ? '' : ' hidden'}>${lottery()}</div>` : '';
+  return `${msg}${T.err ? `<div class="err">${esc(T.err)}</div>` : ''}<div class="club-g">${club}<div class="club-m">${resume}${nowc}${games}${lot}
+    <div class="club-two">${board()}${feed()}</div>${rewards()}</div></div>`;
 }
 
 // ---------- shared table bits ----------
@@ -651,7 +724,7 @@ const felt = (hid, inner, extra = '') => `<div class="felt${extra}" data-hid="${
 const betChip = amt => `<div class="betchip">${K.chips(amt)}<span class="tk-amt">${money(amt)}</span></div>`;
 const resultStamp = net => `<div data-late class="result${net < 0 ? ' lost' : net === 0 ? ' even' : ''}">${net > 0 ? 'You win' : net < 0 ? 'You lose' : 'Push'}<small>${net ? signed(net) : 'bet back'}</small></div>`;
 // chip rack: pending bets live in prefs (bet stays the same for the next hand); spotOn = which spot on the felt takes chips
-let spotOn = 'main', hist = [], bumped = '';
+let spotOn = 'main', hist = [], bumped = '', again = ''; // again = a deal to fire once the table opens (the lobby's Deal again)
 const DEF = { bj: 20, fb: 20, ante: 10, bac: 20, p22: 0, trips: 0 }, pv = k => +pref(k, DEF[k]) || 0; // pending bet on a spot
 const pendMax = k => LIMIT[k][1]();
 function spotsHTML(list) { // [role, key, name, sub, cls]
@@ -753,6 +826,9 @@ const LIMIT = { bj: [1, () => S.maxBet], fb: [1, () => S.maxBet], p22: [0, () =>
 function wire() {
   document.querySelectorAll('[data-bj],[data-uth],[data-do]').forEach(b => b.addEventListener('pointerdown', () => { b.classList.add('pressed'); }));
   document.querySelectorAll('details.earn').forEach(d => d.ontoggle = () => setPref('earn', d.open));
+  document.querySelectorAll('[data-lot]').forEach(b => b.onclick = () => { const box = $('#lotbox'); if (!box) return; box.hidden = !box.hidden; setPref('lotOpen', !box.hidden); if (!box.hidden) box.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'start' }); });
+  document.querySelectorAll('[data-again]').forEach(b => b.onclick = () => { const g = b.dataset.again; again = g + '-deal'; location.hash = '#' + { bj: 'blackjack', fb: 'freebet', uth: 'uth', bac: 'baccarat' }[g]; });
+  if (again) { const d = again; again = ''; const btn = document.querySelector(`[data-do="${d}"]`); if (btn && !btn.disabled) setTimeout(() => btn.click(), 0); }
   document.querySelectorAll('[data-tksnd]').forEach(b => b.onclick = () => { if (K.toggleSound()) setTimeout(() => SND.chips(), 30); render(); });
   // the lottery wheel spins to the winning ticket once per person per draw
   document.querySelectorAll('.won g[data-spin]').forEach(g => {
@@ -784,7 +860,7 @@ function wire() {
     play({ a: 'bj-act', id: T[k].id, do: b.dataset.bj }, j => { T[k] = j.hand; }, ['hit', 'double'].includes(b.dataset.bj) ? incomingCard : null); });
   document.querySelectorAll('[data-uth]').forEach(b => b.onclick = () => { pressed = `data-uth="${b.dataset.uth}"`; actSound(b.dataset.uth); play({ a: 'uth-act', id: T.uth.id, do: b.dataset.uth }, j => { T.uth = j.hand; }); });
   document.querySelectorAll('[data-do]').forEach(b => b.onclick = () => {
-    const d = b.dataset.do; pressed = `data-do="${d}"`; if (d.endsWith('-deal')) SND.chips(0, 3);
+    const d = b.dataset.do; pressed = `data-do="${d}"`; if (d.endsWith('-deal')) { SND.chips(0, 3); setPref('lastg', d.slice(0, -5)); }
     if (d === 'daily') play({ a: 'daily' }, j => { S.me.daily = j.daily; T.got = j.got; T.weekly = j.weekly; load(); });
     if (d === 'bj-deal') play({ a: 'bj', bet: pref('bj', 20) }, j => { T.bj = j.hand; });
     if (d === 'fb-deal') play({ a: 'bj', mode: 'free', bet: pref('fb', 20), side: pref('p22', 0) }, j => { T.fb = j.hand; });
