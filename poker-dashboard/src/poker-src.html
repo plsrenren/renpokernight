@@ -458,7 +458,7 @@ let PLATES = null;          // nameplates (plates.js): borders, bars, stickers, 
 import('/plates.js').then(m => m.loadouts().then(lo => { PLATES = { ...lo, bits: m.bits }; if (lo.me && !(LOCAL && LOCAL.T.open)) GUEST.name = lo.me.name; render(); })).catch(() => {});
 const realId = id => id === 'guest' && PLATES && PLATES.me ? PLATES.me.id : id; // practice: the local 'guest' seat is you
 /** practice bots wear random pack cosmetics (by request): each slot is filled 3 times in 4, its tier rolled with the pack odds
- *  (loot.js ODDS: 55/30/11/4), then any pack item of that slot and tier. A bot keeps its look (kept on this device by id + name). */
+ *  (loot.js ODDS: 60/30/8/2), then any pack item of that slot and tier. A bot keeps its look (kept on this device by id + name). */
 let BOTLOOK = {}; try { BOTLOOK = JSON.parse(localStorage.getItem('pk:botlook') || '{}') || {}; } catch (e) {}
 function botLook(s) {
   const L = PLATES && PLATES.L; if (!L || !L.ITEMS) return null;
