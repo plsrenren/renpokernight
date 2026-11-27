@@ -394,20 +394,20 @@ details.pay summary { cursor: pointer; font: 400 17px var(--title); letter-spaci
 .split i { display: flex; align-items: center; font: 400 13px/1 var(--title); letter-spacing: .08em; color: #15132a; padding: 0 8px; overflow: hidden; white-space: nowrap; transition: flex-basis .7s ease; }
 .split i.p { background: var(--up); }
 .split i.h { background: var(--down); justify-content: flex-end; }
-/* Everyone bar: a tug of war. The seam wobbles a few px around the real score, the stripes pull toward the middle,
-   and a bright knot sits where the two sides meet (--tw needs @property; without it the bar just sits still). */
-@property --tw { syntax: '<length>'; inherits: true; initial-value: 0px; }
-.split.fight { position: relative; animation: tugwar 3.2s ease-in-out infinite; }
-.split.fight i.p { flex: 0 0 calc(var(--p) + var(--tw)); position: relative; overflow: visible;
-  background: repeating-linear-gradient(115deg, rgba(255,255,255,.16) 0 4px, transparent 4px 12px) 0 0/24px 100%, var(--up); animation: pullr .9s linear infinite; }
-.split.fight i.h { flex: 1 1 0; background: repeating-linear-gradient(65deg, rgba(0,0,0,.16) 0 4px, transparent 4px 12px) 0 0/24px 100%, var(--down); animation: pulll .9s linear infinite; }
-.split.fight i.p::after { content: ''; position: absolute; right: -3px; top: -3px; bottom: -3px; width: 6px; z-index: 1; background: #fff3c4;
-  box-shadow: 0 0 8px 2px rgba(240,199,94,.85); animation: knot .45s ease-in-out infinite alternate; }
-@keyframes tugwar { 0%,100% { --tw: 0px } 10% { --tw: 6px } 18% { --tw: 3px } 30% { --tw: 9px } 38% { --tw: 2px } 52% { --tw: -7px } 60% { --tw: -3px } 72% { --tw: -9px } 84% { --tw: -2px } 92% { --tw: 4px } }
-@keyframes pullr { to { background-position: 24px 0, 0 0 } }
-@keyframes pulll { to { background-position: -24px 0, 0 0 } }
-@keyframes knot { from { transform: scaleY(.85); opacity: .8 } to { transform: scaleY(1.15); opacity: 1 } }
-@media (prefers-reduced-motion: reduce) { .split i { transition: none; } .split.fight, .split.fight i, .split.fight i.p::after { animation: none; } }
+/* Everyone bar, "Pressure" (Renato's pick, mockup https://claude.ai/artifact/C8gdK94XAoPtuEgMc4BkR7): whoever is ahead pushes.
+   A shine runs from their end into the line, and the line flares as it lands. */
+.split.fight { position: relative; }
+.split.fight i { position: relative; }
+.split.fight i.p { flex: 0 0 var(--p); }
+.split.fight i.h { flex: 1 1 0; }
+.split.fight i::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; opacity: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent); }
+.split.fight.lead-p i.p::after { animation: pushR 2.4s ease-in infinite; }
+.split.fight.lead-h i.h::after { animation: pushL 2.4s ease-in infinite; }
+.split.fight .glow { position: absolute; top: -2px; bottom: -2px; left: var(--p); width: 3px; margin-left: -1.5px; background: #fff3c4; animation: seam 2.4s ease-in infinite; }
+@keyframes pushR { 0% { left: -40%; opacity: 0 } 15% { opacity: 1 } 85% { left: 70%; opacity: 1 } 100% { left: 70%; opacity: 0 } }
+@keyframes pushL { 0% { left: 100%; opacity: 0 } 15% { opacity: 1 } 85% { left: -10%; opacity: 1 } 100% { left: -10%; opacity: 0 } }
+@keyframes seam { 0%,70% { box-shadow: 0 0 0 0 rgba(241,199,91,0); opacity: .5 } 88% { box-shadow: 0 0 10px 3px rgba(241,199,91,.85); opacity: 1 } 100% { opacity: .5 } }
+@media (prefers-reduced-motion: reduce) { .split i { transition: none; } .split.fight i::after, .split.fight .glow { animation: none; } }
 /* Game of the Week (lobby banner + table line), see api/_featured.js */
 .gotw { position: relative; background: var(--panel); border-left: 6px solid var(--gc); overflow: hidden; }
 .gotw::before { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, color-mix(in srgb, var(--gc) 15%, transparent) 0 34%, transparent 36%); pointer-events: none; }
@@ -845,7 +845,7 @@ function vsCard() {
   const V = S.vs; if (!V) return '';
   const tug = (label, side, n, cap, goal, fight) => { const p = 50 + Math.max(-1, Math.min(1, n / cap)) * 40;
     return `<div class="tug"><div class="tl1"><span>${label}</span><b class="${n >= 0 ? 'pos' : 'neg'}">${n >= 0 ? 'up' : 'down'} ${money(Math.abs(n))}</b></div>
-      <div class="split${fight ? ' fight' : ''}" style="--p:${p}%" role="img" aria-label="${label} ${n >= 0 ? 'up' : 'down'} ${money(Math.abs(n))} against the house"><i class="p"${fight ? '' : ` style="flex-basis:${p}%"`}>${side}</i><i class="h"${fight ? '' : ` style="flex-basis:${100 - p}%"`}>HOUSE</i></div>${goal ? `<div class="goal">${goal}</div>` : ''}</div>`; };
+      <div class="split${fight ? ` fight lead-${n >= 0 ? 'p' : 'h'}` : ''}" style="--p:${p}%" role="img" aria-label="${label} ${n >= 0 ? 'up' : 'down'} ${money(Math.abs(n))} against the house"><i class="p"${fight ? '' : ` style="flex-basis:${p}%"`}>${side}</i><i class="h"${fight ? '' : ` style="flex-basis:${100 - p}%"`}>HOUSE</i>${fight ? '<span class="glow"></span>' : ''}</div>${goal ? `<div class="goal">${goal}</div>` : ''}</div>`; };
   const ms = Math.max(0, V.ends - Date.now()), d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24;
   const left = d > 0 ? `${d}d ${h}h left` : `${h}h ${Math.floor(ms / 6e4) % 60}m left`;
   const goal = V.team > 0 ? `Hold the lead · ${left}` : `${money(Math.max(0.01, -V.team))} to get it back · ${left}`;
