@@ -41,9 +41,9 @@ export const REWARD_LIST = [
     ['Rebuy grit (rebought, finished up)', R.grit], ['Bring a friend', R.friend]]],
   ['Streaks + quarter', [['Heater (3 up in a row)', R.heater], ['Cold streak (3 down)', R.cold], ['Quarter champ', R.champ], ['Most improved', R.improved]]],
   // buffs (api/_buffs.js): boosts on /daily for 7 days, they add up (Renato asked for them in this list, Nov 27 2026)
-  ['Daily buffs (more /daily, 7 days unless noted)', [['RSVP (until game night)', pct('rsvp')], ['Showed up', pct('show')], ['Regular (last 3 nights)', pct('reg')],
-    ['Comeback Kid (missed 3+ nights, 3 days)', pct('back')], ['Plus One (brought someone new, 14 days)', pct('plus')],
-    [`Full House (${FULL}+ players that night)`, pct('full')], ['Team Spirit (players beat the house that week)', pct('team')]]],
+  ['Daily buffs (more /daily for a while)', [['RSVP (until game night)', pct('rsvp')], ['Showed up (14 days)', pct('show')], ['Regular, last 3 nights (21 days)', pct('reg')],
+    ['Comeback Kid, missed 3+ (3 days)', pct('back')], ['Plus One, brought someone new (28 days)', pct('plus')],
+    [`Full House, ${FULL}+ players (14 days)`, pct('full')], ['Team Spirit, players beat the house (1 week)', pct('team')]]],
 ].map(([group, items]) => ({ group, items: items.map(([what, amt]) => ({ what, amt: typeof amt === 'number' ? '$' + amt.toLocaleString('en-US') : amt })) }));
 const r2 = n => Math.round(n * 100) / 100;
 const money = s => { const n = parseFloat(String(s).replace(/[$,\s]/g, '')); return isNaN(n) ? 0 : n; };

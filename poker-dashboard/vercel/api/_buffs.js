@@ -1,12 +1,12 @@
 // Buffs (Nov 26 2026, Renato's picks): coming to the home poker game makes your /daily pay more for a while.
 //   RSVP          +25%  reacted to the latest /game invite; lasts until game night ends, and turns into Showed Up once you played
-//   Showed Up     +50%  played the last poker night you were at, for 7 days
-//   Regular       +25%  played the last 3 game nights in a row (on top of Showed Up), for 7 days
+//   Showed Up     +25%  played the last poker night you were at, for 14 days
+//   Regular       +10%  played the last 3 game nights in a row (on top of Showed Up), for 21 days
 //   Comeback Kid  +75%  played after missing 3+ game nights in a row, for 3 days (Nov 27 2026: a welcome-back burst, was 7)
-//   Plus One      +100% brought a first-timer (their note says "brought by <you>"), for 14 days (Nov 27 2026: the prize buff, was 7)
-//   Full House    +25%  played a night with FULL (8)+ players at the table, for 7 days (Nov 27 2026)
+//   Plus One      +50%  brought a first-timer (their note says "brought by <you>"), for 28 days (the prize buff)
+//   Full House    +15%  played a night with FULL (8)+ players at the table, for 14 days (Nov 27 2026)
 //   Team Spirit   +25%  bet $50+ at the house games in a week the players beat the house, until the next Monday settle (Nov 27 2026, see _team.js)
-// They add up (no cap) and multiply the claim, weekly paycheck included: +75% turns $50 into $87.50.
+// They add up (no cap) and multiply the claim, weekly paycheck included: +35% turns $50 into $67.50.
 // "N days" = until the daily reset (16:00 UTC) N+1 days after the night's date, so a night gives N boosted claims after it.
 // Stored in Redis so a claim never waits on Google:
 //   bf       hash   Discord ID -> JSON { show, reg, back, plus: night date 'YYYY-MM-DD', friend: name } (rewritten by roles.js after every save)
@@ -16,14 +16,14 @@
 
 export const BUFFS = {
   rsvp: { name: 'RSVP', icon: '✉', pct: 0.25 },
-  show: { name: 'Showed Up', icon: '★', pct: 0.5 },
-  reg: { name: 'Regular', icon: '♠', pct: 0.25 },
-  back: { name: 'Comeback Kid', icon: '↺', pct: 0.75 },
-  plus: { name: 'Plus One', icon: '+1', pct: 1, days: 14 },
-  full: { name: 'Full House', icon: '♣', pct: 0.25 },
-  team: { name: 'Team Spirit', icon: '♦', pct: 0.25 },
+  // Nov 27 2026 (Renato): lower % for longer, since game nights are ~20 days apart; same total value as before, but it carries to the next game
+  show: { name: 'Showed Up', icon: '★', pct: 0.25, days: 14 },   // was +50% for 7 days
+  reg: { name: 'Regular', icon: '♠', pct: 0.1, days: 21 },       // was +25% for 7 days
+  back: { name: 'Comeback Kid', icon: '↺', pct: 0.75, days: 3 }, // a short welcome-back burst
+  plus: { name: 'Plus One', icon: '+1', pct: 0.5, days: 28 },    // was +100% for 14 days
+  full: { name: 'Full House', icon: '♣', pct: 0.15, days: 14 },  // was +25% for 7 days
+  team: { name: 'Team Spirit', icon: '♦', pct: 0.25 },           // until the next Monday settle (bf:team)
 };
-BUFFS.back.days = 3;
 export const FULL = 8;   // players at one night for Full House
 export const AURA = 3;   // buffs running at once on a claim for the Aura Farmer title (Nov 27 2026)
 const ORDER = ['rsvp', 'show', 'reg', 'back', 'plus', 'full', 'team'];
