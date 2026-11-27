@@ -172,7 +172,7 @@ poker-dashboard/
                        team vs the house: _team.js (Nov 27 2026, Renato's picks, mockup https://claude.ai/artifact/JnoJa7rYN4sh8ipxhhvA2U): week score = players' net at the
                        house games + rakeback (owed so far until Monday) + jackpot slices/seeds; poker free seats and /beg are left out. Lobby left rail (pick A "fill the rail":
                        your card, Vs the house card, top 5 chip leaders + All N toggle, poker night chips; feed full width in the main column; phones reorder via display:contents)
-                       shows two split bars: Everyone (+ goal line "$X to get it back" / "Hold the lead" + time left) and You (your rb:wk net, only you see it). The lobby reads
+                       shows two split bars: Everyone (tug-of-war animation: seam wobbles a few px via @property --tw, stripes pull inward, glowing knot; off for reduced motion; + goal line "$X to get it back" / "Hold the lead" + time left) and You (your rb:wk net, only you see it). The lobby reads
                        the whole rb:wk/rb:vol hashes + hs:wk + tm in its one trip (teamView). Monday cron teamWeek() (after payRakeback, once via tm:done:<week>): everyone who bet
                        TEAM.minBet $50+ gets $25 (new chips, not in the books); players up = +$25 more each (books line 'team bonus', not part of the score), Bust the House
                        title (ac:n bust), streak in tm hash, 3+ weeks in a row = Bank Run overall bar (ac:n bust3); one #casino post either way. /house embed = this week by game.

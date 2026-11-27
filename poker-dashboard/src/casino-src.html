@@ -394,7 +394,20 @@ details.pay summary { cursor: pointer; font: 400 17px var(--title); letter-spaci
 .split i { display: flex; align-items: center; font: 400 13px/1 var(--title); letter-spacing: .08em; color: #15132a; padding: 0 8px; overflow: hidden; white-space: nowrap; transition: flex-basis .7s ease; }
 .split i.p { background: var(--up); }
 .split i.h { background: var(--down); justify-content: flex-end; }
-@media (prefers-reduced-motion: reduce) { .split i { transition: none; } }
+/* Everyone bar: a tug of war. The seam wobbles a few px around the real score, the stripes pull toward the middle,
+   and a bright knot sits where the two sides meet (--tw needs @property; without it the bar just sits still). */
+@property --tw { syntax: '<length>'; inherits: true; initial-value: 0px; }
+.split.fight { position: relative; animation: tugwar 3.2s ease-in-out infinite; }
+.split.fight i.p { flex: 0 0 calc(var(--p) + var(--tw)); position: relative; overflow: visible;
+  background: repeating-linear-gradient(115deg, rgba(255,255,255,.16) 0 4px, transparent 4px 12px) 0 0/24px 100%, var(--up); animation: pullr .9s linear infinite; }
+.split.fight i.h { flex: 1 1 0; background: repeating-linear-gradient(65deg, rgba(0,0,0,.16) 0 4px, transparent 4px 12px) 0 0/24px 100%, var(--down); animation: pulll .9s linear infinite; }
+.split.fight i.p::after { content: ''; position: absolute; right: -3px; top: -3px; bottom: -3px; width: 6px; z-index: 1; background: #fff3c4;
+  box-shadow: 0 0 8px 2px rgba(240,199,94,.85); animation: knot .45s ease-in-out infinite alternate; }
+@keyframes tugwar { 0%,100% { --tw: 0px } 10% { --tw: 6px } 18% { --tw: 3px } 30% { --tw: 9px } 38% { --tw: 2px } 52% { --tw: -7px } 60% { --tw: -3px } 72% { --tw: -9px } 84% { --tw: -2px } 92% { --tw: 4px } }
+@keyframes pullr { to { background-position: 24px 0, 0 0 } }
+@keyframes pulll { to { background-position: -24px 0, 0 0 } }
+@keyframes knot { from { transform: scaleY(.85); opacity: .8 } to { transform: scaleY(1.15); opacity: 1 } }
+@media (prefers-reduced-motion: reduce) { .split i { transition: none; } .split.fight, .split.fight i, .split.fight i.p::after { animation: none; } }
 /* Game of the Week (lobby banner + table line), see api/_featured.js */
 .gotw { position: relative; background: var(--panel); border-left: 6px solid var(--gc); overflow: hidden; }
 .gotw::before { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, color-mix(in srgb, var(--gc) 15%, transparent) 0 34%, transparent 36%); pointer-events: none; }
@@ -830,14 +843,14 @@ function jpRefresh() {
 // ---------- Vs the house (data: S.vs from api/_team.js, read in the lobby's one storage trip) ----------
 function vsCard() {
   const V = S.vs; if (!V) return '';
-  const tug = (label, side, n, cap, goal) => { const p = 50 + Math.max(-1, Math.min(1, n / cap)) * 40;
+  const tug = (label, side, n, cap, goal, fight) => { const p = 50 + Math.max(-1, Math.min(1, n / cap)) * 40;
     return `<div class="tug"><div class="tl1"><span>${label}</span><b class="${n >= 0 ? 'pos' : 'neg'}">${n >= 0 ? 'up' : 'down'} ${money(Math.abs(n))}</b></div>
-      <div class="split" role="img" aria-label="${label} ${n >= 0 ? 'up' : 'down'} ${money(Math.abs(n))} against the house"><i class="p" style="flex-basis:${p}%">${side}</i><i class="h" style="flex-basis:${100 - p}%">HOUSE</i></div>${goal ? `<div class="goal">${goal}</div>` : ''}</div>`; };
+      <div class="split${fight ? ' fight' : ''}" style="--p:${p}%" role="img" aria-label="${label} ${n >= 0 ? 'up' : 'down'} ${money(Math.abs(n))} against the house"><i class="p"${fight ? '' : ` style="flex-basis:${p}%"`}>${side}</i><i class="h"${fight ? '' : ` style="flex-basis:${100 - p}%"`}>HOUSE</i></div>${goal ? `<div class="goal">${goal}</div>` : ''}</div>`; };
   const ms = Math.max(0, V.ends - Date.now()), d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24;
   const left = d > 0 ? `${d}d ${h}h left` : `${h}h ${Math.floor(ms / 6e4) % 60}m left`;
   const goal = V.team > 0 ? `Hold the lead · ${left}` : `${money(Math.max(0.01, -V.team))} to get it back · ${left}`;
   return `<div class="vsh"><div class="hd"><span>Vs the house</span>${V.streak ? `<small class="stk">🔥 ${V.streak} week${V.streak === 1 ? '' : 's'} in a row</small>` : '<small>this week</small>'}</div>
-    ${tug('Everyone', 'PLAYERS', V.team, V.cap || 1000, goal)}${S.me && V.you !== null ? tug('You', 'YOU', V.you, V.capYou || 250, '') : ''}</div>`;
+    ${tug('Everyone', 'PLAYERS', V.team, V.cap || 1000, goal, 1)}${S.me && V.you !== null ? tug('You', 'YOU', V.you, V.capYou || 250, '') : ''}</div>`;
 }
 function lobby() {
   if (!S.me) return `<section class="hero"><div><h2>Same chips as Discord</h2>
