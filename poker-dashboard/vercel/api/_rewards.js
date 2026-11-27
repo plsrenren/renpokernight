@@ -24,6 +24,7 @@
 import { kv, FEED_KEEP } from './_blackjack.js';
 import { parseCSV } from '../recap-core.js';
 import { dc, latestInvite, readReacts } from './_tourney.js';
+import { BUFFS } from './_buffs.js';
 
 export const REWARDS_START = '2026-11-13';   // nights on or after this date pay chips
 export const R = { rsvp: 25, showed: 50, places: [200, 100, 50], badBeatPct: 0.2, badBeatMax: 100, consolation: 20,
@@ -31,13 +32,17 @@ export const R = { rsvp: 25, showed: 50, places: [200, 100, 50], badBeatPct: 0.2
 const LABEL = { rsvp: 'RSVP', showed: 'showed up', p1: '1st place', p2: '2nd place', p3: '3rd place', bad: 'bad beat insurance',
   cons: 'consolation', pko: 'PKO bounties', heater: 'Heater', cold: 'cold streak insurance', comeback: 'Comeback', giant: 'Giant killer', grit: 'Rebuy grit',
   friend: 'Bring a friend', champ: 'quarter champion', improved: 'most improved' };
-/** What the casino lobby lists under "Earn chips at poker night", in three groups. */
+const pct = k => `+${Math.round(BUFFS[k].pct * 100)}%`;
+/** What the casino lobby ("Earn chips at poker night") and /earn list, in four groups. */
 export const REWARD_LIST = [
   ['Every night', [['RSVP to the invite', R.rsvp], ['RSVP and play', R.showed], ['1st place', R.places[0]], ['2nd place', R.places[1]], ['3rd place', R.places[2]],
     ['Lost money', R.consolation], ['Biggest loser', `+${R.badBeatPct * 100}% back`]]],
   ['Special', [['PKO bounties', '$1 per $1'], ['Comeback (up after a down night)', R.comeback], ['Giant killer (beat the leader)', R.giant],
     ['Rebuy grit (rebought, finished up)', R.grit], ['Bring a friend', R.friend]]],
   ['Streaks + quarter', [['Heater (3 up in a row)', R.heater], ['Cold streak (3 down)', R.cold], ['Quarter champ', R.champ], ['Most improved', R.improved]]],
+  // buffs (api/_buffs.js): boosts on /daily for 7 days, they add up (Renato asked for them in this list, Nov 27 2026)
+  ['Daily buffs (more /daily for 7 days)', [['RSVP (until game night)', pct('rsvp')], ['Showed up', pct('show')], ['Regular (last 3 nights)', pct('reg')],
+    ['Comeback Kid (missed 3+ nights)', pct('back')], ['Plus One (brought someone new)', pct('plus')]]],
 ].map(([group, items]) => ({ group, items: items.map(([what, amt]) => ({ what, amt: typeof amt === 'number' ? '$' + amt.toLocaleString('en-US') : amt })) }));
 const r2 = n => Math.round(n * 100) / 100;
 const money = s => { const n = parseFloat(String(s).replace(/[$,\s]/g, '')); return isNaN(n) ? 0 : n; };
