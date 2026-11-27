@@ -25,7 +25,7 @@ export const BUFFS = {
   team: { name: 'Team Spirit', icon: '♦', pct: 0.25 },           // until the next Monday settle (bf:team)
 };
 export const FULL = 8;   // players at one night for Full House
-export const AURA = 3;   // buffs running at once on a claim for the Aura Farmer title (Nov 27 2026)
+export const AURA = 4;   // buffs running at once on a claim for the Aura Farmer title (Nov 27 2026)
 const ORDER = ['rsvp', 'show', 'reg', 'back', 'plus', 'full', 'team'];
 const DAY = 864e5;
 /** When a buff from the night dated `key` ('YYYY-MM-DD') runs out: the daily reset days+1 after it (7 days unless the buff says otherwise). */
