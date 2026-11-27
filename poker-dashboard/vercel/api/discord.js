@@ -38,10 +38,10 @@ import { BACCARAT_COMMAND, baccaratCommand, baccaratButton } from './_baccarat.j
 import { casinoWeb } from './_casino.js';
 import { featuredTag } from './_featured.js';
 import { checkAccolades } from './_accolades.js';
-import { houseEmbed } from './_rakeback.js';
+import { houseEmbed, TEAM } from './_team.js';
 import { afterJackpot, readJackpot, jackpotEmbed, JP } from './_jackpot.js';
 import { REWARD_LIST } from './_rewards.js';
-import { WEEKLY_CLAIM, DAILY, DAILY_RESET_UTC, RAKE, kvUrl, kvToken, kvMarks } from './_blackjack.js';
+import { WEEKLY_CLAIM, DAILY, DAILY_RESET_UTC, RAKE, kvUrl, kvToken, kvMarks, money } from './_blackjack.js';
 import { SHOP_COMMANDS, shopCommand, shopInteraction } from './_shop.js';
 import { BEG_COMMAND, begCommand, begButton, BEG } from './_beg.js';
 import { wrongChannel } from './_channels.js';
@@ -87,7 +87,7 @@ const COMMANDS = [
     { type: 1, name: 'draw', description: "Draw last quarter's winner, live (host only)" }] },
   { name: 'earn', description: 'Every way to earn chips: daily, poker night rewards, rakeback, the lottery', type: 1 },
   { name: 'jackpot', description: 'The casino jackpot: how big it is and when it must drop', type: 1 },
-  { name: 'house', description: 'The casino books: what the house has won, by game (pitbosses only)', type: 1 },
+  { name: 'house', description: 'Players vs the house this week: is everyone together beating the casino?', type: 1 },
 ];
 // /fish and /donkey ping this person when nobody is picked (their Discord user ID, in quotes). Empty = they ask who.
 const FISH_DEFAULT = '170443455590301696';
@@ -256,11 +256,9 @@ async function answer(i) {
     try { return json({ type: 4, data: { allowed_mentions: { parse: [] }, embeds: [jackpotEmbed(await readJackpot())] } }); }
     catch (e) { console.error('jackpot', e); return say("Couldn't reach the chip storage just now."); }
   }
-  if (i.data.name === 'house') { // pitbosses only (plus Renato and admins), and only they see the answer
-    const no = await inviteBlocked(i, s || { ids: {} }, HOST_ID, true);
-    if (no) return json(no);
-    try { return json({ type: 4, data: { flags: 64, allowed_mentions: { parse: [] }, embeds: [await houseEmbed()] } }); }
-    catch (e) { console.error('house', e); return json({ type: 4, data: { flags: 64, content: "Couldn't reach the chip storage just now." } }); }
+  if (i.data.name === 'house') { // public since Nov 27 2026: players vs the house this week (see _team.js), #casino only
+    try { return json({ type: 4, data: { allowed_mentions: { parse: [] }, embeds: [await houseEmbed()] } }); }
+    catch (e) { console.error('house', e); return say("Couldn't reach the chip storage just now."); }
   }
   if (!s) return say("Couldn't reach the poker sheet just now. Try again in a minute.");
   if (i.data.name === 'lottery' && (i.data.options || [])[0] && i.data.options[0].name === 'draw') return lotteryDraw(i, s, waitUntil);
@@ -286,6 +284,7 @@ function earnEmbed() {
       { name: '🎁 /daily', value: `$${WEEKLY_CLAIM} your first claim each week, $${DAILY} the other days (resets ${DAILY_RESET_UTC}:00 UTC, weeks start Monday)` },
       { name: '🃏 Poker night', value: 'Paid automatically after every saved night:\n' + nights },
       { name: '💸 Weekly rakeback', value: `Every Monday you get a cut back on everything you played at the tables, up to $${RAKE.cap}. Paid straight into your balance; /chips shows yours so far.` },
+      { name: '🏦 Players vs the house', value: `Every Monday, everyone who bet ${money(TEAM.minBet)}+ at the house games that week gets ${money(TEAM.playing)}. If the players beat the house together, ${money(TEAM.win)} more each. /house shows the score.` },
       { name: '🎰 Casino jackpot', value: `2% of every hand the house wins goes in the pot. It drops at a secret amount before $${JP.cap.toLocaleString('en-US')} on whoever's losing hand pushes it over. /jackpot shows it.` },
       { name: '🎟️ Quarter lottery', value: `Every $${TICKET} you buy in at poker night is a free ticket. One winner takes the whole quarter's buy-ins in chips. See /lottery odds.` },
       { name: '🤝 /tip', value: 'Any player can send you chips.' },

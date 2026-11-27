@@ -66,6 +66,8 @@ export function earnedFrom(st) {
   add('lucky', !!st.lucky); add('retired', !!st.lucky || (n.lotto || 0) >= 1); add('dipper', (n.lotto || 0) >= 2);
   add('mystery', (n.jackpots || 0) >= 1); add('struck', (n.jackpots || 0) >= 2); // jackpot wins, counted by _jackpot.js and _lottery.js
   // Game of the Week (_featured.js): gwwin = weeks won (awardWeek), gwbest = best run of weeks with 20+ featured hands, gwjack = jackpots on a featured hand
+  // players vs the house (_team.js): bust = weeks the players won that you played, bust3 = ones that were the 3rd+ in a row
+  add('bust', (n.bust || 0) >= 1); add('bankrun', (n.bust3 || 0) >= 1);
   add('headliner', (n.gwwin || 0) >= 1); add('floorfav', (n.gwwin || 0) >= 3); add('vip', (n.gwbest || 0) >= 4); add('comped', (n.gwjack || 0) >= 1);
   // earned bars: best runs (bjbest / dubest / rlbest, kept by the STREAK script in _blackjack.js), big wins, clean sweeps
   add('hotshoe', (n.bjbest || 0) >= NEED.run); add('unbeaten', (n.dubest || 0) >= NEED.run); add('hottable', (n.rlbest || 0) >= NEED.run);

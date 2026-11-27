@@ -371,9 +371,30 @@ details.pay summary { cursor: pointer; font: 400 17px var(--title); letter-spaci
 .grow .stat { font: 500 11.5px var(--mono); color: var(--soft); text-align: right; white-space: nowrap; }
 .grow .stat b { font: 600 13px var(--mono); display: block; letter-spacing: 0; color: var(--up); }
 @media (max-width: 640px) { .grow { grid-template-columns: 36px minmax(0,1fr) auto; } .grow .stat { display: none; } .grow .ic { width: 36px; height: 36px; } }
-.club-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-@media (max-width: 760px) { .club-two { grid-template-columns: minmax(0,1fr); } }
 .club-m .earn { margin-top: 0; }
+/* left rail (Nov 27 2026, Renato's pick A "fill the rail"): your card, Vs the house, top 5 chip leaders, poker night chips.
+   On phones the rail opens up (display: contents) and its pieces are ordered around the main column. */
+.rail { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.rail .panel, .rail .earn { margin-top: 0; }
+@media (max-width: 900px) { .rail { display: contents; } .club { order: 0; } .vsh { order: 1; } .club-m { order: 2; } .rail .lbp { order: 3; } .rail .earn { order: 4; } }
+.rail .earn summary { flex-wrap: wrap; row-gap: 4px; }
+.rail .earn summary span { flex-basis: 100%; order: 3; white-space: normal; overflow: visible; }
+.lbmore { display: block; margin-top: 10px; background: none; border: 0; padding: 0; font: 400 15px var(--title); letter-spacing: .08em; color: var(--gold); cursor: pointer; }
+/* Vs the house (api/_team.js): everyone this week + you, split bars that slide toward whoever's winning */
+.vsh { background: var(--panel); padding: 14px 16px; display: grid; gap: 12px; }
+.vsh .hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.vsh .hd span { font: 400 15px var(--title); letter-spacing: .12em; color: var(--soft); }
+.vsh .hd small { font: 500 11px var(--mono); color: var(--soft); }
+.vsh .hd .stk { color: var(--gold); }
+.tug { display: grid; gap: 5px; }
+.tug .tl1 { display: flex; justify-content: space-between; gap: 8px; font: 400 16px var(--title); letter-spacing: .08em; }
+.tug .tl1 b { font: 600 13px var(--mono); letter-spacing: 0; }
+.tug .goal { font-size: 12.5px; color: var(--soft); }
+.split { display: flex; height: 18px; }
+.split i { display: flex; align-items: center; font: 400 13px/1 var(--title); letter-spacing: .08em; color: #15132a; padding: 0 8px; overflow: hidden; white-space: nowrap; transition: flex-basis .7s ease; }
+.split i.p { background: var(--up); }
+.split i.h { background: var(--down); justify-content: flex-end; }
+@media (prefers-reduced-motion: reduce) { .split i { transition: none; } }
 /* Game of the Week (lobby banner + table line), see api/_featured.js */
 .gotw { position: relative; background: var(--panel); border-left: 6px solid var(--gc); overflow: hidden; }
 .gotw::before { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, color-mix(in srgb, var(--gc) 15%, transparent) 0 34%, transparent 36%); pointer-events: none; }
@@ -657,11 +678,14 @@ function plateOf(id) {
   const b = PL && PL.L && PL.bits(PL.L, PL.byId[id]);
   return b || { any: false, bar: '', title: '', sticker: '', face: h => h };
 }
-function board() {
-  const rows = S.board.map((r, k) => { const b = plateOf(r.id), you = S.me && r.id === S.me.id;
+let allLeaders = false;
+function board(rail) {
+  const list = rail && !allLeaders ? S.board.slice(0, 5) : S.board;
+  const rows = list.map((r, k) => { const b = plateOf(r.id), you = S.me && r.id === S.me.id;
     return `<tr class="${you ? 'you' : ''}${b.bar ? ' pl-wash' : ''}"><td class="rk">${b.bar ? `<span class="pl-bg ${b.bar}" aria-hidden="true"></span>` : ''}${k + 1}</td><td class="n"><span class="nw">${b.face(av(r.id, r.name), 30, true)}<span class="pl-nm"><b>${esc(r.name)}</b>${b.title}</span>${b.sticker}${you ? ' <span class="youtag">you</span>' : ''}</span></td><td class="m">${money(r.bal)}</td></tr>`; }).join('');
-  return `<div class="panel"><h2 class="g">Chip leaders</h2><p class="hint">Everyone's chips, Discord and site together.</p>
-    ${rows ? `<table class="lb pl-t">${rows}</table>` : '<p class="hint">Nobody has chips yet.</p>'}</div>`;
+  const more = rail && S.board.length > 5 ? `<button class="lbmore" data-leaders>${allLeaders ? 'Top 5 only' : `All ${S.players} players →`}</button>` : '';
+  return `<div class="panel lbp"><h2 class="g">Chip leaders</h2>${rail ? '' : `<p class="hint">Everyone's chips, Discord and site together.</p>`}
+    ${rows ? `<table class="lb pl-t">${rows}</table>` : '<p class="hint">Nobody has chips yet.</p>'}${more}</div>`;
 }
 function feed() {
   const ago = t => { const m = Math.round((Date.now() - t) / 60e3); return m < 1 ? 'now' : m < 60 ? m + 'm' : m < 1440 ? Math.round(m / 60) + 'h' : Math.round(m / 1440) + 'd'; };
@@ -800,6 +824,18 @@ function jpRefresh() {
   }, 15000);
 }
 
+// ---------- Vs the house (data: S.vs from api/_team.js, read in the lobby's one storage trip) ----------
+function vsCard() {
+  const V = S.vs; if (!V) return '';
+  const tug = (label, side, n, cap, goal) => { const p = 50 + Math.max(-1, Math.min(1, n / cap)) * 40;
+    return `<div class="tug"><div class="tl1"><span>${label}</span><b class="${n >= 0 ? 'pos' : 'neg'}">${n >= 0 ? 'up' : 'down'} ${money(Math.abs(n))}</b></div>
+      <div class="split" role="img" aria-label="${label} ${n >= 0 ? 'up' : 'down'} ${money(Math.abs(n))} against the house"><i class="p" style="flex-basis:${p}%">${side}</i><i class="h" style="flex-basis:${100 - p}%">HOUSE</i></div>${goal ? `<div class="goal">${goal}</div>` : ''}</div>`; };
+  const ms = Math.max(0, V.ends - Date.now()), d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24;
+  const left = d > 0 ? `${d}d ${h}h left` : `${h}h ${Math.floor(ms / 6e4) % 60}m left`;
+  const goal = V.team > 0 ? `Hold the lead · ${left}` : `${money(Math.max(0.01, -V.team))} to get it back · ${left}`;
+  return `<div class="vsh"><div class="hd"><span>Vs the house</span>${V.streak ? `<small class="stk">🔥 ${V.streak} week${V.streak === 1 ? '' : 's'} in a row</small>` : '<small>this week</small>'}</div>
+    ${tug('Everyone', 'PLAYERS', V.team, V.cap || 1000, goal)}${S.me && V.you !== null ? tug('You', 'YOU', V.you, V.capYou || 250, '') : ''}</div>`;
+}
 function lobby() {
   if (!S.me) return `<section class="hero"><div><h2>Same chips as Discord</h2>
       <p>Play blackjack, Ultimate Hold'em and baccarat with your Discord chips. Win here and /chips on Discord shows it, and the other way round. Sign in once so the site knows whose chips they are.</p></div>
@@ -851,8 +887,8 @@ function lobby() {
   // the full lottery panel (wheel, how it works) opens from the tickets line; it opens by itself when a new draw happened
   const fresh = L && L.last && L.last.quarter !== L.quarter && Date.now() - L.last.at < 14 * 864e5 && L.lastBoard && !pref('lotSeen:' + L.last.quarter, false);
   const lot = L ? `<div id="lotbox"${pref('lotOpen', false) || fresh ? '' : ' hidden'}>${lottery()}</div>` : '';
-  return `${msg}${T.err ? `<div class="err">${esc(T.err)}</div>` : ''}<div class="club-g">${club}<div class="club-m">${resume}${nowc}${games}${lot}
-    <div class="club-two">${board()}${feed()}</div>${rewards()}</div></div>`;
+  return `${msg}${T.err ? `<div class="err">${esc(T.err)}</div>` : ''}<div class="club-g"><div class="rail">${club}${vsCard()}${board(true)}${rewards()}</div>
+    <div class="club-m">${resume}${nowc}${games}${lot}${feed()}</div></div>`;
 }
 
 // ---------- shared table bits ----------
@@ -1115,6 +1151,7 @@ function rlAfterRender() {
 function wire() {
   document.querySelectorAll('[data-bj],[data-uth],[data-do]').forEach(b => b.addEventListener('pointerdown', () => { b.classList.add('pressed'); }));
   document.querySelectorAll('details.earn').forEach(d => d.ontoggle = () => setPref('earn', d.open));
+  document.querySelectorAll('[data-leaders]').forEach(b => b.onclick = () => { allLeaders = !allLeaders; render(); });
   document.querySelectorAll('[data-lot]').forEach(b => b.onclick = () => { const box = $('#lotbox'); if (!box) return; box.hidden = !box.hidden; setPref('lotOpen', !box.hidden); if (!box.hidden) box.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'start' }); });
   document.querySelectorAll('[data-again]').forEach(b => b.onclick = () => { const g = b.dataset.again; again = g + '-deal'; location.hash = '#' + { bj: 'blackjack', fb: 'freebet', mad: 'madness', uth: 'uth', bac: 'baccarat' }[g]; });
   if (again) { const d = again; again = ''; const btn = document.querySelector(`[data-do="${d}"]`); if (btn && !btn.disabled) setTimeout(() => btn.click(), 0); }
