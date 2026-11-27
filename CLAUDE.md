@@ -167,8 +167,15 @@ poker-dashboard/
                        house books + rakeback: every house-game hand (blackjack, free bet, UTH, baccarat, roulette) goes through feedCmds(me, game, net, wager), which also
                        counts hs:all / hs:wk:<week> (house win per game) and rb:wk:<week> (player net) + rb:vol:<week> (player total bet). <week> = Monday's date, weeks start Monday 16:00 UTC.
                        _rakeback.js pays last week once (rb:done:<week>): 10% of net loss + 0.25% of all bets, max $250 (RAKE in _blackjack.js), then posts amounts only in #casino
-                       (never show anyone's losses, by request). Run by the Vercel cron Mondays 16:00 UTC -> /api/roles?rakeback=1. Lobby + /chips show "rakeback so far". /earn = public "how to earn chips" (amounts from REWARD_LIST, FIRST_CLAIM/DAILY, RAKE.cap, TICKET). /house = ephemeral
-                       house books (pitbosses, Renato, admins only; inviteBlocked(..., strict)). New house games must pass the wager to feedCmds
+                       (never show anyone's losses, by request). Run by the Vercel cron Mondays 16:00 UTC -> /api/roles?rakeback=1. Lobby + /chips show "rakeback so far". /earn = public "how to earn chips" (amounts from REWARD_LIST, FIRST_CLAIM/DAILY, RAKE.cap, TICKET). /house = public
+                       "Players vs the House" (Nov 27 2026, was staff-only books): anyone, #casino only, see team below. New house games must pass the wager to feedCmds
+                       team vs the house: _team.js (Nov 27 2026, Renato's picks, mockup https://claude.ai/artifact/JnoJa7rYN4sh8ipxhhvA2U): week score = players' net at the
+                       house games + rakeback (owed so far until Monday) + jackpot slices/seeds; poker free seats and /beg are left out. Lobby left rail (pick A "fill the rail":
+                       your card, Vs the house card, top 5 chip leaders + All N toggle, poker night chips; feed full width in the main column; phones reorder via display:contents)
+                       shows two split bars: Everyone (animation "Pressure": a shine runs from the leading side into the seam, which flares; off for reduced motion; + goal line "$X to get it back" / "Hold the lead" + time left) and You (your rb:wk net, only you see it). The lobby reads
+                       the whole rb:wk/rb:vol hashes + hs:wk + tm in its one trip (teamView). Monday cron teamWeek() (after payRakeback, once via tm:done:<week>): everyone who bet
+                       TEAM.minBet $50+ gets $25 (new chips, not in the books); players up = +$25 more each (books line 'team bonus', not part of the score), Bust the House
+                       title (ac:n bust), streak in tm hash, 3+ weeks in a row = Bank Run overall bar (ac:n bust3); one #casino post either way. /house embed = this week by game.
                        jackpot: _jackpot.js (Nov 22 2026, Renato picked the "mystery drop" only, no rare-hand triggers): JP = 2% of every hand the house wins
                        (jackpotCmds, appended by feedCmds for HOUSE_GAMES, one Lua EVAL per losing hand) goes into Redis hash jp; a secret drop point between the
                        $500 seed and the $2,000 cap (jp.drop, never sent anywhere) is picked after each win; the losing hand ($5+ bet) that pushes the pot past it

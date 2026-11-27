@@ -48,34 +48,3 @@ export async function payRakeback(now = Date.now()) {
   try { posted = await postCasino({ content: rakeText(people, from, to), allowed_mentions: { parse: [] } }); } catch (e) { console.error('rakeback post', e); posted = 'failed: ' + e.message; }
   return { week: wk, total, posted, paid: people.map(p => ({ name: nm[p.id] || p.id, net: p.net, bet: p.vol, amt: p.amt })) };
 }
-
-/** The house's books: { all: { game: won }, week: { game: won } } (what the house won; 'rakeback' is negative). */
-export async function houseBooks(now = Date.now()) {
-  const [all, week] = await kv(['HGETALL', 'hs:all'], ['HGETALL', 'hs:wk:' + weekKey(now)]);
-  const num = o => Object.fromEntries(Object.entries(pairs(o)).map(([k, v]) => [k, Math.round(+v * 100) / 100]));
-  return { all: num(all), week: num(week) };
-}
-
-const LABEL = { blackjack: 'Blackjack', 'free bet': 'Free Bet', madness: 'Double Down Madness', UTH: "Ultimate Hold'em", baccarat: 'Baccarat', roulette: 'Roulette', rakeback: 'Rakeback paid', jackpot: 'Jackpot slices', 'jackpot seed': 'Jackpot seeds', 'free seat': 'Poker free seats', beg: 'Begging (house paid)', 'beg flip': 'Beg roulette' };
-const PAID_OUT = new Set(['rakeback', 'jackpot', 'jackpot seed', 'free seat', 'beg']); // money handed back, listed after the games
-const signed = n => (n < 0 ? '−' : '+') + money(Math.abs(n));
-const block = o => {
-  const rows = Object.entries(o).filter(([, v]) => v).sort(([a], [b]) => PAID_OUT.has(a) - PAID_OUT.has(b) || o[b] - o[a]);
-  const total = Math.round(rows.reduce((t, [, v]) => t + v, 0) * 100) / 100;
-  return rows.length ? rows.map(([k, v]) => `${LABEL[k] || k} **${signed(v)}**`).join('\n') + `\n**Total ${signed(total)}**` : 'Nothing yet.';
-};
-/** The /house answer (pitbosses only): the house's win by game this week and all-time, plus rakeback owed so far. */
-export async function houseEmbed(now = Date.now()) {
-  const wk = weekKey(now);
-  const [all, week, net, vol] = await kv(['HGETALL', 'hs:all'], ['HGETALL', 'hs:wk:' + wk], ['HGETALL', 'rb:wk:' + wk], ['HGETALL', 'rb:vol:' + wk]);
-  const num = o => Object.fromEntries(Object.entries(pairs(o)).map(([k, v]) => [k, Math.round(+v * 100) / 100]));
-  const owed = rakeList(net, vol), owedTotal = Math.round(owed.reduce((t, p) => t + p.amt, 0) * 100) / 100;
-  const bet = Math.round(Object.values(pairs(vol)).reduce((t, v) => t + +v, 0) * 100) / 100;
-  return { color: 0xf1c75b, title: '🏦 The house books',
-    fields: [
-      { name: `This week (since ${day(weekStart(now))})`, value: block(num(week)), inline: true },
-      { name: 'All time', value: block(num(all)), inline: true },
-      { name: 'Rakeback so far this week', value: `${money(owedTotal)} to ${owed.length} player${owed.length === 1 ? '' : 's'}, paid Monday · ${money(bet)} bet this week` },
-    ],
-    footer: { text: 'What the house won (+) or lost (−) at blackjack, free bet, Double Down Madness, UTH, baccarat and roulette. Jackpot slices = 2% of hands the house won (4% on the Game of the Week), moved into the pot; jackpot seeds = new chips that restart the pot; poker free seats = chips the house gave out as free seats in the poker room; begging = what /beg paid out; beg roulette = /beg Gamble spins. Counted since rakeback went live.' } };
-}

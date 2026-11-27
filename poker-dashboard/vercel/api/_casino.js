@@ -16,6 +16,7 @@
 import { createHmac, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { buffReads, buffView } from './_buffs.js';
 import { kv, jpSink, kvUrl, kvToken, MAX_BET, FEED_KEEP, claimDaily, dailyStatus, boardFrom, dailyFrom, weekKey, rakeFor, sheetNames, hasIds, newHand as bjStart, handAction, publicHand, MAX_PUSH22, MAX_SIDE } from './_blackjack.js';
+import { teamView } from './_team.js';
 import { newHand as uthStart, uthAction, publicUth, MAX_ANTE, MAX_TRIPS, UTH_PAYTABLE } from './_uth.js';
 import { playHand } from './_baccarat.js';
 import { REWARD_LIST } from './_rewards.js';
@@ -128,25 +129,27 @@ async function fixNames(names, sn) {
 
 async function state(me, sheet) {
   // two storage trips: everything for the lobby at once, then any unfinished hands
-  const [bal, names, feedRaw, last, cur, wkNet, wkVol, jp, ltRaw, pkRaw, gwNet, gwN, bfRaw, rsRaw, acN, acOwn] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['LRANGE', 'cas:feed', 0, FEED_KEEP - 1],
+  const [bal, names, feedRaw, last, cur, wkNetAll, wkVolAll, jp, ltRaw, pkRaw, hsWk, tmRaw, gwNet, gwN, bfRaw, rsRaw, acN, acOwn] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['LRANGE', 'cas:feed', 0, FEED_KEEP - 1],
     ['HGET', 'bj:last', me ? me.id : '-'], ['HGETALL', 'cas:cur:' + (me ? me.id : '-')],
-    ['HGET', 'rb:wk:' + weekKey(), me ? me.id : '-'], ['HGET', 'rb:vol:' + weekKey(), me ? me.id : '-'], ['HGETALL', 'jp'],
+    // the whole week's nets + bets: your rakeback, and the Vs the house card (rakeback owed so far, see _team.js)
+    ['HGETALL', 'rb:wk:' + weekKey()], ['HGETALL', 'rb:vol:' + weekKey()], ['HGETALL', 'jp'],
     // what's open right now (live table, poker room) + your counters for the "next unlock" line, in the same trip
-    ['GET', 'lt:t'], ['GET', 'pk:t'], ...raceReads(), ...(me ? [...buffReads(me.id), ['HGETALL', 'ac:n:' + me.id], ['HKEYS', 'ac:own:' + me.id]] : []));
+    ['GET', 'lt:t'], ['GET', 'pk:t'], ['HGETALL', 'hs:wk:' + weekKey()], ['HGETALL', 'tm'], ...raceReads(), ...(me ? [...buffReads(me.id), ['HGETALL', 'ac:n:' + me.id], ['HKEYS', 'ac:own:' + me.id]] : []));
   const sh = sheet ? await sheet().catch(() => null) : null, sn = sheetNames(sh);
   const board = boardFrom(bal, names, sh);
   // linked players show their Members-tab name everywhere, even on older feed lines and stored names saved as their Discord name
   const feed = groupFeed((feedRaw || []).map(x => { try { const f = JSON.parse(x); if (sn[f.id]) f.name = sn[f.id]; return f; } catch (e) { return null; } }).filter(Boolean));
   await fixNames(names, sn);
   const body = { me: null, board: board.slice(0, 15), players: board.length, feed, maxBet: MAX_BET, maxPush22: MAX_PUSH22, maxSide: MAX_SIDE, maxAnte: MAX_ANTE, maxTrips: MAX_TRIPS, uthPaytable: plain(UTH_PAYTABLE), rewards: REWARD_LIST, jackpot: jackpotView(jp),
-    open: { live: liveSummary(ltRaw), poker: roomSummary(pkRaw) } };
+    open: { live: liveSummary(ltRaw), poker: roomSummary(pkRaw) }, vs: teamView(hsWk, wkNetAll, wkVolAll, tmRaw, me ? me.id : null) };
   // Game of the Week (see _featured.js): this week's game, the Headliner race, your own line
   { const nm = {}; for (let k = 0; k < (names || []).length; k += 2) nm[names[k]] = names[k + 1];
     body.featured = featuredView(gwNet, gwN, id => sn[id] || nm[id] || 'Someone', me ? me.id : null); }
   // the quarter lottery panel (needs the sheet; left out if it can't be read)
   try { if (sh && sh.csv) { const v = await lotteryView(sh.csv, null, sh.ids || {}); v.holders = v.holders.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); if (v.lastBoard) v.lastBoard = v.lastBoard.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); body.lottery = v; } } catch (e) { console.error('lottery view', e); }
   if (!me) return body;
-  const mine = board.find(r => r.id === me.id);
+  const mine = board.find(r => r.id === me.id), wkOf = raw => { for (let k = 0; k < (raw || []).length; k += 2) if (raw[k] === me.id) return raw[k + 1]; return null; };
+  const wkNet = wkOf(wkNetAll), wkVol = wkOf(wkVolAll);
   body.me = { id: me.id, name: me.name, bal: mine ? mine.bal : null, rank: mine ? board.indexOf(mine) + 1 : null, daily: dailyFrom(last, Date.now(), bfRaw, rsRaw, me.id), rake: rakeFor(wkNet, wkVol),   // rakeback so far this week (never the loss itself)
     next: (() => { const n = {}; for (let k = 0; k < (acN || []).length; k += 2) n[acN[k]] = +acN[k + 1] || 0; try { return nextAccolade(n, acOwn || []); } catch (e) { return null; } })() };   // the casino title you're closest to
   // an unfinished hand started on the site comes back after a reload
@@ -248,7 +251,11 @@ export async function casinoWeb(req, what, sheet) {
     if (what === 'shop' && req.method === 'GET') return await shopWeb(req, me, sheet, out);
     if (what === 'poker' && req.method === 'GET') return await pokerWeb(req, me, sheet, out);
     if (what === 'live' && req.method === 'GET') return await liveWeb(req, me, out);
-    if (req.method === 'GET' && new URL(req.url).searchParams.get('jp')) return out({ jackpot: await readJackpot() }); // the lobby banner's live refresh
+    if (req.method === 'GET' && new URL(req.url).searchParams.get('jp')) { // the lobby banner's live refresh (every 15s); &vs=1 (every 4th) also redraws Vs the house
+      if (!new URL(req.url).searchParams.get('vs')) return out({ jackpot: await readJackpot() });
+      const wk = weekKey(), [jp, hs, net, vol, tm] = await kv(['HGETALL', 'jp'], ['HGETALL', 'hs:wk:' + wk], ['HGETALL', 'rb:wk:' + wk], ['HGETALL', 'rb:vol:' + wk], ['HGETALL', 'tm']);
+      return out({ jackpot: jackpotView(jp), vs: teamView(hs, net, vol, tm, me ? me.id : null) });
+    }
     if (req.method === 'GET' && new URL(req.url).searchParams.get('ro')) return await rouletteWeb(req, me, out); // the roulette table (polled while open)
     if (req.method === 'GET') return out(await state(me, sheet));
     if (req.method !== 'POST') return out({ err: 'Method not allowed.' }, 405);

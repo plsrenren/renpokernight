@@ -15,6 +15,7 @@ import { payRewards, nightRows } from './_rewards.js';
 import { kv, kvUrl, kvToken } from './_blackjack.js';
 import { buffsFrom, saveBuffCmds } from './_buffs.js';
 import { payRakeback } from './_rakeback.js';
+import { teamWeek } from './_team.js';
 import { awardWeek } from './_featured.js';
 import { readJackpot } from './_jackpot.js';
 import { checkAccolades, weeklyAccolades, checkPoker } from './_accolades.js';
@@ -42,6 +43,8 @@ export default async function handler(req, res) {
       if (!kvUrl() || !kvToken()) { res.status(500).json({ error: 'chip storage not set up' }); return; }
       const out = await payRakeback();
       // Game of the Week: last week's Headliner (title stamped by checkAccolades below) + this week's game, in #casino
+      // players vs the house: last week's result, $25 for playing, team bonus + titles if the players won (see _team.js)
+      try { out.team = await teamWeek(); } catch (e) { console.error('team', e); out.team = { error: e.message }; }
       try { out.featured = await awardWeek(Date.now(), (await readJackpot()).pot); } catch (e) { console.error('gotw', e); out.featured = { error: e.message }; }
       try { out.accolades = { weekly: await weeklyAccolades(), everyone: await checkAccolades({ all: true }) }; } catch (e) { console.error('accolades', e); out.accolades = { error: e.message }; }
       // poker accolades too, in case nobody saved a night since they shipped (reads Google's copy of the sheet)
