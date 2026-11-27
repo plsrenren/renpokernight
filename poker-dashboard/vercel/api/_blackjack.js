@@ -217,7 +217,7 @@ export async function claimDaily(me, { names = false } = {}) {
   if (!got) return { wait: 0, busy: true, amt: boosted(claimAmt(last, now), buffs) };
   const base = claimAmt(last, now), amt = boosted(base, buffs);
   const [bal] = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, amt], ['HSET', 'bj:last', me.id, now], nameCmd(me), ...feedCmds(me, 'daily', amt),
-    ...(buffs.length >= AURA ? [['HINCRBY', 'ac:n:' + me.id, 'aura', 1]] : []));   // Aura Farmer title: claimed with 3+ buffs running (feedCmds already marks ac:dirty)
+    ...(buffs.length >= AURA ? [['HINCRBY', 'ac:n:' + me.id, 'aura', 1]] : []));   // Aura Farmer title: claimed with AURA (4)+ buffs running (feedCmds already marks ac:dirty)
   const at = lastReset(now) + DAY, later = activeBuffs(bfRaw, rsRaw, me.id, at);
   return { amt, base, buffs, bal: +bal, weekly: base === WEEKLY_CLAIM, next: boosted(claimAmt(now, at), later), others };
 }

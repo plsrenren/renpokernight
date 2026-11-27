@@ -223,7 +223,7 @@ export const ACC = [
   { k: 'headliner', slot: 'Title', name: 'Headliner', why: 'Won Game of the Week', need: 'top net win on the Game of the Week (20+ hands)' },
   { k: 'floorfav', slot: 'Title', name: 'Floor Favorite', why: 'Headliner 3 times', need: 'win Game of the Week 3 times' },
   // players vs the house as a team (Nov 27 2026, Renato's picks; see api/_team.js): stamped on Monday for everyone who bet $50+ that week
-  // buffs (Nov 27 2026, Renato's ask): claim /daily with 3+ buffs running at once (ac:n aura, counted in claimDaily)
+  // buffs (Nov 27 2026, Renato's ask): claim /daily with 4+ buffs running at once (ac:n aura, counted in claimDaily)
   { k: 'aura', slot: 'Title', name: 'Aura Farmer', why: '4 buffs at once', need: 'claim your daily with 4 or more buffs running at the same time' },
   { k: 'bust', slot: 'Title', name: 'Bust the House', why: 'Players beat the house', need: 'play ($50+ bet) in a week the players finish up on the house' },
   { k: 'bankrun', slot: 'Overall bar', name: 'Bank Run', why: 'Beat the house 3 weeks', need: 'play in the 3rd week in a row the players beat the house',
