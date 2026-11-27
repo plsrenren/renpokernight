@@ -192,8 +192,8 @@ poker-dashboard/
                        jpSink, the update that paid it carries table.jp (Ably + the answer): winner gets the card, others the banner + seat spotlight (.jpspot).
                        buffs: _buffs.js (Nov 26 2026, Renato's picks, mockup https://claude.ai/artifact/H6hXqg54zscUZxDUzXFJ6K): poker night attendance boosts /daily
                        (Discord + site). RSVP +25% (reacted to the newest invite, until game day ends; stops once a Showed Up from that night lands),
-                       Showed Up +50%, Regular +25% (last 3 game nights), Comeback Kid +75% (back after missing 3+), Plus One +100% (brought a first-timer).
-                       All add up, no cap, multiply the claim incl. the weekly $100; 7 days = until 16:00 UTC 8 days after the night's date. Redis bf hash
+                       Showed Up +50%, Regular +25% (last 3 game nights), Comeback Kid +75% (back after missing 3+; 3 days), Plus One +100% (brought a first-timer; 14 days), Full House +25% (played a night with FULL=8+ players), Team Spirit +25% (bet $50+ in a week the players beat the house; bf:team written by teamWeek, lasts to the next Monday settle; buffReads' 2nd read is MGET bf:rsvp bf:team). Aura Farmer title = claim /daily with AURA=3+ buffs running (ac:n aura in claimDaily).
+                       All add up, no cap, multiply the claim incl. the weekly $100; N days (BUFFS[k].days, default 7) = until 16:00 UTC N+1 days after the night's date. Redis bf hash
                        (roles.js rewrites it from the sheet after every save; Members Discord ID needed) + bf:rsvp (refreshInvite, when reactions change).
                        claimDaily reads both in its first pipeline. Shown: /daily embed lines, badge card BUFFS row (/api/me buffs), lobby day job + chips.
                        Listed (Nov 27 2026, Renato's ask) as a 4th "Daily buffs" group in REWARD_LIST (lobby earn box + /earn); still no nudge lines elsewhere. RSVP $25 chips are paid at the same 5-minute check (payRsvpNow in

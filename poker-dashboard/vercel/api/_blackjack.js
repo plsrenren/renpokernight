@@ -21,7 +21,7 @@ import { randomInt, randomBytes } from 'node:crypto';
 const SITE = 'https://www.thepoker.study';
 import { jackpotCmds } from './_jackpot.js';
 import { featuredCmds } from './_featured.js';
-import { buffReads, activeBuffs, boosted, buffView } from './_buffs.js';
+import { buffReads, activeBuffs, boosted, buffView, AURA } from './_buffs.js';
 export const MAX_BET = 500;
 /** Most hands one deal can be split into (both games). */
 export const MAX_HANDS = 6;
@@ -216,7 +216,8 @@ export async function claimDaily(me, { names = false } = {}) {
   const buffs = activeBuffs(bfRaw, rsRaw, me.id, now);
   if (!got) return { wait: 0, busy: true, amt: boosted(claimAmt(last, now), buffs) };
   const base = claimAmt(last, now), amt = boosted(base, buffs);
-  const [bal] = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, amt], ['HSET', 'bj:last', me.id, now], nameCmd(me), ...feedCmds(me, 'daily', amt));
+  const [bal] = await kv(['HINCRBYFLOAT', 'bj:bal', me.id, amt], ['HSET', 'bj:last', me.id, now], nameCmd(me), ...feedCmds(me, 'daily', amt),
+    ...(buffs.length >= AURA ? [['HINCRBY', 'ac:n:' + me.id, 'aura', 1]] : []));   // Aura Farmer title: claimed with 3+ buffs running (feedCmds already marks ac:dirty)
   const at = lastReset(now) + DAY, later = activeBuffs(bfRaw, rsRaw, me.id, at);
   return { amt, base, buffs, bal: +bal, weekly: base === WEEKLY_CLAIM, next: boosted(claimAmt(now, at), later), others };
 }

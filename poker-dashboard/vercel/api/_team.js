@@ -79,6 +79,8 @@ export async function teamWeek(now = Date.now()) {
   }
   if (who.length) cmds.push(['LTRIM', 'cas:feed', 0, FEED_KEEP - 1]);
   // the win bonus comes from the house (its own books line, not part of the score); the $25 for playing is new chips
+  // Team Spirit buff (_buffs.js): +25% on /daily for the same players until next Monday's settle
+  if (won && who.length) cmds.push(['SET', 'bf:team', JSON.stringify({ ids: who, until: to + WEEK, net: team }), 'PXAT', to + WEEK]);
   if (won && who.length) { const cost = TEAM.win * who.length; cmds.push(['HINCRBYFLOAT', 'hs:wk:' + cur, 'team bonus', -cost], ['EXPIRE', 'hs:wk:' + cur, KEEP], ['HINCRBYFLOAT', 'hs:all', 'team bonus', -cost]); }
   await kv(...cmds);
   let posted;
