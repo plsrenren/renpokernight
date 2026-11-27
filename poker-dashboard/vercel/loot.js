@@ -224,8 +224,8 @@ export const ACC = [
   { k: 'floorfav', slot: 'Title', name: 'Floor Favorite', why: 'Headliner 3 times', need: 'win Game of the Week 3 times' },
   // players vs the house as a team (Nov 27 2026, Renato's picks; see api/_team.js): stamped on Monday for everyone who bet $50+ that week
   { k: 'bust', slot: 'Title', name: 'Bust the House', why: 'Players beat the house', need: 'play ($50+ bet) in a week the players finish up on the house' },
-  { k: 'bankrun', slot: 'Pfp border', name: 'Bank Run', why: 'Beat the house 3 weeks', need: 'play in the 3rd week in a row the players beat the house', tab: '3 WEEKS', icon: 'chip',
-    frame: 'linear-gradient(135deg, #0f3d2e, #2f9a63 30%, #f0c75e 52%, #c8261c 74%, #3a0d12)', ring: '#15132a', glow: 'rgba(240,199,94,0.55)', plate: '#f0c75e', fg: '#15132a' },
+  { k: 'bankrun', slot: 'Overall bar', name: 'Bank Run', why: 'Beat the house 3 weeks', need: 'play in the 3rd week in a row the players beat the house',
+    look: { bg: 'linear-gradient(90deg, #0f3d2e, #2f9a63 35%, #f0c75e 62%, #c8261c 88%, #3a0d12)', fg: '#fff', ovr: '#15132a', ovrBg: '#f0c75e' } },
   { k: 'bjenjoyer', slot: 'Title', name: 'BJ Enjoyer', why: '250 blackjack hands', need: '250 hands of blackjack', hands: 'blackjack' },
   { k: 'ultimate', slot: 'Title', name: 'The Ultimate', why: '250 UTH hands', need: "250 hands of Ultimate Texas Hold'em", hands: 'UTH' },
   { k: 'freebjs', slot: 'Title', name: 'Free BJs', why: '250 free bet hands', need: '250 hands of Free Bet Blackjack', hands: 'free bet' },

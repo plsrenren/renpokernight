@@ -251,7 +251,11 @@ export async function casinoWeb(req, what, sheet) {
     if (what === 'shop' && req.method === 'GET') return await shopWeb(req, me, sheet, out);
     if (what === 'poker' && req.method === 'GET') return await pokerWeb(req, me, sheet, out);
     if (what === 'live' && req.method === 'GET') return await liveWeb(req, me, out);
-    if (req.method === 'GET' && new URL(req.url).searchParams.get('jp')) return out({ jackpot: await readJackpot() }); // the lobby banner's live refresh
+    if (req.method === 'GET' && new URL(req.url).searchParams.get('jp')) { // the lobby banner's live refresh (every 15s); &vs=1 (every 4th) also redraws Vs the house
+      if (!new URL(req.url).searchParams.get('vs')) return out({ jackpot: await readJackpot() });
+      const wk = weekKey(), [jp, hs, net, vol, tm] = await kv(['HGETALL', 'jp'], ['HGETALL', 'hs:wk:' + wk], ['HGETALL', 'rb:wk:' + wk], ['HGETALL', 'rb:vol:' + wk], ['HGETALL', 'tm']);
+      return out({ jackpot: jackpotView(jp), vs: teamView(hs, net, vol, tm, me ? me.id : null) });
+    }
     if (req.method === 'GET' && new URL(req.url).searchParams.get('ro')) return await rouletteWeb(req, me, out); // the roulette table (polled while open)
     if (req.method === 'GET') return out(await state(me, sheet));
     if (req.method !== 'POST') return out({ err: 'Method not allowed.' }, 405);

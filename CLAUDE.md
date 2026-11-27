@@ -175,7 +175,7 @@ poker-dashboard/
                        shows two split bars: Everyone (+ goal line "$X to get it back" / "Hold the lead" + time left) and You (your rb:wk net, only you see it). The lobby reads
                        the whole rb:wk/rb:vol hashes + hs:wk + tm in its one trip (teamView). Monday cron teamWeek() (after payRakeback, once via tm:done:<week>): everyone who bet
                        TEAM.minBet $50+ gets $25 (new chips, not in the books); players up = +$25 more each (books line 'team bonus', not part of the score), Bust the House
-                       title (ac:n bust), streak in tm hash, 3+ weeks in a row = Bank Run border (ac:n bust3); one #casino post either way. /house embed = this week by game.
+                       title (ac:n bust), streak in tm hash, 3+ weeks in a row = Bank Run overall bar (ac:n bust3); one #casino post either way. /house embed = this week by game.
                        jackpot: _jackpot.js (Nov 22 2026, Renato picked the "mystery drop" only, no rare-hand triggers): JP = 2% of every hand the house wins
                        (jackpotCmds, appended by feedCmds for HOUSE_GAMES, one Lua EVAL per losing hand) goes into Redis hash jp; a secret drop point between the
                        $500 seed and the $2,000 cap (jp.drop, never sent anywhere) is picked after each win; the losing hand ($5+ bet) that pushes the pot past it

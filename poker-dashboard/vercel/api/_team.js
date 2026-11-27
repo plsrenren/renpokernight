@@ -8,7 +8,7 @@
 // Monday by teamWeek() (Vercel cron, roles.js ?rakeback=1, right after rakeback is paid):
 //   - everyone who bet TEAM.minBet+ that week gets TEAM.playing chips, win or lose. New chips, not in the house books.
 //   - if the players finished up: TEAM.win more each (house books line 'team bonus'), the Bust the House title, and the
-//     team streak goes up; at TEAM.streak weeks in a row everyone who played that week gets the Bank Run border.
+//     team streak goes up; at TEAM.streak weeks in a row everyone who played that week gets the Bank Run overall bar.
 //   - one #casino post with the result either way.
 // Keys: tm (hash: streak, best, last = last settled week, lastNet), tm:done:<week> (settles once).
 import { kv, money, weekKey, weekStart, rakeFor, FEED_KEEP, HOUSE_GAMES } from './_blackjack.js';
@@ -91,7 +91,7 @@ export async function teamWeek(now = Date.now()) {
 export function teamText({ team, won, streak, n, each, from, to }) {
   const head = won ? `🏦 **Players beat the house by ${money(team)}** · ${day(from)} to ${day(to)} 🎉` : `🏦 **The house took ${money(-team)}** · ${day(from)} to ${day(to)}. Run it back.`;
   const lines = [head];
-  if (won) lines.push(`${streak >= 2 ? `🔥 ${streak} weeks in a row. ` : ''}Everyone who played gets the **Bust the House** title${streak >= TEAM.streak ? ' and the **Bank Run** border' : ''}.`);
+  if (won) lines.push(`${streak >= 2 ? `🔥 ${streak} weeks in a row. ` : ''}Everyone who played gets the **Bust the House** title${streak >= TEAM.streak ? ' and the **Bank Run** bar' : ''}.`);
   if (n) lines.push(`💰 **+${money(each)}** to all ${n} player${n === 1 ? '' : 's'} who bet ${money(TEAM.minBet)}+ (${money(TEAM.playing)} for playing${won ? ` + ${money(TEAM.win)} team bonus` : ''}).`);
   lines.push('-# New week starts now · /house shows the score');
   return lines.join('\n');

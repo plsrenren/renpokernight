@@ -161,7 +161,6 @@ html .cbw .cti svg{display:block;width:100%;height:100%}
    The slanted tab (.cdt from accDeco) uses the same rules as the champion tab above. */
 html .cb-acc-gun{--cf:linear-gradient(135deg,#2c2f3a,#6b7183 30%,#b8bfd0 46%,#4a4f5e 62%,#23252e);--cr:#e0507f;--cg:rgba(224,80,127,.45);--cp:#e0507f;--cfg:#fff}
 html .cb-acc-high{--cf:linear-gradient(135deg,#3b1450,#7b2a8e 35%,#d24f9a 55%,#5a1d6e);--cr:#f0c75e;--cg:rgba(210,79,154,.6);--cp:#f0c75e;--cfg:#15132a}
-html .cb-acc-bankrun{--cf:linear-gradient(135deg,#0f3d2e,#2f9a63 30%,#f0c75e 52%,#c8261c 74%,#3a0d12);--cr:#15132a;--cg:rgba(240,199,94,.55);--cp:#f0c75e;--cfg:#15132a}
 html .cb-acc-house{--cf:linear-gradient(135deg,#0f4d31,#2f9a63 40%,#8fe0b0 55%,#13583a);--cr:#15132a;--cg:rgba(143,224,176,.55);--cp:#15132a;--cfg:#8fe0b0}
 html .cb-acc-coll{--cf:linear-gradient(135deg,#1e6f8a,#5fd6f0 35%,#8f78f0 65%,#3b2a7a);--cr:#15132a;--cg:rgba(95,214,240,.55);--cp:#5fd6f0;--cfg:#15132a}
 html .cb-acc-royal{--cf:linear-gradient(135deg,#1b2a6b,#3c5ad8 40%,#f0c75e 58%,#1b2a6b);--cr:#f0c75e;--cg:rgba(60,90,216,.6);--cp:#f0c75e;--cfg:#15132a}
@@ -188,6 +187,8 @@ html .cbar-acc-iron{background-image:linear-gradient(105deg,transparent 42%,rgba
 html .cbar-acc-iron .o,html .cbar-acc-iron .rc-ovr{background:#23262f !important;color:#e8ecf5 !important;outline-color:#23262f !important}
 html .cbar-acc-glow{background:radial-gradient(circle at 70% 30%,#fff 0 1.2px,transparent 2px) 0 0/26px 100%,radial-gradient(circle at 30% 75%,#fff 0 1px,transparent 1.8px) 0 0/34px 100%,linear-gradient(90deg,#2a1f55,#5a3aa8 35%,#5fd6f0 70%,#8fe0b0) !important;color:#fff !important}
 html .cbar-acc-glow .o,html .cbar-acc-glow .rc-ovr{background:#15132a !important;color:#8fe0b0 !important;outline-color:#15132a !important}
+html .cbar-acc-bankrun{background:repeating-linear-gradient(-60deg,rgba(21,19,42,.18) 0 3px,transparent 3px 16px),linear-gradient(90deg,#0f3d2e,#2f9a63 35%,#f0c75e 62%,#c8261c 88%,#3a0d12) !important;color:#fff !important;text-shadow:0 1px 2px rgba(0,0,0,.55)}
+html .cbar-acc-bankrun .o,html .cbar-acc-bankrun .rc-ovr{background:#f0c75e !important;color:#15132a !important;outline-color:#f0c75e !important}
 html .cbar-acc-hotshoe{background:repeating-linear-gradient(45deg,rgba(255,255,255,.08) 0 6px,transparent 6px 12px),linear-gradient(90deg,#5e0b17,#c2283c) !important;color:#fff !important}
 html .cbar-acc-hotshoe .o,html .cbar-acc-hotshoe .rc-ovr{background:#fff !important;color:#9b1238 !important;outline-color:#fff !important}
 html .cbar-acc-heavy{background-image:linear-gradient(105deg,transparent 42%,rgba(255,255,255,.38) 50%,transparent 58%),repeating-linear-gradient(120deg,rgba(240,199,94,.28) 0 2px,transparent 2px 14px),linear-gradient(90deg,#1a0f33,#3b1d6e 60%,#6a3aa8) !important;background-size:260% 100%,100% 100%,100% 100% !important;background-repeat:no-repeat,repeat,repeat !important;background-color:transparent !important;animation:cbarshine 4.5s ease-in-out infinite;color:#f0c75e !important}

@@ -802,10 +802,13 @@ function jackpotCard(J) {
 let jpTimer = null;
 function jpRefresh() {
   clearInterval(jpTimer);
+  let tick = 0;
   jpTimer = setInterval(async () => {
     if (!document.getElementById('jpb') || document.hidden) return;
-    let j; try { j = await (await fetch('/api/casino?jp=1', { cache: 'no-store', credentials: 'same-origin' })).json(); } catch (e) { return; }
+    const vs = !!document.querySelector('.vsh') && ++tick % 4 === 0;   // Vs the house: every minute while the lobby is open
+    let j; try { j = await (await fetch('/api/casino?jp=1' + (vs ? '&vs=1' : ''), { cache: 'no-store', credentials: 'same-origin' })).json(); } catch (e) { return; }
     if (!j || !j.jackpot || !S) return;
+    if (j.vs) { S.vs = j.vs; const v = document.querySelector('.vsh'); if (v) v.outerHTML = vsCard(); }
     const old = S.jackpot, hit = old && j.jackpot.wins > old.wins;
     S.jackpot = j.jackpot;
     const box = document.getElementById('jpb'); if (!box) return;
