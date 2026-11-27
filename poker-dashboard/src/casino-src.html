@@ -379,6 +379,11 @@ details.pay summary { cursor: pointer; font: 400 17px var(--title); letter-spaci
 @media (max-width: 900px) { .rail { display: contents; } .club { order: 0; } .vsh { order: 1; } .club-m { order: 2; } .rail .lbp { order: 3; } .rail .earn { order: 4; } }
 .rail .earn summary { flex-wrap: wrap; row-gap: 4px; }
 .rail .earn summary span { flex-basis: 100%; order: 3; white-space: normal; overflow: visible; }
+/* in the narrow rail the three reward groups stack into one list (three columns squeezed every line into 2-4 lines) */
+.rail .earn summary b { font-size: 19px; }
+.rail .earn .groups { grid-template-columns: 1fr; gap: 2px; }
+.rail .earn h3 { margin-top: 10px; }
+.rail .earn .row span { min-width: 0; }
 .lbmore { display: block; margin-top: 10px; background: none; border: 0; padding: 0; font: 400 15px var(--title); letter-spacing: .08em; color: var(--gold); cursor: pointer; }
 /* Vs the house (api/_team.js): everyone this week + you, split bars that slide toward whoever's winning */
 .vsh { background: var(--panel); padding: 14px 16px; display: grid; gap: 12px; }
