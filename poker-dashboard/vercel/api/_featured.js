@@ -12,10 +12,10 @@
 //     running; gwrun/gwbest kept by awardWeek, gw:run = who has a run going), Comped (gwjack, bumped by the jackpot Lua on a featured hand).
 // Live table hands count too: they go through feedCmds like every other house hand.
 // Redis: gw:<week> (id -> net on the featured game), gw:n:<week> (id -> hands), gw:pk:<week> (id -> peak net), 30 days; gw:done:<week> (award paid once).
-import { kv, money, weekKey, weekStart } from './_blackjack.js';
+import { kv, money, weekKey, weekStart, paydayStart } from './_blackjack.js';
 import { postCasino } from './_rewards.js';
 
-export const GOTW = { cut: 0.04, minHands: 20 };
+export const GOTW = { cut: 0.04, minHands: 20, near: 5 };
 export const FEATURED = ['blackjack', 'UTH', 'free bet', 'baccarat', 'roulette'];
 export const GAME_INFO = {
   blackjack: { name: 'Blackjack', short: 'Blackjack', cmd: '/blackjack', route: 'blackjack', color: 0xf1c75b, css: '#f1c75b' },
@@ -94,6 +94,32 @@ export async function awardWeek(now = Date.now(), pot = null) {
   let posted;
   try { posted = await postCasino({ content: lines.join('\n') || undefined, embeds: [embed], allowed_mentions: { parse: [] } }); } catch (e) { console.error('gotw post', e); posted = 'failed: ' + e.message; }
   return { week: last, lastGame, winner: w ? { name: w.name, net: w.net, peak: w.peak, hands: w.hands } : null, game, posted };
+}
+
+/** Thursday (cron, 16:05 UTC, right after payday's reset): one #casino post with the Headliner race so far. Top 3 by peak (only peaks
+ *  above $0, nobody's losses), who's close to qualifying (GOTW.near+ hands, under minHands), the jackpot. Once per week (gw:mid:<week>),
+ *  refused before Thursday's payday reset, so any caller is harmless. 1 SET + 5 reads. Renato's pick Nov 28 2026. */
+export async function midweekPost(now = Date.now()) {
+  const wk = weekKey(now), game = featuredGame(now), G = GAME_INFO[game];
+  if (paydayStart(now) < weekStart(now)) return { week: wk, skipped: 'before Thursday' };
+  const [first] = await kv(['SET', 'gw:mid:' + wk, String(now), 'NX', 'EX', 30 * 86400]);
+  if (!first) return { week: wk, skipped: 'already posted' };
+  const [netRaw, nRaw, pkRaw, names, jpRaw] = await kv(['HGETALL', 'gw:' + wk], ['HGETALL', 'gw:n:' + wk], ['HGETALL', 'gw:pk:' + wk], ['HGETALL', 'bj:name'], ['HGET', 'jp', 'pot']);
+  const nm = pairs(names), list = race(netRaw, nRaw, pkRaw, id => nm[id] || 'Someone');
+  const top = list.filter(r => r.ok && r.peak > 0).slice(0, 3);
+  const near = list.filter(r => !r.ok && r.hands >= GOTW.near).sort((a, b) => b.hands - a.hands).slice(0, 4);
+  const pot = jpRaw == null ? null : Math.round(+jpRaw * 100) / 100;
+  const lines = [];
+  lines.push(top.length ? top.map((r, i) => `**${i + 1}.** ${r.name}, peak **+${money(r.peak)}** · ${r.hands} hands`).join('\n')
+    : `Nobody has qualified up yet. ${GOTW.minHands} ${G.short} hands and a winning run takes the lead.`);
+  if (near.length) lines.push(`Close to qualifying: ${near.map(r => `**${r.name}** (${r.hands} of ${GOTW.minHands})`).join(', ')}`);
+  if (pot != null) lines.push(`Jackpot now **${money(pot)}**, and ${G.short} hands feed it double.`);
+  const embed = { color: G.color, title: `⭐ Headliner race: ${G.name}, halfway`, url: `${SITE}/casino#${G.route}`, description: lines.join('\n\n'),
+    fields: [{ name: 'Ends', value: `<t:${Math.floor(featuredEnds(now) / 1000)}:F>`, inline: true }, { name: 'Play', value: `\`${G.cmd}\` or the site`, inline: true }],
+    footer: { text: 'Headliner = highest peak this week, 20+ hands' } };
+  let posted;
+  try { posted = await postCasino({ embeds: [embed], allowed_mentions: { parse: [] } }); } catch (e) { console.error('gotw midweek', e); posted = 'failed: ' + e.message; }
+  return { week: wk, game, top: top.map(r => ({ name: r.name, peak: r.peak, hands: r.hands })), near: near.map(r => ({ name: r.name, hands: r.hands })), posted };
 }
 
 // Discord replies on the featured game get a "⭐ Game of the Week" footer (no jackpot talk in game replies, by request).
