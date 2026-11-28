@@ -17,7 +17,7 @@ import { kv, kvUrl, kvToken } from './_blackjack.js';
 import { buffsFrom, saveBuffCmds } from './_buffs.js';
 import { payRakeback } from './_rakeback.js';
 import { teamWeek } from './_team.js';
-import { awardWeek } from './_featured.js';
+import { awardWeek, midweekPost } from './_featured.js';
 import { readJackpot } from './_jackpot.js';
 import { checkAccolades, weeklyAccolades, checkPoker } from './_accolades.js';
 import { pokerSweep } from './_poker.js';
@@ -45,6 +45,12 @@ export default async function handler(req, res) {
     if (q.has('rakeback')) {
       if (!kvUrl() || !kvToken()) { res.status(500).json({ error: 'chip storage not set up' }); return; }
       const out = await payRakeback();
+      res.setHeader('Cache-Control', 'no-store'); res.status(200).json(out); return;
+    }
+    // Thursday's Headliner race post in #casino (Vercel cron, right after payday). Once per week, refused before Thursday, so any caller is harmless.
+    if (q.has('midweek')) {
+      if (!kvUrl() || !kvToken()) { res.status(500).json({ error: 'chip storage not set up' }); return; }
+      const out = await midweekPost();
       res.setHeader('Cache-Control', 'no-store'); res.status(200).json(out); return;
     }
     // Monday's weekly jobs (Vercel cron). Each one runs once per week, so any caller is harmless.
