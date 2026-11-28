@@ -747,12 +747,12 @@ function wheelSvg(holders, total, size, centre, opts = {}) {
     const P = a => `${(c + R * Math.cos(a) + dx).toFixed(1)},${(c + R * Math.sin(a) + dy).toFixed(1)}`;
     paths += inDraw.length === 1 ? `<circle cx="${c}" cy="${c}" r="${R}" fill="${WHEEL_COLORS[0]}"/>`
       : `<path d="M${c + dx},${c + dy} L${P(a0)} A${R},${R} 0 ${big} 1 ${P(a1)} Z" fill="${WHEEL_COLORS[i % WHEEL_COLORS.length]}" stroke="#1d1a37" stroke-width="2"><title>${esc(x.name)} · ${x.t} tickets</title></path>`;
-    // the player's pfp on their slice (a lettered square shows through if there's no picture), turned to face outwards
+    // the player's pfp on their slice (the lettered square underneath shows when there is no picture: a failed load removes the image, else browsers draw a broken-image icon), turned to face outwards
     const deg = (mid * 180 / Math.PI + 90).toFixed(1), rr = R * 0.62, sz = Math.max(size * 0.06, Math.min(size * 0.12, (a1 - a0) * rr * 0.6));
     const px = c + rr * Math.cos(mid) + dx, py = c + rr * Math.sin(mid) + dy, x0 = px - sz / 2, y0 = py - sz / 2;
     paths += `<g transform="rotate(${deg} ${px.toFixed(1)} ${py.toFixed(1)})" pointer-events="none"><rect x="${x0 - 2}" y="${y0 - 2}" width="${sz + 4}" height="${sz + 4}" fill="#15132a"/>`
       + `<rect x="${x0}" y="${y0}" width="${sz}" height="${sz}" fill="hsl(${hue(x.name)} 45% 75%)"/><text x="${px}" y="${py + sz * 0.3}" text-anchor="middle" font-family="Bebas Neue" font-size="${sz * 0.8}" fill="#15132a">${esc(x.name[0].toUpperCase())}</text>`
-      + (x.id ? `<image href="/api/avatar?id=${esc(x.id)}" x="${x0}" y="${y0}" width="${sz}" height="${sz}" preserveAspectRatio="xMidYMid slice"/>` : '') + '</g>';
+      + (x.id ? `<image href="/api/avatar?id=${esc(x.id)}" x="${x0}" y="${y0}" width="${sz}" height="${sz}" preserveAspectRatio="xMidYMid slice" onerror="this.remove()"/>` : '') + '</g>';
     if (x.t / total >= 0.06 && size >= 200) {
       const nx = c + R * 0.88 * Math.cos(mid) + dx, ny = c + R * 0.88 * Math.sin(mid) + dy;
       paths += `<text x="${nx.toFixed(1)}" y="${(ny + 5).toFixed(1)}" text-anchor="middle" font-family="Bebas Neue" font-size="${size >= 260 ? 14 : 12}" fill="#15132a" letter-spacing="1" transform="rotate(${deg} ${nx.toFixed(1)} ${ny.toFixed(1)})" pointer-events="none">${esc(x.name.toUpperCase().slice(0, 9))}</text>`;
