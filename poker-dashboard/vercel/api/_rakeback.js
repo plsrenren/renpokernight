@@ -23,7 +23,7 @@ export function rakeList(netRaw, volRaw) {
 export function rakeText(people, from, to) {
   const lines = people.map(p => `<@${p.id}> **+${money(p.amt)}**`);
   let text = [`💸 **Weekly rakeback** · ${day(from)} to ${day(to)} · thanks for playing`, ...lines,
-    `-# Already in your balance · blackjack, free bet, Double Down Madness, UTH, baccarat and roulette count · up to ${money(RAKE.cap)} a week · paid every Wednesday`].join('\n');
+    `-# Already in your balance · up to ${money(RAKE.cap)} a week · every Wednesday`].join('\n');
   if (text.length > 1990) text = text.slice(0, 1985) + '…';
   return text;
 }
