@@ -10,7 +10,7 @@
 //   (royal 50, straight flush 40, quads 30, full house 8, flush 7, straight 4, three of a kind 3).
 // Keys: uth:g:<id> (the hand, 1 hour), uth:lock:<id> (stops double taps).
 import { randomBytes } from 'node:crypto';
-import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, freshDeck, feedCmds, takeChips, nameCmd } from './_blackjack.js';
+import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, freshDeck, feedCmds, takeChips, nameCmd, moneyEmbed, mainWord } from './_blackjack.js';
 
 const SITE = 'https://www.thepoker.study';
 export const MAX_ANTE = 100, MAX_TRIPS = 100, DEFAULT_ANTE = 10;
@@ -110,6 +110,14 @@ export function settle(g) {
 
 // ---------- the message ----------
 const onTable = g => g.ante * 2 + g.trips + g.play;
+/** A finished hand's money, main bet (ante + blind + play) apart from Trips (Nov 28 2026: only the main bet says win / lose).
+ *  detail = one row per bet (Discord money card), else Hand + Trips (site, live). */
+export function betRows(g, detail = false) {
+  const r2 = n => Math.round(n * 100) / 100, trips = g.lines.find(l => l[0] === 'Trips');
+  const main = r2(g.lines.reduce((a, l) => a + (l[0] === 'Trips' ? 0 : l[2]), 0));
+  const rows = detail ? g.lines.map(l => [l[0], r2(l[2])]) : [['Hand', main], ...(trips ? [['Trips', r2(trips[2])]] : [])];
+  return { main, rows, sides: trips ? 1 : 0, net: r2(g.net), fold: g.res === 'fold' };
+}
 const held = g => g.held || 0; // hands dealt before the hold existed have none
 const shown = g => g.stage === 'pre' ? 0 : g.stage === 'flop' ? 3 : 5;
 const holeName = cs => { const [a, b] = cs.map(val).sort((x, y) => y - x); return a === b ? `Pocket ${PLURAL(a)}` : `${NAME[a][0].toUpperCase() + NAME[a].slice(1)} high`; };
@@ -121,7 +129,7 @@ function view(g, bal) {
   const q = new URLSearchParams({ m: 'uth', d: done ? g.dealer.join('.') : 'XX.XX', b: board.join('.'), p: g.me.join('.'), n: g.name, ph: mine,
     dh: done ? `${g.dlHand}${g.qualifies ? ' · qualifies' : " · doesn't qualify"}` : '', r: done ? g.res : '', v: g.id + g.step });
   const bets = [`Ante **${money(g.ante)}**`, `Blind **${money(g.ante)}**`, ...(g.play ? [`Play **${money(g.play)}**`] : []), ...(g.trips ? [`Trips **${money(g.trips)}**`] : [])].join(' · ');
-  let title, description = bets, color, footer;
+  let title, description = bets, color, footer, cash = null;
   const btn = (label, emoji, act, style, disabled = false) => ({ type: 2, style, label, ...(emoji ? { emoji: { name: emoji } } : {}), custom_id: `uth:${act}:${g.id}:${g.step}`, disabled }); // the step makes a stale or repeated press harmless
   let row;
   if (!done) {
@@ -135,15 +143,16 @@ function view(g, bal) {
       row = [btn(`Bet 1x (${money(g.ante)})`, '💰', 'b1', 3, !can(1)), btn('Fold', null, 'fold', 4)]; }
     footer += ` · balance ${money(bal)} (+${money(onTable(g))} on the table${held(g) ? `, ${money(held(g))} held for the river bet` : ''}) · only ${g.name} can press these`;
   } else {
-    title = g.res === 'fold' ? `♠️ ${g.name} folds${g.net ? `, ${g.net > 0 ? 'up' : 'down'} ${money(Math.abs(g.net))}` : ''}`
-      : g.net > 0 ? `♠️ ${g.name} wins ${money(g.net)}!` : g.net < 0 ? `♠️ ${g.name} loses ${money(-g.net)}` : `♠️ ${g.name} breaks even`;
-    color = g.net > 0 ? 0x8ee0b0 : g.net < 0 ? 0xf59bb0 : 0x9a94c4;
-    const fmt = a => (a > 0 ? `+${money(a)}` : a < 0 ? `−${money(-a)}` : '$0');
-    description = `${bets}\n\n${g.lines.map(([b, why, a]) => `**${b}** · ${why} · \`${fmt(a)}\``).join('\n')}\n\nBalance **${money(bal)}**`;
+    // the main bet alone says win / lose, with no amount; bets + money go on the card under it (moneyEmbed)
+    cash = betRows(g, true);
+    title = `♠️ ${g.name} ${g.res === 'fold' ? 'folds' : mainWord(cash.main)}`;
+    color = cash.main > 0 ? 0x8ee0b0 : cash.main < 0 ? 0xf59bb0 : 0x9a94c4;
+    description = g.lines.map(([b, why]) => `**${b}** · ${why}`).join('\n');
     footer = 'Dealer needs a pair to qualify · Blind pays on a straight or better';
     row = [btn(`Play again (${money(g.ante)}${g.trips ? ` + ${money(g.trips)} trips` : ''})`, '🔁', 'again', 1, bal < g.ante * 3 + g.trips), btn('Payouts', '📜', 'pay', 2)];
   }
-  return { allowed_mentions: { parse: [] }, embeds: [{ color, title, description, image: { url: `${SITE}/api/bjcards?${q}` }, footer: { text: footer } }],
+  return { allowed_mentions: { parse: [] }, embeds: [{ color, title, description, image: { url: `${SITE}/api/bjcards?${q}` }, footer: { text: footer } },
+    ...(cash ? [moneyEmbed(cash, bal, bets)] : [])],
     components: [{ type: 1, components: row }] };
 }
 
@@ -226,7 +235,7 @@ export function publicUth(g, bal) {
   return { id: g.id, stage: g.stage, ante: g.ante, trips: g.trips, play: g.play, me: g.me,
     board: [...g.board.slice(0, n), ...Array(5 - n).fill('XX')], dealer: done ? g.dealer : ['XX', 'XX'], myHand: mine,
     dlHand: done ? g.dlHand : null, qualifies: done ? g.qualifies : null, res: done ? g.res : null,
-    lines: done ? g.lines : null, net: done ? g.net : null, onTable: onTable(g),
+    lines: done ? g.lines : null, net: done ? g.net : null, money: done ? betRows(g) : null, onTable: onTable(g),
     held: held(g), afford: { 4: bal + held(g) >= g.ante * 4, 2: bal + held(g) >= g.ante * 2, 1: bal + held(g) >= g.ante } };
 }
 export { PAYTABLE as UTH_PAYTABLE };
