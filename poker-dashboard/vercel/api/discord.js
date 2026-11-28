@@ -281,9 +281,9 @@ function earnEmbed() {
   const nights = REWARD_LIST.map(g => `__${g.group}__\n` + g.items.map(x => `${x.what} **${x.amt}**`).join(' · ')).join('\n');
   return { color: 0xf1c75b, title: '💰 How to earn chips', url: `${SITE}/casino`,
     fields: [
-      { name: '🎁 /daily', value: `$${WEEKLY_CLAIM} your first claim each week, $${DAILY} the other days (resets ${DAILY_RESET_UTC}:00 UTC, weeks start Monday)` },
+      { name: '🎁 /daily', value: `$${WEEKLY_CLAIM} on payday (your first claim from Thursday on), $${DAILY} the other days (resets ${DAILY_RESET_UTC}:00 UTC)` },
       { name: '🃏 Poker night', value: 'Paid automatically after every saved night:\n' + nights },
-      { name: '💸 Weekly rakeback', value: `Every Monday you get a cut back on everything you played at the tables, up to $${RAKE.cap}. Paid straight into your balance; /chips shows yours so far.` },
+      { name: '💸 Weekly rakeback', value: `Every Wednesday you get a cut back on everything you played at the tables the week before (Monday to Monday), up to $${RAKE.cap}. Paid straight into your balance; /chips shows yours so far.` },
       { name: '🏦 Players vs the house', value: `Every Monday, everyone who bet ${money(TEAM.minBet)}+ at the house games that week gets ${money(TEAM.playing)}. If the players beat the house together, ${money(TEAM.win)} more each. /house shows the score.` },
       { name: '🎰 Casino jackpot', value: `2% of every hand the house wins goes in the pot. It drops at a secret amount before $${JP.cap.toLocaleString('en-US')} on whoever's losing hand pushes it over. /jackpot shows it.` },
       { name: '🎟️ Quarter lottery', value: `Every $${TICKET} you buy in at poker night is a free ticket. One winner takes the whole quarter's buy-ins in chips. See /lottery odds.` },

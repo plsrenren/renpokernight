@@ -2,7 +2,8 @@
 // sheet as JSON { input, members }) right after a night is saved; /roles in Discord does the same.
 // Safe to call any time: it only changes roles that don't match the results.
 // It also pays the casino chip rewards for poker nights (see _rewards.js); those pay each night only once.
-// /api/roles?rakeback=1 (GET, the Monday cron) pays last week's casino rakeback instead (see _rakeback.js), then hands out the
+// /api/roles?rakeback=1 (GET, the Wednesday cron) pays last week's casino rakeback instead (see _rakeback.js).
+// /api/roles?weekly=1 (GET, the Monday cron) settles players vs the house + Game of the Week, then hands out the
 // weekly casino accolades and checks everyone for new ones (see _accolades.js). After a night, chip rewards can unlock the chip titles too,
 // and the poker accolades (from the sheet, checkPoker) are checked then and on the cron.
 // The sheet sent in the body is only trusted with the secret key (header X-Roles-Key = Vercel env ROLES_KEY, which the
@@ -38,10 +39,18 @@ async function readBody(req) {
 
 export default async function handler(req, res) {
   try {
-    // Monday's weekly casino rakeback (Vercel cron, see vercel.json). Pays only last week, only once, so any caller is harmless.
-    if (new URL(req.url, 'http://x').searchParams.has('rakeback')) {
+    // Wednesday's weekly casino rakeback (Vercel cron, see vercel.json). Pays only last week, only once, never before Wednesday, so any caller is harmless.
+    // Moved off Monday on Nov 28 2026 (Renato) so the free chips don't all land on one day.
+    const q = new URL(req.url, 'http://x').searchParams;
+    if (q.has('rakeback')) {
       if (!kvUrl() || !kvToken()) { res.status(500).json({ error: 'chip storage not set up' }); return; }
       const out = await payRakeback();
+      res.setHeader('Cache-Control', 'no-store'); res.status(200).json(out); return;
+    }
+    // Monday's weekly jobs (Vercel cron). Each one runs once per week, so any caller is harmless.
+    if (q.has('weekly')) {
+      if (!kvUrl() || !kvToken()) { res.status(500).json({ error: 'chip storage not set up' }); return; }
+      const out = {};
       // Game of the Week: last week's Headliner (title stamped by checkAccolades below) + this week's game, in #casino
       // players vs the house: last week's result, $25 for playing, team bonus + titles if the players won (see _team.js)
       try { out.team = await teamWeek(); } catch (e) { console.error('team', e); out.team = { error: e.message }; }
