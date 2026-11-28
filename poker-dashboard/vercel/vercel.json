@@ -97,8 +97,12 @@
   },
   "crons": [
     {
-      "path": "/api/roles?rakeback=1",
+      "path": "/api/roles?weekly=1",
       "schedule": "0 16 * * 1"
+    },
+    {
+      "path": "/api/roles?rakeback=1",
+      "schedule": "5 16 * * 3"
     }
   ]
 }

@@ -1,5 +1,5 @@
 // Blackjack with chips: /daily, /blackjack, /chips, and the Hit / Stand / Double / Split buttons.
-//   /daily          +$100 for your first claim each week (weeks start Monday 16:00 UTC), +$50 for the other days (resets at 16:00 UTC)
+//   /daily          +$100 payday: your first claim from Thursday 16:00 UTC on each week (moved off Monday, Nov 28 2026), +$50 for the other days (resets at 16:00 UTC)
 //   /blackjack bet  one hand against the dealer, $1 to $500 (default $20). Blackjack pays 3:2, dealer stands on all 17s,
 //                   double on any first two cards, split any two cards of the same value up to 6 hands (split aces get one card each, no re-split)
 //   /freebet bet push22   Free Bet Blackjack, same chips and buttons: free double on a hard 9/10/11, free split on any pair except
@@ -34,8 +34,10 @@ export const POG = [0, 3, 12, 30, 60, 100, 300, 1000];
 /** Match: suited pair, pair, same suit (first card vs the dealer's up card). ~3.9% house edge on 6 decks. War: 1:1, a tie gives half back (~3.7%). */
 export const MATCH = { sp: 12, p: 4, s: 1 };
 const DEFAULT_BET = 20, DAY = 24 * 3600e3;
-/** The first claim of each week (Monday 16:00 UTC on) pays WEEKLY_CLAIM instead of DAILY. A brand-new player's first claim is just that weekly one. */
-export const WEEKLY_CLAIM = 100, DAILY = 50;
+/** Payday: the first claim from Thursday 16:00 UTC on (PAYDAY, a getUTCDay number) pays WEEKLY_CLAIM instead of DAILY, once per
+ *  Thursday-to-Thursday stretch. A brand-new player's first claim is that bigger one too. Renato moved it off Monday on Nov 28 2026, so
+ *  Monday (team bonus) and Wednesday (rakeback) aren't all the free chips at once. The casino week itself still starts Monday. */
+export const WEEKLY_CLAIM = 100, DAILY = 50, PAYDAY = 4;
 /** The daily claim resets once a day at this hour (UTC), instead of 24 hours after your last claim. */
 export const DAILY_RESET_UTC = 16;
 /** The most recent reset time (ms) at or before now. */
@@ -44,7 +46,7 @@ export const lastReset = (now = Date.now()) => { const d = new Date(now), r = Da
 const dailyWait = (last, now = Date.now()) => !last || +last < lastReset(now) ? 0 : lastReset(now) + DAY - now;
 
 export const BLACKJACK_COMMANDS = [
-  { name: 'daily', description: 'Claim free chips: $100 your first claim each week, $50 the other days (resets 16:00 UTC)', type: 1 },
+  { name: 'daily', description: 'Claim free chips: $100 on payday (Thursday), $50 the other days (resets 16:00 UTC)', type: 1 },
   { name: 'blackjack', description: 'Play a hand of blackjack', type: 1,
     options: [{ type: 4, name: 'bet', description: `How much to bet ($1 to $${MAX_BET}, default $${DEFAULT_BET})`, min_value: 1, max_value: MAX_BET, required: false }] },
   { name: 'freebet', description: 'Free Bet Blackjack: free doubles on 9-11, free splits, dealer 22 pushes', type: 1,
@@ -179,6 +181,10 @@ function statCmds(id, game, net, stats) {
 export const HOUSE_GAMES = new Set(['blackjack', 'free bet', 'UTH', 'baccarat', 'roulette', 'madness']);
 export const weekStart = (now = Date.now()) => { const r = lastReset(now); return r - ((new Date(r).getUTCDay() + 6) % 7) * DAY; };
 export const weekKey = (now = Date.now()) => new Date(weekStart(now)).toISOString().slice(0, 10);
+/** The most recent payday reset (Thursday 16:00 UTC) at or before now: the $100 claim is the first one after it. */
+export const paydayStart = (now = Date.now()) => { const r = lastReset(now); return r - ((new Date(r).getUTCDay() - PAYDAY + 7) % 7) * DAY; };
+/** Rakeback pays RAKE_DAY days after the week's Monday start (2 = Wednesday 16:00 UTC), for the week that ended that Monday (Nov 28 2026). */
+export const RAKE_DAY = 2;
 const KEEP_WEEKS = 120 * 86400;   // seconds the weekly hashes are kept
 function houseCmds(id, game, net, wager) {
   net = Math.round(net * 100) / 100; wager = Math.round((+wager || 0) * 100) / 100;
@@ -190,10 +196,10 @@ function houseCmds(id, game, net, wager) {
 }
 // Rakeback = a share of the week's net loss + a sliver of everything bet (kept under the house edge), capped per week.
 export const RAKE = { loss: 0.10, volume: 0.0025, cap: 250 };
-/** What a week pays back on Monday, from the player's net and total bet at the house games. */
+/** What a week pays back (the Wednesday after it ends), from the player's net and total bet at the house games. */
 export const rakeFor = (net, vol = 0) => Math.min(RAKE.cap, Math.round((Math.max(0, -(+net || 0)) * RAKE.loss + (+vol || 0) * RAKE.volume) * 100) / 100);
 /** The /chips line: only the rakeback so far, never the loss. '' when they haven't played this week. */
-export const weekLine = (net, vol) => { const r = rakeFor(net, vol); return r >= 0.01 ? `**${money(r)}** rakeback so far, paid Monday` : ''; };
+export const weekLine = (net, vol) => { const r = rakeFor(net, vol); return r >= 0.01 ? `**${money(r)}** rakeback so far, paid the Wednesday after the week ends` : ''; };
 /** Total bet in a blackjack hand (all hands incl. paid doubles/splits, plus the side bet). */
 /** 1 when a blackjack hand was split into 3+ hands and every one of them won (Clean Sweep) */
 const sweep = g => g.hands.length >= 3 && g.hands.every(h => h.res === 'win' || h.res === 'bj') ? 1 : 0;
@@ -221,8 +227,8 @@ export async function claimDaily(me, { names = false } = {}) {
   const at = lastReset(now) + DAY, later = activeBuffs(bfRaw, rsRaw, me.id, at);
   return { amt, base, buffs, bal: +bal, weekly: base === WEEKLY_CLAIM, next: boosted(claimAmt(now, at), later), others };
 }
-/** What a claim at `at` pays: WEEKLY_CLAIM if it's the first since this week started (or ever), else DAILY. */
-export const claimAmt = (last, at = Date.now()) => !last || +last < weekStart(at) ? WEEKLY_CLAIM : DAILY;
+/** What a claim at `at` pays: WEEKLY_CLAIM if it's the first since the last payday (Thursday) reset (or ever), else DAILY. */
+export const claimAmt = (last, at = Date.now()) => !last || +last < paydayStart(at) ? WEEKLY_CLAIM : DAILY;
 /** '6 days left' / 'last day' / 'until game night' (RSVP) */
 export const buffLeft = (b, now = Date.now()) => { if (b.k === 'rsvp') return 'until game night'; const n = Math.ceil((b.until - now) / DAY); return n <= 1 ? 'last day' : `${n} days left`; };
 /** When the next daily is ready (ms from now, 0 = ready) and how much it gives. bf/rs/id = the buffReads() answers, to count buffs in. */
@@ -262,14 +268,14 @@ export const DAILY_LINES = [
   '🪪 {P} borrowed your badge again. You still got your $X.'];
 export const WEEKLY_LINES = [
   '🗓️ Weekly paycheck cleared: $X. Overtime counts.',
-  '💸 Direct deposit hit: $X. Monday money hits different.',
+  '💸 Direct deposit hit: $X. Thursday money hits different.',
   '🏆 Employee of the week bonus: $X.',
-  '📅 New week, new shift, and the boss paid double: $X.',
-  '🧼 Fresh week, clean slate, $X to ruin it with.',
-  '🎉 Back at work after the weekend. Welcome-back pay: $X.',
+  '📅 Payday Thursday, and the boss paid double: $X.',
+  '🧼 Payday, clean slate, $X to ruin it with before the weekend.',
+  '🎉 Weekend is almost here. Payday: $X.',
   '🏆 Employee of the week: you. {P} is demanding a recount. $X.',
   '🗓️ Weekly paycheck: $X. {P} has already planned how you\'ll lose it.',
-  '🎉 Back after the weekend. {P} is still hungover. $X.',
+  '🎉 Payday before the weekend. {P} is already making plans for your $X.',
   '💸 Direct deposit hit: $X. {P} is suddenly being very nice to you.'];
 /** Extra line when the balance after the claim is under DAILY_BROKE / over DAILY_RICH. */
 export const DAILY_BROKE = 100, DAILY_RICH = 5000;
@@ -312,7 +318,7 @@ async function daily(i, s) {
   const buffs = r.buffs.length ? '\n\n' + r.buffs.map(b => `${b.icon} **${b.name}** ${pc(b.pct)} · ${buffLeft(b)}`).join('\n') + `\nBuffs **${pc(r.buffs.pct)}**: ~~${money(base)}~~ → **${money(amt)}**` : '';
   const extra = +bal < DAILY_BROKE ? lineFor(BROKE_LINES, r.others) : +bal > DAILY_RICH ? lineFor(RICH_LINES, r.others) : '';
   return json({ type: 4, data: { allowed_mentions: { parse: [] }, embeds: [{ color: 0x8ee0b0,
-    title: r.weekly ? `💼 ${me.name} got the weekly paycheck: ${money(amt)}` : `💼 ${me.name} got paid ${money(amt)}`,
+    title: r.weekly ? `💼 ${me.name} got the payday paycheck: ${money(amt)}` : `💼 ${me.name} got paid ${money(amt)}`,
     description: `${line}${extra ? '\n' + extra : ''}${buffs}\n\n**+${money(amt)}** in chips · Balance **${money(+bal)}**`,
     footer: { text: `Next +${money(r.next)} after ${DAILY_RESET_UTC}:00 UTC` } }] } });
 }

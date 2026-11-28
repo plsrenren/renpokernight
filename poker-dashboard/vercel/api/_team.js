@@ -2,10 +2,10 @@
 // The score for a casino week (Monday 16:00 UTC on) = what everyone together won or lost against the house:
 //   the house games (blackjack, free bet, madness, UTH, baccarat, roulette) + what the house hands back through
 //   rakeback and the jackpot (slices + seeds). Poker free seats and /beg are left out (Renato's call).
-// Rakeback only lands in the books on Monday, so during the week the rakeback owed so far is counted instead
-// (the score doesn't jump when it's paid).
+// Rakeback only lands in the books the Wednesday after the week, so until then the rakeback owed is counted instead
+// (the score doesn't jump when it's paid, and Monday's settle counts it even though it isn't paid yet).
 // Shown on the casino lobby (Vs the house card: everyone + you), on the public /house in #casino, and settled on
-// Monday by teamWeek() (Vercel cron, roles.js ?rakeback=1, right after rakeback is paid):
+// Monday by teamWeek() (Vercel cron, roles.js ?weekly=1; rakeback is paid Wednesday by ?rakeback=1):
 //   - everyone who bet TEAM.minBet+ that week gets TEAM.playing chips, win or lose. New chips, not in the house books.
 //   - if the players finished up: TEAM.win more each (house books line 'team bonus'), the Bust the House title, and the
 //     team streak goes up; at TEAM.streak weeks in a row everyone who played that week gets the Bank Run overall bar.
@@ -61,13 +61,13 @@ export function goalLine(team, ends, now = Date.now()) {
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const day = ms => { const d = new Date(ms); return `${MON[d.getUTCMonth()]} ${d.getUTCDate()}`; };
 
-/** Monday: settles last week once (run after payRakeback, so its rakeback is in the books). Returns a short report. */
+/** Monday: settles last week once. Its rakeback isn't paid until Wednesday, so the rakeback owed is counted (owedFrom). Returns a short report. */
 export async function teamWeek(now = Date.now()) {
   const to = weekStart(now), from = to - WEEK, last = weekKey(from), cur = weekKey(now);
   const [first] = await kv(['SET', 'tm:done:' + last, String(now), 'NX', 'EX', KEEP]);
   if (!first) return { week: last, skipped: 'already done' };
-  const [hs, vol, names, tm] = await kv(['HGETALL', 'hs:wk:' + last], ['HGETALL', 'rb:vol:' + last], ['HGETALL', 'bj:name'], ['HGETALL', 'tm']);
-  const team = teamNet(hs), won = team > 0.004, t = pairs(tm), nm = pairs(names), v = pairs(vol);
+  const [hs, vol, names, tm, net] = await kv(['HGETALL', 'hs:wk:' + last], ['HGETALL', 'rb:vol:' + last], ['HGETALL', 'bj:name'], ['HGETALL', 'tm'], ['HGETALL', 'rb:wk:' + last]);
+  const team = teamNet(hs, owedFrom(net, vol)), won = team > 0.004, t = pairs(tm), nm = pairs(names), v = pairs(vol);
   const streak = won ? (+t.streak || 0) + 1 : 0, best = Math.max(+t.best || 0, streak);
   const who = Object.keys(v).filter(id => +v[id] >= TEAM.minBet);
   const each = TEAM.playing + (won ? TEAM.win : 0);

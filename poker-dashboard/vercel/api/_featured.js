@@ -1,11 +1,11 @@
 // Game of the Week (Nov 26 2026, Renato's pick, mockup https://claude.ai/artifact/WzSVBFfwQPHRjNk2CA4aov).
-// One house game is featured each casino week (weeks start Monday 16:00 UTC, same as rakeback), in a fixed rotation:
+// One house game is featured each casino week (weeks start Monday 16:00 UTC, same as the rakeback week), in a fixed rotation:
 // blackjack -> UTH -> free bet -> baccarat -> roulette -> around again (the week of Nov 23 2026 is roulette, the site roulette launch).
 //   - Losing hands on the featured game put GOTW.cut (4%) into the mystery jackpot instead of JP.cut (2%), see jackpotCmds.
 //     A bigger slice also makes those hands twice as likely to be the one that crosses the secret drop point, so the
 //     "double odds" need no rule of their own.
 //   - Headliner: biggest net win on the featured game that week, GOTW.minHands hands or more (ties: more hands).
-//     Monday's cron (roles.js ?rakeback=1, after rakeback) bumps ac:n:<id> gwwin, checkAccolades stamps the title, and one
+//     Monday's cron (roles.js ?weekly=1) bumps ac:n:<id> gwwin, checkAccolades stamps the title, and one
 //     #casino post names the winner and kicks off the new week's game.
 //   - Titles (ACC in loot.js): Headliner (gwwin 1), Floor Favorite (gwwin 3), VIP (gwbest 4 = minHands+ featured hands 4 weeks
 //     running; gwrun/gwbest kept by awardWeek, gw:run = who has a run going), Comped (gwjack, bumped by the jackpot Lua on a featured hand).
@@ -65,7 +65,7 @@ export function featuredView(netRaw, nRaw, nameOf, meId, now = Date.now()) {
     race: list.slice(0, 5), me: meId ? { net: mine ? mine.net : 0, hands: mine ? mine.hands : 0, rank: mine && mine.ok ? list.filter(r => r.ok).indexOf(mine) + 1 : null } : null };
 }
 
-/** Monday (cron, after rakeback): names last week's Headliner once, moves VIP runs, then posts the new week's game in #casino. */
+/** Monday (cron): names last week's Headliner once, moves VIP runs, then posts the new week's game in #casino. */
 export async function awardWeek(now = Date.now(), pot = null) {
   const last = weekKey(weekStart(now) - 1), lastGame = featuredGame(weekStart(now) - 1), game = featuredGame(now), G = GAME_INFO[game];
   const [first] = await kv(['SET', 'gw:done:' + last, String(now), 'NX', 'EX', 120 * 86400]);

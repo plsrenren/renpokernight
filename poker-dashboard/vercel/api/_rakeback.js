@@ -1,9 +1,10 @@
-// Weekly rakeback: every Monday at the daily reset (16:00 UTC), everyone who played the house games last week
+// Weekly rakeback: every Wednesday at the daily reset (16:00 UTC; Monday until Nov 28 2026, moved so the free chips are spread
+// over the week), everyone who played the house games in the casino week that ended that Monday
 // (blackjack, free bet, UTH, baccarat, roulette) gets RAKE.loss of their net loss plus RAKE.volume of everything they bet,
 // up to RAKE.cap, and the bot posts a plain-text "who got what" note in #casino. The note only shows what people get back,
 // never what they lost (Renato's call). Nets and bets are counted as hands finish (houseCmds in _blackjack.js).
 // Run by the Vercel cron (vercel.json -> /api/roles?rakeback=1). Safe to call any time: each finished week pays once.
-import { kv, money, FEED_KEEP, weekStart, weekKey, rakeFor, RAKE } from './_blackjack.js';
+import { kv, money, FEED_KEEP, weekStart, weekKey, rakeFor, RAKE, RAKE_DAY } from './_blackjack.js';
 import { postCasino } from './_rewards.js';
 
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -22,14 +23,15 @@ export function rakeList(netRaw, volRaw) {
 export function rakeText(people, from, to) {
   const lines = people.map(p => `<@${p.id}> **+${money(p.amt)}**`);
   let text = [`💸 **Weekly rakeback** · ${day(from)} to ${day(to)} · thanks for playing`, ...lines,
-    `-# Already in your balance · blackjack, free bet, Double Down Madness, UTH, baccarat and roulette count · up to ${money(RAKE.cap)} a week · new week starts now`].join('\n');
+    `-# Already in your balance · blackjack, free bet, Double Down Madness, UTH, baccarat and roulette count · up to ${money(RAKE.cap)} a week · paid every Wednesday`].join('\n');
   if (text.length > 1990) text = text.slice(0, 1985) + '…';
   return text;
 }
 
-/** Pays last week's rakeback once. Returns a short report. */
+/** Pays last week's rakeback once, from Wednesday's reset on (RAKE_DAY). Returns a short report. */
 export async function payRakeback(now = Date.now()) {
   const to = weekStart(now), from = to - 7 * 864e5, wk = weekKey(from);
+  if (now < to + RAKE_DAY * 864e5) return { week: wk, skipped: 'pays on Wednesday' };
   const [first] = await kv(['SET', 'rb:done:' + wk, String(now), 'NX', 'EX', 120 * 86400]);
   if (!first) return { week: wk, skipped: 'already paid' };
   const [netRaw, volRaw, names] = await kv(['HGETALL', 'rb:wk:' + wk], ['HGETALL', 'rb:vol:' + wk], ['HGETALL', 'bj:name']);

@@ -873,7 +873,7 @@ function lobby() {
       <div><a class="dbtn" href="/api/login">${DISCORD_SVG}Sign in with Discord</a><div class="fine">The site only gets your Discord name, pfp and ID. No password, no email, no messages.</div></div></section>
     ${jackpot()}${lottery()}<div class="cols">${board()}${feed()}</div>`;
   const me = S.me, d = me.daily, b = plateOf(me.id), L = S.lottery, O = S.open || {};
-  const msg = T.got ? `<div class="note ok">+${money(T.got)} added${T.weekly ? ' (weekly bonus)' : ''}${T.gotBuff ? ` (buffs +${T.gotBuff}%)` : ''}. Good luck.</div>` : '';
+  const msg = T.got ? `<div class="note ok">+${money(T.got)} added${T.weekly ? ' (payday bonus)' : ''}${T.gotBuff ? ` (buffs +${T.gotBuff}%)` : ''}. Good luck.</div>` : '';
   // you
   // buffs from poker nights (api/_buffs.js) make the day job pay more: total + struck-out base, then one chip each (nothing when none)
   const bf = d.buffs && d.buffs.list && d.buffs.list.length ? d.buffs : null;

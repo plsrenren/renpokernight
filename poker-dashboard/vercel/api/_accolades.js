@@ -13,7 +13,7 @@
 // Unlocked ones are kept in ac:own:<id> (hash accolade key -> when), so they stay even if a number drops later.
 // checkAccolades() runs after every bot and site request (waitUntil, after the answer is sent) for the players in ac:dirty,
 // which every finished hand, claim, tip, duel and pack adds to. The very first run checks everyone and posts nothing (already-earned ones arrive quietly).
-// weeklyAccolades() runs from the Monday cron (after rakeback) for High Roller, Beat the House, Whale and Regular.
+// weeklyAccolades() runs from the Monday cron (?weekly=1) for High Roller, Beat the House, Whale and Regular.
 import { kv, boardFrom, weekStart, HOUSE_GAMES } from './_blackjack.js';
 import { postCasino, postChannel, nightRows, inServer } from './_rewards.js';
 import { ACC, ITEMS, accItem } from '../loot.js';
