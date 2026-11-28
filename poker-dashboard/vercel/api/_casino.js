@@ -129,7 +129,7 @@ async function fixNames(names, sn) {
 
 async function state(me, sheet) {
   // two storage trips: everything for the lobby at once, then any unfinished hands
-  const [bal, names, feedRaw, last, cur, wkNetAll, wkVolAll, jp, ltRaw, pkRaw, hsWk, tmRaw, gwNet, gwN, bfRaw, rsRaw, acN, acOwn] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['LRANGE', 'cas:feed', 0, FEED_KEEP - 1],
+  const [bal, names, feedRaw, last, cur, wkNetAll, wkVolAll, jp, ltRaw, pkRaw, hsWk, tmRaw, gwNet, gwN, gwPk, bfRaw, rsRaw, acN, acOwn] = await kv(['HGETALL', 'bj:bal'], ['HGETALL', 'bj:name'], ['LRANGE', 'cas:feed', 0, FEED_KEEP - 1],
     ['HGET', 'bj:last', me ? me.id : '-'], ['HGETALL', 'cas:cur:' + (me ? me.id : '-')],
     // the whole week's nets + bets: your rakeback, and the Vs the house card (rakeback owed so far, see _team.js)
     ['HGETALL', 'rb:wk:' + weekKey()], ['HGETALL', 'rb:vol:' + weekKey()], ['HGETALL', 'jp'],
@@ -144,7 +144,7 @@ async function state(me, sheet) {
     open: { live: liveSummary(ltRaw), poker: roomSummary(pkRaw) }, vs: teamView(hsWk, wkNetAll, wkVolAll, tmRaw, me ? me.id : null) };
   // Game of the Week (see _featured.js): this week's game, the Headliner race, your own line
   { const nm = {}; for (let k = 0; k < (names || []).length; k += 2) nm[names[k]] = names[k + 1];
-    body.featured = featuredView(gwNet, gwN, id => sn[id] || nm[id] || 'Someone', me ? me.id : null); }
+    body.featured = featuredView(gwNet, gwN, gwPk, id => sn[id] || nm[id] || 'Someone', me ? me.id : null); }
   // the quarter lottery panel (needs the sheet; left out if it can't be read)
   try { if (sh && sh.csv) { const v = await lotteryView(sh.csv, null, sh.ids || {}); v.holders = v.holders.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); if (v.lastBoard) v.lastBoard = v.lastBoard.map(x => ({ ...x, id: (sh.ids || {})[x.name] || null })); body.lottery = v; } } catch (e) { console.error('lottery view', e); }
   if (!me) return body;

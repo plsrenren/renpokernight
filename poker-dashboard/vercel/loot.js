@@ -220,7 +220,7 @@ export const ACC = [
   // Game of the Week titles (Nov 26 2026, Renato's picks; see api/_featured.js)
   { k: 'vip', slot: 'Title', name: 'VIP', why: 'Featured game 4 weeks', need: '20+ featured-game hands 4 weeks in a row' },
   { k: 'comped', slot: 'Title', name: 'Comped', why: 'Jackpot on featured game', need: 'drop the jackpot on a Game of the Week hand' },
-  { k: 'headliner', slot: 'Title', name: 'Headliner', why: 'Won Game of the Week', need: 'top net win on the Game of the Week (20+ hands)' },
+  { k: 'headliner', slot: 'Title', name: 'Headliner', why: 'Won Game of the Week', need: 'highest peak win on the Game of the Week (20+ hands)' },
   { k: 'floorfav', slot: 'Title', name: 'Floor Favorite', why: 'Headliner 3 times', need: 'win Game of the Week 3 times' },
   // players vs the house as a team (Nov 27 2026, Renato's picks; see api/_team.js): stamped on Monday for everyone who bet $50+ that week
   // buffs (Nov 27 2026, Renato's ask): claim /daily with 4+ buffs running at once (ac:n aura, counted in claimDaily)
