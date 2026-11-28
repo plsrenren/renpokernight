@@ -20,10 +20,10 @@ const BEATS = { r: 's', p: 'r', s: 'p' };
 const VERB = { r: 'Rock smashes scissors.', p: 'Paper covers rock.', s: 'Scissors cut paper.' };
 const RANK = '23456789TJQKA';
 
-export const DUEL_COMMAND = { name: 'duel', description: 'Challenge someone for blackjack chips: coin flip, rock paper scissors or high card', type: 1,
+export const DUEL_COMMAND = { name: 'duel', description: 'Challenge someone for chips: coin flip, rock paper scissors or high card', type: 1,
   options: [
     { type: 4, name: 'bet', description: `Chips each player puts up ($1 to $${MAX_BET}, default $${DEFAULT_BET})`, min_value: 1, max_value: MAX_BET, required: false },
-    { type: 6, name: 'opponent', description: 'Who you are challenging (leave empty and anyone can accept)', required: false },
+    { type: 6, name: 'opponent', description: 'Who to challenge (empty = anyone can accept)', required: false },
     { type: 3, name: 'game', description: 'Coin flip (default), rock paper scissors or high card', required: false,
       choices: [{ name: 'Coin flip', value: 'coin' }, { name: 'Rock paper scissors', value: 'rps' }, { name: 'High card', value: 'high' }] }] };
 

@@ -85,9 +85,9 @@ const COMMANDS = [
   { name: 'lottery', description: 'The quarter lottery', type: 1, options: [
     { type: 1, name: 'odds', description: "The jackpot, your tickets and everyone's odds" },
     { type: 1, name: 'draw', description: "Draw last quarter's winner, live (host only)" }] },
-  { name: 'earn', description: 'Every way to earn chips: daily, poker night rewards, rakeback, the lottery', type: 1 },
-  { name: 'jackpot', description: 'The casino jackpot: how big it is and when it must drop', type: 1 },
-  { name: 'house', description: 'Players vs the house this week: is everyone together beating the casino?', type: 1 },
+  { name: 'earn', description: 'Every way to get chips', type: 1 },
+  { name: 'jackpot', description: 'How big the casino jackpot is', type: 1 },
+  { name: 'house', description: 'Players vs the house this week', type: 1 },
 ];
 // /fish and /donkey ping this person when nobody is picked (their Discord user ID, in quotes). Empty = they ask who.
 const FISH_DEFAULT = '170443455590301696';
@@ -276,21 +276,21 @@ async function answer(i) {
   return run ? run(i, opts, s) : say('Unknown command.');
 }
 
-// /earn (posted for everyone in the channel): every way to get chips. Poker night amounts come from REWARD_LIST, so they never go stale.
+// /earn (posted for everyone in the channel): every way to get chips, one short line each (trimmed Nov 28 2026).
+// The poker night line shows REWARD_LIST's first group ("Every night"), so amounts never go stale; the rest lives on the site.
 function earnEmbed() {
-  const nights = REWARD_LIST.map(g => `__${g.group}__\n` + g.items.map(x => `${x.what} **${x.amt}**`).join(' · ')).join('\n');
+  const night = (REWARD_LIST[0] || { items: [] }).items.map(x => `${x.what} **${x.amt}**`).join(' · ');
   return { color: 0xf1c75b, title: '💰 How to earn chips', url: `${SITE}/casino`,
     fields: [
-      { name: '🎁 /daily', value: `$${WEEKLY_CLAIM} on payday (your first claim from Thursday on), $${DAILY} the other days (resets ${DAILY_RESET_UTC}:00 UTC)` },
-      { name: '🃏 Poker night', value: 'Paid automatically after every saved night:\n' + nights },
-      { name: '💸 Weekly rakeback', value: `Every Wednesday you get a cut back on everything you played at the tables the week before (Monday to Monday), up to $${RAKE.cap}. Paid straight into your balance; /chips shows yours so far.` },
-      { name: '🏦 Players vs the house', value: `Every Monday, everyone who bet ${money(TEAM.minBet)}+ at the house games that week gets ${money(TEAM.playing)}. If the players beat the house together, ${money(TEAM.win)} more each. /house shows the score.` },
-      { name: '🎰 Casino jackpot', value: `2% of every hand the house wins goes in the pot. It drops at a secret amount before $${JP.cap.toLocaleString('en-US')} on whoever's losing hand pushes it over. /jackpot shows it.` },
-      { name: '🎟️ Quarter lottery', value: `Every $${TICKET} you buy in at poker night is a free ticket. One winner takes the whole quarter's buy-ins in chips. See /lottery odds.` },
-      { name: '🤝 /tip', value: 'Any player can send you chips.' },
-      { name: '🥺 /beg', value: `Beg the house for spare chips (${BEG.perDay} a day, only under $${BEG.under}), or /beg someone and see if they give, gamble it for you or laugh.` },
+      { name: '🎁 /daily', value: `$${DAILY} a day, $${WEEKLY_CLAIM} on Thursdays. Poker nights boost it.` },
+      { name: '🃏 Poker night', value: `${night}\n-# Plus streaks, bounties and more: [full list](${SITE}/casino)` },
+      { name: '💸 Rakeback', value: `Wednesdays, a cut of last week's play back, up to $${RAKE.cap}` },
+      { name: '🏦 Vs the house', value: `Bet ${money(TEAM.minBet)}+ in a week, get ${money(TEAM.playing)} Monday. ${money(TEAM.win)} more if the players win. /house` },
+      { name: '🎰 Jackpot', value: `Drops on a losing hand before $${JP.cap.toLocaleString('en-US')}. /jackpot` },
+      { name: '🎟️ Lottery', value: `1 ticket per $${TICKET} bought in at poker night. /lottery odds` },
+      { name: '🤝 /tip · 🥺 /beg', value: "Get chips from a friend, or beg when you're broke" },
     ],
-    footer: { text: 'Spend them at /blackjack, /freebet, /madness, /uth, /baccarat, /roulette, /duel, /pack or the site casino' } };
+    footer: { text: 'Spend them at the tables or on /pack' } };
 }
 
 const stampNow = () => Math.floor(Date.now() / 600e3); // Discord re-fetches pictures at most every 10 minutes
@@ -327,7 +327,7 @@ function player(i, opts, s) {
   if (!query) {
     const id = opts.user ? opts.user.value : (i.member && i.member.user || i.user || {}).id;
     query = byId[id];
-    if (!query) return say(opts.user ? "That Discord account isn't linked to a player yet (Members tab, Discord ID column)." : "Your Discord account isn't linked to a player yet. Ask Renato to add your Discord ID to the Members tab, or use `/player name:`.");
+    if (!query) return say(opts.user ? "That Discord account isn't linked to a player yet." : "Your Discord isn't linked to a player yet. Ask Renato, or use `/player name:`.");
   }
   const found = findPlayer(s.recs, query);
   if (!found.name) return notFound(query, found);
@@ -397,9 +397,9 @@ async function lottery(i, opts, s) {
   const me = byId[(i.member && i.member.user || i.user || {}).id], mine = me && b.holders.find(x => x.name === me);
   const pct = t => { const p = 100 * t / (b.total || 1); return (p < 10 ? p.toFixed(1) : Math.round(p)) + '%'; };
   const you = mine ? `You have **${mine.t} ticket${mine.t === 1 ? '' : 's'}** (${pct(mine.t)} to win).` : me ? 'You have no tickets yet this quarter.'
-    : "Your Discord isn't linked to a player yet, so you're not in the draw. Ask Renato to add your Discord ID to the Members tab.";
+    : "You're not in the draw: your Discord isn't linked to a player yet. Ask Renato.";
   return embed({ url: `${SITE}/casino`, title: `🎟️ ${q} lottery · ${'$' + b.jackpot.toLocaleString('en-US')} jackpot`,
-    description: `1 free ticket for every $${TICKET} you buy in at poker night. ${pending ? 'The quarter is over: the winner gets drawn live here soon.' : 'One winner is drawn live after the quarter ends and gets everything bought in, in chips.'}${you ? '\n\n' + you : ''}`,
+    description: `1 ticket per $${TICKET} bought in at poker night. ${pending ? 'Drawing live here soon.' : 'Winner takes every buy-in, in chips.'}${you ? '\n\n' + you : ''}`,
     image: { url: `${SITE}/api/wrap?lottery=${encodeURIComponent(q)}&v=${stampNow()}` } });
 }
 

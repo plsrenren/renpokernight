@@ -86,8 +86,8 @@ export async function awardWeek(now = Date.now(), pot = null) {
   const lines = [];
   if (w) lines.push(`🏆 **Headliner:** <@${w.id}>, peaked at **+${money(w.peak)}** on ${GAME_INFO[lastGame].short} over ${w.hands} hands. New title unlocked.`);
   const embed = { color: G.color, title: `⭐ Game of the Week: ${G.name}`, url: `${SITE}/casino#${G.route}`,
-    description: `Every losing ${G.short} hand puts **${Math.round(GOTW.cut * 100)}%** into the mystery jackpot this week (other games 2%), so ${G.short} hands are twice as likely to drop it.\n`
-      + `Highest ${G.short} peak by next Monday (your best point of the week, ${GOTW.minHands}+ hands) is the week's **Headliner**.`,
+    description: `${G.short} hands are twice as likely to drop the jackpot this week.\n`
+      + `Best ${G.short} peak by Monday (${GOTW.minHands}+ hands) wins **Headliner**.`,
     fields: [...(pot != null ? [{ name: 'Jackpot now', value: money(pot), inline: true }] : []),
       { name: 'Ends', value: `<t:${Math.floor(featuredEnds(now) / 1000)}:F>`, inline: true },
       { name: 'Play', value: `\`${G.cmd}\` or the site`, inline: true }] };

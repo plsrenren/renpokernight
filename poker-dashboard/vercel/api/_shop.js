@@ -21,7 +21,7 @@ const SITE = 'https://www.thepoker.study';
 const MAX_TIP = 100000;
 export const SHOP_COMMANDS = [
   { name: 'pack', description: `Buy a pack of Study Cards ($${PRICE}): 3 cosmetics for your player card`, type: 1 },
-  { name: 'loadout', description: 'Your Study Cards: change your title, pfp border, overall bar and sticker', type: 1 },
+  { name: 'loadout', description: 'Change your title, border, bar and sticker', type: 1 },
   { name: 'tip', description: 'Give some of your chips to another player', type: 1, options: [
     { type: 6, name: 'user', description: 'Who gets the chips', required: true },
     { type: 4, name: 'amount', description: 'How many chips', min_value: 1, max_value: MAX_TIP, required: true },

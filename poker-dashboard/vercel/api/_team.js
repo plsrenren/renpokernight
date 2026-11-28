@@ -113,8 +113,8 @@ export async function houseEmbed(now = Date.now()) {
   return { color: up ? 0x5fd38d : 0xff6b7d, title: '🏦 Players vs the House',
     description: [`**${up ? `🟢 Players are up ${money(team)}` : `🔴 The house is up ${money(-team || 0)}`} this week**`, meter, goalLine(team, weekStart(now) + WEEK, now)].join('\n'),
     fields: [
-      { name: `This week (since ${day(weekStart(now))}) · ${players} player${players === 1 ? '' : 's'}`, value: rows.length ? '```\n' + rows.join('\n') + '\n```' : 'Nobody has played yet.' },
-      { name: 'Monday', value: `Everyone who bets ${money(TEAM.minBet)}+ gets **${money(TEAM.playing)}**. If the players finish up: **+${money(TEAM.win)}** more each and the **Bust the House** title${+t.streak ? ` · 🔥 ${t.streak} week${+t.streak === 1 ? '' : 's'} in a row so far` : ''}.` },
+      { name: `This week · ${players} player${players === 1 ? '' : 's'}`, value: rows.length ? '```\n' + rows.join('\n') + '\n```' : 'Nobody has played yet.' },
+      { name: 'Monday', value: `Bet ${money(TEAM.minBet)}+ → **${money(TEAM.playing)}**. Players win → **+${money(TEAM.win)}** each + **Bust the House** title${+t.streak ? ` · 🔥 ${t.streak} week${+t.streak === 1 ? '' : 's'} in a row` : ''}` },
     ],
-    footer: { text: '+ = players won · rakeback counts what\'s owed so far · thepoker.study/casino' } };
+    footer: { text: '+ = players won · thepoker.study/casino' } };
 }

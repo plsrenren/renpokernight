@@ -78,7 +78,7 @@ export async function liveCommand(origin = 'https://www.thepoker.study') {
   E.tick(c, now);
   const url = origin + '/live', btn = label => [{ type: 1, components: [{ type: 2, style: 5, label, url }] }];
   if (!c.open) return { allowed_mentions: { parse: [] }, components: btn('Open a table'),
-    embeds: [{ color: 0x8f78f0, title: '🎰 No live table open', url, description: `Anyone in the server can open one on the site: blackjack, Free Bet or Ultimate Texas Hold'em, up to ${E.SEATS} players at once against one dealer.` }] };
+    embeds: [{ color: 0x8f78f0, title: '🎰 No live table open', url, description: `Anyone can [open one here](${url}): blackjack, Free Bet or UTH, up to ${E.SEATS} players.` }] };
   const seated = c.seats.filter(Boolean), open = E.SEATS - seated.length;
   const state = c.closing ? 'Closing after this round' : c.phase === 'paused' ? 'Paused by the host' : c.phase === 'act' ? `Round ${c.round} is being played` : seated.length ? 'Taking bets' : 'Waiting for players';
   const min = Math.max(1, Math.round((now - (c.openedAt || now)) / 60e3));
