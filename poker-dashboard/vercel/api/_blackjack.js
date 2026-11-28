@@ -402,6 +402,26 @@ export function settle(g) {
   g.net = g.payout + (g.sidePay || 0) - staked(g);
 }
 
+/** A finished deal's money, main bet apart from the side bets (Nov 28 2026, Renato's pick C): only the main bet says win / lose,
+ *  the money goes on a small card under it. { main, rows: [[label, net]], sides: number of side bets, net } */
+export function betRows(g) {
+  const r2 = n => Math.round(n * 100) / 100, sd = g.sides || {};
+  const hands = g.hands.map((h, k) => [g.hands.length > 1 ? `Hand ${k + 1}` : 'Hand', r2(h.won || 0)]), sides = [];
+  if (g.side) sides.push(['Push 22', r2((g.sideWin || 0) - g.side)]);
+  if (g.pog) sides.push(['Pot of Gold', r2((g.pogWin || 0) - g.pog)]);
+  if (g.war && sd.war) sides.push(['War', r2(sd.war.pay - g.war)]);
+  if (g.match && sd.match) sides.push(['Match', r2(sd.match.pay - g.match)]);
+  return { main: r2(hands.reduce((a, x) => a + x[1], 0)), rows: [...hands, ...sides], sides: sides.length, net: r2(g.net) };
+}
+/** Discord money card: a second embed under the result with each bet, the total and the balance. */
+export function moneyEmbed(m, bal, extra = '') {
+  const sg = n => n > 0 ? '+' + money(n) : n < 0 ? money(n) : '$0.00';
+  const rows = m.rows.map(([k, v]) => `${k} · \`${sg(v)}\``);
+  if (m.rows.length > 1) rows.push(`**Total · \`${sg(m.net)}\`**`);
+  return { color: 0x6e52c8, description: `${extra ? extra + '\n' : ''}${rows.join('\n')}\n\nBalance **${money(bal)}**` };
+}
+export const mainWord = n => n > 0 ? 'wins!' : n < 0 ? 'loses' : 'pushes';
+
 /** The side bets of a deal as lines for Discord + the picture: [{ name, amt, text, tag }] (tag = the picture's result tag, '' while open). */
 function sideLines(g) {
   const out = [], sd = g.sides || {};
@@ -423,7 +443,7 @@ function view(g, bal) {
   const sl = sideLines(g); if (sl.length) q.set('sb', sl.map(l => [l.name, l.amt, l.tag || ''].join('~')).join('|'));
   const onTable = g.hands.reduce((a, h) => a + h.bet, 0) + (g.side || 0) + (g.pog || 0), freeOn = g.hands.reduce((a, h) => a + (h.free || 0), 0);
   const RES = { win: 'won', bj: 'hit blackjack 🔥', push: 'pushed', lose: 'lost', bust: 'busted' };
-  let title, description = '', color;
+  let title, description = '', color, cash = null;
   const sideTxt = sideLines(g).map(l => `${l.name}: ${money(l.amt)} · ${l.text}`);
   if (!g.over) { title = `🃏 ${TITLE(g)} · ${g.name} bets ${money(g.bet)}${g.side ? ` + ${money(g.side)} Push 22` : ''}${g.pog ? ` + ${money(g.pog)} Pot of Gold` : ''}`; color = 0x6e52c8;
     if (g.hands.length > 1) description = `Playing hand ${g.active + 1} of ${g.hands.length}`;
@@ -431,13 +451,18 @@ function view(g, bal) {
       description = [h.cards.length < 2 ? (h.cards[0][0] === 'A' ? 'You started with an ace: your next card is your last. Hit, or double first.' : 'One card each. Hit or double for your second card.')
         : `Your bet: **${money(h.bet)}**${x > 1 ? ` (${x}x)` : ''}. Double adds ${money(h.bet)} and one more card, as often as you like.`, ...sideTxt].join('\n'); } }
   else {
-    title = g.net > 0 ? `🃏 ${g.name} wins ${money(g.net)}!` : g.net < 0 ? `🃏 ${g.name} loses ${money(-g.net)}` : `🃏 ${g.name} breaks even`;
-    color = g.net > 0 ? 0x8ee0b0 : g.net < 0 ? 0xf59bb0 : 0x9a94c4;
+    // the main bet alone says win / lose, with no amount; the money goes on the card under it (moneyEmbed)
+    cash = betRows(g);
+    title = `🃏 ${g.name} ${mainWord(cash.main)}`;
+    color = cash.main > 0 ? 0x8ee0b0 : cash.main < 0 ? 0xf59bb0 : 0x9a94c4;
     const d = total(g.dealer).t;
-    const lines = g.hands.map((h, k) => `${g.hands.length > 1 ? `Hand ${k + 1}: ` : ''}${total(h.cards).t}${h.freeDbl ? ' (free double)' : h.doubled ? ' (doubled)' : ''}${!h.bet && h.free ? ' (free hand)' : ''}, ${RES[h.res]}${isFree(g) && h.won > 0 ? ' ' + money(h.won) : ''}`);
-    if (g.side) lines.push(g.sideWin ? `Push 22: ${money(g.side)} pays ${money(g.side * 12)} 🎯` : `Push 22: lost ${money(g.side)}`);
-    lines.push(...sideTxt);
-    description = `${g.d22 ? 'Dealer hit 22, so standing hands push' : d > 21 ? 'Dealer busted with ' + d : 'Dealer has ' + d}\n${lines.join('\n')}\n\nBalance **${money(bal)}**`;
+    const lines = g.hands.map((h, k) => `${g.hands.length > 1 ? `Hand ${k + 1}: ` : ''}${total(h.cards).t}${h.freeDbl ? ' (free double)' : h.doubled ? ' (doubled)' : ''}${!h.bet && h.free ? ' (free hand)' : ''}, ${RES[h.res]}`);
+    if (g.side) lines.push(g.sideWin ? 'Push 22: dealer hit 22, pays 12:1 🎯' : 'Push 22: lost');
+    const sd = g.sides || {}; // no amounts up here: they're all on the money card
+    if (g.pog) lines.push(`Pot of Gold: ${g.pogWin ? `${g.fb} free bet${g.fb === 1 ? '' : 's'}, pays ${POG[Math.min(g.fb, POG.length - 1)]}:1 🪙` : 'lost'}`);
+    if (g.war && sd.war) lines.push(`War: ${sd.war.res === 'win' ? 'pays 1:1' : sd.war.res === 'tie' ? 'tie, half back' : 'lost'}`);
+    if (g.match && sd.match) lines.push(`Match: ${sd.match.res === 'win' ? `${sd.match.kind} pays ${sd.match.x}:1` : 'lost'}`);
+    description = `${g.d22 ? 'Dealer hit 22, so standing hands push' : d > 21 ? 'Dealer busted with ' + d : 'Dealer has ' + d}\n${lines.join('\n')}`;
   }
   const footer = g.over ? (isFree(g) ? 'Free doubles on 9-11 · free splits (not 10s) · dealer 22 pushes · dealer hits soft 17'
       : isMad(g) ? 'Double as often as you like · suited blackjack 2:1 · dealer 22 pushes · dealer hits soft 17' : 'Blackjack pays 3:2 · dealer stands on 17 · split up to 6 hands')
@@ -449,7 +474,8 @@ function view(g, bal) {
     : [btn('Hit', '👊', 'hit', 1), btn('Stand', '✋', 'stand', 2),
        ...(m.dbl ? [m.dblFree ? btn('Free Double', '🎟️', 'double', 3) : btn('Double', '💰', 'double', 3)] : []),
        ...(m.spl ? [m.splFree ? btn('Free Split', '🎟️', 'split', 3) : btn('Split', '✂️', 'split', 3)] : [])];
-  return { allowed_mentions: { parse: [] }, embeds: [{ color, title, description: description || undefined, image: { url: `${SITE}/api/bjcards?${q}` }, footer: { text: footer } }],
+  return { allowed_mentions: { parse: [] }, embeds: [{ color, title, description: description || undefined, image: { url: `${SITE}/api/bjcards?${q}` }, footer: { text: footer } },
+    ...(cash ? [moneyEmbed(cash, bal)] : [])],
     components: [{ type: 1, components: row }] };
 }
 
@@ -544,6 +570,7 @@ export function publicHand(g, bal) {
   const m = moves(g, bal);
   return { id: g.id, bet: g.bet, over: g.over, active: g.active, net: g.net, payout: g.payout, mode: g.mode || 'classic', side: g.side || 0, sideWin: g.sideWin || 0, d22: !!g.d22,
     pog: g.pog || 0, pogWin: g.pogWin || 0, fb: g.fb || 0, war: g.war || 0, match: g.match || 0, sides: g.sides || null, sidePay: g.sidePay || 0, canStand: m.stand, dblCost: m.cost || 0,
+    money: g.over ? betRows(g) : null,
     dealer: g.over ? g.dealer : [g.dealer[0], 'XX'], dealerTotal: total(g.over ? g.dealer : [g.dealer[0]]).t,
     hands: g.hands.map(h => ({ cards: h.cards, bet: h.bet, free: h.free || 0, doubled: !!h.doubled, doubles: h.doubles || 0, freeDbl: !!h.freeDbl, res: h.res || null, total: total(h.cards).t, soft: total(h.cards).soft })),
     canDouble: m.dbl, canSplit: m.spl, freeDouble: m.dblFree, freeSplit: m.splFree };

@@ -3,7 +3,7 @@
 //   Tie 8:1. Player and Banker bets push on a tie.
 // The buttons under a result deal a new hand for whoever presses them (same bet), so anyone can join in.
 import { randomInt } from 'node:crypto';
-import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, MAX_BET, feedCmds, takeChips, nameCmd } from './_blackjack.js';
+import { kv, kvUrl, kvToken, money, json, quiet, whoIs, noStorage, MAX_BET, feedCmds, takeChips, nameCmd, moneyEmbed, mainWord } from './_blackjack.js';
 
 const SITE = 'https://www.thepoker.study';
 export const DEFAULT_BET = 20;
@@ -60,13 +60,14 @@ async function play(me, side, bet) {
   const { c, net, bal } = r;
   const how = c.natural ? 'a natural' : c.p.length + c.b.length > 4 ? 'third cards' : 'two cards each';
   const won = c.winner === 'tie' ? `It's a tie, ${c.ps}–${c.bs}` : `${SIDES[c.winner]} wins ${Math.max(c.ps, c.bs)}–${Math.min(c.ps, c.bs)}`;
-  const title = net > 0 ? `🎴 ${me.name} wins ${money(net)}!` : net < 0 ? `🎴 ${me.name} loses ${money(-net)}` : `🎴 ${me.name} pushes`;
+  const title = `🎴 ${me.name} ${mainWord(net)}`; // no amount up top: the money goes on the card under it (Nov 28 2026)
   const q = new URLSearchParams({ m: 'bac', p: c.p.join('.'), b: c.b.join('.'), w: c.winner, n: me.name, s: side, v: Date.now().toString(36) });
   const btn = s => ({ type: 2, style: s === side ? 1 : 2, label: `${SIDES[s]} (${money(bet)})`, custom_id: `ba:${s}:${bet}` });
   return json({ type: 4, data: { allowed_mentions: { parse: [] }, embeds: [{ color: net > 0 ? 0x8ee0b0 : net < 0 ? 0xf59bb0 : 0x9a94c4, title,
-    description: `${won} (${how}). ${me.name} bet **${money(bet)}** on **${SIDES[side]}**.\n\nBalance **${money(+bal)}**`,
+    description: `${won} (${how}). ${me.name} bet on **${SIDES[side]}**.`,
     image: { url: `${SITE}/api/bjcards?${q}` },
-    footer: { text: 'Player 1:1 · Banker 0.95:1 · Tie 8:1 (Player/Banker push on a tie) · anyone can tap below to play' } }],
+    footer: { text: 'Player 1:1 · Banker 0.95:1 · Tie 8:1 (Player/Banker push on a tie) · anyone can tap below to play' } },
+    moneyEmbed({ rows: [[`${SIDES[side]} ${money(bet)}`, net]], net }, +bal)],
   components: [{ type: 1, components: ['player', 'banker', 'tie'].map(btn) }] } });
 }
 

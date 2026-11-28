@@ -15,8 +15,8 @@
 // The engine says what to pay in T._pay ([{ id, name, amt, feed }]); feed = { game, net, wager, stats } for the house books
 // (feedCmds: casino feed, house, rakeback, jackpot, accolades), null for a plain refund.
 // Timers: deadlines in the table (s.dl, T.deadline, T.nextAt); browsers send "tick" when one has passed (same as the poker room).
-import { freshDeck, total, settle as bjSettle, moves, MAX_PUSH22 } from './_blackjack.js';
-import { settle as uthSettle, best, CAT, MAX_ANTE, MAX_TRIPS } from './_uth.js';
+import { freshDeck, total, settle as bjSettle, moves, MAX_PUSH22, betRows as bjRows } from './_blackjack.js';
+import { settle as uthSettle, best, CAT, MAX_ANTE, MAX_TRIPS, betRows as uthRows } from './_uth.js';
 
 export const SEATS = 5;
 export const MIN_BET = 5, MAX_BET = 500;  // every table: $5 to $500, UTH ante capped at $100 like /uth (MAX_ANTE), no host setting (by request)
@@ -229,7 +229,7 @@ function finish(T, now) {
     for (const s of inRound(T)) {
       const g = s.g; Object.assign(g, { dealer: T.dealer, board: T.board }); uthSettle(g);
       const refund = g.folded ? g.held : 0; g.held = 0;
-      s.res = { net: r2(g.net), hand: g.myHand, res: g.res };
+      s.res = { net: r2(g.net), hand: g.myHand, res: g.res, money: uthRows(g) }; // money: main bet apart from Trips (the result word goes by the main bet)
       pay(T, s, g.payout + refund, { game: FEED.uth, net: g.net, wager: g.ante * 2 + g.trips + g.play, stats: { royal: g.royal } });
     }
   } else {
@@ -241,7 +241,7 @@ function finish(T, now) {
     for (const s of inRound(T)) {
       const g = s.g; g.dealer = T.dealer; g.deck = []; bjSettle(g); // the dealer is already played out, so settle() draws nothing
       const sweep = g.hands.length >= 3 && g.hands.every(h => h.res === 'win' || h.res === 'bj') ? 1 : 0;
-      s.res = { net: r2(g.net), hands: g.hands.map(h => h.res), d22: !!g.d22, sideWin: g.sideWin || 0 };
+      s.res = { net: r2(g.net), hands: g.hands.map(h => h.res), d22: !!g.d22, sideWin: g.sideWin || 0, money: bjRows(g) };
       pay(T, s, g.payout, { game: FEED[T.game], net: g.net, wager: g.hands.reduce((a, h) => a + h.bet, 0) + (g.side || 0), stats: { naturals: g.nat, sweep } });
     }
   }

@@ -123,6 +123,10 @@ select { background: var(--panel2); color: var(--fg); border: 0; padding: 8px 8p
 .status { position: absolute; left: 50%; top: 28%; transform: translateX(-50%); text-align: center; width: 70%; pointer-events: none; }
 .status .big { font: 400 clamp(20px, 2.6vw, 30px)/1 var(--title); letter-spacing: .06em; color: #fff; }
 .status .sm { font-size: 12.5px; color: rgba(255,255,255,.72); margin-top: 4px; min-height: 1.3em; }
+/* money card under your result word (Nov 28 2026, same as /casino): the word goes by the main bet, the money sits here */
+.status .mc { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 2px 12px; background: rgba(10,8,25,.85); color: #fff; font: 500 12.5px var(--mono); padding: 4px 10px; margin-top: 2px; }
+.status .mc i { font-style: normal; color: rgba(255,255,255,.65); } .status .mc .tot { font-weight: 600; } .status .mc .tot i { color: #fff; }
+.status .mc .pos { color: var(--up); } .status .mc .neg { color: var(--down); }
 .ltb { display: flex; gap: 5px; justify-content: center; margin-top: 6px; }
 
 /* cards (four-color deck like the poker room) */
@@ -416,7 +420,7 @@ function sounds(t) {
   const ms = me >= 0 ? t.seats[me] : null, mq = me >= 0 ? prev.seats[me] : null;
   if (ms && t.phase === 'act' && ms.deciding && !(mq && mq.deciding)) SND.turn(.1);
   if (ms && ms.res && t.phase === 'done' && !(mq && mq.res && prev.round === t.round)) {
-    const drawn = t.game === 'uth' ? 0 : Math.max(0, t.dealer.length - 2), at = t.game === 'uth' ? 600 : 350 + drawn * CARD_MS, net = ms.res.net;
+    const drawn = t.game === 'uth' ? 0 : Math.max(0, t.dealer.length - 2), at = t.game === 'uth' ? 600 : 350 + drawn * CARD_MS, net = mainOf(ms.res);
     setTimeout(() => net > 0 ? SND.win() : net < 0 ? SND.lose() : SND.push(), at);
   }
 }
@@ -514,9 +518,10 @@ function feltHTML(t) {
   else if (t.phase === 'bet') { const n = t.seats.filter(s => s && s.locked).length; big = n ? 'Bets are open' : 'Place your bets'; sm = t.deadline ? `Dealing in <b data-cd="bet"></b>` : t.seats.some(Boolean) ? 'The clock starts with the first bet' : 'Take a seat to play'; }
   else if (t.phase === 'act') { big = uth ? { pre: 'Pre-flop', flop: 'The flop', river: 'Turn and river' }[t.street] : 'Players act';
     sm = ms && ms.deciding ? 'Your move' + (waiting.length ? ` · ${waiting.length} other${waiting.length > 1 ? 's' : ''} deciding` : '') : waiting.length ? 'Waiting on ' + waiting.map(esc).join(', ') : ''; }
-  else if (done) { big = ms && ms.res ? (ms.res.net > 0 ? 'You win ' + money(ms.res.net) : ms.res.net < 0 ? 'You lose ' + money(-ms.res.net) : 'Push') : 'Round over';
-    sm = uth && ms && ms.res && ms.res.hand ? 'You: ' + esc(ms.res.hand) : 'Next round in a moment'; }
-  const status = `<div class="status"><div class="big"${done ? ` style="animation:pop .3s both;${resStyle}"` : ''}>${esc(big)}</div><div class="sm">${sm}</div>${board}</div>`;
+  else if (done) { const mn = ms && ms.res ? mainOf(ms.res) : 0; // the word goes by your main bet only; the money goes on the card under it
+    big = ms && ms.res ? (ms.res.res === 'fold' ? 'You fold' : mn > 0 ? 'You win' : mn < 0 ? 'You lose' : 'Push') : 'Round over';
+    sm = ms && ms.res ? moneyCard(ms.res) + (uth && ms.res.hand ? `<div>You: ${esc(ms.res.hand)}</div>` : '') : 'Next round in a moment'; }
+  const status = `<div class="status"><div class="big"${done ? ` style="animation:pop .3s both;${resStyle}"` : ''}>${esc(big)}</div><div class="sm"${done ? ` style="animation:pop .3s both;${resStyle}"` : ''}>${sm}</div>${board}</div>`;
   return `${shoe}<div class="dealer"><div class="lbl">Dealer<b>${dtot === '' || dtot === null ? '' : esc(String(dtot))}</b></div><div class="cards">${dcards}</div></div>
     <div class="rules"><b>${GAMES[t.game]}</b>${RULES[t.game]}</div>${status}${t.seats.map((s, i) => seatHTML(t, s, i, resStyle)).join('')}${switchHTML(t)}`;
 }
@@ -525,6 +530,12 @@ function switchHTML(t) {
   const ago = Date.now() - swAt; if (!swAt || ago >= SWITCH_MS) return '';
   return `<div class="gswitch" style="animation-delay:-${ago}ms"><div class="in"><span class="gfan">${GFAN[t.game].map(c => K.card(c)).join('')}</span>
     <small>Now playing</small><b>${GAMES[t.game]}</b><span class="rl">${RULES[t.game]}</span>${swFrom && GAMES[swFrom] ? `<span class="was">was <s>${GAMES[swFrom]}</s></span>` : ''}</div></div>`;
+}
+// your main bet's result (Trips / Push 22 left out); rounds saved before Nov 28 2026 have no money rows
+const mainOf = r => r.money ? r.money.main : r.net;
+function moneyCard(r) {
+  const m = r.money || { rows: [['Hand', r.net]], net: r.net }, c = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '', amt = v => v > 0 ? '+' + money(v) : v < 0 ? money(v) : '$0.00';
+  return `<div class="mc">${m.rows.map(([k, v]) => `<span><i>${esc(k)}</i> <b class="${c(v)}">${amt(v)}</b></span>`).join('')}${m.rows.length > 1 ? `<span class="tot"><i>Total</i> <b class="${c(m.net)}">${amt(m.net)}</b></span>` : ''}</div>`;
 }
 function resTag(n, word, delay) { if (n == null) return ''; const c = word === 'Blackjack' ? 'bj' : n > 0 ? 'w' : n < 0 ? 'l' : 'p';
   return `<span class="res ${c}" style="${delay}">${word ? esc(word) + ' ' : ''}${n > 0 ? '+' + money(n) : n < 0 ? money(n) : 'Push'}</span>`; }
@@ -538,7 +549,7 @@ function seatHTML(t, s, i, resDelay) {
   let hands = '';
   if (uth && s.cards) {
     const own = i === me && S.me.mine ? S.me.mine.cards : null, cs = own || s.cards;
-    hands = `<div class="hand"><div class="cards">${cs.map((c, k) => card(c, `r${t.round}:s${i}:${k}:${c === 'XX' ? 'b' : 'f'}`, k * 110)).join('')}</div>${done && s.res ? resTag(s.res.net, s.folded ? 'Fold' : '', resDelay) : i === me && S.me.mine && S.me.mine.hand ? `<span class="tot">${esc(S.me.mine.hand)}</span>` : ''}</div>`;
+    hands = `<div class="hand"><div class="cards">${cs.map((c, k) => card(c, `r${t.round}:s${i}:${k}:${c === 'XX' ? 'b' : 'f'}`, k * 110)).join('')}</div>${done && s.res ? resTag(mainOf(s.res), s.folded ? 'Fold' : '', resDelay) : i === me && S.me.mine && S.me.mine.hand ? `<span class="tot">${esc(S.me.mine.hand)}</span>` : ''}</div>`;
   } else if (s.hands) {
     const many = s.hands.length > 1;
     hands = s.hands.map((h, j) => {
