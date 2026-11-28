@@ -469,13 +469,13 @@ function closedHTML() {
   const signIn = `<a class="dbtn" href="/api/login?to=live">${DISCORD_SVG}Sign in with Discord</a>`;
   const opt = (arr, cur, f) => arr.map(x => `<option value="${x}"${x == cur ? ' selected' : ''}>${f ? f(x) : x}</option>`).join('');
   return `<section class="panel"><h2>No table open</h2>
-    <p class="hint">Anyone in the Poker Club Discord can open a live table: blackjack, Free Bet or Ultimate Texas Hold'em. Up to 5 people play their own hands at the same time against one dealer, with their casino chips. Everyone at the table and on the rail sees every hand.</p>
-    ${S.me ? `${gameCards(oGame)}<button class="cbtn" id="oGo">Open the table</button><p class="hint" style="margin-top:10px">Opening posts a note in #casino. You run the table (pause, change the game between rounds, close) until you leave it.</p>` : signIn}
+    <p class="hint">Anyone in the Discord can open one: blackjack, Free Bet or UTH. Up to 5 players, one dealer.</p>
+    ${S.me ? `${gameCards(oGame)}<button class="cbtn" id="oGo">Open the table</button><p class="hint" style="margin-top:10px">Posts in #casino. You run it until you leave.</p>` : signIn}
     ${err ? `<div class="err">${esc(err)}</div>` : ''}</section>
     <section class="panel"><h2 class="p">How it plays</h2><ul class="howto">
-      <li>Pick an empty seat, then bet. Bets close a few seconds after the first one, or as soon as everyone seated is in.</li>
-      <li>Everyone plays at once against the same dealer card, each on their own clock. Run out of time and you stand (or check; on the UTH river you fold).</li>
-      <li>Same rules and payouts as the solo games, and every hand counts for rakeback, the jackpot and titles like a solo hand.</li>
+      <li>Pick a seat and bet. Bets close a few seconds after the first one.</li>
+      <li>Everyone plays at once, each on their own clock. Out of time = stand.</li>
+      <li>Same payouts as solo. Counts for rakeback, the jackpot and titles.</li>
     </ul></section>`;
 }
 function bindClosed() {
@@ -641,11 +641,11 @@ function dockHTML(t) {
 function lowerHTML(t) {
   return `<div class="lower"><section class="panel"><h2 class="p">Table log</h2><div class="log">${t.log.length ? t.log.map(l => `<div>${esc(l)}</div>`).join('') : '<div>Nothing yet.</div>'}</div></section>
     <section class="panel"><h2>How it plays</h2><ul class="howto">
-      <li>Bets close ${t.cfg.betClock} seconds after the first one, or as soon as everyone seated is in.</li>
-      <li>Everyone plays at once against the same dealer, each with a ${t.cfg.clock} second clock. Out of time = ${t.game === 'uth' ? 'check (fold on the river)' : 'stand'}.</li>
-      <li>${t.game === 'uth' ? 'Bet 4x before the flop, 2x on the flop or 1x on the river (or fold). The deal holds 1x your ante so the river bet is always covered.' : t.game === 'fb' ? 'Free doubles on hard 9, 10 and 11, free splits on any pair but 10s. A free bet pays even money if it wins and costs nothing if it loses. Dealer 22 pushes.' : 'Split up to 6 hands, double on any first two cards. Blackjack pays 3 to 2.'}</li>
-      <li>Same payouts as the solo game. Every hand counts for rakeback, the jackpot and titles.</li>
-      <li>Sitting out 5 rounds in a row stands you up. Your chips never stay on the table.</li></ul></section></div>`;
+      <li>Bets close ${t.cfg.betClock}s after the first one.</li>
+      <li>Everyone plays at once, ${t.cfg.clock}s each. Out of time = ${t.game === 'uth' ? 'check (fold on the river)' : 'stand'}.</li>
+      <li>${t.game === 'uth' ? 'Bet 4x pre-flop, 2x on the flop or 1x on the river (or fold).' : t.game === 'fb' ? 'Free doubles on 9 to 11, free splits on pairs but 10s. Dealer 22 pushes.' : 'Blackjack pays 3:2. Split up to 6 hands.'}</li>
+      <li>Same payouts as solo. Counts for rakeback, the jackpot and titles.</li>
+      <li>Sit out 5 rounds and you're stood up.</li></ul></section></div>`;
 }
 function bindTable() {
   const t = T();

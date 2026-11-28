@@ -720,7 +720,7 @@ function feed() {
   const unit = g => g === 'roulette' ? 'spins' : g === 'study cards' ? 'packs' : g.startsWith('duel') ? 'duels' : 'hands';
   const sess = f => f.n > 1 ? `<span class="st">${f.n} ${unit(f.game)} · ${f.game === 'study cards' ? '' : `${f.w}W ${f.l}L · `}${Math.max(1, Math.round((f.at - f.first) / 60e3))} min</span>` : '';
   const rows = S.feed.map(f => `<div>${av(f.id, f.name)}<span class="who">${esc(f.name)} <small>${esc(f.game === 'madness' ? 'double down madness' : f.game)} · ${ago(f.at)}</small>${sess(f)}${f.why ? `<em>${esc(f.why)}</em>` : ''}</span> <span class="src${f.src === 'site' ? '' : f.src === 'night' ? ' n' : ' d'}">${f.src === 'site' ? 'site' : f.src === 'night' ? 'reward' : 'discord'}</span><span class="amt ${f.net > 0 ? 'pos' : f.net < 0 ? 'neg' : ''}">${signed(f.net)}</span></div>`).join('');
-  return `<div class="panel"><h2 class="p">Just now</h2><p class="hint">Latest play from Discord and the site, plus poker night rewards. A run of hands by one player is one line.</p><div class="feed">${rows || '<p class="hint">No hands yet.</p>'}</div></div>`;
+  return `<div class="panel"><h2 class="p">Just now</h2><p class="hint">Latest play from Discord and the site.</p><div class="feed">${rows || '<p class="hint">No hands yet.</p>'}</div></div>`;
 }
 function rewards() {
   if (!S.rewards || !S.rewards.length || !S.rewards[0].items) return '';
@@ -790,7 +790,7 @@ function lottery() {
     : `<div class="tl" style="border-left-color:var(--up)"><div class="k">Tickets</div><div class="v">${L.total}</div><div class="s">${inDraw.length} players in the draw</div></div>`;
   const past = (L.past || []).map(p => `<div class="past"><span class="q">${esc(p.quarter)}</span>${esc(p.name)} · #${String(p.ticket).padStart(3, '0')}<span class="amt">${money(p.jackpot)}</span></div>`).join('');
   return `<div class="panel lot"><h2 class="g">🎟️ ${esc(L.quarter)} lottery</h2>
-    <p class="hint">Free. Every $${L.ticket} you buy in at poker night this quarter is a ticket. ${L.pending ? `${esc(L.quarter)} is over: the winner gets drawn live in Discord soon.` : 'After the quarter ends, one winner is drawn live in Discord and gets everything bought in, in chips.'}</p>
+    <p class="hint">Free: 1 ticket per $${L.ticket} bought in at poker night. ${L.pending ? 'Drawing live in Discord soon.' : 'Drawn live in Discord after the quarter.'}</p>
     ${won}<div class="ltiles">
       <div class="tl jp"><div class="k">Jackpot</div><div class="v">${money(L.jackpot)}</div><div class="s">everything bought in this quarter, 1:1</div></div>
       ${mineTile}
@@ -798,11 +798,10 @@ function lottery() {
     </div>
     <div class="lcols"><div class="wheelbox">${L.total ? wheelSvg(L.holders, L.total, 280, [money(L.jackpot), 'JACKPOT'], { me: meName }) : '<p class="hint">No tickets yet this quarter.</p>'}<div class="llist">${list}</div></div>
       <div><div class="sub">How it works</div><ul class="how">
-        <li><b>1 ticket per $${L.ticket}</b> of buy-ins: rebuys and top-ups count, cash or tourney.</li>
-        <li>Comes straight from the sheet, so tickets show up as soon as a night is saved.</li>
-        <li><b>Winner gets the jackpot</b> in chips + the <b>Lucky Ticket</b> role on Discord until the next draw.</li>
-        <li>You need your Discord linked to be in the draw (the chips live on Discord). Greyed out = not linked yet: ask Renato to add your Discord ID.</li>
-        <li>Tickets start over every quarter. /lottery odds shows this in Discord too.</li></ul>
+        <li><b>1 ticket per $${L.ticket}</b> of buy-ins, rebuys and top-ups included.</li>
+        <li><b>Winner gets the jackpot</b> in chips + the <b>Lucky Ticket</b> role.</li>
+        <li>Greyed out = Discord not linked yet. Ask Renato.</li>
+        <li>Tickets reset every quarter.</li></ul>
         ${past ? `<div class="sub">Past winners</div>${past}` : ''}</div></div></div>`;
 }
 // live tables (/live): the line says when one is open (read once when the lobby loads)
@@ -816,7 +815,7 @@ function jackpot() {
   return `<div class="jpb" id="jpb"><div><div class="k">🎰 Casino jackpot</div><div class="n" id="jpN">${cents(J.pot)}</div></div>
     <div class="jps"><b>MUST DROP BY ${money(J.cap)}</b>at a secret amount</div>
     <div class="meter"><i id="jpBar" style="width:${pct}%"></i></div>
-    <div class="hint" id="jpHint">${J.last ? `Last hit: ${esc(J.last.name)} ${cents(J.last.win)} · ${jpAgo(J.last.at)}` : `2% of every hand the house wins goes in${J.featured ? ` (${Math.round(J.featured.cut * 100)}% on ${esc(J.featured.short)} this week)` : ''}. The losing hand that pushes it past the secret amount wins it all.`}</div></div>`;
+    <div class="hint" id="jpHint">${J.last ? `Last hit: ${esc(J.last.name)} ${cents(J.last.win)} · ${jpAgo(J.last.at)}` : `2% of every losing hand goes in${J.featured ? ` (${Math.round(J.featured.cut * 100)}% on ${esc(J.featured.short)})` : ''}. Drops at a secret amount.`}</div></div>`;
 }
 function jackpotCard(J) {
   const pct = Math.max(0, Math.min(100, (J.pot - J.seed) / Math.max(1, J.cap - J.seed) * 100));
@@ -869,8 +868,8 @@ function vsCard() {
 }
 function lobby() {
   if (!S.me) return `<section class="hero"><div><h2>Same chips as Discord</h2>
-      <p>Play blackjack, Ultimate Hold'em and baccarat with your Discord chips. Win here and /chips on Discord shows it, and the other way round. Sign in once so the site knows whose chips they are.</p></div>
-      <div><a class="dbtn" href="/api/login">${DISCORD_SVG}Sign in with Discord</a><div class="fine">The site only gets your Discord name, pfp and ID. No password, no email, no messages.</div></div></section>
+      <p>Play with your Discord chips. Wins show up on Discord too.</p></div>
+      <div><a class="dbtn" href="/api/login">${DISCORD_SVG}Sign in with Discord</a><div class="fine">We only get your Discord name, pfp and ID.</div></div></section>
     ${jackpot()}${lottery()}<div class="cols">${board()}${feed()}</div>`;
   const me = S.me, d = me.daily, b = plateOf(me.id), L = S.lottery, O = S.open || {};
   const msg = T.got ? `<div class="note ok">+${money(T.got)} added${T.weekly ? ' (payday bonus)' : ''}${T.gotBuff ? ` (buffs +${T.gotBuff}%)` : ''}. Good luck.</div>` : '';
@@ -986,22 +985,25 @@ function blackjack(mode) {
   }
   inner += spots;
   const need = bet + sideAmt, spotName = { main: 'Bet', side: fm ? 'Push 22' : 'War', side2: fm ? 'Pot of Gold' : 'Match' };
-  const hint = bet < 1 ? 'Tap chips to place your bet.' : sideKeys.length ? `Chips go on ${spotName[spotOn] || 'Bet'}. Tap another spot on the table to bet there.` : 'Your bet stays on the table for the next hand.';
+  const hint = bet < 1 ? 'Tap chips to bet.' : sideKeys.length ? `Betting on ${spotName[spotOn] || 'Bet'}. Tap a spot to switch.` : 'Your bet stays for the next hand.';
   // the same buttons in the same places every time; the bet chips stay put underneath. Free doubles and splits turn green.
   // Double Down Madness: Hit, Stand (from your second card on) and Double, which adds your whole bet again, as often as you like
   const one = mm && g && g.hands[0].cards.length === 1, h0 = g && g.hands[0];
-  const madHint = !live || !mm ? '' : `<p class="rhint">${one ? (h0.cards[0][0] === 'A' ? 'You started with an ace: your next card is your last. Hit, or double first.' : 'One card each. Hit or double for your second card.')
-    : `Double any time: it adds your whole bet again (${money(h0.bet)} → ${money(h0.bet * 2)}) and gives you one more card. You can keep going.`}</p>`;
+  const madHint = !live || !mm ? '' : `<p class="rhint">${one ? (h0.cards[0][0] === 'A' ? 'Ace: one more card only. Hit or double.' : 'Hit or double for your second card.')
+    : `Double +${money(h0.bet)} for one more card, as often as you like.`}</p>`;
   const controls = `<div class="ctlbox">${live && mm ? `<div class="slots" style="--n:3">${btn('data-bj="hit"', 'Hit', 'gold')}${btn('data-bj="stand"', 'Stand', '', g.canStand)}${btn('data-bj="double"', `Double +${money(g.dblCost)}`, 'free tight', g.canDouble)}</div>${madHint}`
     : live ? `<div class="slots">${btn('data-bj="hit"', 'Hit', 'gold')}${btn('data-bj="stand"', 'Stand', '')}${btn('data-bj="double"', g.freeDouble ? 'Free double' : 'Double', g.freeDouble ? 'free' : 'ghost', g.canDouble)}${btn('data-bj="split"', g.freeSplit ? 'Free split' : 'Split', g.freeSplit ? 'free' : 'ghost', g.canSplit)}</div>`
     : rackHTML(bk, sideKeys.length ? sideKeys : null, `data-do="${bk}-deal"`, `Deal ${money(need)}`, bet >= 1 && need <= (S.me.bal || 0), hint)}</div>`;
   const max = S.maxSide || 25;
+  const short = fm ? 'Free doubles on 9 to 11 · free splits · dealer 22 pushes · Push 22 12:1 · Pot of Gold up to 1,000:1'
+    : mm ? 'One card, double as often as you like · no splits · dealer 22 pushes · War and Match side bets'
+    : `Blackjack pays 3:2 · dealer stands on 17 · $1 to $${S.maxBet}`;
   const rules = fm
     ? `Free double on a hard 9, 10 or 11 · free split on any pair except 10s (up to 6 hands) · a free bet pays even money when its hand wins and costs nothing when it loses · dealer hits soft 17 · dealer 22 pushes every standing hand · blackjack pays 3:2 · six decks, shuffled every hand · $1 to $${S.maxBet}. Push 22 ($0 to $${S.maxPush22 || 25}) pays 12:1. Pot of Gold ($0 to $${max}) pays for every free double and free split you get that hand, win or lose: ${POG_TXT} (loses to a dealer blackjack). Same as /freebet.`
     : mm ? `You start with one card, the dealer with two (the dealer checks for blackjack with an ace or 10 showing) · hit or double for your second card and every card after: doubling adds your whole bet again ($20 → $40 → $80), as many times as you like · no splits · start with an ace and you get one more card only · suited blackjack pays 2:1, other blackjacks 3:2 (on the whole bet) · dealer hits soft 17 · dealer 22 pushes every hand still standing · six decks, shuffled every hand · $1 to $${S.maxBet}. War ($0 to $${max}): your first card beats the dealer's up card (ace high), 1:1, a tie gives back half. Match ($0 to $${max}): your first card vs the dealer's up card, suited pair 12:1, pair 4:1, same suit 1:1. Same as /madness.`
     : `Blackjack pays 3:2 · dealer stands on all 17s · double on any first two cards · split up to 6 hands (split aces get one card each) · $1 to $${S.maxBet}. Same as /blackjack.`;
   return `${balBar(fm ? 'Free Bet' : mm ? 'Double Down Madness' : 'Blackjack', g && g.over ? g.net : 0)}${felt(g ? g.id : '', inner)}${controls}<div class="err">${esc(T.err)}</div>
-    <p class="rules">${rules}</p>${syncLine}`;
+    <p class="rules">${short}</p>${fm || mm ? `<details class="pay"><summary>Full rules</summary>${rules}</details>` : ''}${syncLine}`;
 }
 
 // ---------- Ultimate Hold'em ----------
@@ -1018,11 +1020,11 @@ function uth() {
   const live = g && !done, st = live ? g.stage : '', a = live ? g.ante : ante;
   const b = (m, cls) => btn(`data-uth="b${m}"`, `Bet ${m}x ${money(a * m)}`, cls, live && g.afford[m]);
   // check / fold on the left, the bet on the right, like /live and the poker room
-  const need = ante * 3 + trips, hint = ante < 1 ? 'Tap chips to place your ante.' : `Chips go on ${spotOn === 'side' ? 'Trips' : 'Ante'}. Tap ${spotOn === 'side' ? 'Ante' : 'Trips'} on the table to bet there.`;
+  const need = ante * 3 + trips, hint = ante < 1 ? 'Tap chips to bet.' : `Betting on ${spotOn === 'side' ? 'Trips' : 'Ante'}. Tap ${spotOn === 'side' ? 'Ante' : 'Trips'} to switch.`;
   const slots = `<div class="ctlbox">${live ? `<div class="slots" style="--n:2">${st === 'river' ? btn('data-uth="fold"', 'Fold', 'ghost') : btn('data-uth="chk"', 'Check', 'ghost')}${st === 'pre' ? b(4, 'gold') : st === 'flop' ? b(2, 'gold') : b(1, 'gold')}</div>`
     : rackHTML('ante', 'trips', 'data-do="uth-deal"', `Deal ${money(need)}`, ante >= 1 && need <= (S.me.bal || 0), hint)}</div>`;
-  const controls = `<p class="rules stage">${!live ? `Ante + equal blind up front${trips ? ', plus trips' : ''}, and 1x your ante held so the river bet is always covered (back if you fold). Then bet 4x before the flop, 2x on the flop, or 1x on the river.`
-      : st === 'pre' ? 'Pre-flop: bet 4x your ante now, or check and decide after the flop.' : st === 'flop' ? 'Flop: bet 2x your ante, or check.' : 'River: bet 1x your ante, or fold and lose the ante and blind.'}
+  const controls = `<p class="rules stage">${!live ? 'Ante + blind, then bet 4x pre-flop, 2x on the flop or 1x on the river.'
+      : st === 'pre' ? 'Bet 4x or check.' : st === 'flop' ? 'Bet 2x or check.' : 'Bet 1x or fold.'}
       ${live ? `Ante ${money(g.ante)} · Blind ${money(g.ante)}${g.trips ? ` · Trips ${money(g.trips)}` : ''}${g.held ? ` · ${money(g.held)} held for the river bet` : ''}` : ''}</p>`;
   const lines = done ? `<div class="lines" data-late>${g.lines.map(([b, why, amt]) => `<div><b>${esc(b)}</b><span>${esc(why)}</span><span class="${amt > 0 ? 'pos' : amt < 0 ? 'neg' : ''}">${amt ? signed(amt) : '$0'}</span></div>`).join('')}</div>` : '';
   return `${balBar("Ultimate Hold'em", done ? g.net : 0)}${felt(g ? g.id : '', inner)}${slots}<div class="err">${esc(T.err)}</div>${lines}${controls}
@@ -1047,8 +1049,8 @@ function baccarat() {
   }
   inner += bspots;
   return `${balBar('Baccarat', r ? r.net : 0)}${felt(r ? r.n : '', inner, ' bac')}
-    <div class="ctlbox">${rackHTML('bac', null, 'data-do="bac-deal"', `Deal ${money(bet)}`, bet >= 1 && bet <= (S.me.bal || 0), bet < 1 ? 'Tap chips to place your bet.' : `Your bet is on ${SIDES[side][0]}. Tap Player, Tie or Banker on the table to move it.`)}</div><div class="err">${esc(T.err)}</div>
-    <p class="rules">Fresh 6-deck shoe each hand, standard third-card rules. Player and Banker bets push on a tie. Same as /baccarat.</p>${syncLine}`;
+    <div class="ctlbox">${rackHTML('bac', null, 'data-do="bac-deal"', `Deal ${money(bet)}`, bet >= 1 && bet <= (S.me.bal || 0), bet < 1 ? 'Tap chips to place your bet.' : `On ${SIDES[side][0]}. Tap a spot to move it.`)}</div><div class="err">${esc(T.err)}</div>
+    <p class="rules">6 decks, standard third-card rules · Player and Banker push on a tie</p>${syncLine}`;
 }
 
 // ---------- buttons ----------
@@ -1063,21 +1065,21 @@ function gotwBanner() {
   let rank = 0;
   const rows = f.race.map(r => { const ok = r.hands >= f.minHands; if (ok) rank++;
     return `<div class="rrow${ok && rank === 1 ? ' first' : ''}${S.me && r.id === S.me.id ? ' you' : ''}${ok ? '' : ' out'}"><span class="rk">${ok ? rank : '–'}</span>${av(r.id, r.name)}<b>${esc(r.name)}</b>
-      <small>${r.hands} hand${r.hands === 1 ? '' : 's'}${ok ? '' : ` · needs ${f.minHands}`}</small><span class="m ${r.net > 0 ? 'pos' : r.net < 0 ? 'neg' : ''}">${signed(r.net)}</span></div>`; }).join('');
-  const me = f.me, mine = me ? (me.hands >= f.minHands ? `You: ${me.rank ? '#' + me.rank + ' · ' : ''}${me.hands} hands · ${signed(me.net)}` : `You: ${me.hands} of ${f.minHands} hands to qualify`) : '';
+      <small>${r.hands} hand${r.hands === 1 ? '' : 's'}${ok ? '' : ` · needs ${f.minHands}`}${r.peak !== r.net ? ` · now ${signed(r.net)}` : ''}</small><span class="m ${r.peak > 0 ? 'pos' : r.peak < 0 ? 'neg' : ''}" title="Peak this week">${signed(r.peak)}</span></div>`; }).join('');
+  const me = f.me, mine = me ? (me.hands >= f.minHands ? `You: ${me.rank ? '#' + me.rank + ' · ' : ''}${me.hands} hands · peak ${signed(me.peak)}${me.peak !== me.net ? ', now ' + signed(me.net) : ''}` : `You: ${me.hands} of ${f.minHands} hands to qualify`) : '';
   return `<section class="gotw" style="--gc:${f.css}" aria-label="Game of the Week"><div class="in"><div>
       <span class="gw">GAME OF THE WEEK</span><div class="gname">${esc(f.name)}</div>
       <div class="perks">
         <div class="perk"><span class="k">${Math.round(f.cut * 100)}%</span><div>of every losing bet goes to the jackpot<small>Twice the usual 2%, so the pot fills faster while people play it</small></div></div>
         <div class="perk"><span class="k">2x</span><div>odds to be the hand that drops the jackpot<small>Your hand puts twice as much in, so it covers twice as much of the pot</small></div></div>
-        <div class="perk"><span class="k">TITLE</span><div>Headliner for the top ${esc(f.short)} winner<small>Biggest net win on ${esc(f.short)} this week, ${f.minHands} hands or more</small></div></div>
+        <div class="perk"><span class="k">TITLE</span><div>Headliner for the top ${esc(f.short)} winner<small>Highest peak on ${esc(f.short)} this week (your best point, even if you dip after), ${f.minHands} hands or more</small></div></div>
       </div>
       <div class="meta"><a class="cbtn" style="background:var(--gc);color:#15132a" href="#${f.route}">Play ${esc(f.short)}</a><span>${fLeft(f)} · switches ${fEnds(f)}</span></div></div>
-    <div><div class="rh">HEADLINER RACE</div>${rows || `<div class="empty">Nobody has played ${esc(f.short)} yet this week. First ${f.minHands} hands put you on the board.</div>`}
+    <div><div class="rh">HEADLINER RACE · PEAK</div>${rows || `<div class="empty">Nobody has played ${esc(f.short)} yet this week. First ${f.minHands} hands put you on the board.</div>`}
       ${mine ? `<div class="hint" style="margin:8px 0 0">${mine}</div>` : ''}</div></div></section>`;
 }
 const gotwLine = () => { const f = F(); if (!f || f.route !== route()) return '';
-  const me = f.me; return `<div class="gotwl" style="--gc:${f.css}">⭐ <b>Game of the Week.</b> Losing hands here put ${Math.round(f.cut * 100)}% in the jackpot (twice as likely to drop it).${me ? ` Headliner race: ${me.hands >= f.minHands ? `${me.rank ? '#' + me.rank + ', ' : ''}${signed(me.net)}` : `${me.hands} of ${f.minHands} hands`}.` : ''}</div>`; };
+  const me = f.me; return `<div class="gotwl" style="--gc:${f.css}">⭐ <b>Game of the Week.</b> Losing hands here put ${Math.round(f.cut * 100)}% in the jackpot (twice as likely to drop it).${me ? ` Headliner race: ${me.hands >= f.minHands ? `${me.rank ? '#' + me.rank + ', ' : ''}peak ${signed(me.peak)}` : `${me.hands} of ${f.minHands} hands`}.` : ''}</div>`; };
 
 // ---------- roulette: the shared #casino table (api/_roulette.js) ----------
 // The table lives on the server; this page watches it (GET /api/casino?ro=1 every few seconds while it's on screen)
