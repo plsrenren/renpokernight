@@ -1,5 +1,5 @@
-// /info: posts the welcome post (option C2, picked Nov 21 2026) in the channel it's used in, meant for #info so it can be pinned.
-// Two cards: intro + site links, then "Start here" with the few commands everyone needs. Pitbosses, Renato and admins only.
+// /info: posts the welcome post (option C2 picked Nov 21 2026; Start here split into Get chips + Play, option B, Nov 28 2026) in the channel it's used in, meant for #info so it can be pinned.
+// Four cards: intro + site links, "Start here", "Get chips" (/daily, /earn), "Play" (casino commands + site tables). Pitbosses, Renato and admins only.
 // The bot posts it as a normal message (no "used /info" header) and answers the user privately; if the bot can't send
 // messages in that channel it falls back to answering the command in public. Edit the text here, deploy, then run /info in the same channel again: the bot edits its old post (pin kept).
 import { channels, HOME } from './_channels.js';
@@ -21,8 +21,17 @@ export function infoEmbeds(chan = {}) {
     { color: 0x5865f2, title: '🚀 Start here',
       description: [
         `\`/player\` your card and stats (in ${at(chan.table, 'the-table')})`,
-        '🗓️ React to a game invite with any emoji to say you\'re in',
-        `\`/daily\` free chips, \`/earn\` every way to get more (in ${at(chan.casino, 'casino')})`,
+        '🗓️ React to a game invite to say you\'re in',
+      ].join('\n') },
+    { color: 0x3ba55c, title: '💵 Get chips',
+      description: [
+        '`/daily` $50 a day, $100 on Thursdays. Coming to poker nights boosts it.',
+        '`/earn` every way to get more',
+      ].join('\n') },
+    { color: 0xe8b44a, title: '🎰 Play',
+      description: [
+        `In ${at(chan.casino, 'casino')}: \`/blackjack\` \`/freebet\` \`/uth\` \`/baccarat\` \`/roulette\` \`/duel\``,
+        `On the site, same chips: ${L('Casino', '/casino')} · ${L('Live tables', '/live')} · ${L('Poker room', '/poker')}`,
         '-# Type / to see everything else.',
       ].join('\n') },
   ];
